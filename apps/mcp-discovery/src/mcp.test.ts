@@ -1,0 +1,353 @@
+import { describe, it, expect } from "vitest";
+import { PayInputSchema, SearchInputSchema, selectPayable, withinBudget, fail } from "./tools.js";
+import { payAndCall, searchResources, type McpConfig } from "./server.js";
+
+const config: McpConfig = {
+  bazaarUrl: "http://bazaar.test",
+  stellarSecret: "SBQWY3DNPFLSXTDMLRWNQGKSFDQCB4YHQXQXOQNQXQXOQNQXQXOQNQXO",
+  network: "stellar:testnet",
+};
+
+const opt = (amount: string, network = "stellar:testnet") => ({
+  scheme: "exact",
+  network,
+  amount,
+  asset: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+  payTo: "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+});
+
+/** A fetch that always answers 402 with the given accepts, and records whether payment was tried. */
+function challengeFetch(accepts: ReturnType<typeof opt>[]) {
+  const calls: string[] = [];
+  const impl = (async (input: URL | RequestInfo, init?: RequestInit) => {
+    calls.push(String(init?.method ?? "GET"));
+    const header = Buffer.from(JSON.stringify({ x402Version: 2, accepts }), "utf8").toString("base64");
+    return new Response(JSON.stringify({ error: "Payment required" }), {
+      status: 402,
+      headers: { "PAYMENT-REQUIRED": header },
+    });
+  }) as unknown as typeof fetch;
+  return { impl, calls };
+}
+
+describe("spending safety", () => {
+  it("makes maxAmount required — an agent cannot omit it into an unbounded spend", () => {
+    // Never silently pay an unbounded amount. A default here would be a footgun.
+    const parsed = PayInputSchema.safeParse({ resource: "https://api.test/x" });
+    expect(parsed.success).toBe(false);
+    expect(JSON.stringify(parsed.error?.issues)).toContain("maxAmount");
+  });
+
+  it("rejects a non-integer maxAmount rather than coercing it", () => {
+    for (const bad of ["1.5", "-1", "1e6", "abc", ""]) {
+      expect(PayInputSchema.safeParse({ resource: "https://a.test/x", maxAmount: bad }).success).toBe(false);
+    }
+    expect(PayInputSchema.safeParse({ resource: "https://a.test/x", maxAmount: "0" }).success).toBe(true);
+  });
+
+  it("refuses to pay when the price exceeds the budget, and makes NO payment attempt", async () => {
+    const { impl, calls } = challengeFetch([opt("5000000")]);
+    const result = await payAndCall(config, { resource: "https://api.test/x", maxAmount: "1000000" }, impl);
+
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("mcp_budget_exceeded");
+    expect(result.error?.reason).toContain("5000000");
+    expect(result.error?.reason).toMatch(/no payment was made/i);
+    // Exactly one request — the unpaid probe. Nothing was signed or settled.
+    expect(calls).toEqual(["GET"]);
+  });
+
+  // ── The budget must bind to the price actually paid ──
+  //
+  // `challengeFetch` quotes the same price on every call, so it cannot express the attack that
+  // matters: a server that quotes cheap on the unpaid probe and expensive on the paid request.
+  // Checking only the probe let the tool clear its own gate on one quote and pay another, while
+  // its description promised it never would.
+  function twoFacedServer(probePrice: string, paidPrice: string) {
+    let calls = 0;
+    const quoted: string[] = [];
+    const impl = (async () => {
+      calls += 1;
+      const price = calls === 1 ? probePrice : paidPrice;
+      quoted.push(price);
+      const header = Buffer.from(
+        JSON.stringify({
+          x402Version: 2,
+          resource: { url: "https://api.test/x" },
+          accepts: [{ ...opt(price), maxTimeoutSeconds: 60, extra: { areFeesSponsored: true } }],
+        }),
+        "utf8",
+      ).toString("base64");
+      return new Response(JSON.stringify({ error: "Payment required" }), {
+        status: 402,
+        headers: { "PAYMENT-REQUIRED": header },
+      });
+    }) as unknown as typeof fetch;
+    return { impl, quoted: () => quoted };
+  }
+
+  // A *valid* throwaway testnet keypair, generated for this test and funded by nobody. The shared
+  // `config` above carries a well-formed-looking but checksum-invalid seed, which makes
+  // `createEd25519Signer` throw before the second request is ever issued — so these two tests would
+  // silently pass for the wrong reason with it. Payment still cannot complete (no funds, stub
+  // server), which is fine: what is under test is whether the budget gate is reached and applied.
+  const payingConfig: McpConfig = {
+    ...config,
+    stellarSecret: "SCPFSWCB5PUBF2XKCAJBSWRTOPSBM4Z3TLDSP2OOFNAUOFHP6XSQAM3O",
+  };
+
+  it("refuses when the paid request quotes more than the probe did", async () => {
+    const server = twoFacedServer("1000", "1000000000");
+    const result = await payAndCall(
+      payingConfig,
+      { resource: "https://api.test/x", maxAmount: "2000" },
+      server.impl,
+    );
+
+    // Both quotes were served, so the tool did enter the second request — and still refused.
+    expect(server.quoted()).toEqual(["1000", "1000000000"]);
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("mcp_budget_exceeded");
+    expect(result.error?.retryable).toBe(false);
+    expect(result.error?.reason).toMatch(/no payment was made/i);
+
+    // The details payload is the machine-readable half, and asserting only the code hides a
+    // rejection that is correct but unusable. Recovering the refusal from the rethrown message
+    // published `maxAmount: "the configured maximum"` — a sentence in a numeric field, which
+    // `BigInt()` throws on — and dropped the price entirely, so an agent could not learn what it
+    // had just been asked to pay. The tool contract requires structured output, not only a code.
+    expect(result.error?.details).toMatchObject({
+      price: "1000000000",
+      maxAmount: "2000",
+      quotedOnProbe: "1000",
+    });
+    expect(result.error?.reason).toContain("1000000000");
+  });
+
+  it("still pays when the paid request quotes the same price as the probe", async () => {
+    // Guard against over-correcting into a tool that refuses everything.
+    const server = twoFacedServer("1000", "1000");
+    const result = await payAndCall(
+      payingConfig,
+      { resource: "https://api.test/x", maxAmount: "2000" },
+      server.impl,
+    );
+    expect(server.quoted()).toEqual(["1000", "1000"]);
+    // The stub cannot complete a real Stellar signature, so this fails downstream of the budget
+    // gate — the point is that it is NOT refused as over budget.
+    expect(result.error?.code).not.toBe("mcp_budget_exceeded");
+  });
+});
+
+describe("outbound host policy", () => {
+  // `pay_and_call` fetches a caller-supplied URL and returns the body, which made it a read
+  // primitive aimed at whatever the server could reach.
+  const seen: string[] = [];
+  const spyFetch = (async (input: URL | RequestInfo) => {
+    seen.push(String(input));
+    return new Response(JSON.stringify({ secret: "instance-metadata-token" }), { status: 200 });
+  }) as unknown as typeof fetch;
+
+  it("refuses cloud metadata and loopback addresses without fetching them", async () => {
+    for (const url of [
+      "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+      "http://127.0.0.1:4022/verify",
+      "http://localhost:8080/admin",
+      "http://[::1]/",
+      "http://metadata.google.internal/computeMetadata/v1/",
+      "http://vault.internal/v1/secret",
+      "file:///etc/passwd",
+    ]) {
+      seen.length = 0;
+      const result = await payAndCall(config, { resource: url, maxAmount: "0" }, spyFetch);
+      expect(result.ok, `${url} was not refused`).toBe(false);
+      expect(result.error?.code).toBe("mcp_resource_host_refused");
+      expect(result.error?.retryable).toBe(false);
+      // The refusal must happen BEFORE the request, or it is not a defence.
+      expect(seen, `${url} was fetched anyway`).toEqual([]);
+    }
+  });
+
+  it("allows a public host", async () => {
+    seen.length = 0;
+    const result = await payAndCall(config, { resource: "https://api.test/x", maxAmount: "0" }, spyFetch);
+    expect(result.error?.code).not.toBe("mcp_resource_host_refused");
+    expect(seen).toHaveLength(1);
+  });
+
+  it("allows loopback only when an operator opts in", async () => {
+    seen.length = 0;
+    const result = await payAndCall(
+      { ...config, allowPrivateHosts: true },
+      { resource: "http://127.0.0.1:4022/paid", maxAmount: "0" },
+      spyFetch,
+    );
+    expect(result.error?.code).not.toBe("mcp_resource_host_refused");
+    expect(seen).toHaveLength(1);
+  });
+
+  it("refuses infrastructure hostnames even with the opt-in", async () => {
+    // The escape hatch is for a local seller, not for reaching a metadata service.
+    seen.length = 0;
+    const result = await payAndCall(
+      { ...config, allowPrivateHosts: true },
+      { resource: "http://metadata.google.internal/computeMetadata/v1/", maxAmount: "0" },
+      spyFetch,
+    );
+    expect(result.error?.code).toBe("mcp_resource_host_refused");
+    expect(seen).toEqual([]);
+  });
+
+  it("surfaces the actual price so an agent can decide whether to raise its budget", async () => {
+    const { impl } = challengeFetch([opt("5000000")]);
+    const result = await payAndCall(config, { resource: "https://api.test/x", maxAmount: "10" }, impl);
+    expect(result.error?.details).toMatchObject({ price: "5000000", maxAmount: "10" });
+  });
+
+  it("lets an operator ceiling override a larger agent budget", async () => {
+    const { impl } = challengeFetch([opt("5000000")]);
+    const result = await payAndCall(
+      { ...config, maxAmountCeiling: "1000000" },
+      { resource: "https://api.test/x", maxAmount: "9999999999" },
+      impl,
+    );
+    expect(result.error?.code).toBe("mcp_budget_exceeded");
+    expect(result.error?.details).toMatchObject({ maxAmount: "1000000" });
+  });
+
+  it("compares budgets as bigint, so precision loss cannot authorize an overspend", () => {
+    // Number("9007199254740993") === 9007199254740992 — a float comparison would wrongly pass.
+    expect(withinBudget("9007199254740993", "9007199254740992")).toBe(false);
+    expect(withinBudget("9007199254740992", "9007199254740993")).toBe(true);
+    expect(withinBudget("not-a-number", "100")).toBe(false);
+  });
+
+  it("does not pay for a resource that was never paywalled", async () => {
+    const impl = (async () => new Response(JSON.stringify({ free: true }), { status: 200 })) as unknown as typeof fetch;
+    const result = await payAndCall(config, { resource: "https://api.test/x", maxAmount: "100" }, impl);
+    expect(result.ok).toBe(true);
+    expect(result.data?.paid).toBeUndefined();
+  });
+});
+
+describe("payment option selection", () => {
+  it("chooses the cheapest affordable Stellar option", () => {
+    const { chosen } = selectPayable([opt("3000000"), opt("1000000"), opt("2000000")], "5000000");
+    expect(chosen?.amount).toBe("1000000");
+  });
+
+  it("ignores non-Stellar networks entirely", () => {
+    const { chosen } = selectPayable([opt("10", "eip155:8453"), opt("500")], "1000");
+    expect(chosen?.network).toBe("stellar:testnet");
+  });
+
+  it("honours an explicit network preference", () => {
+    const { chosen } = selectPayable(
+      [opt("10", "stellar:testnet"), opt("20", "stellar:pubnet")],
+      "1000",
+      "stellar:pubnet",
+    );
+    expect(chosen?.network).toBe("stellar:pubnet");
+  });
+
+  it("reports the cheapest rejected option when nothing is affordable", () => {
+    const { chosen, cheapestRejected } = selectPayable([opt("9000"), opt("8000")], "100");
+    expect(chosen).toBeUndefined();
+    expect(cheapestRejected?.amount).toBe("8000");
+  });
+
+  it("returns nothing payable when only non-Stellar options exist", async () => {
+    const { impl } = challengeFetch([opt("10", "eip155:8453")]);
+    const result = await payAndCall(config, { resource: "https://api.test/x", maxAmount: "1000" }, impl);
+    expect(result.error?.code).toBe("mcp_resource_not_payable");
+    expect(result.error?.details).toMatchObject({ offered: ["eip155:8453"] });
+  });
+});
+
+describe("structured errors", () => {
+  it("gives every failure a code, a non-null reason, and a retryable flag", () => {
+    const result = fail("mcp_budget_exceeded");
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("mcp_budget_exceeded");
+    expect(result.error?.reason.length).toBeGreaterThan(20);
+    expect(typeof result.error?.retryable).toBe("boolean");
+  });
+
+  it("reports an unreachable Bazaar rather than throwing at the agent", async () => {
+    const result = await searchResources(
+      { ...config, bazaarUrl: "http://127.0.0.1:1" },
+      { query: "weather" },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("mcp_upstream_error");
+    expect(result.error?.reason).toBeTruthy();
+  });
+
+  it("refuses paid calls when no signer is configured, with a clear reason", async () => {
+    const result = await payAndCall(
+      { bazaarUrl: "http://bazaar.test", network: "stellar:testnet" },
+      { resource: "https://api.test/x", maxAmount: "100" },
+    );
+    expect(result.error?.code).toBe("mcp_resource_not_payable");
+    expect(result.error?.reason).toMatch(/signer/i);
+  });
+});
+
+describe("search tool contract", () => {
+  it("requires a non-empty query and bounds the limit", () => {
+    expect(SearchInputSchema.safeParse({ query: "" }).success).toBe(false);
+    expect(SearchInputSchema.safeParse({ query: "weather", limit: 999 }).success).toBe(false);
+    expect(SearchInputSchema.safeParse({ query: "weather" }).data?.limit).toBe(10);
+  });
+
+  it("projects price, input schema and usage so an agent can choose without a second call", async () => {
+    const impl = (async () =>
+      new Response(
+        JSON.stringify({
+          resources: [
+            {
+              resource: "https://api.test/weather",
+              type: "http",
+              description: "Weather",
+              accepts: [opt("1000000")],
+              quality: { totalSettlements: 9, uniquePayers: 4 },
+              extensions: { bazaar: { info: { input: { inputSchema: { type: "object" } } } } },
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = impl;
+    try {
+      const result = await searchResources(config, { query: "weather" });
+      const hit = result.data!.results[0]!;
+      expect(hit.price).toMatchObject({ amount: "1000000" });
+      expect(hit.usage).toEqual({ settlements: 9, uniquePayers: 4 });
+      expect(hit.inputSchema).toEqual({ type: "object" });
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("filters out resources the agent cannot afford before showing them", async () => {
+    const impl = (async () =>
+      new Response(
+        JSON.stringify({
+          resources: [
+            { resource: "https://a.test/cheap", type: "http", accepts: [opt("100")] },
+            { resource: "https://a.test/pricey", type: "http", accepts: [opt("9999999")] },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = impl;
+    try {
+      const result = await searchResources(config, { query: "x", maxPrice: "1000" });
+      expect(result.data!.results.map(r => r.resource)).toEqual(["https://a.test/cheap"]);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
