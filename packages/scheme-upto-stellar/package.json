@@ -1,0 +1,25 @@
+{
+  "name": "@x402-stellar/scheme-upto-stellar",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "The upto scheme for Stellar: client, server and facilitator, backed by the x402 upto settlement contract.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@x402-stellar/errors": "workspace:*",
+    "@x402/core": "2.20.0",
+    "@x402/stellar": "2.20.0",
+    "@stellar/stellar-sdk": "^16.2.0"
+  },
+  "devDependencies": { "typescript": "^5.7.3", "vitest": "^3.0.5" }
+}
