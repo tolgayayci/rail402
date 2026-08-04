@@ -1,0 +1,47 @@
+{
+  "name": "x402-stellar-facilitator",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Production x402 facilitator for Stellar with a Stellar-native Bazaar discovery layer and agent-facing MCP discovery server.",
+  "repository": "https://github.com/tolgayayci/x402-stellar",
+  "packageManager": "pnpm@10.30.2",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint -- --fix",
+    "typecheck": "turbo run typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "canary": "pnpm --filter @x402-stellar/canary exec tsx src/cli.ts",
+    "conformance": "node packages/conformance/bin/conformance.mjs",
+    "license:gate": "node scripts/license-gate.mjs",
+    "license:report": "node scripts/license-gate.mjs --report",
+    "notices": "node scripts/generate-notices.mjs",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm license:gate",
+    "notices:check": "node scripts/generate-notices.mjs --check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.24.0",
+    "@stellar/stellar-sdk": "16.2.0",
+    "@types/node": "^22.13.4",
+    "eslint": "^9.24.0",
+    "prettier": "^3.5.2",
+    "turbo": "^2.9.16",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.29.1",
+    "vitest": "^3.0.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion": "^5.0.9",
+      "fast-uri": "^3.1.5",
+      "hono": "^4.12.34"
+    }
+  }
+}

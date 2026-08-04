@@ -1,0 +1,27 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "examples/*"
+  # The documentation site is deliberately OUTSIDE this workspace, with its own lockfile and its
+  # own install (`apps/docs/README.md`).
+  #
+  # Why: every dependency of the deliverable must be compatible with permissive
+  # redistribution AND with operating the code as a network service, and `scripts/license-gate.mjs`
+  # enforces that fail-closed over the whole tree. A Next.js docs site drags in ~440 further
+  # packages — sharp/libvips (LGPL-3.0), lightningcss and axe-core (MPL-2.0), caniuse-lite
+  # (CC-BY-4.0) — none of which the facilitator, Bazaar, MCP server or any shipped package touches.
+  #
+  # Excluding it keeps the licence gate measuring exactly the service we
+  # operate. The docs site is scanned on its own terms instead of quietly relaxing the standard
+  # that covers settlement code.
+  - "!apps/docs"
+
+# Keep a single resolved version of the x402 SDK family and the Stellar SDK across
+# the whole workspace. Divergence here would let two packages disagree about wire
+# types, which is exactly the failure mode conformance is supposed to catch.
+catalog:
+  "@x402/core": "2.20.0"
+  "@x402/stellar": "2.20.0"
+  "@x402/extensions": "2.20.0"
+  "@x402/mcp": "2.20.0"
+  "@stellar/stellar-sdk": "^16.2.0"
