@@ -1,0 +1,68 @@
+{
+  "check": "time-to-discoverable",
+  "status": "pass",
+  "observedAt": "2026-07-31T15:40:32.009Z",
+  "network": "stellar:testnet",
+  "facilitator": "https://gathered-zope-building-shares.trycloudflare.com",
+  "durationMs": 33979,
+  "steps": [
+    {
+      "name": "facilitator-reachable",
+      "ok": true,
+      "detail": "/supported advertises bazaar",
+      "ms": 180
+    },
+    {
+      "name": "provision-identity",
+      "ok": true,
+      "detail": "funded accounts, asset issued, both trustlines up",
+      "ms": 23577
+    },
+    {
+      "name": "publish-endpoint",
+      "ok": true,
+      "detail": "stock middleware + one `extensions` key",
+      "ms": 33
+    },
+    {
+      "name": "first-payment",
+      "ok": true,
+      "detail": "settled and catalogued in one round trip",
+      "ms": 9766
+    },
+    {
+      "name": "appears-in-catalog",
+      "ok": true,
+      "detail": "listed 216ms after settlement",
+      "ms": 216
+    },
+    {
+      "name": "findable-by-search",
+      "ok": true,
+      "detail": "rank 3 for a natural-language query",
+      "ms": 207
+    }
+  ],
+  "failure": null,
+  "observations": {
+    "transaction": "1bbff43a1bea5303ef5ada8faedba83d6844ef8a0e669a7965e96a7d1b669396",
+    "totalSeconds": 34,
+    "phaseMs": {
+      "provision-identity": 23577,
+      "publish-endpoint": 33,
+      "first-payment": 9766,
+      "appears-in-catalog": 216,
+      "findable-by-search": 207
+    },
+    "targetSeconds": 3600,
+    "regressionThresholdSeconds": 300,
+    "sellerSurface": {
+      "manualSteps": 0,
+      "thirdPartyAccounts": 0,
+      "extraConfigForDiscovery": 1,
+      "extraConfigName": "extensions",
+      "note": "Cataloging is triggered by the first settled payment. There is no registration endpoint, no dashboard and no API key on the discovery path — which is why this count is zero rather than small."
+    },
+    "measurementNote": "Machine time only. Does NOT include a human reading docs or writing code — see sellerSurface for the integration cost that stands in for it."
+  }
+}

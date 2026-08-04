@@ -1,0 +1,85 @@
+{
+  "check": "discovery-loop",
+  "status": "pass",
+  "observedAt": "2026-07-31T15:37:47.177Z",
+  "network": "stellar:testnet",
+  "facilitator": "https://gathered-zope-building-shares.trycloudflare.com",
+  "durationMs": 43011,
+  "steps": [
+    {
+      "name": "facilitator-reachable",
+      "ok": true,
+      "detail": "/supported advertises bazaar",
+      "ms": 458
+    },
+    {
+      "name": "testnet-fixtures",
+      "ok": true,
+      "detail": "asset CNRY153704 · buyer GBOXS4J3…7DLB",
+      "ms": 31257
+    },
+    {
+      "name": "seller-online",
+      "ok": true,
+      "detail": "http://127.0.0.1:60333/canary/20260731153704/tides",
+      "ms": 46
+    },
+    {
+      "name": "payload-built",
+      "ok": true,
+      "detail": "stock client, discovery extension present",
+      "ms": 1464
+    },
+    {
+      "name": "verify",
+      "ok": true,
+      "detail": "isValid: true",
+      "ms": 1659
+    },
+    {
+      "name": "settle",
+      "ok": true,
+      "detail": "tx 6f12bcdd…010d",
+      "ms": 7659
+    },
+    {
+      "name": "cataloging-reported",
+      "ok": true,
+      "detail": "bazaar status \"success\"",
+      "ms": 0
+    },
+    {
+      "name": "indexed",
+      "ok": true,
+      "detail": "appeared after 238ms (1 poll(s))",
+      "ms": 238
+    },
+    {
+      "name": "parameter-descriptions",
+      "ok": true,
+      "detail": "seller's parameter prose survived cataloging",
+      "ms": 0
+    },
+    {
+      "name": "ranked",
+      "ok": true,
+      "detail": "rank 1 of 1 for \"tide times and sea conditions at a coastal port\"",
+      "ms": 229
+    }
+  ],
+  "failure": null,
+  "observations": {
+    "transaction": "6f12bcdd46d50781afa95768488d9804d7517ebff84c2560278cfd0cb2b6010d",
+    "amount": "2500000",
+    "asset": "CCJGO7G23IJSGWOPF32P47BC53FHH3XS5UXSBCJMMSYPWIT4RPJCVQYA",
+    "extensionResponses": {
+      "status": "success"
+    },
+    "indexingLagMs": 238,
+    "indexingPolls": 1,
+    "searchQuery": "tide times and sea conditions at a coastal port",
+    "searchRank": 1,
+    "searchResultCount": 1,
+    "resource": "http://127.0.0.1:60333/canary/20260731153704/tides"
+  }
+}

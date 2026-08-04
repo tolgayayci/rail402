@@ -1,0 +1,56 @@
+{
+  "check": "burst",
+  "observedAt": "2026-08-01T13:43:16.946Z",
+  "facilitator": "http://127.0.0.1:4021",
+  "lanes": [
+    {
+      "signers": 1,
+      "lanes": 1,
+      "perLane": "1000–1000",
+      "balanced": true,
+      "concurrentSettlementsBeforeContention": 1
+    },
+    {
+      "signers": 2,
+      "lanes": 2,
+      "perLane": "500–500",
+      "balanced": true,
+      "concurrentSettlementsBeforeContention": 2
+    },
+    {
+      "signers": 4,
+      "lanes": 4,
+      "perLane": "250–250",
+      "balanced": true,
+      "concurrentSettlementsBeforeContention": 4
+    },
+    {
+      "signers": 8,
+      "lanes": 8,
+      "perLane": "125–125",
+      "balanced": true,
+      "concurrentSettlementsBeforeContention": 8
+    }
+  ],
+  "verify": {
+    "skipped": false,
+    "requests": 2000,
+    "concurrency": 64,
+    "peakInFlight": 64,
+    "wallSeconds": 0.17,
+    "throughputPerSecond": 11869.6,
+    "latencyMs": {
+      "p50": 4,
+      "p95": 13,
+      "p99": 18,
+      "max": 20
+    },
+    "responses": {
+      "invalid_exact_stellar_payload_malformed": 2000
+    }
+  },
+  "settle": {
+    "notMeasured": true,
+    "reason": "Concurrent on-ledger settlement needs N funded payers and writes real ledger entries. It belongs in the nightly canary against testnet, not in a dev-loop script. Phase 1 establishes the lane count; what remains unmeasured is real sequence contention under simultaneous submission."
+  }
+}

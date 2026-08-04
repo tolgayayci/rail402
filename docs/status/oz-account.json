@@ -1,0 +1,82 @@
+{
+  "check": "oz-account",
+  "status": "pass",
+  "observedAt": "2026-08-04T13:14:09.825Z",
+  "network": "http://127.0.0.1:4122",
+  "facilitator": "20260804131242",
+  "durationMs": 80487,
+  "steps": [
+    {
+      "name": "testnet-fixtures",
+      "ok": true,
+      "detail": "asset CNRY131242 · seller GCWM3CEW…",
+      "ms": 24702
+    },
+    {
+      "name": "deploy-oz-account",
+      "ok": true,
+      "detail": "CB4EMQSGMG… (admin rule carries no policy)",
+      "ms": 4908
+    },
+    {
+      "name": "fund-smart-account",
+      "ok": true,
+      "detail": "asset minted to the contract account (no trustline required)",
+      "ms": 4739
+    },
+    {
+      "name": "two-rule-layout",
+      "ok": true,
+      "detail": "rule 1 scopes settle, rule 2 scopes the token",
+      "ms": 10164
+    },
+    {
+      "name": "exact-payment",
+      "ok": true,
+      "detail": "verified and settled 1000000 · tx 54dd5af3…",
+      "ms": 10495
+    },
+    {
+      "name": "upto-payment",
+      "ok": true,
+      "detail": "ceiling 2000000, settled 750000 · tx 352e9cd6…",
+      "ms": 9901
+    },
+    {
+      "name": "policy-refuses-over-budget",
+      "ok": true,
+      "detail": "refused at verify: invalid_exact_stellar_payload_account_policy_refused",
+      "ms": 1823
+    },
+    {
+      "name": "budget-state",
+      "ok": true,
+      "detail": "settle rule 750000 (reconciled to actual, from a 2000000 ceiling), token rule 1000000 (exact only)",
+      "ms": 8114
+    },
+    {
+      "name": "reconciliation-frees-later",
+      "ok": true,
+      "detail": "second upto ceiling 4000000 admitted after the first reconciled to 750000 · tx 3a4b387a…",
+      "ms": 5639
+    }
+  ],
+  "failure": null,
+  "observations": {
+    "accountAddress": "CB4EMQSGMGY6NODYKX77LFSCKXYHXUF5CYRTNGBEBPXCXS3M4NKZ27WO",
+    "sessionKey": "GDNWIJSY6RMA6NWTYTLEI2QPHRLALU3ESWQCFVX6TQRROX37LEPBDAZA",
+    "settleRuleId": 1,
+    "tokenRuleId": 2,
+    "exactTransaction": "54dd5af3c412ecb0b3f62b480d58e90b3b74803744620ad8303193357199d01d",
+    "uptoTransaction": "352e9cd685fcf890f217dcb906d05d8e38800df7eab36b456b189d437f0cb401",
+    "overBudgetRefusedAt": "verify",
+    "overBudgetCode": "invalid_exact_stellar_payload_account_policy_refused",
+    "settleRuleSpent": "750000",
+    "tokenRuleSpent": "1000000",
+    "uptoCeiling": "2000000",
+    "uptoActualSettled": "750000",
+    "uptoBudgetReconciled": "true",
+    "freedBudgetTransaction": "3a4b387a3f3baaf356875f75584821a799cc99db05f63e6f548553d4af0035b1",
+    "freedBudgetCeiling": "4000000"
+  }
+}

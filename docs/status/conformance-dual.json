@@ -1,0 +1,21 @@
+{
+  "generatedAt": "2026-08-01T11:18:06.766Z",
+  "pinned": {
+    "sha": "183b2706953e5d730f268360ca20bddd58ba19a1",
+    "ok": false,
+    "scenarios": {
+      "passed": 2,
+      "failed": 2
+    }
+  },
+  "latest": {
+    "sha": "ee1b148de4a8f5caa934e997a43bc8f6f898efbb",
+    "ok": false,
+    "scenarios": {
+      "passed": 2,
+      "failed": 2
+    }
+  },
+  "verdict": "regression",
+  "note": "FAILS AT THE PINNED SHA (2 of 4 scenarios passed, 2 failed). Not spec drift. The two that pass settle real testnet USDC end to end through the unmodified upstream suite with stock axios and fetch clients. The two that fail do so for a diagnosed UPSTREAM reason, not a defect here: the suite never assigns mockFacilitatorUrl (declared in e2e/src/types.ts, read in src/servers/generic-server.ts, assigned nowhere), and the multi-family resource servers fail closed on any route the facilitator under test does not support. Run with --servers=next to avoid the union."
+}

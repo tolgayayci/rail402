@@ -1,0 +1,87 @@
+{
+  "$comment": [
+    "The wire-level acceptance criteria, as structured data.",
+    "",
+    "Why this file exists: prose used to state the same fact in three places, and they drifted",
+    "apart \u2014 one paragraph claimed `upto` settlement was still outstanding while the table two screens",
+    "below listed its settled transaction hash. Prose that duplicates a fact will eventually contradict",
+    "it. So facts live here once, and the document is generated.",
+    "",
+    "Criteria 4 and 6 have NO entry here on purpose. They are resolved from the runs that measured them \u2014",
+    "conformance-dual.json and rejection-audit.json \u2014 and the generator refuses to build if anyone writes",
+    "one here. They are the two most tempting claims to assert rather than earn, so they are the two that",
+    "cannot be written by hand at all.",
+    "",
+    "Every other entry carries `evidence`: what was observed, not what was intended."
+  ],
+  "network": "stellar:testnet",
+  "criteria": [
+    {
+      "id": 1,
+      "criterion": "An unmodified canonical client completes a payment end to end",
+      "status": "met",
+      "evidence": "examples/paid-api-agent runs a buyer built from @x402/core + @x402/fetch + @x402/stellar that imports nothing from this repository.",
+      "transaction": "3f6031ed4d3d17100992b1e003f9bcc6da51ef684cc1ba402432ae52166a903f"
+    },
+    {
+      "id": 2,
+      "criterion": "`/supported` emits the Stellar `extra` contract including `areFeesSponsored`",
+      "status": "met",
+      "evidence": "Our stellar:testnet kind is byte-identical to the live public x402.org facilitator's, compared against docs/research/captures/2026-07-30/x402org-supported.json. Truthful, not merely present: the fee for the stock-client settlement was charged to the facilitator, not the buyer."
+    },
+    {
+      "id": 3,
+      "criterion": "The spec `payload: {transaction}` format is accepted verbatim",
+      "status": "met",
+      "evidence": "The stock client's payload is submitted unmodified to /verify and /settle; no local variants and no renamed fields anywhere in the request path."
+    },
+    {
+      "id": 5,
+      "criterion": "A published settled transaction hash per scheme",
+      "status": "met",
+      "evidence": "`exact` and `upto` both settled on testnet; hashes below."
+    }
+  ],
+  "settlements": [
+    {
+      "scheme": "exact",
+      "transaction": "3f6031ed4d3d17100992b1e003f9bcc6da51ef684cc1ba402432ae52166a903f",
+      "note": "unmodified stock client; recipient 0.0000000 -> 0.2500000"
+    },
+    {
+      "scheme": "exact",
+      "transaction": "0b149e8d9f6f2290bb792d3ffe2125804d655caa43fbc159d8ef13c4972bf713",
+      "note": "MCP agent, zero pre-baked integration"
+    },
+    {
+      "scheme": "exact",
+      "transaction": "12adbc731f09d8bbb37a8f644247e53483f6cb3ae0fc475aad3e971dc3ca46c1",
+      "note": "hand-built client, the first end-to-end settlement"
+    },
+    {
+      "scheme": "upto",
+      "transaction": "5e5d862c88efe16592aa7a0671c4edb917f415481884ec526b62088ef846cce5",
+      "note": "3,500,000 settled against a 10,000,000 authorized ceiling, against the current contract CCMM3FMG\u2026 which carries the settlement hook (a keypair payer passes hook = None); over-cap and replay both refused in the same run. Supersedes 5ec8b20c\u2026, which settled against the superseded hookless contract CBHDZLYA\u2026."
+    },
+    {
+      "scheme": "exact",
+      "transaction": "52c62499f22e37e4dc1186552b2f7684a874d9f85a1f38c11320cb2a194a5ca1",
+      "note": "upstream x402 e2e suite, stock axios client, real testnet USDC"
+    },
+    {
+      "scheme": "exact",
+      "transaction": "5c5e22318b070c120b15440a02c3c7365f6f23ed87157d48a024c59d9394753f",
+      "note": "upstream x402 e2e suite, stock fetch client, real testnet USDC"
+    },
+    {
+      "scheme": "exact",
+      "transaction": "cfb8c0fdeec7e54d2becb9ee4e357c291727e121397546f25607333064ca57c1",
+      "note": "real testnet USDC (issuer GBBD47IF…) through our /verify and /settle at the DEFAULT fee ceiling; from=payer, fee sponsored by the facilitator."
+    },
+    {
+      "scheme": "upto",
+      "transaction": "1fb4452b7a095ffd848896d85aa59e4e3e60db3b90910c3238ade309e11c846e",
+      "note": "upto settlement in real testnet USDC against the current contract CCMM3FMG… — 0.075 of a 0.20 authorized ceiling, proving the contract's approve/transfer_from works against the canonical USDC SAC and not only a self-issued one (over-cap and replay both refused in the same run)."
+    }
+  ]
+}

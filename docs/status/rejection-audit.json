@@ -1,0 +1,300 @@
+{
+  "check": "rejection-audit",
+  "status": "pass",
+  "observedAt": "2026-07-31T15:39:57.118Z",
+  "network": "stellar:testnet",
+  "facilitator": "https://gathered-zope-building-shares.trycloudflare.com",
+  "durationMs": 129938,
+  "steps": [
+    {
+      "name": "facilitator-reachable",
+      "ok": true,
+      "detail": "/supported advertises bazaar",
+      "ms": 197
+    },
+    {
+      "name": "testnet-fixtures",
+      "ok": true,
+      "detail": "asset CNRY153704",
+      "ms": 23387
+    },
+    {
+      "name": "malformed-json",
+      "ok": true,
+      "detail": "invalid_payload — Request body is not valid JSON.",
+      "ms": 342
+    },
+    {
+      "name": "missing-fields",
+      "ok": true,
+      "detail": "invalid_payload — Request must contain \"paymentPayload\" and \"paymentRequirements\" objec…",
+      "ms": 260
+    },
+    {
+      "name": "search-without-query",
+      "ok": true,
+      "detail": "invalid_payload — The `query` parameter is required and must be a non-empty search string.",
+      "ms": 191
+    },
+    {
+      "name": "unknown-endpoint",
+      "ok": true,
+      "detail": "invalid_payload — No such endpoint: GET /discovery/resource. This facilitator serves /v…",
+      "ms": 170
+    },
+    {
+      "name": "signed-payment",
+      "ok": true,
+      "detail": "stock client payload ready",
+      "ms": 1410
+    },
+    {
+      "name": "unknown-x402-version",
+      "ok": true,
+      "detail": "invalid_x402_version — This facilitator implements x402 version 2 only. No facilitator regis…",
+      "ms": 131
+    },
+    {
+      "name": "unserved-network",
+      "ok": true,
+      "detail": "invalid_network — Network eip155:8453 is not served by this facilitator. Supported: ste…",
+      "ms": 135
+    },
+    {
+      "name": "unsupported-scheme",
+      "ok": true,
+      "detail": "unsupported_scheme — Scheme handshake is not supported on stellar:testnet. This facilitato…",
+      "ms": 129
+    },
+    {
+      "name": "tampered-amount",
+      "ok": true,
+      "detail": "invalid_exact_stellar_payload_wrong_amount — The transfer amount does not exactly match the amount in the payment …",
+      "ms": 327
+    },
+    {
+      "name": "wrong-recipient",
+      "ok": true,
+      "detail": "invalid_exact_stellar_payload_wrong_recipient — The transfer recipient does not match the payTo address in the paymen…",
+      "ms": 185
+    },
+    {
+      "name": "wrong-asset",
+      "ok": true,
+      "detail": "invalid_exact_stellar_payload_wrong_asset — The contract invoked by the transaction is not the asset named in the…",
+      "ms": 186
+    },
+    {
+      "name": "malformed-transaction",
+      "ok": true,
+      "detail": "invalid_exact_stellar_payload_malformed — The payload transaction is missing or is not a base64-encoded Stellar…",
+      "ms": 132
+    },
+    {
+      "name": "recipient-trustline-removed",
+      "ok": true,
+      "detail": "invalid_exact_stellar_payload_missing_trustline_recipient — The payTo account has no trustline to the payment asset and cannot re…",
+      "ms": 17423
+    },
+    {
+      "name": "payer-balance-drained",
+      "ok": true,
+      "detail": "invalid_exact_stellar_payload_insufficient_balance — The payer's balance of the payment asset is lower than the required a…",
+      "ms": 29993
+    },
+    {
+      "name": "settle-once",
+      "ok": true,
+      "detail": "tx b138b2e50727…",
+      "ms": 4728
+    },
+    {
+      "name": "replayed-payload",
+      "ok": true,
+      "detail": "invalid_exact_stellar_payload_authorization_replayed — This authorization has already been used. Soroban consumed its nonce,…",
+      "ms": 581
+    },
+    {
+      "name": "catalog-resource-url-missing",
+      "ok": true,
+      "detail": "bazaar_missing_resource_url — The payment payload carries a bazaar extension but no resource.url to…",
+      "ms": 13884
+    },
+    {
+      "name": "catalog-non-http-url",
+      "ok": true,
+      "detail": "bazaar_invalid_resource_url — Resource URL must be http(s); got \"ftp:\".",
+      "ms": 15850
+    },
+    {
+      "name": "catalog-ownership-conflict",
+      "ok": true,
+      "detail": "bazaar_listing_ownership_conflict — This resource is already cataloged under payTo GAYMEIA77MXENDBJFQLX4W…",
+      "ms": 20262
+    }
+  ],
+  "failure": null,
+  "observations": {
+    "referenceTransaction": "b138b2e507270a06fb298391e0a76ff675807d973aa139d83c5abf120bcf746b",
+    "cases": [
+      {
+        "name": "malformed-json",
+        "expected": [
+          "invalid_payload"
+        ],
+        "observed": "invalid_payload",
+        "reason": "Request body is not valid JSON.",
+        "ok": true
+      },
+      {
+        "name": "missing-fields",
+        "expected": [
+          "invalid_payload"
+        ],
+        "observed": "invalid_payload",
+        "reason": "Request must contain \"paymentPayload\" and \"paymentRequirements\" objects. Problems at: paymentPayload, paymentRequirements.",
+        "ok": true
+      },
+      {
+        "name": "search-without-query",
+        "expected": [
+          "invalid_payload"
+        ],
+        "observed": "invalid_payload",
+        "reason": "The `query` parameter is required and must be a non-empty search string.",
+        "ok": true
+      },
+      {
+        "name": "unknown-endpoint",
+        "expected": [
+          "invalid_payload"
+        ],
+        "observed": "invalid_payload",
+        "reason": "No such endpoint: GET /discovery/resource. This facilitator serves /verify, /settle, /supported, /discovery/resources, /discovery/search, /health and /metrics.",
+        "ok": true
+      },
+      {
+        "name": "unknown-x402-version",
+        "expected": [
+          "invalid_x402_version"
+        ],
+        "observed": "invalid_x402_version",
+        "reason": "This facilitator implements x402 version 2 only. No facilitator registered for x402 version: 99.",
+        "ok": true
+      },
+      {
+        "name": "unserved-network",
+        "expected": [
+          "invalid_network"
+        ],
+        "observed": "invalid_network",
+        "reason": "Network eip155:8453 is not served by this facilitator. Supported: stellar:testnet.",
+        "ok": true
+      },
+      {
+        "name": "unsupported-scheme",
+        "expected": [
+          "unsupported_scheme"
+        ],
+        "observed": "unsupported_scheme",
+        "reason": "Scheme handshake is not supported on stellar:testnet. This facilitator implements the \"exact\" scheme.",
+        "ok": true
+      },
+      {
+        "name": "tampered-amount",
+        "expected": [
+          "invalid_exact_stellar_payload_wrong_amount"
+        ],
+        "observed": "invalid_exact_stellar_payload_wrong_amount",
+        "reason": "The transfer amount does not exactly match the amount in the payment requirements.",
+        "ok": true
+      },
+      {
+        "name": "wrong-recipient",
+        "expected": [
+          "invalid_exact_stellar_payload_wrong_recipient"
+        ],
+        "observed": "invalid_exact_stellar_payload_wrong_recipient",
+        "reason": "The transfer recipient does not match the payTo address in the payment requirements.",
+        "ok": true
+      },
+      {
+        "name": "wrong-asset",
+        "expected": [
+          "invalid_exact_stellar_payload_wrong_asset"
+        ],
+        "observed": "invalid_exact_stellar_payload_wrong_asset",
+        "reason": "The contract invoked by the transaction is not the asset named in the payment requirements.",
+        "ok": true
+      },
+      {
+        "name": "malformed-transaction",
+        "expected": [
+          "invalid_exact_stellar_payload_malformed"
+        ],
+        "observed": "invalid_exact_stellar_payload_malformed",
+        "reason": "The payload transaction is missing or is not a base64-encoded Stellar transaction.",
+        "ok": true
+      },
+      {
+        "name": "recipient-trustline-removed",
+        "expected": [
+          "invalid_exact_stellar_payload_missing_trustline_recipient",
+          "invalid_exact_stellar_payload_simulation_failed"
+        ],
+        "observed": "invalid_exact_stellar_payload_missing_trustline_recipient",
+        "reason": "The payTo account has no trustline to the payment asset and cannot receive it.",
+        "ok": true
+      },
+      {
+        "name": "payer-balance-drained",
+        "expected": [
+          "invalid_exact_stellar_payload_insufficient_balance",
+          "invalid_exact_stellar_payload_simulation_failed"
+        ],
+        "observed": "invalid_exact_stellar_payload_insufficient_balance",
+        "reason": "The payer's balance of the payment asset is lower than the required amount.",
+        "ok": true
+      },
+      {
+        "name": "replayed-payload",
+        "expected": [
+          "invalid_exact_stellar_payload_authorization_replayed"
+        ],
+        "observed": "invalid_exact_stellar_payload_authorization_replayed",
+        "reason": "This authorization has already been used. Soroban consumed its nonce, so it cannot be settled again.",
+        "ok": true
+      },
+      {
+        "name": "catalog-resource-url-missing",
+        "expected": [
+          "bazaar_missing_resource_url"
+        ],
+        "observed": "bazaar_missing_resource_url",
+        "reason": "The payment payload carries a bazaar extension but no resource.url to catalog it under.",
+        "ok": true
+      },
+      {
+        "name": "catalog-non-http-url",
+        "expected": [
+          "bazaar_invalid_resource_url"
+        ],
+        "observed": "bazaar_invalid_resource_url",
+        "reason": "Resource URL must be http(s); got \"ftp:\".",
+        "ok": true
+      },
+      {
+        "name": "catalog-ownership-conflict",
+        "expected": [
+          "bazaar_listing_ownership_conflict"
+        ],
+        "observed": "bazaar_listing_ownership_conflict",
+        "reason": "This resource is already cataloged under payTo GAYMEIA77MXENDBJFQLX4W3MYIDNWMCCJPSPCIWG3VZD4EMJIEKQHSQ6; a payment to GDA5SZX3ODK7ZUPRWG67OQD7IGGPSG5KGAAXADIKSZCKEUJGPRDURBYN cannot modify it.",
+        "ok": true
+      }
+    ],
+    "casesPassed": 17,
+    "casesTotal": 17,
+    "firstSettlementCataloged": "success"
+  }
+}

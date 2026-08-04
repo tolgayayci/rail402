@@ -1,0 +1,105 @@
+{
+  "$comment": [
+    "Which of our modules implement which upstream spec file.",
+    "",
+    "Purpose: turn 'bazaar.md changed' into 'these four files need review'. A drift alert that names",
+    "only the spec that moved costs an hour of rediscovery every time; one that names the code costs",
+    "minutes. That difference is what decides whether the maintenance system actually gets used.",
+    "",
+    "Maintained BY HAND and reviewed whenever a module moves. The drift check validates that every",
+    "path listed here still exists, so a stale map fails loudly instead of quietly pointing at",
+    "nothing — a map that lies is worse than no map, because it is trusted.",
+    "",
+    "`humanOnly: true` marks the hard wall: paths where",
+    "automation files an issue with evidence and STOPS. A human writes those diffs, always. These are",
+    "the places where a plausible-looking patch that passes every test can still be catastrophically",
+    "wrong, and where the audit signs off on human-authored code."
+  ],
+  "files": {
+    "specs/x402-specification-v2.md": {
+      "summary": "Core protocol: envelopes, facilitator surface, error codes, discovery response shapes.",
+      "modules": [
+        { "path": "apps/facilitator/src/app.ts", "why": "the /verify, /settle, /supported surface and the request envelope" },
+        { "path": "packages/errors/src/registry.ts", "why": "§9 error codes are a wire contract reproduced verbatim" },
+        { "path": "apps/bazaar/src/catalog/types.ts", "why": "response shapes and the lastUpdated type disagreement" }
+      ]
+    },
+    "specs/extensions/bazaar.md": {
+      "summary": "Discovery extension: cataloging trigger, filters, search, EXTENSION-RESPONSES.",
+      "modules": [
+        { "path": "apps/bazaar/src/catalog/ingest.ts", "why": "validation, soft-drop rules, routeTemplate handling, ownership", "humanOnly": true },
+        { "path": "apps/bazaar/src/app.ts", "why": "both discovery endpoints and the EXTENSION-RESPONSES encoding" },
+        { "path": "apps/bazaar/src/catalog/store.ts", "why": "the seven filters, pagination, and cursor semantics" },
+        { "path": "apps/bazaar/src/catalog/types.ts", "why": "items-vs-resources asymmetry; getting it backwards breaks stock clients silently" },
+        { "path": "packages/seller-helpers/src/declare.ts", "why": "what a seller declares must match what the spec catalogs" },
+        { "path": "packages/canary/src/discovery-loop.ts", "why": "the live assertion that the whole loop still works" }
+      ]
+    },
+    "specs/schemes/exact/scheme_exact.md": {
+      "summary": "Generic `exact` scheme: the guarantees every network profile must provide.",
+      "modules": [
+        { "path": "apps/facilitator/src/facilitator/scheme.ts", "why": "verify/settle wrapper and its rejection contract", "humanOnly": true }
+      ]
+    },
+    "specs/schemes/exact/scheme_exact_stellar.md": {
+      "summary": "`exact` on Stellar: auth entries, expiration ledgers, payload shape, rejection codes.",
+      "modules": [
+        { "path": "apps/facilitator/src/facilitator/scheme.ts", "why": "Soroban auth-entry validation and settlement", "humanOnly": true },
+        { "path": "apps/facilitator/src/facilitator/classify.ts", "why": "simulation-failure classification derived from live captures" },
+        { "path": "apps/facilitator/src/facilitator/build.ts", "why": "signer wiring, fee ceiling, network registration" },
+        { "path": "packages/errors/src/registry.ts", "why": "every invalid_exact_stellar_* code and its human reason" }
+      ]
+    },
+    "specs/schemes/upto/scheme_upto.md": {
+      "summary": "Generic `upto`: authorize a ceiling, settle actual usage. The MUSTs a profile must meet.",
+      "modules": [
+        { "path": "specs/scheme_upto_stellar.md", "why": "our Stellar profile is written against this document" },
+        { "path": "packages/scheme-upto-stellar/src/facilitator.ts", "why": "verify/settle for the ceiling-and-actual flow" },
+        { "path": "contracts/upto-stellar/src/lib.rs", "why": "the on-chain enforcement of the ceiling and single-use", "humanOnly": true }
+      ]
+    },
+    "specs/schemes/upto/scheme_upto_evm.md": {
+      "summary": "EVM `upto` profile. A reference, not an implementation target — read for guarantee structure.",
+      "modules": [
+        { "path": "specs/scheme_upto_stellar.md", "why": "our profile mirrors its guarantee structure; divergence needs justifying" }
+      ]
+    },
+    "specs/schemes/upto/scheme_upto_svm.md": {
+      "summary": "SVM `upto` profile. Same role as the EVM one: a reference for structure.",
+      "modules": [
+        { "path": "specs/scheme_upto_stellar.md", "why": "our profile mirrors its guarantee structure; divergence needs justifying" }
+      ]
+    },
+    "specs/transports-v2/http.md": {
+      "summary": "HTTP transport: headers, 402 shape, PAYMENT-RESPONSE, EXTENSION-RESPONSES.",
+      "modules": [
+        { "path": "apps/facilitator/src/app.ts", "why": "header emission on the settle path" },
+        { "path": "packages/agent-helpers/src/index.ts", "why": "buyer-side header handling" }
+      ]
+    },
+    "specs/transports-v2/mcp.md": {
+      "summary": "MCP transport: how paid tools are exposed and discovered.",
+      "modules": [
+        { "path": "apps/mcp-discovery/src/server.ts", "why": "the MCP server surface" },
+        { "path": "apps/mcp-discovery/src/tools.ts", "why": "tool input/output schemas and the spend cap" },
+        { "path": "packages/seller-helpers/src/declare.ts", "why": "describeTool, keyed on (resource.url, toolName)" }
+      ]
+    },
+    "typescript/packages/mechanisms/stellar": {
+      "summary": "@x402/stellar itself. Tracked by version, not commit: spec and SDK ship together, so a minor bump is a drift signal in its own right.",
+      "modules": [
+        { "path": "apps/facilitator/src/facilitator/scheme.ts", "why": "wraps this package directly", "humanOnly": true },
+        { "path": "packages/errors/src/registry.ts", "why": "library-provenance codes are transcribed from its source" },
+        { "path": "pnpm-workspace.yaml", "why": "the catalog pin that has to move first" }
+      ]
+    },
+    "typescript/packages/extensions/src/bazaar": {
+      "summary": "@x402/extensions bazaar helpers. We reuse its validators rather than reimplementing them.",
+      "modules": [
+        { "path": "apps/bazaar/src/catalog/ingest.ts", "why": "calls its validators unchanged; a signature change lands here first", "humanOnly": true },
+        { "path": "apps/bazaar/src/search/index.ts", "why": "reads the declaration shape those helpers produce" },
+        { "path": "packages/seller-helpers/src/declare.ts", "why": "wraps declareDiscoveryExtension" }
+      ]
+    }
+  }
+}
