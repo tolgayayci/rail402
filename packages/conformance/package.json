@@ -1,0 +1,16 @@
+{
+  "name": "@x402-stellar/conformance",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Wire-level conformance harness: installs this facilitator into the upstream x402 e2e suite and runs it.",
+  "type": "module",
+  "bin": {
+    "x402-stellar-conformance": "./bin/conformance.mjs"
+  },
+  "scripts": {
+    "install-proxy": "node bin/conformance.mjs install",
+    "run": "node bin/conformance.mjs run",
+    "dual": "node bin/conformance.mjs dual"
+  }
+}
