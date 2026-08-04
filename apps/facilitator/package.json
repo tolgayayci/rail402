@@ -1,0 +1,45 @@
+{
+  "name": "@x402-stellar/facilitator",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "x402 facilitator service for Stellar: verify, settle, supported.",
+  "type": "module",
+  "main": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "default": "./dist/lib.js"
+    },
+    "./server": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint src",
+    "deploy:worker": "npx --yes wrangler@4 deploy",
+    "dev:worker": "npx --yes wrangler@4 dev",
+    "build:worker": "tsc -p tsconfig.json && npx --yes wrangler@4 deploy --dry-run --outdir=.wrangler/preview"
+  },
+  "dependencies": {
+    "@x402-stellar/errors": "workspace:*",
+    "@x402/core": "2.20.0",
+    "@x402/stellar": "2.20.0",
+    "@stellar/stellar-sdk": "^16.2.0",
+    "@hono/node-server": "^2.0.5",
+    "hono": "^4.12.0",
+    "pino": "^10.3.1",
+    "zod": "^4.4.3",
+    "@x402-stellar/bazaar": "workspace:*",
+    "@x402-stellar/scheme-upto-stellar": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

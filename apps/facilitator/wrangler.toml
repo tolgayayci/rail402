@@ -1,0 +1,39 @@
+# Cloudflare Workers deployment for the x402 Stellar facilitator.
+#
+#   pnpm --filter @x402-stellar/facilitator deploy:worker
+#
+# Verified: the app bundles to ~384 KiB gzipped and serves /health, /supported and /discovery/*
+# under workerd, including real Stellar keypair loading.
+#
+# TESTNET ONLY. `STELLAR_NETWORKS` is pinned to stellar:testnet here and there is no pubnet
+# configuration anywhere in this file.
+#
+# Read `src/worker.ts` before enabling discovery: the catalog is in-memory and Worker isolates are
+# ephemeral, so listings do not survive between requests. The facilitator endpoints (/verify,
+# /settle, /supported) are stateless and unaffected.
+
+name = "x402-stellar-facilitator"
+main = "dist/worker.js"
+compatibility_date = "2026-01-01"
+
+# @stellar/stellar-sdk reaches for Node built-ins (crypto, buffer). Without this the bundle
+# resolves but fails at runtime.
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[vars]
+STELLAR_NETWORKS = "stellar:testnet"
+LOG_LEVEL = "info"
+# Rate limiting here is per-isolate and therefore close to meaningless — Cloudflare may run many
+# isolates concurrently. Use Cloudflare's own rate limiting rules in front of the Worker instead.
+RATE_LIMIT_ENABLED = "false"
+
+# Discovery is refused unless this is set to "1", so a lossy catalog is a decision rather than a
+# surprise. See src/worker.ts.
+# BAZAAR_EPHEMERAL_ACK = "1"
+
+# Secrets are NEVER committed. Set them out of band:
+#   wrangler secret put FACILITATOR_STELLAR_SECRET
+#   wrangler secret put FACILITATOR_API_KEYS        # optional; enables /ops/signals
