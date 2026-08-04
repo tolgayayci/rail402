@@ -1,0 +1,169 @@
+/**
+ * Catalog types.
+ *
+ * The wire shapes here are pinned to what stock SDK clients actually parse — verified against
+ * `@x402/extensions`' `DiscoveryResource` type AND against live wire captures from the CDP Bazaar. Two details that are easy to get wrong and would
+ * silently break every stock client:
+ *
+ *  - `GET /discovery/resources` returns **`items`** with offset pagination.
+ *  - `GET /discovery/search` returns **`resources`** with cursor pagination.
+ *
+ *  - `lastUpdated` is an **ISO 8601 string**, not a Unix number. The core spec §8.3 says `number`,
+ *    but the SDK type and every live implementation use a string. Stock clients win; the spec text
+ *    is being fixed upstream.
+ */
+
+export type ResourceType = "http" | "mcp";
+
+/** A payment option echoed into the catalog, mirroring `PaymentRequirements`. */
+export interface CatalogAccepts {
+  scheme: string;
+  network: string;
+  amount: string;
+  asset: string;
+  payTo: string;
+  /** Required on v2 PaymentRequirements; a listing without it is not consumable by stock clients. */
+  maxTimeoutSeconds: number;
+  extra?: Record<string, unknown>;
+}
+
+/**
+ * Behaviour-derived ranking signals.
+ *
+ * Deliberately modelled on the shape CDP emits, because it is the one class of signal that is
+ * expensive to forge: every unique payer is a real settled on-chain payment. Nothing a seller can
+ * simply assert about itself influences rank ("ranking must be abuse-resistant").
+ */
+export interface QualitySignals {
+  totalSettlements: number;
+  uniquePayers: number;
+  lastSettledAt?: string;
+  firstSeenAt: string;
+}
+
+export interface CatalogEntry {
+  /** Catalog key: canonical resource URL (origin + path, or origin + routeTemplate). */
+  resource: string;
+  type: ResourceType;
+  /** MCP tool name. Part of the identity for MCP resources — (resource.url, toolName). */
+  toolName?: string;
+  x402Version: number;
+  accepts: CatalogAccepts[];
+  lastUpdated: string;
+  description?: string;
+  mimeType?: string;
+  serviceName?: string;
+  tags?: string[];
+  iconUrl?: string;
+  extensions?: Record<string, unknown>;
+  quality: QualitySignals;
+  /**
+   * The payTo that first settled this listing. Ownership is claimed by settlement, so nobody can
+   * overwrite another seller's entry or pricing ("a discovery index that does not let
+   * anyone spoof another seller's listing or pricing").
+   */
+  ownerPayTo: string;
+  /**
+   * Whether `ownerPayTo` is listed in the SEP-1 `ACCOUNTS` of the resource's own domain.
+   *
+   * Settlement-gating makes a listing cost money; it does not make it truthful. This is what ties
+   * the party being paid to the domain being listed, and it is the reason a squatter cannot hold a
+   * key against the real owner. `undefined` means not yet checked —
+   * verification is asynchronous and never blocks a settlement.
+   */
+  domainVerified?: boolean;
+}
+
+/**
+ * Separator for composite catalog keys.
+ *
+ * A null byte, chosen deliberately: it cannot appear in a URL or in an MCP tool name, so a key can
+ * never be ambiguous between `(resource, toolName)` pairs. It is invisible in logs, which is why
+ * NOTHING may build this key by hand — always call `entryKey`. An earlier version of the judgment
+ * set hardcoded a space-joined key and silently failed every MCP assertion while printing two
+ * strings that looked identical.
+ */
+const KEY_SEPARATOR = "\u0000";
+
+/**
+ * Identity of a catalog entry.
+ *
+ * MCP multiplexes many tools over a single endpoint, so `resource.url` alone is not unique. The
+ * spec is explicit: facilitators MUST key MCP tools on the tuple (`resource.url`, `input.toolName`).
+ */
+export function entryKey(resource: string, toolName?: string): string {
+  return toolName ? `${resource}${KEY_SEPARATOR}${toolName}` : resource;
+}
+
+/** Filters shared by both discovery endpoints. All seven are spec-defined. */
+export interface DiscoveryFilters {
+  type?: string;
+  payTo?: string;
+  scheme?: string;
+  network?: string;
+  extensions?: string;
+}
+
+export interface ListResponse {
+  x402Version: number;
+  items: PublicResource[];
+  pagination: { limit: number; offset: number; total: number };
+}
+
+export interface SearchResponse {
+  x402Version: number;
+  resources: PublicResource[];
+  partialResults?: boolean;
+  pagination?: { limit: number; cursor: string | null } | null;
+  /**
+   * How the results were retrieved. Optional and additive; CDP ships `"hybrid"` here today.
+   *
+   * Declaring it is cheap honesty that also disciplines us — if this ever says `hybrid`, a hybrid
+   * had better exist. Ours says `lexical+signals`: BM25 over weighted fields, with a capped
+   * settlement-derived boost.
+   */
+  searchMethod?: string;
+  /**
+   * Correlation token for this response, so a later paid call can be attributed to the search that
+   * produced it. Optional, additive, ignored by clients that have never heard of it — and a
+   * convergence on CDP's shipped convention rather than a field we invented.
+   */
+  meta?: { searchToken: string };
+}
+
+/** The public projection of a catalog entry. `ownerPayTo` is internal and never serialized. */
+export interface PublicResource {
+  resource: string;
+  type: ResourceType;
+  x402Version: number;
+  accepts: CatalogAccepts[];
+  lastUpdated: string;
+  description?: string;
+  mimeType?: string;
+  serviceName?: string;
+  tags?: string[];
+  iconUrl?: string;
+  extensions?: Record<string, unknown>;
+  quality?: QualitySignals;
+  /** Present once checked. Buyers can prefer verified sellers; nothing forces them to. */
+  domainVerified?: boolean;
+}
+
+export function toPublic(entry: CatalogEntry): PublicResource {
+  const out: PublicResource = {
+    resource: entry.resource,
+    type: entry.type,
+    x402Version: entry.x402Version,
+    accepts: entry.accepts,
+    lastUpdated: entry.lastUpdated,
+    quality: entry.quality,
+  };
+  if (entry.description !== undefined) out.description = entry.description;
+  if (entry.mimeType !== undefined) out.mimeType = entry.mimeType;
+  if (entry.serviceName !== undefined) out.serviceName = entry.serviceName;
+  if (entry.tags !== undefined) out.tags = entry.tags;
+  if (entry.iconUrl !== undefined) out.iconUrl = entry.iconUrl;
+  if (entry.extensions !== undefined) out.extensions = entry.extensions;
+  if (entry.domainVerified !== undefined) out.domainVerified = entry.domainVerified;
+  return out;
+}

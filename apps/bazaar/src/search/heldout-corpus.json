@@ -1,0 +1,3589 @@
+{
+  "$comment": [
+    "GENERATED from live catalog captures — do not edit by hand.",
+    "",
+    "Real resources captured from the live CDP Bazaar on 2026-07-30, normalised into our catalog",
+    "shape with descriptions and parameter names preserved verbatim. Payment fields are rewritten",
+    "to Stellar equivalents; nothing else is tidied, because the untidiness is the point.",
+    "",
+    "Of 20 real entries: 1 carry a serviceName, 1 carry tags,",
+    "2 carry any per-parameter description at all. Those are the three fields our",
+    "ranker weights most heavily, which is the finding this corpus exists to expose."
+  ],
+  "source": "docs/research/captures/2026-07-30/cdp-resources.json",
+  "capturedTotal": 15332,
+  "entries": [
+    {
+      "resource": "https://mail.cusethejuice.com/admin-api/machine/mailboxes/:email/search",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "100000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-01T17:17:55.791Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "CuseTheJuice agent email on Base USDC: create accounts, list and read email, send, reply, search, folders, attachments, trust index, password recovery, custom domains, and domain admin. Pay with x402 (Base USDC). HTTP shape: extensions.bazaar on the 402. Catalog: https://mail.cusethejuice.com/machine-mail.html",
+      "serviceName": "CuseTheJuice Agent Email",
+      "tags": [
+        "cusethejuice",
+        "email",
+        "mailbox",
+        "imap",
+        "x402"
+      ],
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "email": "newuser@cusethejuice.com",
+                "folder": "INBOX",
+                "limit": 20,
+                "max_scan": 2000,
+                "password": "Str0ng!Passw0rd",
+                "query": "invoice",
+                "username": "newuser01"
+              },
+              "bodyType": "json",
+              "method": "POST",
+              "pathParams": {
+                "email": "newuser@cusethejuice.com"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "count": 1,
+                "email": "newuser@cusethejuice.com",
+                "folder": "INBOX",
+                "limit": 20,
+                "linux_user": "newuser01",
+                "max_scan": 2000,
+                "messages": [
+                  {
+                    "date": "Fri, 08 May 2026 19:00:00 +0000",
+                    "folder": "cur",
+                    "from": "alerts@example.com",
+                    "id": "1715151515.M1234P5678.mail",
+                    "subject": "Hello"
+                  }
+                ],
+                "query": "invoice",
+                "scanned": 42
+              },
+              "type": "json"
+            }
+          },
+          "routeTemplate": "/admin-api/machine/mailboxes/:email/search",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "email": {
+                        "format": "email",
+                        "type": "string"
+                      },
+                      "folder": {
+                        "type": "string"
+                      },
+                      "limit": {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "max_scan": {
+                        "maximum": 10000,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "password": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "q": {
+                        "description": "Alias for query",
+                        "maxLength": 512,
+                        "type": "string"
+                      },
+                      "query": {
+                        "description": "Substring match (case-insensitive); omit or blank to list newest messages up to limit",
+                        "maxLength": 512,
+                        "type": "string"
+                      },
+                      "username": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "email",
+                      "username",
+                      "password"
+                    ],
+                    "type": "object"
+                  },
+                  "bodyType": {
+                    "enum": [
+                      "json",
+                      "form-data",
+                      "text"
+                    ],
+                    "type": "string"
+                  },
+                  "method": {
+                    "enum": [
+                      "POST",
+                      "PUT",
+                      "PATCH"
+                    ],
+                    "type": "string"
+                  },
+                  "pathParams": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "email": {
+                        "format": "email",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "email"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method",
+                  "bodyType",
+                  "body",
+                  "pathParams"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "count": {
+                        "type": "integer"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "error": {
+                        "type": "string"
+                      },
+                      "folder": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "limit": {
+                        "type": "integer"
+                      },
+                      "linux_user": {
+                        "type": "string"
+                      },
+                      "max_scan": {
+                        "type": "integer"
+                      },
+                      "messages": {
+                        "items": {
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "query": {
+                        "type": "string"
+                      },
+                      "scanned": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/block-number",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "10000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:09:14.282Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Latest Ethereum block height - current chain tip via eth_blockNumber",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "network": "ethereum"
+              },
+              "method": "GET",
+              "queryParams": {
+                "network": "ethereum"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "block_number": "0x133da1e",
+                "network": "ethereum"
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/ens/:input",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "50000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:02:08.26Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "ENS resolve - turn a .eth name into an address, or an address into its primary .eth name, via eth_call on OneSource live Ethereum RPC",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "input": "vitalik.eth",
+                "network": "ethereum"
+              },
+              "method": "GET",
+              "queryParams": {
+                "input": "vitalik.eth",
+                "network": "ethereum"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "input": "vitalik.eth",
+                "mode": "forward"
+              },
+              "type": "json"
+            }
+          },
+          "routeTemplate": "/api/chain/ens/:input",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "input": {
+                        "oneOf": [
+                          {
+                            "pattern": "^0x[a-fA-F0-9]{40}$",
+                            "type": "string"
+                          },
+                          {
+                            "pattern": ".+\\.eth$",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "input"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "input": {
+                        "oneOf": [
+                          {
+                            "pattern": "^0x[a-fA-F0-9]{40}$",
+                            "type": "string"
+                          },
+                          {
+                            "pattern": ".+\\.eth$",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "input"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/erc20-balance",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "30000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:02:03.331Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "ERC20 token balance for any Ethereum wallet - USDC, USDT, DAI, or any token - via balanceOf (eth_call) on OneSource live Ethereum RPC",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "account": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "network": "ethereum",
+                "token": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+              },
+              "method": "GET",
+              "queryParams": {
+                "account": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "network": "ethereum",
+                "token": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "account": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "balance": "1234567890",
+                "decimals": 6,
+                "symbol": "USDT",
+                "token": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "account": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "token": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "account",
+                      "token"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "account": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "token": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "account",
+                      "token"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/receipt/:hash",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "50000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T04:59:40.663Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Transaction receipt via eth_getTransactionReceipt - status, gas, and event logs for a mined Ethereum transaction",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "hash": "0xad7e04119ecd85857728205f5b12e95f0bab8e99f9c2f60be5dc79cfc6a8df1f",
+                "network": "ethereum"
+              },
+              "method": "GET",
+              "queryParams": {
+                "hash": "0xad7e04119ecd85857728205f5b12e95f0bab8e99f9c2f60be5dc79cfc6a8df1f",
+                "network": "ethereum"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "block_number": "0x133da1e",
+                "effective_gas_price": "0x3b9aca00",
+                "gas_used": "0x5208",
+                "logs": [],
+                "status": "0x1",
+                "transaction_hash": "0xad7e04119ecd85857728205f5b12e95f0bab8e99f9c2f60be5dc79cfc6a8df1f"
+              },
+              "type": "json"
+            }
+          },
+          "routeTemplate": "/api/chain/receipt/:hash",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "hash": {
+                        "pattern": "^0x[a-fA-F0-9]{64}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "hash"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "hash": {
+                        "pattern": "^0x[a-fA-F0-9]{64}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "hash"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/live-balance",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "30000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:02:49.618Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Live wallet balance - native ETH plus any ERC20 tokens in one call via eth_getBalance and balanceOf on OneSource Ethereum RPC",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "network": "ethereum"
+              },
+              "method": "GET",
+              "queryParams": {
+                "address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "network": "ethereum"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "eth": "0xde0b6b3a7640000",
+                "tokens": [
+                  {
+                    "balance": "1234567890",
+                    "contract": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                    "decimals": 6,
+                    "symbol": "USDT"
+                  }
+                ]
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "address": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "tokens": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "address"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "address": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "tokens": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "address"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/nonce/:address",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "30000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:04:54.222Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Next transaction nonce for any Ethereum wallet via eth_getTransactionCount - how many txs it has sent",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "network": "ethereum"
+              },
+              "method": "GET",
+              "queryParams": {
+                "address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "network": "ethereum"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "block": "pending",
+                "nonce": "0x4d2"
+              },
+              "type": "json"
+            }
+          },
+          "routeTemplate": "/api/chain/nonce/:address",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "address": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "block": {
+                        "oneOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "enum": [
+                              "latest",
+                              "pending",
+                              "earliest",
+                              "safe",
+                              "finalized"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "pattern": "^0x[a-fA-F0-9]+$",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "address"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "address": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "block": {
+                        "oneOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "enum": [
+                              "latest",
+                              "pending",
+                              "earliest",
+                              "safe",
+                              "finalized"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "pattern": "^0x[a-fA-F0-9]+$",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "address"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/network-info",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "10000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T04:57:12.186Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Ethereum network info - chain ID, block height, and gas price in one batched RPC call (eth_chainId + eth_blockNumber + eth_gasPrice)",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "network": "ethereum"
+              },
+              "method": "GET",
+              "queryParams": {
+                "network": "ethereum"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "block_number": "0x133da1e",
+                "chain_id": "0x1",
+                "gas_price": "0x4a817c800",
+                "network": "ethereum"
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/block/:number",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "30000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:23:50.233Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Fetch an Ethereum block header and transaction hashes by number, tag, or hex via eth_getBlockByNumber",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "network": "ethereum",
+                "number": "latest"
+              },
+              "method": "GET",
+              "queryParams": {
+                "network": "ethereum",
+                "number": "latest"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "gas_limit": "0x1c9c380",
+                "gas_used": "0xe4e1c0",
+                "hash": "0x3f5f8b0a8e9b7c6d4f2a1b5e8c9d7a3f6e4b9d1c5a8f2e7b4d6c3a9e1f0b8d5c",
+                "number": "0x133da1e",
+                "parent_hash": "0x3f5f8b0a8e9b7c6d4f2a1b5e8c9d7a3f6e4b9d1c5a8f2e7b4d6c3a9e1f0b8d5b",
+                "timestamp": "0x6567c8e0"
+              },
+              "type": "json"
+            }
+          },
+          "routeTemplate": "/api/chain/block/:number",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "number": {
+                        "oneOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "enum": [
+                              "latest",
+                              "pending",
+                              "earliest",
+                              "safe",
+                              "finalized"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "pattern": "^0x[a-fA-F0-9]+$",
+                            "type": "string"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "number"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "number": {
+                        "oneOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "enum": [
+                              "latest",
+                              "pending",
+                              "earliest",
+                              "safe",
+                              "finalized"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "pattern": "^0x[a-fA-F0-9]+$",
+                            "type": "string"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "number"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/erc20-transfers",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "50000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T04:57:44.606Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "ERC20 Transfer logs via eth_getLogs - decoded sender, recipient, and amount for a token or wallet",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "network": "ethereum",
+                "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "wallet": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
+              },
+              "method": "GET",
+              "queryParams": {
+                "network": "ethereum",
+                "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "wallet": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "count": 1,
+                "transfers": [
+                  {
+                    "block_number": "0x133da1e",
+                    "from": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                    "to": "0x6b175474e89094c44da98b954eedeac495271d0f",
+                    "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                    "tx_hash": "0xad7e04119ecd85857728205f5b12e95f0bab8e99f9c2f60be5dc79cfc6a8df1f",
+                    "value": "1000000"
+                  }
+                ]
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "from_block": {
+                        "oneOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "enum": [
+                              "latest",
+                              "pending",
+                              "earliest",
+                              "safe",
+                              "finalized"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "pattern": "^0x[a-fA-F0-9]+$",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "to_block": {
+                        "oneOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "enum": [
+                              "latest",
+                              "pending",
+                              "earliest",
+                              "safe",
+                              "finalized"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "pattern": "^0x[a-fA-F0-9]+$",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "token": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "wallet": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "from_block": {
+                        "oneOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "enum": [
+                              "latest",
+                              "pending",
+                              "earliest",
+                              "safe",
+                              "finalized"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "pattern": "^0x[a-fA-F0-9]+$",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "to_block": {
+                        "oneOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "enum": [
+                              "latest",
+                              "pending",
+                              "earliest",
+                              "safe",
+                              "finalized"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "pattern": "^0x[a-fA-F0-9]+$",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "token": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "wallet": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/contract/:address",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "50000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:02:43.445Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Contract introspection via eth_call - name, symbol, decimals, and ERC20/721/1155 interface support",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "network": "ethereum"
+              },
+              "method": "GET",
+              "queryParams": {
+                "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "network": "ethereum"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "decimals": 6,
+                "interfaces": [
+                  "ERC20"
+                ],
+                "name": "Tether USD",
+                "symbol": "USDT"
+              },
+              "type": "json"
+            }
+          },
+          "routeTemplate": "/api/chain/contract/:address",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "address": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "address"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "address": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "address"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/tx/:hash",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "80000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T04:54:48.442Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Full Ethereum transaction details by hash via eth_getTransactionByHash - from, to, value, calldata, block",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "hash": "0xad7e04119ecd85857728205f5b12e95f0bab8e99f9c2f60be5dc79cfc6a8df1f",
+                "network": "ethereum"
+              },
+              "method": "GET",
+              "queryParams": {
+                "hash": "0xad7e04119ecd85857728205f5b12e95f0bab8e99f9c2f60be5dc79cfc6a8df1f",
+                "network": "ethereum"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "block_number": "0x133da1e",
+                "from": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "gas": "0x5208",
+                "hash": "0xad7e04119ecd85857728205f5b12e95f0bab8e99f9c2f60be5dc79cfc6a8df1f",
+                "nonce": "0x4d2",
+                "to": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "value": "0x0"
+              },
+              "type": "json"
+            }
+          },
+          "routeTemplate": "/api/chain/tx/:hash",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "hash": {
+                        "pattern": "^0x[a-fA-F0-9]{64}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "hash"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "hash": {
+                        "pattern": "^0x[a-fA-F0-9]{64}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "hash"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/erc721-tokens",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "80000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T04:55:09.57Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "List every ERC721 NFT token_id a wallet owns in a collection via tokenOfOwnerByIndex (eth_call)",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "contract": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+                "network": "ethereum",
+                "owner": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
+              },
+              "method": "GET",
+              "queryParams": {
+                "contract": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+                "network": "ethereum",
+                "owner": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "contract": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+                "count": 3,
+                "owner": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "tokens": [
+                  "1",
+                  "42",
+                  "100"
+                ]
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "contract": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "max": {
+                        "maximum": 1000,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "owner": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "contract",
+                      "owner"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "contract": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "max": {
+                        "maximum": 1000,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "owner": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "contract",
+                      "owner"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://x402.tavily.com/search",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "100000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T06:56:03.394Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Tavily Search - advanced mode",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "end_date": "2026-05-28",
+                "exclude_domains": [
+                  "example.com"
+                ],
+                "include_answer": true,
+                "include_domains": [
+                  "x402.org",
+                  "docs.cdp.coinbase.com"
+                ],
+                "include_images": true,
+                "include_raw_content": true,
+                "max_results": 5,
+                "query": "what is x402?",
+                "search_depth": "advanced",
+                "start_date": "2026-01-01",
+                "time_range": "month",
+                "topic": "general"
+              },
+              "bodyType": "json",
+              "method": "POST",
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "answer": null,
+                "follow_up_questions": null,
+                "images": [],
+                "query": "what is x402?",
+                "request_id": "8146b0d8-db42-42a7-8fb9-3796fce6853e",
+                "response_time": 0.7,
+                "results": [
+                  {
+                    "content": "x402 is an open payment protocol that revives the HTTP 402 status code so AI agents can pay per request in stablecoins, with no API keys or accounts.",
+                    "raw_content": null,
+                    "score": 0.92,
+                    "title": "x402 — Payment Required",
+                    "url": "https://x402.org/"
+                  }
+                ]
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "end_date": {
+                        "type": "string"
+                      },
+                      "exclude_domains": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "include_answer": {
+                        "type": "boolean"
+                      },
+                      "include_domains": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "include_images": {
+                        "type": "boolean"
+                      },
+                      "include_raw_content": {
+                        "type": "boolean"
+                      },
+                      "max_results": {
+                        "description": "\"auto\" or integer 1-50",
+                        "oneOf": [
+                          {
+                            "const": "auto"
+                          },
+                          {
+                            "maximum": 50,
+                            "minimum": 1,
+                            "type": "integer"
+                          }
+                        ]
+                      },
+                      "query": {
+                        "description": "Search query (1-1000 chars)",
+                        "type": "string"
+                      },
+                      "search_depth": {
+                        "default": "advanced",
+                        "enum": [
+                          "advanced"
+                        ],
+                        "type": "string"
+                      },
+                      "start_date": {
+                        "type": "string"
+                      },
+                      "time_range": {
+                        "type": "string"
+                      },
+                      "topic": {
+                        "enum": [
+                          "general",
+                          "news",
+                          "finance"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "type": "object"
+                  },
+                  "bodyType": {
+                    "enum": [
+                      "json",
+                      "form-data",
+                      "text"
+                    ],
+                    "type": "string"
+                  },
+                  "method": {
+                    "enum": [
+                      "POST",
+                      "PUT",
+                      "PATCH"
+                    ],
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method",
+                  "bodyType",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/total-supply",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "30000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:04:49.461Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Total supply of an ERC20 or ERC721 token contract via totalSupply (eth_call)",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "contract": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "network": "ethereum"
+              },
+              "method": "GET",
+              "queryParams": {
+                "contract": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "network": "ethereum"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "contract": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "decimals": 6,
+                "symbol": "USDT",
+                "total_supply": "39283948340000000"
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "contract": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "contract"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "contract": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "contract"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/nft-metadata",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "80000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:04:32.969Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "NFT metadata, traits, and image URI for any ERC721 or ERC1155 token - fetched via eth_call with IPFS resolution (OneSource live Ethereum RPC)",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "contract": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+                "network": "ethereum",
+                "token_id": "1"
+              },
+              "method": "GET",
+              "queryParams": {
+                "contract": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+                "network": "ethereum",
+                "token_id": "1"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "attributes": [
+                  {
+                    "trait_type": "Background",
+                    "value": "Orange"
+                  }
+                ],
+                "contract": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+                "image": "ipfs://QmPbxeGcXhYQQNgsC6a36dDyYUcHgMLnGKnF8pVFmGsvqi",
+                "name": "Bored Ape #1",
+                "token_id": "1",
+                "token_uri": "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/1"
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "contract": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "token_id": {
+                        "pattern": "^[0-9]+$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "contract",
+                      "token_id"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "contract": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "token_id": {
+                        "pattern": "^[0-9]+$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "contract",
+                      "token_id"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/call",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "50000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:00:10.452Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Simulate a read-only Ethereum contract call via eth_call - no transaction sent",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "data": "0x0",
+                "to": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+              },
+              "bodyType": "json",
+              "method": "POST",
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "result": "0x000000000000000000000000000000000000000000000000000000000000002a"
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "data": {
+                        "pattern": "^0x[a-fA-F0-9]+$",
+                        "type": "string"
+                      },
+                      "from": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "to": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "value": {
+                        "pattern": "^0x[a-fA-F0-9]+$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "to",
+                      "data"
+                    ],
+                    "type": "object"
+                  },
+                  "bodyType": {
+                    "enum": [
+                      "json",
+                      "form-data",
+                      "text"
+                    ],
+                    "type": "string"
+                  },
+                  "method": {
+                    "enum": [
+                      "POST",
+                      "PUT",
+                      "PATCH"
+                    ],
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method",
+                  "bodyType",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/code/:address",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "30000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:02:11.31Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Check if an Ethereum address is a contract via eth_getCode - returns deployed bytecode",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "network": "ethereum"
+              },
+              "method": "GET",
+              "queryParams": {
+                "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "network": "ethereum"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                "bytecode_size": 10234,
+                "code": "0x6080604052600436106101...",
+                "is_contract": true
+              },
+              "type": "json"
+            }
+          },
+          "routeTemplate": "/api/chain/code/:address",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "address": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "address"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "address": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "address"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/estimate-gas",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "40000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T05:02:17.568Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "Estimate the gas a transaction will consume via eth_estimateGas before signing it",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "data": "0x0",
+                "to": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+              },
+              "bodyType": "json",
+              "method": "POST",
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "gas_estimate": "0x5208"
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "data": {
+                        "pattern": "^0x[a-fA-F0-9]+$",
+                        "type": "string"
+                      },
+                      "from": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "to": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "value": {
+                        "pattern": "^0x[a-fA-F0-9]+$",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "bodyType": {
+                    "enum": [
+                      "json",
+                      "form-data",
+                      "text"
+                    ],
+                    "type": "string"
+                  },
+                  "method": {
+                    "enum": [
+                      "POST",
+                      "PUT",
+                      "PATCH"
+                    ],
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method",
+                  "bodyType",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "resource": "https://api.onesource.io/api/chain/allowance",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "amount": "30000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "payTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+          "maxTimeoutSeconds": 60
+        }
+      ],
+      "lastUpdated": "2026-07-30T04:59:36.487Z",
+      "quality": {
+        "totalSettlements": 1,
+        "uniquePayers": 1,
+        "firstSeenAt": "2026-07-01T00:00:00.000Z"
+      },
+      "ownerPayTo": "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
+      "description": "ERC20 allowance via allowance (eth_call) - how much a spender is approved to move from an owner's wallet",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "network": "ethereum",
+                "owner": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "spender": "0x6b175474e89094c44da98b954eedeac495271d0f",
+                "token": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+              },
+              "method": "GET",
+              "queryParams": {
+                "network": "ethereum",
+                "owner": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "spender": "0x6b175474e89094c44da98b954eedeac495271d0f",
+                "token": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+              },
+              "type": "http"
+            },
+            "output": {
+              "example": {
+                "allowance": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "decimals": 6,
+                "owner": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                "spender": "0x6b175474e89094c44da98b954eedeac495271d0f",
+                "token": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+              },
+              "type": "json"
+            }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "input": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "properties": {
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "owner": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "spender": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "token": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "token",
+                      "owner",
+                      "spender"
+                    ],
+                    "type": "object"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "DELETE"
+                    ],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "properties": {
+                      "network": {
+                        "default": "ethereum",
+                        "enum": [
+                          "ethereum",
+                          "sepolia"
+                        ],
+                        "type": "string"
+                      },
+                      "owner": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "spender": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      },
+                      "token": {
+                        "pattern": "^0x[a-fA-F0-9]{40}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "token",
+                      "owner",
+                      "spender"
+                    ],
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "http",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "output": {
+                "properties": {
+                  "example": {
+                    "properties": {
+                      "data": {
+                        "description": "Response payload",
+                        "type": "object"
+                      },
+                      "error": {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      },
+                      "meta": {
+                        "properties": {
+                          "cost_usdc": {
+                            "type": "string"
+                          },
+                          "endpoint": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
+}
