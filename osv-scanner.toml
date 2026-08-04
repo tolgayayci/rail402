@@ -1,0 +1,13 @@
+# OSV-Scanner configuration.
+#
+# The CI "Vulnerability scan (OSV)" job blocks on known vulnerabilities in pnpm-lock.yaml.
+# Use this file to silence advisories that are genuinely non-actionable (no fix available, not
+# reachable from our usage, false positive) so the gate stays meaningful rather than ignored.
+#
+# Always give a reason and set ignoreUntil, so ignores get re-reviewed instead of lingering.
+# Pattern adopted from stellar/x402-stellar.
+
+# [[IgnoredVulns]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# ignoreUntil = 2026-12-01
+# reason = "No upstream fix yet; the vulnerable code path is not reachable from our usage."
