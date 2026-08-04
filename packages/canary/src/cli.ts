@@ -1,0 +1,250 @@
+#!/usr/bin/env node
+import { join } from "node:path";
+import { runDiscoveryLoop } from "./discovery-loop.js";
+import { runRejectionAudit } from "./rejection-audit.js";
+import { runOzAccount } from "./oz-account.js";
+import {
+  OZ_ACCOUNT_WASM_HASH,
+  OZ_ED25519_VERIFIER,
+  UPTO_CONTRACT,
+  X402_POLICY,
+} from "./oz-constants.js";
+import { runSupportedSnapshot } from "./supported.js";
+import { runTimeToDiscoverable } from "./time-to-discoverable.js";
+import { findRepoRoot, spawnFacilitator, type SpawnedFacilitator } from "./facilitator.js";
+import { provisionUsdcAccounts } from "./provision.js";
+import { toPayload, writeReport, type CanaryReport } from "./report.js";
+
+/**
+ * Canary CLI.
+ *
+ * ```
+ * pnpm canary discovery-loop                          # spawns a facilitator, no configuration
+ * pnpm canary rejection-audit --facilitator <url>     # points at a deployment
+ * pnpm canary all                                     # every check against one facilitator
+ * ```
+ *
+ * Exit code is the contract: 0 when every property held, 1 when one did not. Reports are written
+ * either way — a failed run's evidence is the part that matters.
+ */
+
+/** Each check, its report filename, and how to run it. */
+const CHECKS = {
+  "discovery-loop": {
+    file: "discovery-loop.json",
+    run: (facilitatorUrl: string, runId: string) => runDiscoveryLoop({ facilitatorUrl, runId }),
+  },
+  "rejection-audit": {
+    file: "rejection-audit.json",
+    run: (facilitatorUrl: string, runId: string) => runRejectionAudit({ facilitatorUrl, runId }),
+  },
+  "oz-account": {
+    file: "oz-account.json",
+    run: (facilitatorUrl: string, runId: string) =>
+      runOzAccount({
+        facilitatorUrl,
+        runId,
+        accountWasmHash: OZ_ACCOUNT_WASM_HASH,
+        verifier: OZ_ED25519_VERIFIER,
+        policy: X402_POLICY,
+        uptoContract: UPTO_CONTRACT,
+      }),
+  },
+  "supported-snapshot": {
+    file: "supported-snapshot.json",
+    run: (facilitatorUrl: string) => runSupportedSnapshot({ facilitatorUrl }),
+  },
+  "time-to-discoverable": {
+    file: "time-to-discoverable.json",
+    run: (facilitatorUrl: string, runId: string) =>
+      runTimeToDiscoverable({ facilitatorUrl, runId }),
+  },
+} as const satisfies Record<
+  string,
+  { file: string; run: (facilitatorUrl: string, runId: string) => Promise<CanaryReport> }
+>;
+
+type CheckName = keyof typeof CHECKS;
+
+const isCheck = (value: string): value is CheckName => Object.hasOwn(CHECKS, value);
+
+interface Args {
+  command: string;
+  facilitator?: string;
+  out?: string;
+  runId?: string;
+  port: number;
+  retries: number;
+  payer?: string;
+  seller?: string;
+}
+
+function parseArgs(argv: readonly string[]): Args {
+  const args: Args = { command: argv[0] ?? "", port: 4122, retries: 0 };
+  for (let i = 1; i < argv.length; i++) {
+    const flag = argv[i];
+    const value = argv[i + 1];
+    switch (flag) {
+      case "--facilitator":
+        if (value) args.facilitator = value;
+        i++;
+        break;
+      case "--out":
+        if (value) args.out = value;
+        i++;
+        break;
+      case "--run-id":
+        if (value) args.runId = value;
+        i++;
+        break;
+      case "--port":
+        if (value) args.port = Number(value);
+        i++;
+        break;
+      case "--retries":
+        if (value && Number.isInteger(Number(value)) && Number(value) >= 0) {
+          args.retries = Number(value);
+        }
+        i++;
+        break;
+      case "--payer":
+        if (value) args.payer = value;
+        i++;
+        break;
+      case "--seller":
+        if (value) args.seller = value;
+        i++;
+        break;
+      default:
+        break;
+    }
+  }
+  return args;
+}
+
+/** Timestamp slug: sortable, filename-safe, and unique enough to key one run's catalog entry. */
+function defaultRunId(): string {
+  return new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
+}
+
+const USAGE = `usage: x402-stellar-canary <command> [options]
+
+  discovery-loop        settle → catalogue → search, end to end
+  rejection-audit       every rejection path carries a code and an actionable reason
+  oz-account            an OpenZeppelin smart account pays with exact AND upto under our policy
+  supported-snapshot    /supported is complete, truthful, and matches what is reachable
+  time-to-discoverable  measures zero -> paid, discoverable endpoint
+  all                   every check above, against one facilitator
+  provision-usdc        prepare the accounts the upstream e2e suite needs
+
+  --facilitator <url>   target a deployment (default: start one with a friendbot-funded signer)
+  --out <path>          where to write the report (default: docs/status/<check>.json)
+  --run-id <id>         label this run; also keys its catalogue entries
+  --port <n>            port for the spawned facilitator
+  --retries <n>         retry ONLY retryable failures, e.g. friendbot being unavailable
+  --payer <S…>          provision-usdc: reuse an existing payer
+  --seller <S…>         provision-usdc: reuse an existing seller`;
+
+async function main(): Promise<number> {
+  const args = parseArgs(process.argv.slice(2));
+
+  // Provisioning is not a canary — it prepares the accounts one needs — but it lives here because
+  // this is the package that already knows how to talk to testnet.
+  if (args.command === "provision-usdc") {
+    return provisionUsdcAccounts({
+      payerSecret: args.payer,
+      sellerSecret: args.seller,
+      root: findRepoRoot(),
+    });
+  }
+
+  const selected: CheckName[] =
+    args.command === "all"
+      ? (Object.keys(CHECKS) as CheckName[])
+      : isCheck(args.command)
+        ? [args.command]
+        : [];
+
+  if (selected.length === 0) {
+    console.error(USAGE);
+    return 2;
+  }
+
+  const root = findRepoRoot();
+  const statusDir = join(root, "docs", "status");
+  const runId = args.runId ?? defaultRunId();
+  const facilitatorLabel = args.facilitator ?? `spawned:${args.port}`;
+  const pathFor = (check: CheckName) =>
+    args.out && selected.length === 1 ? args.out : join(statusDir, CHECKS[check].file);
+
+  const blankReport = (check: string, failure: ReturnType<typeof toPayload>): CanaryReport => ({
+    check,
+    status: "fail",
+    observedAt: new Date().toISOString(),
+    network: "stellar:testnet",
+    facilitator: facilitatorLabel,
+    durationMs: 0,
+    steps: [],
+    failure,
+    observations: {},
+  });
+
+  // A nightly job that dies on a floating rejection publishes nothing, and "no report" is
+  // indistinguishable from "not run yet" to anyone reading the status directory the next morning.
+  // Stock SDK components do start unawaited background work, so this is not hypothetical: it is
+  // how an unreachable facilitator first presented. Catch it, write the report, exit honestly.
+  process.on("unhandledRejection", (error: unknown) => {
+    const payload = toPayload(error);
+    for (const check of selected) writeReport(pathFor(check), blankReport(check, payload));
+    console.error(`\nFAIL [${payload.code}] ${payload.reason}`);
+    process.exit(1);
+  });
+
+  let spawned: SpawnedFacilitator | undefined;
+  let failures = 0;
+  try {
+    if (!args.facilitator) {
+      console.error("no --facilitator given; starting one with a friendbot-funded signer");
+      spawned = await spawnFacilitator(args.port);
+      console.error(`facilitator ${spawned.url} · signer ${spawned.signerAddress}`);
+    }
+    const facilitatorUrl = args.facilitator ?? spawned!.url;
+
+    for (const check of selected) {
+      console.error(`\n${check} · ${facilitatorUrl} · run ${runId}\n`);
+      let report: CanaryReport;
+      try {
+        // Retry only what the registry says is retryable — in practice friendbot or Soroban RPC
+        // being briefly unavailable. A failed assertion is never retried: retrying until green is
+        // how a monitoring system learns to lie, and a flaky alarm gets muted long before it gets
+        // fixed. Each attempt uses a fresh run id, so it is a genuinely new set of accounts.
+        report = await CHECKS[check].run(facilitatorUrl, runId);
+        for (let attempt = 1; attempt <= args.retries && report.failure?.retryable; attempt++) {
+          console.error(
+            `\nretrying (${attempt}/${args.retries}) after retryable failure [${report.failure.code}]\n`,
+          );
+          report = await CHECKS[check].run(facilitatorUrl, `${runId}r${attempt}`);
+        }
+      } catch (error) {
+        report = blankReport(check, toPayload(error));
+      }
+
+      writeReport(pathFor(check), report);
+      console.error(`\n${report.status.toUpperCase()} ${check} in ${report.durationMs}ms`);
+      if (report.failure) console.error(`  [${report.failure.code}] ${report.failure.reason}`);
+      if (report.status !== "pass") failures++;
+    }
+
+    return failures === 0 ? 0 : 1;
+  } finally {
+    await spawned?.stop();
+  }
+}
+
+main().then(
+  code => process.exit(code),
+  error => {
+    console.error("fatal:", error);
+    process.exit(1);
+  },
+);
