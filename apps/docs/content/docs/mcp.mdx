@@ -1,0 +1,16 @@
+---
+title: MCP server
+description: search_stellar_resources and pay_and_call, with a mandatory spend cap.
+---
+
+Two tools let an agent discover and pay for a service it has no prior integration with:
+
+- **`search_stellar_resources`** — natural-language search over the Bazaar. Pays nothing.
+- **`pay_and_call`** — runs the discover → pay → retry loop. **`maxAmount` is required**: there is
+  no default, because a default would hand an agent an unbounded spender by omission.
+
+<Callout title="Reference in progress">
+  Full tool schemas are being documented. See
+  [`apps/mcp-discovery`](https://github.com/tolgayayci/x402-stellar/blob/main/apps/mcp-discovery)
+  and the [agent guide](/docs/agent).
+</Callout>

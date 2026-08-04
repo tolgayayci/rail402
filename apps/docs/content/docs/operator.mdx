@@ -1,0 +1,133 @@
+---
+title: Run a facilitator
+description: Self-host, configure fees, auth and metering, and keep conformance green.
+---
+
+You want to run a facilitator — hosted for others, or self-hosted for your own services.
+
+---
+
+## Run one
+
+```bash
+docker build -f apps/facilitator/Dockerfile -t x402-stellar-facilitator .
+docker run -p 4022:4022 -e FACILITATOR_STELLAR_SECRET=S... x402-stellar-facilitator
+```
+
+That is a complete, working, **free** testnet facilitator with the Bazaar co-deployed. Defaults are
+zero-fee and no API key, because testnet must be usable without friction — and
+because a facilitator nobody can try is a facilitator nobody adopts.
+
+```bash
+curl localhost:4022/supported
+curl localhost:4022/health
+```
+
+## Configure it
+
+Full reference with defaults: [`apps/facilitator/.env.example`](https://github.com/tolgayayci/x402-stellar/blob/main/apps/facilitator/.env.example).
+
+| Variable | Default | Notes |
+|---|---|---|
+| `FACILITATOR_STELLAR_SECRET` | — | Required. Funded account that pays settlement fees |
+| `STELLAR_NETWORKS` | `stellar:testnet` | Comma-separated CAIP-2 |
+| `MAX_TRANSACTION_FEE_STROOPS` | `100000` | Circuit breaker, not a price |
+| `FACILITATOR_API_KEYS` | unset (**open**) | Bearer keys, comma-separated |
+| `AUTH_EXEMPT_NETWORKS` | `stellar:testnet` | Stays open even when keys are set |
+| `RATE_LIMIT_*` | 120 / 60s | Fixed window, per client |
+
+Configuration is validated **before the port binds**, so a misconfigured deployment fails
+immediately with a coded, actionable message instead of serving 500s to real payments.
+
+### About the fee ceiling
+
+`MAX_TRANSACTION_FEE_STROOPS` is a safety circuit breaker. The library default is 50,000; we ship
+100,000 because an ordinary observed settlement consumed **22,973 stroops** — 46% of the lower
+figure. Raise it if legitimate payments are refused; investigate a sharp jump.
+
+**No fee is hard-wired anywhere.** Any pricing you add must be configuration a self-hoster can
+remove — that is a hard requirement, not a preference.
+
+## Business model
+
+Testnet must be free. Beyond that it is your call, and the mechanism is config, not code:
+
+- **Free** — leave `FACILITATOR_API_KEYS` unset. Best for adoption.
+- **Metered** — issue API keys; keep testnet exempt via `AUTH_EXEMPT_NETWORKS`.
+- **Self-facilitation** — run it in-process for your own services and expose nothing.
+
+The leading facilitator in the ecosystem splits it exactly this way: authenticated `/supported`,
+open discovery. Discovery is a public good; settlement is the metered part.
+
+## Throughput
+
+One Stellar account settles roughly one transaction per ledger (~5s). Agent traffic is bursty, so
+add **sequence sources**, not replicas:
+
+```bash
+FACILITATOR_STELLAR_CHANNEL_SECRETS=S...,S...,S...   # independent accounts, round-robin
+FACILITATOR_STELLAR_FEE_BUMP_SECRET=S...             # separates fee payment from sequence numbers
+```
+
+Fund every channel account. Duplicates are rejected at startup — they share a sequence number and
+buy you nothing.
+
+## Monitoring
+
+`/metrics` exposes Prometheus counters. The one to watch is
+`x402_rejections_total{code}` — a spike in a single code names the problem without reading logs.
+
+Alerts and incident procedures are documented in the operator guide.
+
+## Self-facilitation
+
+Run verify/settle in-process, with no external facilitator. Importing the library entry never binds
+a port — the HTTP bootstrap lives behind `@x402-stellar/facilitator/server`.
+
+```ts
+import { buildFacilitator, loadConfig } from "@x402-stellar/facilitator";
+
+// loadConfig() reads 12-factor env and fails closed on a bad setup; pass your own object to override.
+const { facilitator } = buildFacilitator(loadConfig());
+
+// `facilitator` implements verify/settle/getSupported — hand it wherever a FacilitatorClient is
+// expected, with no network hop and no third party in the payment path.
+const server = new x402ResourceServer([facilitator]);
+```
+
+Or mount the full route surface (verify/settle/supported/discovery) into your own server:
+
+```ts
+import { createApp, loadConfig } from "@x402-stellar/facilitator";
+const { app } = createApp({ config: loadConfig(), startedAt: Date.now() });
+// `app` is a Hono app; mount app.fetch under any prefix, or serve it directly.
+```
+
+Sensible when you sell your own services and do not want a network hop or a third party in the
+payment path.
+
+## Verify your deployment
+
+```bash
+pnpm --filter @x402-stellar/conformance install-proxy
+X402_STELLAR_FACILITATOR_URL=https://<deployment> pnpm --filter @x402-stellar/conformance run
+```
+
+This runs the **upstream** x402 e2e suite against your deployment — not our assertions about
+ourselves. `dual` additionally runs it at latest upstream `main`, so you can tell "we broke" apart
+from "the spec moved". See [`packages/conformance`](https://github.com/tolgayayci/x402-stellar/blob/main/packages/conformance/README.md).
+
+## Staying current
+
+The spec moves — roughly one change affecting a Stellar facilitator every 2–4 weeks, almost always
+additive. `the spec-drift check` diffs the pinned spec SHAs against upstream and tells you
+what changed.
+
+## Checklist
+
+- [ ] Signing account funded; alert below 50 XLM
+- [ ] Channel accounts configured and funded if you expect burst traffic
+- [ ] Rate limiting on, or a shared limiter in front of multiple replicas
+- [ ] `/health` wired to your orchestrator; `/metrics` scraped
+- [ ] Secrets from secret management, never the image
+- [ ] Conformance suite run against the deployment

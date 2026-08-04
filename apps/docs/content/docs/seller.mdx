@@ -1,0 +1,153 @@
+---
+title: Sell an API
+description: Add a paywall, become discoverable, and check your setup before a buyer does.
+---
+
+You have an API (or an MCP tool) and you want agents to pay for it — and to be able to *find* it.
+
+Working example: [`examples/paid-api-agent`](https://github.com/tolgayayci/x402-stellar/blob/main/examples/paid-api-agent).
+
+---
+
+## 1. Add the paywall
+
+Stock `@x402/hono` middleware. Nothing in this file comes from us except the facilitator URL.
+
+```ts
+import { paymentMiddleware } from "@x402/hono";
+import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
+import { ExactStellarScheme } from "@x402/stellar/exact/server";
+
+const x402Server = new x402ResourceServer([
+  new HTTPFacilitatorClient({ url: "https://<facilitator>" }),
+]);
+x402Server.register("stellar:*", new ExactStellarScheme());
+
+app.use("*", paymentMiddleware({
+  "GET /premium/quote": {
+    accepts: {
+      scheme: "exact",
+      network: "stellar:testnet",
+      price: { amount: "2500000", asset: "<SEP-41 contract C…>" },  // 0.25 at 7 decimals
+      payTo: "<your G… address>",
+      maxTimeoutSeconds: 60,
+    },
+    description: "A price quote for a named commodity.",
+    mimeType: "application/json",
+  },
+}, x402Server));
+```
+
+`price` takes either `{ amount, asset }` in atomic units, or a string like `"$0.10"` if you are
+happy with default USDC.
+
+That is a working paywall. It is **not yet discoverable** — for that, keep going.
+
+## 2. Become discoverable
+
+Add one field. There is no registration, no dashboard, no API key.
+
+```ts
+import { describeEndpoint } from "@x402-stellar/seller-helpers";
+
+  // …inside the route config:
+  extensions: describeEndpoint({
+    params: {
+      symbol: {
+        description: "Ticker symbol of the commodity to price, such as XLM, BTC or GOLD.",
+        example: "XLM",
+      },
+      currency: {
+        description: "ISO 4217 currency code to quote in. Defaults to USD.",
+        required: false,
+        example: "USD",
+      },
+    },
+    outputExample: { symbol: "XLM", price: 0.1234, currency: "USD" },
+  }),
+```
+
+The endpoint is cataloged when its **first payment settles**.
+
+### Write the descriptions properly
+
+This is the part that matters, and the part that is easy to phone in.
+
+An agent choosing between your API and someone else's has **nothing but this text**. It is also what
+search ranks on. A parameter called `q` with no description is invisible in search and unusable by
+an agent — so `describeEndpoint` refuses to build a declaration without one.
+
+Compare:
+
+```ts
+symbol: { description: "The symbol" }                                    // useless
+symbol: { description: "Ticker symbol of the commodity to price, such as XLM, BTC or GOLD." }
+```
+
+The second one wins searches like *"what's the current price of gold"* — which shares no literal
+word with your endpoint's own description.
+
+> **The single most common mistake.** `describeEndpoint()` already returns a `{ bazaar: … }` map, so
+> it **is** the extensions object. Writing `extensions: { bazaar: describeEndpoint(...) }` nests it
+> twice and the facilitator silently declines to catalog you. Our helper's return type makes that a
+> compile error; the raw SDK helper does not.
+
+## 3. Check your setup before a buyer does
+
+```ts
+import { preflightAndReport } from "@x402-stellar/seller-helpers";
+
+await preflightAndReport({ payTo: process.env.SELLER_ADDRESS!, asset: process.env.PAYMENT_ASSET! });
+```
+
+Run it at boot. It catches the mistakes that otherwise surface as a stranger's failed payment —
+above all a **missing trustline on your own account**, which is the most common cause of a seller's
+first payment failing and which the buyer cannot diagnose.
+
+Network problems produce warnings, never errors, so a Horizon blip cannot stop your server booting.
+
+## 4. Selling an MCP tool
+
+MCP tools are first-class, and keyed on `(resource.url, toolName)` because one endpoint multiplexes
+many tools.
+
+```ts
+import { describeTool } from "@x402-stellar/seller-helpers";
+
+extensions: describeTool({
+  toolName: "financial_analysis",
+  description: "Fundamental analysis of a public company, with a scored summary.",
+  params: { ticker: { description: "Company ticker symbol, such as AAPL.", example: "AAPL" } },
+}),
+```
+
+Worth doing: **zero MCP tools are cataloged anywhere in the x402 ecosystem today**. A well-described
+tool has no competition.
+
+## 5. Confirm it landed
+
+The settle response carries an `EXTENSION-RESPONSES` header — base64 JSON with the cataloging
+verdict. On rejection it names a machine-readable code and a reason.
+
+```bash
+curl -s "https://<facilitator>/discovery/search?query=commodity+price" | jq '.resources[].resource'
+```
+
+## Trustlines
+
+Both sides need one before they can hold a SEP-41 asset.
+
+1. [Stellar Lab → Fund Account](https://lab.stellar.org/account/fund) → Add Trustline
+2. Testnet USDC from the [Circle faucet](https://faucet.circle.com/)
+
+Or skip both: `examples/paid-api-agent/src/setup.ts` issues its own test asset and funds everything
+from friendbot.
+
+## Checklist
+
+- [ ] Route returns `402` unpaid, `200` paid
+- [ ] `payTo` has a trustline to the asset you price in
+- [ ] `describeEndpoint`/`describeTool` present, **not** double-wrapped
+- [ ] Every parameter has a description someone else could act on
+- [ ] `preflightAndReport` runs at boot
+- [ ] Endpoint appears in `/discovery/search` after the first settled payment

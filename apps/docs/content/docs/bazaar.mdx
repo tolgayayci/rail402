@@ -1,0 +1,16 @@
+---
+title: Bazaar
+description: Automatic cataloging, seven working filters, and natural-language search.
+---
+
+`GET /discovery/resources` (offset pagination, key `items`) and `GET /discovery/search`
+(cursor pagination, key `resources`). That asymmetry is real and load-bearing — getting it backwards
+silently breaks every stock client using `withBazaar()`.
+
+All seven spec filters are implemented and all seven actually filter, which is a low bar the largest
+live catalog does not clear.
+
+<Callout title="Reference in progress">
+  Filter semantics, ranking signals and the evaluation harness are being documented. The
+  [seller guide](/docs/seller) covers becoming discoverable today.
+</Callout>
