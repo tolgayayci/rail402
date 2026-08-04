@@ -1,0 +1,25 @@
+{
+  "name": "@x402-stellar/agent-helpers",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Buyer/agent-side helpers: query the Stellar Bazaar and pay for what you find, with a spend cap.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@x402-stellar/errors": "workspace:*",
+    "@x402/core": "2.20.0",
+    "@x402/fetch": "2.20.0",
+    "@x402/stellar": "2.20.0"
+  },
+  "devDependencies": { "typescript": "^5.7.3", "vitest": "^3.0.5" }
+}
