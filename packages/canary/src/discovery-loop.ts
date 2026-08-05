@@ -124,6 +124,35 @@ export async function runDiscoveryLoop(options: DiscoveryLoopOptions): Promise<C
       return { detail: "isValid: true" };
     });
 
+    // Hybrid cataloging: after VERIFY — and before any settlement — the resource must
+    // ALREADY be discoverable, provisionally. Before the hybrid trigger it appeared only after settle,
+    // so this step is what proves the verify-time half on a live network rather than only in a unit
+    // test. A provisional listing carries no rank and no ownership; settlement below confirms it.
+    await run.step("provisional-at-verify", async () => {
+      const found = (
+        await listResources(options.facilitatorUrl, {
+          payTo: fixtures.f.seller.publicKey(),
+          network: NETWORK,
+          type: "http",
+        })
+      ).find(r => r.resource === seller!.catalogKey);
+      if (!found) {
+        throw new X402Error("canary_resource_not_indexed", {
+          reason: `${seller!.catalogKey} verified but did not appear provisionally in GET /discovery/resources before settlement (hybrid cataloging).`,
+          details: { resource: seller!.catalogKey, phase: "post-verify-pre-settle" },
+        });
+      }
+      // Provisional entries must not carry a settlement signal yet — settlement is what earns rank.
+      const settlements = found.quality?.totalSettlements ?? 0;
+      if (settlements !== 0) {
+        throw new X402Error("canary_resource_not_indexed", {
+          reason: `The provisional listing already shows ${settlements} settlement(s) before settling — a verify-time entry must carry zero ranking signal.`,
+          details: { resource: seller!.catalogKey, totalSettlements: settlements },
+        });
+      }
+      return { detail: "discoverable provisionally after verify, before settle (0 signals)" };
+    });
+
     const settled = await run.step("settle", async () => {
       const { body, headers } = await callFacilitator(
         options.facilitatorUrl,
