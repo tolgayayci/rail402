@@ -9,8 +9,15 @@
 export interface Judgment {
   /** The natural-language query, as an agent would phrase it. */
   query: string;
-  /** Relevant entry keys, most relevant first. Graded 3/2/1 by position band. */
+  /** The relevant entry keys (order does not matter). */
   relevant: string[];
+  /**
+   * Explicit, judge-assigned relevance grade per key: 3 = clearly-best answer, 2 = strongly relevant,
+   * 1 = partially relevant. Absent means binary relevance (every key in `relevant` counts as grade 1).
+   * Grades come from a human judge, NEVER from position in the list — two equally-good answers both
+   * get 3.
+   */
+  grades?: Record<string, number>;
   /** Optional filters applied alongside the query. */
   filters?: Record<string, string>;
   /** Why these are the right answers — keeps the set reviewable as it grows. */
@@ -21,6 +28,8 @@ export interface QueryResult {
   query: string;
   returned: string[];
   relevant: string[];
+  /** Judge-assigned grades from the judgment, carried through so nDCG can use them. */
+  grades?: Record<string, number>;
 }
 
 export interface Metrics {
@@ -34,37 +43,46 @@ export interface Metrics {
   queries: number;
 }
 
-/** Graded relevance: leading entries in a judgment are worth more than trailing ones. */
-function gain(relevant: string[], key: string): number {
-  const idx = relevant.indexOf(key);
-  if (idx === -1) return 0;
-  if (idx === 0) return 3;
-  if (idx < 3) return 2;
-  return 1;
+/**
+ * Judge-assigned relevance grade of a key.
+ *
+ * Grades are EXPLICIT (`grades`), never inferred from list position — an earlier version fabricated a
+ * grade difference between equally-relevant siblings purely from array order, which was a weakness of
+ * the ruler rather than a fact about the judges. A key with no explicit grade counts as binary
+ * relevance (grade 1 if judged relevant, 0 otherwise). The nDCG below uses the exponential-gain form
+ * `(2^g - 1)` from Burges et al., "Learning to Rank using Gradient Descent" (ICML 2005) — NOT the
+ * original linear-gain nDCG of Järvelin & Kekäläinen (TOIS 2002); any doc citing J&K for it is wrong.
+ */
+function gain(r: QueryResult, key: string): number {
+  const explicit = r.grades?.[key];
+  if (explicit !== undefined) return explicit;
+  return r.relevant.includes(key) ? 1 : 0;
 }
 
-function dcg(returned: string[], relevant: string[], k: number): number {
+function dcg(r: QueryResult, k: number): number {
   let sum = 0;
-  for (let i = 0; i < Math.min(k, returned.length); i++) {
-    const g = gain(relevant, returned[i]!);
+  for (let i = 0; i < Math.min(k, r.returned.length); i++) {
+    const g = gain(r, r.returned[i]!);
     if (g > 0) sum += (2 ** g - 1) / Math.log2(i + 2);
   }
   return sum;
 }
 
-function idealDcg(relevant: string[], k: number): number {
+function idealDcg(r: QueryResult, k: number): number {
+  // The ideal ranking lists the relevant keys in descending grade order.
+  const grades = r.relevant.map(key => gain(r, key)).sort((a, b) => b - a);
   let sum = 0;
-  for (let i = 0; i < Math.min(k, relevant.length); i++) {
-    const g = i === 0 ? 3 : i < 3 ? 2 : 1;
-    sum += (2 ** g - 1) / Math.log2(i + 2);
+  for (let i = 0; i < Math.min(k, grades.length); i++) {
+    sum += (2 ** grades[i]! - 1) / Math.log2(i + 2);
   }
   return sum;
 }
 
 const precisionAt = (r: QueryResult, k: number): number => {
-  const top = r.returned.slice(0, k);
-  if (top.length === 0) return 0;
-  return top.filter(x => r.relevant.includes(x)).length / Math.min(k, top.length);
+  // Precision@k divides by k, NOT by the number of results returned. Dividing by the smaller of the
+  // two rewarded a ranker for returning FEWER results: a search returning 2 items, 1 relevant, scored
+  // P@5 = 1/2 instead of the correct 1/5. Standard P@k measures the top-k slots, empty ones included.
+  return r.returned.slice(0, k).filter(x => r.relevant.includes(x)).length / k;
 };
 
 const recallAt = (r: QueryResult, k: number): number => {
@@ -97,8 +115,8 @@ export function computeMetrics(results: readonly QueryResult[]): Metrics {
     recallAt10: mean(r => recallAt(r, 10)),
     mrr: mean(reciprocalRank),
     ndcgAt10: mean(r => {
-      const ideal = idealDcg(r.relevant, 10);
-      return ideal === 0 ? 1 : dcg(r.returned, r.relevant, 10) / ideal;
+      const ideal = idealDcg(r, 10);
+      return ideal === 0 ? 1 : dcg(r, 10) / ideal;
     }),
     // An online signal we can also measure offline. Zero-result queries are the clearest evidence
     // of a retrieval gap and feed directly back into the judgment set.

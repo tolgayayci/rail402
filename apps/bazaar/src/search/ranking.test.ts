@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { evaluateAll, failures } from "./evaluate.js";
 import { THRESHOLDS } from "./fixtures.js";
-import { HELD_OUT_THRESHOLDS, HELD_OUT_LARGE_THRESHOLDS, HELD_OUT_CORPUS } from "./heldout.js";
+import {
+  HELD_OUT_THRESHOLDS,
+  HELD_OUT_LARGE_THRESHOLDS,
+  HELD_OUT_BROAD_THRESHOLDS,
+  HELD_OUT_CORPUS,
+} from "./heldout.js";
 import { Bm25Retriever } from "./index.js";
 import type { CatalogEntry } from "../catalog/types.js";
 
@@ -35,9 +40,11 @@ describe("ranking quality gate", () => {
     const thresholds: Record<string, number> =
       name === "synthetic"
         ? THRESHOLDS
-        : name.includes("@2k")
-          ? HELD_OUT_LARGE_THRESHOLDS
-          : HELD_OUT_THRESHOLDS;
+        : name.startsWith("broad")
+          ? HELD_OUT_BROAD_THRESHOLDS
+          : name.includes("@2k")
+            ? HELD_OUT_LARGE_THRESHOLDS
+            : HELD_OUT_THRESHOLDS;
     for (const [metric, floor] of Object.entries(thresholds)) {
       const value = (set.metrics as unknown as Record<string, number>)[metric]!;
       if (metric === "zeroResultRate") {

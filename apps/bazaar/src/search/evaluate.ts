@@ -9,6 +9,9 @@ import {
   HELD_OUT_SOURCE,
   HELD_OUT_THRESHOLDS,
   HELD_OUT_LARGE_THRESHOLDS,
+  HELD_OUT_BROAD_THRESHOLDS,
+  HELD_OUT_BROAD_DEV,
+  HELD_OUT_BROAD_LOCKED,
 } from "./heldout.js";
 import {
   computeMetrics,
@@ -58,6 +61,7 @@ function runSet(name: string, corpus: readonly CatalogEntry[], judgments: readon
         entryKey(r.resource, r.type === "mcp" ? toolNameOf(r) : undefined),
       ),
       relevant: j.relevant,
+      ...(j.grades ? { grades: j.grades } : {}),
     };
   });
 
@@ -74,6 +78,10 @@ export function evaluateAll(): SetResult[] {
     // tell two rankers apart.
     runSet("held-out · dev @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_DEV),
     runSet("held-out · locked @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_LOCKED),
+    // The broad set: 107 blind judgments over the same 2000 documents. Wide enough to actually tell
+    // two rankers apart — this is the set that matters now.
+    runSet("broad · dev @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_BROAD_DEV),
+    runSet("broad · locked @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_BROAD_LOCKED),
   ];
 }
 
@@ -139,9 +147,11 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
 
     const thresholds = set.name === "synthetic"
       ? THRESHOLDS
-      : set.name.includes("@2k")
-        ? HELD_OUT_LARGE_THRESHOLDS
-        : HELD_OUT_THRESHOLDS;
+      : set.name.startsWith("broad")
+        ? HELD_OUT_BROAD_THRESHOLDS
+        : set.name.includes("@2k")
+          ? HELD_OUT_LARGE_THRESHOLDS
+          : HELD_OUT_THRESHOLDS;
     const below = belowThresholds(set.metrics, thresholds);
     if (below.length > 0) {
       console.error(`\n  BELOW THRESHOLD: ${below.join(", ")}`);

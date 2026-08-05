@@ -1,0 +1,1253 @@
+{
+  "note": "107 blind, explicitly-graded judgments over the 2000-resource held-out corpus. All keys verified present. Split dev/locked by query hash.",
+  "dev": [
+    {
+      "query": "I have a postal address and need a point I can put on a map",
+      "relevant": [
+        "https://2s.io/api/geocode/address",
+        "https://api.kadec0.xyz/v1/geocode",
+        "https://eltociear-skill-audit.hf.space/world/geocode",
+        "https://data.greeneris.io/v1/fr/geocode"
+      ],
+      "grades": {
+        "https://2s.io/api/geocode/address": 3,
+        "https://api.kadec0.xyz/v1/geocode": 3,
+        "https://eltociear-skill-audit.hf.space/world/geocode": 2,
+        "https://data.greeneris.io/v1/fr/geocode": 1
+      },
+      "note": "Forward geocoding. Two equally-good general services; the French-only one is partial because it answers the question for one country. Hard because the query never says 'geocode', 'latitude' or 'coordinates'."
+    },
+    {
+      "query": "what should an agent set its clock to at these coordinates",
+      "relevant": [
+        "https://2s.io/api/timezone/lookup",
+        "https://api.webbersites.com/api/timezone",
+        "https://statepulse-api.hahavoid0.workers.dev/location/timezone-checker"
+      ],
+      "grades": {
+        "https://2s.io/api/timezone/lookup": 3,
+        "https://api.webbersites.com/api/timezone": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/location/timezone-checker": 2
+      },
+      "note": "Coordinate to IANA zone plus current offset. Must not be won by the IP-geolocation endpoints that also mention 'timezone' in passing."
+    },
+    {
+      "query": "which county and state does this GPS point fall inside",
+      "relevant": [
+        "https://agent402.tools/api/geo-lookup"
+      ],
+      "grades": {
+        "https://agent402.tools/api/geo-lookup": 3
+      },
+      "note": "Administrative-boundary resolution, not geocoding. Distinctive because it returns census FIPS; the risk is that generic geocoders outrank it."
+    },
+    {
+      "query": "will it be too rough to take the boat out this weekend",
+      "relevant": [
+        "https://vibesprings.net/api/marine",
+        "https://data.greeneris.io/v1/sea/state",
+        "https://statepulse-api.hahavoid0.workers.dev/water/marine-conditions",
+        "https://marine.x402.press/marine/ask"
+      ],
+      "grades": {
+        "https://vibesprings.net/api/marine": 3,
+        "https://data.greeneris.io/v1/sea/state": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/water/marine-conditions": 2,
+        "https://marine.x402.press/marine/ask": 1
+      },
+      "note": "Wave-height forecasting. The NOAA buoy endpoint is observation-only (grade 2, no forecast) and the AI 'ask' endpoint is a reasoning wrapper rather than a data feed (grade 1)."
+    },
+    {
+      "query": "severe storm warnings currently in force for a US state",
+      "relevant": [
+        "https://data.greeneris.io/v1/us/wx-alerts"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/us/wx-alerts": 3
+      },
+      "note": "Alerts, not forecasts — the discrimination is against roughly forty forecast endpoints that share every weather word."
+    },
+    {
+      "query": "decoded field conditions at an airport for flight planning",
+      "relevant": [
+        "https://data.greeneris.io/v1/aviation/metar",
+        "https://stabletravel.dev/api/flightaware/airports/KJFK/weather/observations",
+        "https://stabletravel.dev/api/flightaware/airports/KMIA/weather/observations",
+        "https://aviation.x402.press/aviation/ask"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/aviation/metar": 3,
+        "https://stabletravel.dev/api/flightaware/airports/KJFK/weather/observations": 2,
+        "https://stabletravel.dev/api/flightaware/airports/KMIA/weather/observations": 2,
+        "https://aviation.x402.press/aviation/ask": 1
+      },
+      "note": "The word METAR is deliberately not in the query. The two FlightAware entries are hardcoded to single airports, so they answer the question only for JFK and MIA — real, but weaker than the any-ICAO service."
+    },
+    {
+      "query": "where in the sky is this particular aircraft at the moment",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/airspace/track"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/airspace/track": 3
+      },
+      "note": "Third member of the same transit cluster. The query says nothing about ICAO24 hex identifiers or vectors."
+    },
+    {
+      "query": "how far is the drive between two places and how long will it take",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/transit/route-duration"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/transit/route-duration": 3
+      },
+      "note": "Straightforward, included as a calibration query in a crowded publisher namespace."
+    },
+    {
+      "query": "somewhere to plug in an electric car near this address",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/transit/ev-charger"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/transit/ev-charger": 3
+      },
+      "note": "Paraphrase: the resource says 'public electric vehicle charging stations', the query says 'plug in'."
+    },
+    {
+      "query": "when is the next rocket going up",
+      "relevant": [
+        "https://data.greeneris.io/v1/space/launches"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/space/launches": 3
+      },
+      "note": "Easy on vocabulary but sits next to satellite-tracking and AI space-reasoning endpoints that all mention launches."
+    },
+    {
+      "query": "can I still register this name for my new project",
+      "relevant": [
+        "https://netintel.dev/domain-availability/check",
+        "https://domain-availability-checker.underscoredone.com/check",
+        "https://netintel.dev/bulk-domain/check",
+        "https://netintel.dev/domain/vet"
+      ],
+      "grades": {
+        "https://netintel.dev/domain-availability/check": 3,
+        "https://domain-availability-checker.underscoredone.com/check": 3,
+        "https://netintel.dev/bulk-domain/check": 2,
+        "https://netintel.dev/domain/vet": 1
+      },
+      "note": "Two competing vendors both answer it exactly; the bulk variant is the same capability at another shape; 'vet and pick a domain' is a superset workflow. The word 'domain' never appears in the query."
+    },
+    {
+      "query": "when does the site's certificate expire and is the chain trustworthy",
+      "relevant": [
+        "https://netintel.dev/ssl/analyze",
+        "https://statepulse-api.hahavoid0.workers.dev/network/ssl-expiry"
+      ],
+      "grades": {
+        "https://netintel.dev/ssl/analyze": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/network/ssl-expiry": 3
+      },
+      "note": "Two vendors, one doing a full handshake and one extracting validity dates; both genuinely answer it. The certificate-transparency endpoint is a different question and should NOT lead."
+    },
+    {
+      "query": "where does this shortened link actually take you",
+      "relevant": [
+        "https://netintel.dev/redirect/trace"
+      ],
+      "grades": {
+        "https://netintel.dev/redirect/trace": 3
+      },
+      "note": "The resource says 'follows a URL through its full redirect chain'; the query says 'shortened link', which only its unshortener tag bridges."
+    },
+    {
+      "query": "is it safe to open this link",
+      "relevant": [
+        "https://netintel.dev/url-safety/full",
+        "https://netintel.dev/url-safety/check"
+      ],
+      "grades": {
+        "https://netintel.dev/url-safety/full": 3,
+        "https://netintel.dev/url-safety/check": 2
+      },
+      "note": "Same-vendor sibling discrimination: the end-to-end vetting call should lead its single-database sibling. A ranker that cannot separate 'full' from 'check' will coin-flip these."
+    },
+    {
+      "query": "show me the claims inside this bearer token",
+      "relevant": [
+        "https://netintel.dev/jwt-inspector/decode"
+      ],
+      "grades": {
+        "https://netintel.dev/jwt-inspector/decode": 3
+      },
+      "note": "'Bearer token' rather than JWT. The blob-decoding skill pack and the EVM signature decoders are near neighbours that should not win."
+    },
+    {
+      "query": "is this handle free on the big social platforms",
+      "relevant": [
+        "https://netintel.dev/username-check/lookup"
+      ],
+      "grades": {
+        "https://netintel.dev/username-check/lookup": 3
+      },
+      "note": "Competes with the domain-availability cluster, which shares 'availability' but is about domains."
+    },
+    {
+      "query": "who operates the network this IP sits in",
+      "relevant": [
+        "https://netintel.dev/asn-lookup/analyze",
+        "https://asn-lookup.underscoredone.com/lookup"
+      ],
+      "grades": {
+        "https://netintel.dev/asn-lookup/analyze": 3,
+        "https://asn-lookup.underscoredone.com/lookup": 3
+      },
+      "note": "Cross-vendor pair. Must beat the much larger IP-geolocation cluster, which answers 'where' rather than 'who'."
+    },
+    {
+      "query": "will mail sent to this person actually arrive",
+      "relevant": [
+        "https://netintel.dev/email-intel/analyze"
+      ],
+      "grades": {
+        "https://netintel.dev/email-intel/analyze": 3
+      },
+      "note": "Deliverability of one mailbox, versus the domain-level SPF/DKIM/DMARC siblings which are about a whole domain's posture."
+    },
+    {
+      "query": "does this company's mail domain publish an anti-spoofing policy",
+      "relevant": [
+        "https://dmarc-lookup.underscoredone.com/dmarc-lookup",
+        "https://netintel.dev/email-auth",
+        "https://email-auth.use.x402atlas.com/check"
+      ],
+      "grades": {
+        "https://dmarc-lookup.underscoredone.com/dmarc-lookup": 3,
+        "https://netintel.dev/email-auth": 3,
+        "https://email-auth.use.x402atlas.com/check": 3
+      },
+      "note": "Three vendors answer this identically. Paired with the previous judgment to test address-level versus domain-level discrimination."
+    },
+    {
+      "query": "the browser is blocking my request from another origin, what is the server sending back",
+      "relevant": [
+        "https://cors-header-checker.underscoredone.com/check",
+        "https://netintel.dev/security-headers/analyze"
+      ],
+      "grades": {
+        "https://cors-header-checker.underscoredone.com/check": 3,
+        "https://netintel.dev/security-headers/analyze": 1
+      },
+      "note": "The general security-header scorer does inspect response headers, so it is partially relevant, but only the CORS checker attaches an Origin and reads the access-control headers back."
+    },
+    {
+      "query": "is my site up and how quickly does it answer",
+      "relevant": [
+        "https://url-uptime-checker.underscoredone.com/check",
+        "https://agent402.tools/api/http-check",
+        "https://http-status-checker.underscoredone.com/check"
+      ],
+      "grades": {
+        "https://url-uptime-checker.underscoredone.com/check": 3,
+        "https://agent402.tools/api/http-check": 3,
+        "https://http-status-checker.underscoredone.com/check": 2
+      },
+      "note": "Reachability plus latency. The status-code checker returns the status but not the timing, so it is a partial answer."
+    },
+    {
+      "query": "capture how a page renders in a real browser",
+      "relevant": [
+        "https://screenshots.underscoredone.com/capture"
+      ],
+      "grades": {
+        "https://screenshots.underscoredone.com/capture": 3
+      },
+      "note": "Must beat the headless-Chromium renderers that execute JavaScript and return markdown rather than an image."
+    },
+    {
+      "query": "enumerate subdomains from certificates that have been issued",
+      "relevant": [
+        "https://netintel.dev/cert-transparency/lookup"
+      ],
+      "grades": {
+        "https://netintel.dev/cert-transparency/lookup": 3
+      },
+      "note": "Deliberately adjacent to the two TLS-certificate endpoints above; this one is discovery, they are validity."
+    },
+    {
+      "query": "the model handed back broken JSON wrapped in a code fence",
+      "relevant": [
+        "https://netintel.dev/json/repair",
+        "https://json-suite.underscoredone.com/json",
+        "https://netintel.dev/schema/validate"
+      ],
+      "grades": {
+        "https://netintel.dev/json/repair": 3,
+        "https://json-suite.underscoredone.com/json": 3,
+        "https://netintel.dev/schema/validate": 1
+      },
+      "note": "Cross-vendor pair for repair; validation is a different job on the same data, hence grade 1."
+    },
+    {
+      "query": "scan this barcode and tell me what the product is",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/product/barcode",
+        "https://data.greeneris.io/v1/logistics/gtin-check"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/product/barcode": 3,
+        "https://data.greeneris.io/v1/logistics/gtin-check": 1
+      },
+      "note": "The mirror image of the previous judgment. Getting both right requires reading intent, not keywords — the two resources share nearly all their vocabulary."
+    },
+    {
+      "query": "how much extra do I charge a customer in this zip code",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/finance/sales-tax"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/finance/sales-tax": 3
+      },
+      "note": "The query says neither 'sales tax' nor 'rate'."
+    },
+    {
+      "query": "which lawmakers have been buying and selling shares",
+      "relevant": [
+        "https://api.kadec0.xyz/v1/congress-trades",
+        "https://x402.smartmoney.market/congress"
+      ],
+      "grades": {
+        "https://api.kadec0.xyz/v1/congress-trades": 3,
+        "https://x402.smartmoney.market/congress": 3
+      },
+      "note": "Two vendors on the same STOCK Act disclosures. Distinct from corporate-insider filings, which is the next judgment."
+    },
+    {
+      "query": "what do government bonds pay across maturities today",
+      "relevant": [
+        "https://agent402.tools/api/treasury-yield-curve",
+        "https://www.x402financialdata.com/yield-curve",
+        "https://www.stratalize.com/api/x402/yield-curve-benchmark"
+      ],
+      "grades": {
+        "https://agent402.tools/api/treasury-yield-curve": 3,
+        "https://www.x402financialdata.com/yield-curve": 3,
+        "https://www.stratalize.com/api/x402/yield-curve-benchmark": 2
+      },
+      "note": "The Stratalize entry is graded 2 because its description is a boilerplate paragraph shared across 150 sibling endpoints, so it genuinely serves the data with far less legible metadata."
+    },
+    {
+      "query": "I have a ticker and need the regulator's identifier for that company",
+      "relevant": [
+        "https://agent402.tools/api/edgar-company-lookup"
+      ],
+      "grades": {
+        "https://agent402.tools/api/edgar-company-lookup": 3
+      },
+      "note": "CIK resolution — the primitive every other filings endpoint depends on. Must beat the filings search endpoints themselves."
+    },
+    {
+      "query": "strike ladder and open interest for listed options on a stock",
+      "relevant": [
+        "https://agent402.tools/api/options-chain"
+      ],
+      "grades": {
+        "https://agent402.tools/api/options-chain": 3
+      },
+      "note": "Must beat the crypto options implied-volatility feeds, which own 'options' and 'open interest' but are not equities."
+    },
+    {
+      "query": "how many yen do I get for five hundred euros today",
+      "relevant": [
+        "https://netintel.dev/currency-exchange/convert",
+        "https://vibesprings.net/api/exchange",
+        "https://data.greeneris.io/v1/fx/latest",
+        "https://x402-endpoints.onrender.com/ecb/exchange-rate"
+      ],
+      "grades": {
+        "https://netintel.dev/currency-exchange/convert": 3,
+        "https://vibesprings.net/api/exchange": 2,
+        "https://data.greeneris.io/v1/fx/latest": 2,
+        "https://x402-endpoints.onrender.com/ecb/exchange-rate": 2
+      },
+      "note": "Only the first actually converts an amount; the other three publish reference rates you would have to multiply yourself. That distinction is the point of the judgment."
+    },
+    {
+      "query": "check a securities identifier is well formed before routing the order",
+      "relevant": [
+        "https://data.greeneris.io/v1/validate/isin"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/validate/isin": 3
+      },
+      "note": "Third member of the validation family (container, barcode, ISIN) — all check-digit maths, all in different domains."
+    },
+    {
+      "query": "pull the words out of a photograph of a receipt",
+      "relevant": [
+        "https://ocr.underscoredone.com/read",
+        "https://api.relaystation.ai/v1/image/ocr"
+      ],
+      "grades": {
+        "https://ocr.underscoredone.com/read": 3,
+        "https://api.relaystation.ai/v1/image/ocr": 3
+      },
+      "note": "Image OCR specifically. Must beat the PDF-OCR siblings, which need a PDF rather than a photo."
+    },
+    {
+      "query": "stamp DRAFT diagonally across every page",
+      "relevant": [
+        "https://api.relaystation.ai/v1/pdf/watermark"
+      ],
+      "grades": {
+        "https://api.relaystation.ai/v1/pdf/watermark": 3
+      },
+      "note": "Easy anchor inside a fourteen-sibling PDF/media toolkit where every description opens with a price."
+    },
+    {
+      "query": "even out the volume so the quiet parts match the loud ones",
+      "relevant": [
+        "https://api.relaystation.ai/v1/media/loudnorm"
+      ],
+      "grades": {
+        "https://api.relaystation.ai/v1/media/loudnorm": 3
+      },
+      "note": "Neither 'loudness', 'normalize', 'LUFS' nor 'EBU' appears in the query."
+    },
+    {
+      "query": "shrink these photos down for a gallery",
+      "relevant": [
+        "https://api.relaystation.ai/v1/image/resize",
+        "https://images-api.gedx402.com/v1/images/transform",
+        "https://vibesprings.net/api/convert-image",
+        "https://api.relaystation.ai/v1/image/contact-sheet"
+      ],
+      "grades": {
+        "https://api.relaystation.ai/v1/image/resize": 3,
+        "https://images-api.gedx402.com/v1/images/transform": 3,
+        "https://vibesprings.net/api/convert-image": 2,
+        "https://api.relaystation.ai/v1/image/contact-sheet": 1
+      },
+      "note": "Two direct resizers, one converter that also resizes, and one that tiles images into a grid — the last is what 'gallery' might wrongly attract."
+    },
+    {
+      "query": "write down what was said in this recording",
+      "relevant": [
+        "https://cnvrt.ing/api/transcribe",
+        "https://dicta-notes.com/routes/x402/transcribe",
+        "https://dicta-notes.com/routes/x402/transcribe-long"
+      ],
+      "grades": {
+        "https://cnvrt.ing/api/transcribe": 3,
+        "https://dicta-notes.com/routes/x402/transcribe": 3,
+        "https://dicta-notes.com/routes/x402/transcribe-long": 2
+      },
+      "note": "Speech to text. The long-form sibling adds diarisation and is the better answer only for meetings, so it is graded below its own sibling. Must beat the many social-media 'transcript' endpoints that fetch an existing caption track."
+    },
+    {
+      "query": "give me the gist of this long article in a few bullets",
+      "relevant": [
+        "https://api.anchor-x402.com/v1/tldr",
+        "https://netintel.dev/text-summarize",
+        "https://web-production-78e17.up.railway.app/v1/summarize",
+        "https://api.webbersites.com/api/summarize"
+      ],
+      "grades": {
+        "https://api.anchor-x402.com/v1/tldr": 3,
+        "https://netintel.dev/text-summarize": 3,
+        "https://web-production-78e17.up.railway.app/v1/summarize": 3,
+        "https://api.webbersites.com/api/summarize": 2
+      },
+      "note": "Three general summarisers; the fourth is extractive and web-page-only, so it is narrower. 'Gist' and 'bullets' share almost nothing with 'summarization'."
+    },
+    {
+      "query": "turn a logo bitmap into scalable paths",
+      "relevant": [
+        "https://api.svgsmith.dev/v1/convert"
+      ],
+      "grades": {
+        "https://api.svgsmith.dev/v1/convert": 3
+      },
+      "note": "Rare capability. The risk is the large image-conversion cluster, which changes container formats but stays raster."
+    },
+    {
+      "query": "find a verified work email from someone's professional profile",
+      "relevant": [
+        "https://api.linkedpanda.com/agent/v1/profiles/email",
+        "https://api.scoop.sundaebar.ai/x402/find-email"
+      ],
+      "grades": {
+        "https://api.linkedpanda.com/agent/v1/profiles/email": 3,
+        "https://api.scoop.sundaebar.ai/x402/find-email": 3
+      },
+      "note": "Two vendors doing exactly this. Must beat the email-VALIDATION cluster, which shares every word but answers a different question."
+    },
+    {
+      "query": "I only have the company name, what is their website",
+      "relevant": [
+        "https://api.qonoro.ai/v1/domain-resolver/resolve"
+      ],
+      "grades": {
+        "https://api.qonoro.ai/v1/domain-resolver/resolve": 3
+      },
+      "note": "Company-to-domain resolution, inside a huge B2B enrichment cluster that mostly goes the other way (domain in, firmographics out)."
+    },
+    {
+      "query": "pull name, employers and dates out of a CV",
+      "relevant": [
+        "https://netintel.dev/extract/resume"
+      ],
+      "grades": {
+        "https://netintel.dev/extract/resume": 3
+      },
+      "note": "One of four same-vendor extraction siblings (contact, table, resume, schema) whose descriptions are near-identical except for the object type."
+    },
+    {
+      "query": "which industry classification code covers a bakery",
+      "relevant": [
+        "https://2s.io/api/business/naics"
+      ],
+      "grades": {
+        "https://2s.io/api/business/naics": 3
+      },
+      "note": "Paired with the LEI judgment below: both are 'business identifier lookups' from the same publisher, sharing an identical tag list, and only the description separates them."
+    },
+    {
+      "query": "produce a file someone can import straight into their calendar app",
+      "relevant": [
+        "https://netintel.dev/calendar/ics"
+      ],
+      "grades": {
+        "https://netintel.dev/calendar/ics": 3
+      },
+      "note": "Third member of the calendar cluster; neither 'ics' nor 'RFC 5545' is in the query."
+    },
+    {
+      "query": "quote me the exact wording of a US federal rule",
+      "relevant": [
+        "https://2s.io/api/law/cfr-section",
+        "https://2s.io/api/law/usc-section"
+      ],
+      "grades": {
+        "https://2s.io/api/law/cfr-section": 3,
+        "https://2s.io/api/law/usc-section": 2
+      },
+      "note": "Regulations versus statute — a real distinction between two same-publisher siblings that differ by one word in otherwise parallel descriptions."
+    },
+    {
+      "query": "check a person against watchlists before we onboard them",
+      "relevant": [
+        "https://api.osf-master-server.com/x402/screen/sanctions/:name",
+        "https://api.relaystation.ai/v1/screening/match"
+      ],
+      "grades": {
+        "https://api.osf-master-server.com/x402/screen/sanctions/:name": 3,
+        "https://api.relaystation.ai/v1/screening/match": 3
+      },
+      "note": "Person screening. The corpus is dominated by WALLET screening that shares 'OFAC', 'sanctions' and 'compliance' — that is the discrimination being tested."
+    },
+    {
+      "query": "decode a car's seventeen character serial into make and model",
+      "relevant": [
+        "https://2s.io/api/vehicle/vin-decode",
+        "https://agent402.tools/api/vin-decode",
+        "https://2s.io/api/vehicle/decode-wmi"
+      ],
+      "grades": {
+        "https://2s.io/api/vehicle/vin-decode": 3,
+        "https://agent402.tools/api/vin-decode": 3,
+        "https://2s.io/api/vehicle/decode-wmi": 1
+      },
+      "note": "Two full decoders plus a same-publisher sibling that only decodes the first three characters — relevant but a much thinner answer."
+    },
+    {
+      "query": "known security holes affecting a specific library version",
+      "relevant": [
+        "https://data.greeneris.io/v1/dev/vulns",
+        "https://api.kadec0.xyz/v1/cve"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/dev/vulns": 3,
+        "https://api.kadec0.xyz/v1/cve": 3
+      },
+      "note": "One is version-scoped dependency auditing, the other is CVE record lookup; both answer it. 'CVE' and 'vulnerability' are absent from the query."
+    },
+    {
+      "query": "stars, forks and open issues for a repository",
+      "relevant": [
+        "https://api.kadec0.xyz/v1/github",
+        "https://netintel.dev/github-intel/analyze"
+      ],
+      "grades": {
+        "https://api.kadec0.xyz/v1/github": 3,
+        "https://netintel.dev/github-intel/analyze": 3
+      },
+      "note": "Cross-vendor pair, high vocabulary overlap by design — this is a calibration query, deliberately easy."
+    },
+    {
+      "query": "what is the tech crowd arguing about today",
+      "relevant": [
+        "https://api.kadec0.xyz/v1/hackernews",
+        "https://hackernews-data.underscoredone.com/fetch",
+        "https://x402.agentutility.ai/hacker-news-search"
+      ],
+      "grades": {
+        "https://api.kadec0.xyz/v1/hackernews": 3,
+        "https://hackernews-data.underscoredone.com/fetch": 3,
+        "https://x402.agentutility.ai/hacker-news-search": 2
+      },
+      "note": "Two front-page feeds plus a search-only variant, which answers a narrower question. Heavy paraphrase: none of 'Hacker News', 'front page' or 'stories' appears."
+    },
+    {
+      "query": "was this post edited after it went up, and what did it say before",
+      "relevant": [
+        "https://readx.sh/api/:name/tweets/:id/history"
+      ],
+      "grades": {
+        "https://readx.sh/api/:name/tweets/:id/history": 3
+      },
+      "note": "Same family as the previous judgment. Its description is a single sentence, so nearly all the signal is in the route template."
+    },
+    {
+      "query": "tell me something funny",
+      "relevant": [
+        "https://jokes-endpoint.vercel.app/api/jokes",
+        "https://www.x402joker.com/api/buy"
+      ],
+      "grades": {
+        "https://jokes-endpoint.vercel.app/api/jokes": 3,
+        "https://www.x402joker.com/api/buy": 3
+      },
+      "note": "Two-word descriptions and almost no metadata. Included because short, near-empty entries are a real part of this catalog and the ranker should still find them."
+    }
+  ],
+  "locked": [
+    {
+      "query": "the call is at nine in the morning in Berlin, when is that for someone in Tokyo",
+      "relevant": [
+        "https://402timezones.vercel.app/api/convert-timezone",
+        "https://data.greeneris.io/v1/time/zone"
+      ],
+      "grades": {
+        "https://402timezones.vercel.app/api/convert-timezone": 3,
+        "https://data.greeneris.io/v1/time/zone": 1
+      },
+      "note": "Sibling discrimination against the coordinate-to-zone lookups above: converting BETWEEN two zones is a different capability from resolving one. The wall-clock endpoint is partial (tells you the time in one zone, not the conversion)."
+    },
+    {
+      "query": "which airfields could a small plane reach within a hundred kilometres of here",
+      "relevant": [
+        "https://2s.io/api/airport/near",
+        "https://stabletravel.dev/api/flightaware/airports/nearby"
+      ],
+      "grades": {
+        "https://2s.io/api/airport/near": 3,
+        "https://stabletravel.dev/api/flightaware/airports/nearby": 3
+      },
+      "note": "Two genuine alternatives, one public-records and one commercial-aviation. Competes against a large cluster of airport arrival/delay endpoints that are about a NAMED airport, not proximity search."
+    },
+    {
+      "query": "how long can someone sit outside at midday before their skin burns",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/environment/uv-index",
+        "https://vibesprings.net/api/solar"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/environment/uv-index": 3,
+        "https://vibesprings.net/api/solar": 1
+      },
+      "note": "The best answer literally computes burn times. The solar endpoint carries a uv-index tag but is really about sunrise/sunset and irradiance, so it is only partially relevant. Hard: dozens of weather endpoints share this vocabulary."
+    },
+    {
+      "query": "my hay fever is flaring up, how bad is it outside today",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/environment/pollen"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/environment/pollen": 3
+      },
+      "note": "Zero vocabulary overlap — the resource says 'pollen allergen index counts (grass, birch, oak)' and the query says none of that. Pure paraphrase test against a very crowded weather cluster."
+    },
+    {
+      "query": "could a solar storm degrade GPS accuracy in the next hour",
+      "relevant": [
+        "https://data.greeneris.io/v1/space/kp",
+        "https://statepulse-api.hahavoid0.workers.dev/environment/space-weather"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/space/kp": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/environment/space-weather": 3
+      },
+      "note": "Two equally-good planetary K-index feeds from different providers. Must beat the general 'space' AI-reasoning endpoints, which answer astronomy questions rather than serving the index."
+    },
+    {
+      "query": "is the river near this town about to overflow its banks",
+      "relevant": [
+        "https://vibesprings.net/api/flood",
+        "https://statepulse-api.hahavoid0.workers.dev/water/flood-warnings",
+        "https://statepulse-api.hahavoid0.workers.dev/water/streamflow"
+      ],
+      "grades": {
+        "https://vibesprings.net/api/flood": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/water/flood-warnings": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/water/streamflow": 2
+      },
+      "note": "A forecast service and a warnings scanner are both right answers; the raw gauge-height feed is the input to both, so it is secondary."
+    },
+    {
+      "query": "are there fires burning close to this location right now",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/environment/wildfire",
+        "https://api.brazilayer.com/v1/commodities/fogo",
+        "https://data.greeneris.io/v1/geo/disasters"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/environment/wildfire": 3,
+        "https://api.brazilayer.com/v1/commodities/fogo": 1,
+        "https://data.greeneris.io/v1/geo/disasters": 1
+      },
+      "note": "Sibling discrimination by scope: the Brazil-only hotspot feed and the global multi-hazard disaster feed both technically contain fires but neither answers 'near this location' generally."
+    },
+    {
+      "query": "are planes being held on the ground at American airports today",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/transit/faa-delays"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/transit/faa-delays": 3
+      },
+      "note": "Ground stops and ATC delays. Competes with the arrivals board and the airspace tracker from the same publisher, which share the transit/airport tags but answer different questions."
+    },
+    {
+      "query": "what has just landed at this airport",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/transit/airport-board"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/transit/airport-board": 3
+      },
+      "note": "Sibling pair with the FAA-delays entry above; both are 'airport status' but only one is an arrivals list."
+    },
+    {
+      "query": "are the trains running to schedule in Europe",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/transit/rail-status"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/transit/rail-status": 3
+      },
+      "note": "Must not be won by the subway-alerts sibling, which is a single metro system rather than European rail."
+    },
+    {
+      "query": "how long has this website been around",
+      "relevant": [
+        "https://netintel.dev/domain-age/check",
+        "https://domain-age-checker.underscoredone.com/lookup"
+      ],
+      "grades": {
+        "https://netintel.dev/domain-age/check": 3,
+        "https://domain-age-checker.underscoredone.com/lookup": 3
+      },
+      "note": "Cross-vendor sibling pair. Hard because both vendors also publish WHOIS/registration endpoints that return the creation date as one field among many."
+    },
+    {
+      "query": "find near-miss spellings of our brand that a phisher could register",
+      "relevant": [
+        "https://netintel.dev/typosquat/scan"
+      ],
+      "grades": {
+        "https://netintel.dev/typosquat/scan": 3
+      },
+      "note": "Distinctive capability, but the corpus has a large brand-protection and phishing cluster to beat."
+    },
+    {
+      "query": "has this password already leaked somewhere",
+      "relevant": [
+        "https://netintel.dev/breach-check/password"
+      ],
+      "grades": {
+        "https://netintel.dev/breach-check/password": 3
+      },
+      "note": "Easy anchor query — if a lexical ranker misses this one something is structurally wrong."
+    },
+    {
+      "query": "what stack is this site built on",
+      "relevant": [
+        "https://netintel.dev/tech-fingerprint/analyze",
+        "https://netintel.dev/cloud-fingerprint/analyze"
+      ],
+      "grades": {
+        "https://netintel.dev/tech-fingerprint/analyze": 3,
+        "https://netintel.dev/cloud-fingerprint/analyze": 2
+      },
+      "note": "Application stack versus hosting infrastructure — a real, fine distinction between two same-vendor siblings sharing the word 'fingerprint'."
+    },
+    {
+      "query": "how many usable hosts fit in a slash twenty-six",
+      "relevant": [
+        "https://netintel.dev/subnet/calc"
+      ],
+      "grades": {
+        "https://netintel.dev/subnet/calc": 3
+      },
+      "note": "Spelled-out CIDR prefix so the query shares almost no tokens with the description."
+    },
+    {
+      "query": "am I allowed to fetch pages from this site automatically",
+      "relevant": [
+        "https://netintel.dev/robots-txt/analyze",
+        "https://api.x402dataapi.com/v1/agent-accessibility",
+        "https://minifetch.com/api/v1/x402/preflight/url-check"
+      ],
+      "grades": {
+        "https://netintel.dev/robots-txt/analyze": 3,
+        "https://api.x402dataapi.com/v1/agent-accessibility": 2,
+        "https://minifetch.com/api/v1/x402/preflight/url-check": 1
+      },
+      "note": "Crawl permission. The agent-accessibility report checks the same signals as part of a wider audit; the Minifetch preflight only answers it for Minifetch's own crawler, so it is grade 1. Hard because the corpus is full of scrapers that ignore the question entirely."
+    },
+    {
+      "query": "what did this page look like a few years ago",
+      "relevant": [
+        "https://netintel.dev/wayback/lookup"
+      ],
+      "grades": {
+        "https://netintel.dev/wayback/lookup": 3
+      },
+      "note": "Web archive lookup. The query says nothing about archives, Wayback or the Internet Archive."
+    },
+    {
+      "query": "has this address been reported for attacks or abuse",
+      "relevant": [
+        "https://netintel.dev/ip-reputation/analyze",
+        "https://netintel.dev/ip-blacklist/check",
+        "https://netintel.dev/ip-risk/score",
+        "https://api.ipintel.ai/x402v2"
+      ],
+      "grades": {
+        "https://netintel.dev/ip-reputation/analyze": 3,
+        "https://netintel.dev/ip-blacklist/check": 2,
+        "https://netintel.dev/ip-risk/score": 2,
+        "https://api.ipintel.ai/x402v2": 2
+      },
+      "note": "Deliberately ambiguous 'address': the corpus is full of BLOCKCHAIN address-risk scoring that shares almost every word. A ranker that returns wallet screening here has misread the domain."
+    },
+    {
+      "query": "which services are listening on this machine",
+      "relevant": [
+        "https://port-scanner.underscoredone.com/scan"
+      ],
+      "grades": {
+        "https://port-scanner.underscoredone.com/scan": 3
+      },
+      "note": "Neither 'port' nor 'scan' is in the query."
+    },
+    {
+      "query": "make scannable squares for a batch of links I want to print",
+      "relevant": [
+        "https://qr-code-generator.underscoredone.com/generate"
+      ],
+      "grades": {
+        "https://qr-code-generator.underscoredone.com/generate": 3
+      },
+      "note": "Pure paraphrase — the query avoids 'QR' entirely and describes the artefact."
+    },
+    {
+      "query": "prove a file has not been altered since I last saw it",
+      "relevant": [
+        "https://hash-hmac.underscoredone.com/hash",
+        "https://agent402.tools/api/hash"
+      ],
+      "grades": {
+        "https://hash-hmac.underscoredone.com/hash": 3,
+        "https://agent402.tools/api/hash": 3
+      },
+      "note": "Two vendors, same primitive. The query never says hash, checksum or digest."
+    },
+    {
+      "query": "run this python snippet somewhere isolated and show me the output",
+      "relevant": [
+        "https://staging.toolkit.dev/api/tool/e2b/run-code"
+      ],
+      "grades": {
+        "https://staging.toolkit.dev/api/tool/e2b/run-code": 3
+      },
+      "note": "Only sandboxed-execution service in this slice of the corpus; a good check that a rare capability is reachable at all."
+    },
+    {
+      "query": "how much of my context window will this passage use",
+      "relevant": [
+        "https://agent402.tools/api/text-stats"
+      ],
+      "grades": {
+        "https://agent402.tools/api/text-stats": 3
+      },
+      "note": "The resource mentions an 'LLM token estimate' once, at the end of a list of counts. Everything else in the query is unshared vocabulary."
+    },
+    {
+      "query": "pick a winner fairly and let me prove afterwards the draw was not rigged",
+      "relevant": [
+        "https://verifiable-random.use.x402atlas.com/pick",
+        "https://api.anchor-x402.com/v1/roll",
+        "https://verifiable-random.use.x402atlas.com/shuffle",
+        "https://verifiable-random.use.x402atlas.com/dice",
+        "https://agent402.tools/api/random"
+      ],
+      "grades": {
+        "https://verifiable-random.use.x402atlas.com/pick": 3,
+        "https://api.anchor-x402.com/v1/roll": 2,
+        "https://verifiable-random.use.x402atlas.com/shuffle": 2,
+        "https://verifiable-random.use.x402atlas.com/dice": 2,
+        "https://agent402.tools/api/random": 1
+      },
+      "note": "Selection specifically, from a family of verifiable-randomness siblings. The plain CSPRNG endpoint is relevant but cannot prove anything after the fact, so grade 1."
+    },
+    {
+      "query": "how many kilograms is twelve stone",
+      "relevant": [
+        "https://2s.io/api/convert/unit"
+      ],
+      "grades": {
+        "https://2s.io/api/convert/unit": 3
+      },
+      "note": "Sole unit converter in the corpus, but it must beat a very large currency-conversion cluster that owns the word 'convert'."
+    },
+    {
+      "query": "check a shipping container number is well formed before filing the paperwork",
+      "relevant": [
+        "https://data.greeneris.io/v1/logistics/container-check"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/logistics/container-check": 3
+      },
+      "note": "ISO 6346 check-digit validation. Paired with the next two judgments to test format-validation versus data-lookup."
+    },
+    {
+      "query": "verify a product barcode number is valid without looking anything up",
+      "relevant": [
+        "https://data.greeneris.io/v1/logistics/gtin-check",
+        "https://statepulse-api.hahavoid0.workers.dev/product/barcode"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/logistics/gtin-check": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/product/barcode": 1
+      },
+      "note": "Offline check-digit validation. Its sibling resolves the barcode to product metadata, which is a different job — the 'without looking anything up' clause is the whole discrimination."
+    },
+    {
+      "query": "what will the monthly repayment be on a thirty year home loan",
+      "relevant": [
+        "https://mortgage-amortization.underscoredone.com/calculate"
+      ],
+      "grades": {
+        "https://mortgage-amortization.underscoredone.com/calculate": 3
+      },
+      "note": "Competes with a large mortgage-RATE reporting cluster; only this one computes a schedule."
+    },
+    {
+      "query": "what would a 1990 salary be worth in today's money",
+      "relevant": [
+        "https://2s.io/api/inflation/calculator"
+      ],
+      "grades": {
+        "https://2s.io/api/inflation/calculator": 3
+      },
+      "note": "Must beat the many CPI and inflation-benchmark feeds, which report the index rather than adjusting an amount."
+    },
+    {
+      "query": "did anyone on the board sell their own company's stock recently",
+      "relevant": [
+        "https://edgar.apitoll.cloud/v1/edgar/insider"
+      ],
+      "grades": {
+        "https://edgar.apitoll.cloud/v1/edgar/insider": 3
+      },
+      "note": "Deliberate near-miss with the congressional-trading pair above: both are 'politically interesting people trading stock', only one is SEC Form 4."
+    },
+    {
+      "query": "was trading in this ticker paused today",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/finance/halts"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/finance/halts": 3
+      },
+      "note": "Rare capability inside an enormous equities cluster."
+    },
+    {
+      "query": "when does this company next pay out to shareholders",
+      "relevant": [
+        "https://www.x402financialdata.com/dividends/:ticker"
+      ],
+      "grades": {
+        "https://www.x402financialdata.com/dividends/:ticker": 3
+      },
+      "note": "Templated route. Tests that a path-parameter resource is still findable from natural language."
+    },
+    {
+      "query": "read this text aloud and give me back an audio file",
+      "relevant": [
+        "https://agent402.tools/api/tts",
+        "https://voice.forgemesh.io/v1/tts/base",
+        "https://api.delx.ai/api/v1/x402/speech",
+        "https://voice.forgemesh.io/v1/tts/pro",
+        "https://voice.forgemesh.io/v1/tts/custom",
+        "https://media.gedx402.com/v1/tts/:model",
+        "https://api.xona-agent.com/base-main/audio/x-text-to-speech"
+      ],
+      "grades": {
+        "https://agent402.tools/api/tts": 3,
+        "https://voice.forgemesh.io/v1/tts/base": 3,
+        "https://api.delx.ai/api/v1/x402/speech": 3,
+        "https://voice.forgemesh.io/v1/tts/pro": 2,
+        "https://voice.forgemesh.io/v1/tts/custom": 2,
+        "https://media.gedx402.com/v1/tts/:model": 2,
+        "https://api.xona-agent.com/base-main/audio/x-text-to-speech": 2
+      },
+      "note": "A genuinely crowded capability — seven providers, three tiers from one of them. Any of the top three is a correct first result; the tiered variants are the same service at another price point."
+    },
+    {
+      "query": "make a scanned document searchable without changing how it looks",
+      "relevant": [
+        "https://api.relaystation.ai/v1/pdf/ocr-searchable",
+        "https://api.relaystation.ai/v1/pdf/ocr",
+        "https://api.relaystation.ai/v1/pdf/extract-text"
+      ],
+      "grades": {
+        "https://api.relaystation.ai/v1/pdf/ocr-searchable": 3,
+        "https://api.relaystation.ai/v1/pdf/ocr": 2,
+        "https://api.relaystation.ai/v1/pdf/extract-text": 1
+      },
+      "note": "Three same-vendor siblings in strict order: invisible text layer, extracted text, and plain text extraction from a born-digital PDF. 'Without changing how it looks' is the only clue separating the first two."
+    },
+    {
+      "query": "turn document pages into pictures so I can show a preview strip",
+      "relevant": [
+        "https://api.relaystation.ai/v1/pdf/render",
+        "https://api.relaystation.ai/v1/media/storyboard"
+      ],
+      "grades": {
+        "https://api.relaystation.ai/v1/pdf/render": 3,
+        "https://api.relaystation.ai/v1/media/storyboard": 1
+      },
+      "note": "The storyboard sibling also produces a preview strip, but from video frames — a plausible wrong answer that shares the intent words and not the input type."
+    },
+    {
+      "query": "cut a thirty second segment out of a recording without losing quality",
+      "relevant": [
+        "https://api.relaystation.ai/v1/media/trim"
+      ],
+      "grades": {
+        "https://api.relaystation.ai/v1/media/trim": 3
+      },
+      "note": "Must beat the transcoding sibling, which also touches video but re-encodes."
+    },
+    {
+      "query": "obscure faces and number plates before I publish the picture",
+      "relevant": [
+        "https://api.relaystation.ai/v1/image/blur"
+      ],
+      "grades": {
+        "https://api.relaystation.ai/v1/image/blur": 3
+      },
+      "note": "The description mentions redactions once; the query is entirely about the use case."
+    },
+    {
+      "query": "which language is this text written in",
+      "relevant": [
+        "https://netintel.dev/lang-detect/analyze"
+      ],
+      "grades": {
+        "https://netintel.dev/lang-detect/analyze": 3
+      },
+      "note": "Detection, not translation. The translation endpoints all advertise 'detect the language of input text' as a preamble, which is exactly the trap."
+    },
+    {
+      "query": "has this employer been cited for workplace safety breaches",
+      "relevant": [
+        "https://2s.io/api/gov/osha-violations"
+      ],
+      "grades": {
+        "https://2s.io/api/gov/osha-violations": 3
+      },
+      "note": "Distinctive record set, but the corpus has a large compliance/sanctions cluster that owns 'violations' and 'screening'."
+    },
+    {
+      "query": "the standard global identifier for a legal entity in financial filings",
+      "relevant": [
+        "https://2s.io/api/business/lei"
+      ],
+      "grades": {
+        "https://2s.io/api/business/lei": 3
+      },
+      "note": "Sibling of the NAICS judgment. Both entries carry the same five tags, so the ranker has to read descriptions."
+    },
+    {
+      "query": "who are the directors behind a French company",
+      "relevant": [
+        "https://api.sirenic.eu/v1/dirigeant/recherche"
+      ],
+      "grades": {
+        "https://api.sirenic.eu/v1/dirigeant/recherche": 3
+      },
+      "note": "The description is partly in French while the query is in English — a real multilingual-metadata case the corpus contains and the ranker has never been measured on."
+    },
+    {
+      "query": "which days are non-working in this country next year",
+      "relevant": [
+        "https://2s.io/api/calendar/holidays",
+        "https://vibesprings.net/api/holidays",
+        "https://netintel.dev/holidays/check",
+        "https://statepulse-api.hahavoid0.workers.dev/calendar/holidays",
+        "https://eltociear-skill-audit.hf.space/world/holidays",
+        "https://data.greeneris.io/v1/eu/holidays-regional"
+      ],
+      "grades": {
+        "https://2s.io/api/calendar/holidays": 3,
+        "https://vibesprings.net/api/holidays": 3,
+        "https://netintel.dev/holidays/check": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/calendar/holidays": 3,
+        "https://eltociear-skill-audit.hf.space/world/holidays": 3,
+        "https://data.greeneris.io/v1/eu/holidays-regional": 1
+      },
+      "note": "Five providers do this identically, so all five are graded 3 rather than ranked by my preference; the regional-EU one is narrower. Honest about how duplicated this capability is in a real catalog — recall@5 is structurally capped here and that is the finding, not a bug."
+    },
+    {
+      "query": "what date is ten working days from now if I skip public holidays",
+      "relevant": [
+        "https://2s.io/api/calendar/business-days",
+        "https://netintel.dev/holidays/check"
+      ],
+      "grades": {
+        "https://2s.io/api/calendar/business-days": 3,
+        "https://netintel.dev/holidays/check": 1
+      },
+      "note": "Sibling discrimination against the six holiday-list endpoints above — this one does date arithmetic, they enumerate. NetIntel's is graded 1 because it computes only the NEXT business day, not a shift of N."
+    },
+    {
+      "query": "confirm a diagnosis code a clinician wrote down is a real one",
+      "relevant": [
+        "https://2s.io/api/medical/icd10"
+      ],
+      "grades": {
+        "https://2s.io/api/medical/icd10": 3
+      },
+      "note": "Only ICD-10 endpoint in the corpus; a good test that a rare vertical is reachable at all."
+    },
+    {
+      "query": "has this medicine been pulled from shelves for safety reasons",
+      "relevant": [
+        "https://x402-endpoints.onrender.com/recalls/search"
+      ],
+      "grades": {
+        "https://x402-endpoints.onrender.com/recalls/search": 3
+      },
+      "note": "FDA recalls. Must beat the adverse-events and biotech-approval endpoints that share the regulatory vocabulary."
+    },
+    {
+      "query": "book me a table for dinner tonight",
+      "relevant": [
+        "https://agentres.dev/api/book"
+      ],
+      "grades": {
+        "https://agentres.dev/api/book": 3
+      },
+      "note": "One of very few endpoints in the corpus that performs an action rather than returning data. Competes with flight-booking, which shares 'book'."
+    },
+    {
+      "query": "is this npm package actively maintained and widely used",
+      "relevant": [
+        "https://netintel.dev/npm-intel/analyze"
+      ],
+      "grades": {
+        "https://netintel.dev/npm-intel/analyze": 3
+      },
+      "note": "Adjacent to the vulnerability pair above — supply-chain health rather than known flaws."
+    },
+    {
+      "query": "find an accepted answer for a programming error someone else hit",
+      "relevant": [
+        "https://api.kadec0.xyz/v1/stackoverflow"
+      ],
+      "grades": {
+        "https://api.kadec0.xyz/v1/stackoverflow": 3
+      },
+      "note": "Must beat the general web-search cluster, which is enormous and also answers questions."
+    },
+    {
+      "query": "get the captions from a video so I can quote it",
+      "relevant": [
+        "https://api.kadec0.xyz/v1/youtube",
+        "https://glim.sh/api/v1/youtube/get"
+      ],
+      "grades": {
+        "https://api.kadec0.xyz/v1/youtube": 3,
+        "https://glim.sh/api/v1/youtube/get": 3
+      },
+      "note": "Fetching an existing caption track, not speech-to-text — the deliberate mirror of the transcription judgment above."
+    },
+    {
+      "query": "list the accounts following this person on X",
+      "relevant": [
+        "https://readx.sh/api/:name/followers"
+      ],
+      "grades": {
+        "https://readx.sh/api/:name/followers": 3
+      },
+      "note": "One of about fifteen same-vendor templated Twitter routes with one-line descriptions and an example URL — the hardest sibling family in the corpus."
+    },
+    {
+      "query": "turn a syndication feed into structured JSON",
+      "relevant": [
+        "https://402utils.com/v1/rss-to-json",
+        "https://netintel.dev/rss-parser/fetch"
+      ],
+      "grades": {
+        "https://402utils.com/v1/rss-to-json": 3,
+        "https://netintel.dev/rss-parser/fetch": 3
+      },
+      "note": "Cross-vendor pair. 'Syndication feed' rather than RSS or Atom is the only obstacle."
+    },
+    {
+      "query": "an original story to read a child at bedtime",
+      "relevant": [
+        "https://midway.lol/booth/bedtime"
+      ],
+      "grades": {
+        "https://midway.lol/booth/bedtime": 3
+      },
+      "note": "The description opens with an emoji and calls itself 'The Lullaby Tent'. Tests that whimsical naming does not make a resource unfindable."
+    },
+    {
+      "query": "which flowers does a particular kind of honey come from",
+      "relevant": [
+        "https://api.melvea.com/v1/catalog"
+      ],
+      "grades": {
+        "https://api.melvea.com/v1/catalog": 3
+      },
+      "note": "A long-tail vertical with no siblings, and an entry that carries tags but no serviceName — a useful probe of how much the ranker leans on that field."
+    },
+    {
+      "query": "what price do West African growers actually receive for their beans",
+      "relevant": [
+        "https://data.lagoontechsystems.com/api/coffee/price"
+      ],
+      "grades": {
+        "https://data.lagoontechsystems.com/api/coffee/price": 3
+      },
+      "note": "Farmgate floor price. The word 'coffee' is avoided so the enormous crypto and commodity price-feed clusters get a fair chance to win wrongly."
+    },
+    {
+      "query": "find shops and restaurants near a given place",
+      "relevant": [
+        "https://places.use.x402atlas.com/ddg/local"
+      ],
+      "grades": {
+        "https://places.use.x402atlas.com/ddg/local": 3
+      },
+      "note": "Local business search. Must beat the general web-search cluster, which is one of the largest families in the corpus."
+    }
+  ]
+}

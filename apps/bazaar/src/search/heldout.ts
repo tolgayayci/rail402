@@ -2,6 +2,7 @@ import type { CatalogEntry } from "../catalog/types.js";
 import type { Judgment } from "./metrics.js";
 import corpus from "./heldout-corpus.json" with { type: "json" };
 import largeCorpus from "./heldout-corpus-large.json" with { type: "json" };
+import broadJudgments from "./heldout-judgments-large.json" with { type: "json" };
 
 /**
  * The held-out evaluation set: **real** resources, and queries written against them.
@@ -196,6 +197,27 @@ export const HELD_OUT_LOCKED: Judgment[] = [
 ];
 
 /**
+ * The broad held-out set — 107 blind, explicitly-graded judgments spanning ~67 distinct hosts and
+ * ~80 services across the 2000-resource corpus (geocoding, weather, price feeds, token/NFT data,
+ * search, identity, media, and deliberate sibling-discrimination pairs).
+ *
+ * This is the set the note at the bottom of this file asked for — "100+ queries written blind against
+ * the large corpus". Twenty judgments over 2000 documents is a wide task measured with a narrow
+ * ruler; 107 is wide enough that a field-weight or ranker change is measurable rather than lost in
+ * the noise of ten queries. Scored ONLY against the 2000-document corpus (its keys are large-corpus
+ * resources), split dev/locked by a hash of the query so neither slice is the easy half. 75/107 are
+ * "hard" (low query↔answer vocabulary overlap or same-host siblings that must be ordered); 27 share
+ * zero content tokens with their best answer. Grades are explicit (3/2/1) and judge-assigned — where
+ * two vendors do the identical thing both are graded as genuine siblings rather than invented into an
+ * ordering. Every key was verified present in the corpus.
+ *
+ * Caveat carried from the corpus: all 2000 entries are `type:"http"`, so there are no MCP tools to
+ * judge — ranking over MCP resources remains unmeasured by this set (Phase 3 adds MCP coverage).
+ */
+export const HELD_OUT_BROAD_DEV = broadJudgments.dev as unknown as Judgment[];
+export const HELD_OUT_BROAD_LOCKED = broadJudgments.locked as unknown as Judgment[];
+
+/**
  * Floors for the held-out slices.
  *
  * Set from the FIRST measured run rather than from ambition, so they are a regression guard and not
@@ -227,6 +249,35 @@ export const HELD_OUT_LARGE_THRESHOLDS = {
   recallAt5: 0.7,
   mrr: 0.45,
   ndcgAt10: 0.52,
+  zeroResultRate: 0.0,
+} as const;
+
+/**
+ * Floors for the broad set (107 judgments over 2000 documents), set under the worse of the two
+ * slices from the FIRST measurement (2026-08-05) and slightly below it — a regression guard, never a
+ * target, and never lowered to make a build pass without recording why here.
+ *
+ * First measurement, explicit-grade metric:
+ *
+ * | | broad dev (52) | broad locked (55) |
+ * |---|---|---|
+ * | precision@1 | 44.2% | 41.8% |
+ * | recall@5 | 50.2% | 53.2% |
+ * | MRR | 0.533 | 0.504 |
+ * | nDCG@10 | 0.519 | 0.505 |
+ * | zero-result | 0% | 0% |
+ *
+ * The two slices agreeing to within ~3 points is the useful part: the split is fair (neither is the
+ * easy half), and the ranker's real behaviour on a wide, hard, realistic set is ~42-44% right-first,
+ * MRR ~0.5. That is the number to improve — and with 107 judgments an improvement is measurable
+ * rather than lost in the noise of ten queries. `precision@5` is structurally capped near 20% for the
+ * 59 single-answer judgments, so it is deliberately not floored here.
+ */
+export const HELD_OUT_BROAD_THRESHOLDS = {
+  precisionAt1: 0.4,
+  recallAt5: 0.48,
+  mrr: 0.48,
+  ndcgAt10: 0.48,
   zeroResultRate: 0.0,
 } as const;
 
