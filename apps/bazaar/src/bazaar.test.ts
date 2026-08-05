@@ -4,7 +4,12 @@ import { ingest } from "./catalog/ingest.js";
 import { entryKey, type CatalogEntry } from "./catalog/types.js";
 import { CORPUS, JUDGMENTS, THRESHOLDS } from "./search/fixtures.js";
 import { evaluate, failures } from "./search/evaluate.js";
-import { createBazaarApp, catalogSettledPayment, encodeExtensionResponses } from "./app.js";
+import {
+  createBazaarApp,
+  catalogSettledPayment,
+  catalogProvisionalPayment,
+  encodeExtensionResponses,
+} from "./app.js";
 import { DomainVerifier, accountsFrom } from "./catalog/domain.js";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 
@@ -50,6 +55,10 @@ const requirements = (over: Partial<PaymentRequirements> = {}): PaymentRequireme
     asset: ASSET,
     payTo: SELLER,
     maxTimeoutSeconds: 60,
+    // Legitimate Stellar exact listings are always sponsored — the facilitator pays the fee — and the
+    // stock @x402/stellar client requires it. Default it here so every fixture is a payable listing;
+    // the sponsorship-guard tests override it explicitly.
+    extra: { areFeesSponsored: true },
     ...over,
   }) as PaymentRequirements;
 
@@ -283,6 +292,49 @@ describe("catalog integrity", () => {
     expect(out.error.reason).toMatch(/settles on/i);
   });
 
+  // ── A Stellar listing a stock client cannot pay must never be cataloged (B2) ──
+  // The stock @x402/stellar client destructures `extra` and throws when areFeesSponsored is not
+  // truthfully true, so an entry without it is UNPAYABLE — exactly the broken Stellar listings the
+  // live CDP catalog serves because it validates none of this.
+  it("rejects a Stellar exact listing whose extra is missing", () => {
+    const out = doIngest(payload(), requirements({ extra: undefined }));
+    expect(out.status).toBe("rejected");
+    if (out.status !== "rejected") return;
+    expect(out.error.code).toBe("bazaar_stellar_fees_not_sponsored");
+    expect(out.error.reason).toBeTruthy();
+  });
+
+  it("rejects a Stellar exact listing whose extra is null (schema-legal, but a client crash)", () => {
+    const out = doIngest(payload(), requirements({ extra: null as unknown as Record<string, unknown> }));
+    expect(out.status).toBe("rejected");
+    if (out.status !== "rejected") return;
+    expect(out.error.code).toBe("bazaar_stellar_fees_not_sponsored");
+  });
+
+  it("rejects a Stellar exact listing that declares fees are not sponsored", () => {
+    const out = doIngest(payload(), requirements({ extra: { areFeesSponsored: false } }));
+    expect(out.status).toBe("rejected");
+    if (out.status !== "rejected") return;
+    expect(out.error.code).toBe("bazaar_stellar_fees_not_sponsored");
+  });
+
+  it("catalogs a Stellar exact listing that truthfully advertises sponsorship", () => {
+    const out = doIngest(payload(), requirements({ extra: { areFeesSponsored: true } }));
+    expect(out.status).toBe("success");
+    if (out.status !== "success") return;
+    expect(out.entry.accepts[0]!.extra).toMatchObject({ areFeesSponsored: true });
+  });
+
+  it("always emits extra on a catalog entry, since stock PaymentRequirements.extra is required (B1)", () => {
+    // A non-exact scheme is not subject to the sponsorship guard, so this exercises the default: a
+    // listing whose requirements carry no extra must still be cataloged WITH `extra: {}`, never with
+    // extra omitted — an omitted extra is a listing a strict stock consumer rejects.
+    const out = doIngest(payload(), requirements({ scheme: "upto", extra: undefined }));
+    expect(out.status).toBe("success");
+    if (out.status !== "success") return;
+    expect(out.entry.accepts[0]!.extra).toEqual({});
+  });
+
   it("refuses to let one seller overwrite another seller's listing", () => {
     const first = doIngest();
     expect(first.status).toBe("success");
@@ -426,6 +478,57 @@ describe("catalog integrity", () => {
 });
 
 // ── EXTENSION-RESPONSES ──────────────────────────────────────────────────────
+
+describe("hybrid cataloging — provisional at verify", () => {
+  const decode = (h: string) => JSON.parse(Buffer.from(h, "base64").toString("utf8")).bazaar;
+
+  it("catalogs a discoverable provisional entry at verify, carrying no ranking signals", () => {
+    const store = new CatalogStore();
+    const header = catalogProvisionalPayment(store, payload(), requirements(), now, SERVED);
+    expect(decode(header!).status).toBe("processing");
+    // Discoverable — a resource appears "during payment verification", matching the reference impl.
+    expect(store.list({}, 10, 0).items.map(i => i.resource)).toContain("https://api.example.com/weather");
+    // ...but powerless: it has settled nothing, so there is no usage signal to boost its rank.
+    const entry = store.get("https://api.example.com/weather");
+    expect(entry?.provisional).toBe(true);
+    expect(entry?.quality.totalSettlements).toBe(0);
+    expect(entry?.quality.uniquePayers).toBe(0);
+  });
+
+  it("reports `rejected` at verify for metadata that would not catalog, and writes nothing", () => {
+    const store = new CatalogStore();
+    const header = catalogProvisionalPayment(store, payload(), requirements({ network: "aws:base" }), now, SERVED);
+    expect(decode(header!).status).toBe("rejected");
+    expect(store.size).toBe(0);
+  });
+
+  it("confirms a provisional entry into a settled, owned, counted listing", () => {
+    const store = new CatalogStore();
+    catalogProvisionalPayment(store, payload(), requirements(), now, SERVED);
+    const settleHeader = catalogSettledPayment(store, payload(), requirements(), OTHER, now, SERVED);
+    expect(decode(settleHeader!).status).toBe("success");
+    const entry = store.get("https://api.example.com/weather");
+    expect(entry?.provisional).toBeFalsy();
+    expect(entry?.ownerPayTo).toBe(SELLER);
+    expect(entry?.quality.totalSettlements).toBe(1);
+    expect(entry?.quality.uniquePayers).toBe(1);
+  });
+
+  it("does not let a hostile verify-time listing lock the real seller out at settle", () => {
+    // Anti-poison: an attacker calls /verify declaring the seller's resource under the attacker's own
+    // payTo. Because a provisional entry owns nothing, the real seller's settlement must CLAIM it —
+    // not be refused as an ownership conflict, which is how the F1 takeover would return via verify.
+    const store = new CatalogStore();
+    catalogProvisionalPayment(store, payload(), requirements({ payTo: OTHER }), now, SERVED);
+    expect(store.get("https://api.example.com/weather")?.ownerPayTo).toBe(OTHER);
+
+    const settleHeader = catalogSettledPayment(store, payload(), requirements({ payTo: SELLER }), OTHER, now, SERVED);
+    expect(decode(settleHeader!).status).toBe("success");
+    const entry = store.get("https://api.example.com/weather");
+    expect(entry?.provisional).toBeFalsy();
+    expect(entry?.ownerPayTo).toBe(SELLER);
+  });
+});
 
 describe("EXTENSION-RESPONSES reporting", () => {
   const decode = (h: string) => JSON.parse(Buffer.from(h, "base64").toString("utf8"));

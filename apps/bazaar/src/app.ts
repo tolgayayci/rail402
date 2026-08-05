@@ -254,6 +254,53 @@ export function previewCataloging(
 }
 
 /**
+ * Catalog a resource PROVISIONALLY at verify — the write half of hybrid cataloging.
+ *
+ * The upstream reference facilitator and the e2e conformance suite catalog a resource during payment
+ * VERIFICATION, not only after settlement, so cataloging solely on settle risks failing acceptance
+ * criterion 4 for any bazaar scenario that verifies without settling. So at verify we validate the
+ * discovery metadata (identically to settle) and, if it is well-formed, write a PROVISIONAL entry:
+ * discoverable, but carrying no ranking signals and no ownership (`store.upsertProvisional`).
+ * Settlement remains what makes a listing real, ranked and owned — the anti-spam property is
+ * unchanged where it matters, and a provisional entry can never lock out or spoof a seller.
+ *
+ * Unlike `catalogSettledPayment`, this is safe to call before any payment: it never counts a payer,
+ * never sets domain verification (a settle-time concern), and never displaces an existing entry.
+ *
+ * @returns the `EXTENSION-RESPONSES` value: `processing` when the metadata would catalog (and a
+ *   provisional entry was written), or `rejected` with the same code and reason settle would give.
+ */
+export function catalogProvisionalPayment(
+  store: CatalogStore,
+  paymentPayload: PaymentPayload,
+  paymentRequirements: PaymentRequirements,
+  now: string = new Date().toISOString(),
+  allowedNetworks?: readonly string[],
+): string | undefined {
+  if (!paymentPayload.extensions?.["bazaar"]) return undefined;
+
+  const outcome = ingest({
+    paymentPayload,
+    paymentRequirements,
+    // No lookup: nobody has settled, so there is no owner to compare against. A provisional entry
+    // establishes no ownership, and settlement resolves any conflict (see `upsertProvisional`).
+    now,
+    allowedNetworks,
+  });
+
+  if (outcome.status === "rejected") {
+    return encodeExtensionResponses({
+      status: "rejected",
+      rejectedReason: outcome.error.reason,
+      code: outcome.error.code,
+    });
+  }
+
+  store.upsertProvisional(outcome.entry, now);
+  return encodeExtensionResponses({ status: "processing" });
+}
+
+/**
  * Normalise a caller-reported resource string: origin + pathname, query and hash stripped.
  *
  * ⚠️ This is NOT the catalog key derivation. The catalog key is whatever

@@ -27,6 +27,14 @@ const DEFAULT_LIMIT = 20;
 const SEARCH_CEILING = 200;
 
 /**
+ * How long a provisional (verify-time) entry lives before it may be pruned if it never settles.
+ * Generous relative to a verify->settle round trip (seconds), short enough to bound clutter from
+ * `/verify` calls that never pay. Provisional entries carry no rank and no ownership, so this only
+ * bounds memory.
+ */
+const PROVISIONAL_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+/**
  * Declared retrieval method, published in every search response.
  *
  * Deliberately specific rather than aspirational: BM25 over weighted fields with index-time synonym
@@ -94,6 +102,52 @@ export class CatalogStore {
     this.entries.set(key, entry);
     this.dirty = true;
     return entry;
+  }
+
+  /**
+   * Catalog a resource seen at VERIFY, before it has settled (hybrid cataloging).
+   *
+   * A provisional entry is discoverable so a resource appears "during payment verification" — what
+   * the upstream reference facilitator does and what the e2e conformance suite checks — but it is
+   * intentionally powerless: it carries NO ranking signals and establishes NO ownership. Settlement
+   * always wins:
+   *   - a settled entry is never downgraded (a provisional write over any existing key is a no-op);
+   *   - the ownership check in `ingest` treats a provisional incumbent as displaceable, so a
+   *     provisional entry a hostile client created at verify can never lock out or spoof the real
+   *     seller when they settle.
+   * Expired provisional entries are pruned opportunistically on write, bounding memory to the verify
+   * rate times the TTL. Never touches the payers set, so unique-payer signal stays settlement-only.
+   */
+  upsertProvisional(entry: CatalogEntry, now: string): CatalogEntry | undefined {
+    this.pruneProvisional(now);
+    const key = entryKey(entry.resource, entry.toolName);
+    // Never downgrade a settled entry, and do not disturb an existing provisional one — the resource
+    // is already discoverable, and refreshing it on every unpaid probe would hand `/verify` a way to
+    // keep a listing alive indefinitely without ever paying.
+    const existing = this.entries.get(key);
+    if (existing) return existing;
+
+    const provisional: CatalogEntry = {
+      ...entry,
+      provisional: true,
+      provisionalUntil: new Date(new Date(now).getTime() + PROVISIONAL_TTL_MS).toISOString(),
+      // Zero signals: a provisional entry has settled nothing, so it must earn no ranking boost.
+      quality: { totalSettlements: 0, uniquePayers: 0, firstSeenAt: now },
+    };
+    this.entries.set(key, provisional);
+    this.dirty = true;
+    return provisional;
+  }
+
+  /** Drop provisional entries whose TTL has passed. Settled entries are never pruned. */
+  private pruneProvisional(now: string): void {
+    for (const [key, e] of this.entries) {
+      if (e.provisional && e.provisionalUntil !== undefined && e.provisionalUntil < now) {
+        this.entries.delete(key);
+        this.payers.delete(key);
+        this.dirty = true;
+      }
+    }
   }
 
   /** All entries, in a stable order so pagination never wobbles between calls. */

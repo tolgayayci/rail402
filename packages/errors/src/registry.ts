@@ -482,6 +482,15 @@ export const ERROR_REGISTRY = {
     surface: "bazaar",
     provenance: "local",
   },
+  bazaar_stellar_fees_not_sponsored: {
+    reason:
+      "A Stellar exact listing must declare extra.areFeesSponsored === true; the stock @x402/stellar client cannot pay a listing whose extra is missing, null, or not truthfully sponsored, so it is not cataloged.",
+    retryable: false,
+    surface: "bazaar",
+    provenance: "local",
+    remediation:
+      "The facilitator sponsors Stellar fees by default — advertise areFeesSponsored: true in the payment requirements' extra, then settle again.",
+  },
 
   // ───────────────────────────────────────────────────────────────────────────
   // MCP discovery server

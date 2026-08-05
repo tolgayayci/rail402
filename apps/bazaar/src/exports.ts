@@ -11,7 +11,13 @@ export type {
   ConversionRecord,
 } from "./search/signals.js";
 export { ingest, type CatalogOutcome, type IngestInput } from "./catalog/ingest.js";
-export { createBazaarApp, catalogSettledPayment, previewCataloging, encodeExtensionResponses } from "./app.js";
+export {
+  createBazaarApp,
+  catalogSettledPayment,
+  catalogProvisionalPayment,
+  previewCataloging,
+  encodeExtensionResponses,
+} from "./app.js";
 export { entryKey, toPublic } from "./catalog/types.js";
 export type {
   CatalogEntry, CatalogAccepts, PublicResource, QualitySignals,

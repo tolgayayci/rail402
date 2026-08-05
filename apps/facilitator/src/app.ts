@@ -11,7 +11,7 @@ import {
   CatalogStore,
   createBazaarApp,
   catalogSettledPayment,
-  previewCataloging,
+  catalogProvisionalPayment,
   DomainVerifier,
   SignalStore,
 } from "@x402-stellar/bazaar";
@@ -255,23 +255,27 @@ export function createApp({ config, startedAt }: AppDeps) {
       );
       if (response.isValid) {
         counters.verifyOk += 1;
-        // Tell a seller at VERIFY whether their discovery metadata will catalog, rather than making
-        // them settle a payment to find out. The recorded decision — validate `info`
-        // against its own schema early, report `processing`, and keep the authoritative
-        // success/rejected verdict for settle — but only the settle half was ever built
-        //. The check is pure and local: no network, no ledger, no writes.
+        // Hybrid cataloging: catalog the resource PROVISIONALLY at verify, so it shows up
+        // "during payment verification" the way the upstream reference facilitator does and the e2e
+        // conformance suite expects. A provisional entry is discoverable but carries no ranking
+        // signals and no ownership; the settle-path call below is what confirms it, ranks it, and
+        // makes it the seller's — so the anti-spam property is unchanged and a hostile `/verify` can
+        // neither rank nor spoof nor lock out a listing. The seller also gets the `processing` /
+        // `rejected` verdict here rather than settling a payment to discover a typo.
         //
-        // Isolated for the same reason as the settle-path catalog call below: a preview throw must
-        // not turn a valid verification into a retryable error the agent loops on.
+        // Isolated for the same reason as the settle-path catalog call below: a throw here must not
+        // turn a valid verification into a retryable error the agent loops on.
         try {
-          const preview = previewCataloging(
+          const header = catalogProvisionalPayment(
+            catalog,
             parsed.paymentPayload,
             parsed.paymentRequirements,
+            new Date().toISOString(),
             servedNetworks,
           );
-          if (preview) c.header("EXTENSION-RESPONSES", preview);
-        } catch (previewError) {
-          console.error("cataloging preview failed on a valid verification (verification stands):", previewError);
+          if (header) c.header("EXTENSION-RESPONSES", header);
+        } catch (provisionalError) {
+          console.error("provisional cataloging failed on a valid verification (verification stands):", provisionalError);
         }
       } else {
         counters.verifyFail += 1;

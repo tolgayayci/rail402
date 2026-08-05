@@ -212,7 +212,11 @@ export function ingest(input: IngestInput): CatalogOutcome {
   const payTo = paymentRequirements.payTo;
   const verified = input.domainVerdict?.verified === true;
 
-  if (existing && existing.ownerPayTo !== payTo) {
+  // A provisional entry (cataloged at verify, never settled) owns nothing — settlement always
+  // confirms or claims it. Skipping the conflict for a provisional incumbent is what stops a free
+  // `/verify` call that declared a victim's URL under an attacker payTo from locking the real seller
+  // out at settle — otherwise the F1 listing-takeover would return through the verify path.
+  if (existing && !existing.provisional && existing.ownerPayTo !== payTo) {
     // A domain-verified owner is never displaced, whatever the challenger claims.
     if (existing.domainVerified === true) {
       return reject(
@@ -255,6 +259,31 @@ export function ingest(input: IngestInput): CatalogOutcome {
     );
   }
 
+  // Stellar's `exact` scheme carries fee sponsorship in `extra.areFeesSponsored`, and the stock
+  // @x402/stellar client HARD-REQUIRES it: `createPaymentPayload` destructures `extra` and throws a
+  // raw TypeError when `extra` is absent or null, and an Error when `areFeesSponsored` is not `true`
+  // (proven by a live capture). A Stellar exact listing that drops it is
+  // therefore not merely low quality — it is UNPAYABLE, and publishing it would crash the stock
+  // client the instant a buyer tried. Reject it here, the same fail-closed posture as
+  // `maxTimeoutSeconds` above; the live CDP Bazaar carries exactly these broken Stellar entries
+  // (live captures) because it validates none of this.
+  if (paymentRequirements.scheme === "exact" && network.startsWith("stellar:")) {
+    const extra = paymentRequirements.extra;
+    const sponsored =
+      extra !== null &&
+      typeof extra === "object" &&
+      (extra as Record<string, unknown>)["areFeesSponsored"] === true;
+    if (!sponsored) {
+      return reject(
+        "bazaar_stellar_fees_not_sponsored",
+        `A Stellar exact listing must declare extra.areFeesSponsored === true; got extra=${JSON.stringify(
+          extra ?? null,
+        )}. The stock @x402/stellar client throws on a missing, null, or non-true value, so cataloging this would publish an entry no buyer can pay.`,
+        { scheme: paymentRequirements.scheme, network, extra: extra ?? null },
+      );
+    }
+  }
+
   const accepts: CatalogAccepts = {
     scheme: paymentRequirements.scheme,
     network,
@@ -262,7 +291,10 @@ export function ingest(input: IngestInput): CatalogOutcome {
     asset: paymentRequirements.asset,
     payTo,
     maxTimeoutSeconds,
-    ...(paymentRequirements.extra === undefined ? {} : { extra: paymentRequirements.extra }),
+    // Always present: stock `PaymentRequirements.extra` is required, so an omitted extra is a listing
+    // a strict consumer rejects (B1). `{}` when the seller declared none; for a Stellar exact listing
+    // the guard above has already proven `extra` carries a truthful `areFeesSponsored`.
+    extra: paymentRequirements.extra ?? {},
   };
 
   const quality = existing && !displacing

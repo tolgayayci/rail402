@@ -353,6 +353,7 @@ describe("cataloging feedback at verify", () => {
         asset: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
         payTo: "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
         maxTimeoutSeconds: 60,
+        extra: { areFeesSponsored: true },
       } as never,
       ["stellar:testnet"],
     );

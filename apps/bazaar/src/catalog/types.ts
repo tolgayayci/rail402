@@ -24,7 +24,13 @@ export interface CatalogAccepts {
   payTo: string;
   /** Required on v2 PaymentRequirements; a listing without it is not consumable by stock clients. */
   maxTimeoutSeconds: number;
-  extra?: Record<string, unknown>;
+  /**
+   * Also required on v2 `PaymentRequirements` — the stock type is `extra: Record<string, unknown>`,
+   * not optional — so an omitted `extra` is a listing a strict stock consumer rejects. Ingest always
+   * emits it (`{}` when the seller declared none); for Stellar `exact` it additionally carries the
+   * `areFeesSponsored` flag the stock @x402/stellar client hard-requires.
+   */
+  extra: Record<string, unknown>;
 }
 
 /**
@@ -72,6 +78,17 @@ export interface CatalogEntry {
    * verification is asynchronous and never blocks a settlement.
    */
   domainVerified?: boolean;
+  /**
+   * A provisional entry was cataloged at VERIFY, before any payment settled, so a resource shows up
+   * "during payment verification" — which is what the upstream reference facilitator does and what
+   * the e2e conformance suite checks. Provisional entries are deliberately weak: they
+   * carry NO ranking signals and NO real ownership, and settlement always confirms or claims one, so
+   * a free `/verify` call can neither rank a listing nor lock a real seller out of it. Cleared once
+   * the entry settles.
+   */
+  provisional?: boolean;
+  /** ISO deadline after which an unsettled provisional entry may be pruned. Set only when provisional. */
+  provisionalUntil?: string;
 }
 
 /**
