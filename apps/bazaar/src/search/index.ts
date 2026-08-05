@@ -312,14 +312,18 @@ export class Bm25Retriever implements Retriever {
 /**
  * Behaviour-derived boost, capped and logarithmic.
  *
- * Only signals earned through the legitimate cataloging path count, and every one of them costs a
- * real settled payment — so keyword stuffing and self-declared popularity cannot buy rank. The cap
- * keeps an established endpoint from burying a better-matching newcomer: relevance leads, and
- * usage breaks ties.
+ * Distinct **unique payers only**. `totalSettlements` used to be in this formula, and it is the
+ * cheapest signal in the catalog: on a fee-sponsored rail two colluding addresses can rack up
+ * settlements at no cost, so it let a listing reach the cap for almost nothing. Unique payers require
+ * distinct FUNDED addresses — the cap is now ~25 of them (`2·payers ≥ 49`), not two settlements — so
+ * self-declared popularity and keyword stuffing still cannot buy rank, and cheap wash-settlement is no
+ * longer a lever. This is the strongest count-based control; the load-bearing one the
+ * "abuse-resistant" bar really wants is settled-VALUE weighting with a dust floor (real money moved,
+ * not accounts created), which is the planned next step. The cap keeps usage a tiebreaker that can
+ * never bury a better-matching newcomer: relevance leads.
  */
 function qualityMultiplier(entry: CatalogEntry): number {
   const payers = entry.quality.uniquePayers;
-  const settlements = entry.quality.totalSettlements;
-  const usage = Math.log1p(payers * 2 + settlements) / Math.log(50);
+  const usage = Math.log1p(payers * 2) / Math.log(50);
   return 1 + Math.min(usage, 1) * 0.25;
 }

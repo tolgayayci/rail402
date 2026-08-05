@@ -36,9 +36,18 @@ export interface CatalogAccepts {
 /**
  * Behaviour-derived ranking signals.
  *
- * Deliberately modelled on the shape CDP emits, because it is the one class of signal that is
- * expensive to forge: every unique payer is a real settled on-chain payment. Nothing a seller can
- * simply assert about itself influences rank ("ranking must be abuse-resistant").
+ * Modelled on the shape CDP emits. These are harder to forge than self-declared metadata — nothing a
+ * seller merely ASSERTS about itself influences rank — but they are NOT free of abuse, and claiming
+ * "nothing a seller can forge" (as an earlier version of this comment did) was wrong. On a
+ * fee-sponsored rail a distinct "unique payer" costs only a funded address (friendbot on testnet), so
+ * a determined seller can manufacture ~25 of them to reach the ranking cap. `uniquePayers` at least
+ * costs distinct addresses; `totalSettlements` costs nothing — two colluding addresses can inflate it
+ * — which is why the ranker no longer weights it (see `qualityMultiplier`). The control the
+ * "abuse-resistant" bar really wants is settled-VALUE weighting with a dust floor (real money moved,
+ * not accounts created); that is the planned next step. A naive per-seller
+ * result-page cap was tried and MEASURED harmful on this catalog — many distinct services legitimately
+ * share one payTo (platform hosts, e.g. the 153 `stratalize.com` endpoints) — so it is not applied;
+ * near-duplicate detection is the better anti-flooding control if one proves necessary.
  */
 export interface QualitySignals {
   totalSettlements: number;

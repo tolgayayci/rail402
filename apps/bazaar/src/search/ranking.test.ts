@@ -163,6 +163,21 @@ describe("ranker component invariants", () => {
     expect(busy, `used endpoint (${busy}) must outrank unused twin (${quiet})`).toBeGreaterThan(quiet);
   });
 
+  it("does not let settlement count buy rank without distinct payers", () => {
+    // The sybil fix: on a fee-sponsored rail two colluding addresses can inflate totalSettlements for
+    // free, so it must not influence rank. Same distinct-payer count, vastly different settlement
+    // count -> identical score. Before the fix (`payers*2 + settlements`) the wash-settled entry won.
+    const text = { description: "Convert an address into latitude and longitude coordinates." };
+    const seen = new Date("2026-07-01").toISOString();
+    const corpus = [
+      entry({ resource: "https://washed.example/geo", ...text, quality: { totalSettlements: 1000, uniquePayers: 3, firstSeenAt: seen } }),
+      entry({ resource: "https://honest.example/geo", ...text, quality: { totalSettlements: 3, uniquePayers: 3, firstSeenAt: seen } }),
+    ];
+    const washed = scoreOf(corpus, "latitude longitude", "https://washed.example/geo");
+    const honest = scoreOf(corpus, "latitude longitude", "https://honest.example/geo");
+    expect(washed, `wash-settled (${washed}) must not outrank its honest twin (${honest})`).toBe(honest);
+  });
+
   /**
    * The coverage bonus is deliberately NOT guarded here, because measurement showed it has no
    * invariant to guard. It is a <=15% differential (1.35x for full coverage vs 1.175x for half)
