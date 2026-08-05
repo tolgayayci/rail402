@@ -1,0 +1,19 @@
+{
+  "_note": "Known Stellar assets with their Stellar Asset Contract (SAC) address pre-derived from (code, issuer, network passphrase). scripts/verify-stellar-assets.test.mjs re-derives each SAC via @stellar/stellar-sdk and fails the build on any drift, so this table cannot silently go wrong. Testnet only.",
+  "assets": [
+    {
+      "network": "stellar:testnet",
+      "code": "USDC",
+      "issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "sac": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "decimals": 7
+    },
+    {
+      "network": "stellar:testnet",
+      "code": "XLM",
+      "issuer": null,
+      "sac": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+      "decimals": 7
+    }
+  ]
+}

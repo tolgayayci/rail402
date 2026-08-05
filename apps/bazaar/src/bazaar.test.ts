@@ -17,7 +17,9 @@ import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 
 const SELLER = "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO";
 const OTHER = "GC6CSXBV4C6RL3HEDTW57KXYXSSXKAWKGYDEOSATXM3XNKXSR2VRYN3K";
-const ASSET = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
+const ASSET = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"; // the real testnet USDC SAC
+/** A valid C-address the facilitator does not vouch for (a look-alike USDC issuer's SAC). */
+const UNKNOWN_ASSET = "CA2E53VHFZ6YSWQIEIPBXJQGT6VW3VKWWZO555XKRQXYJ63GEBJJGHY7";
 
 const httpSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -337,10 +339,38 @@ describe("catalog integrity", () => {
     // A non-exact scheme is not subject to the sponsorship guard, so this exercises the default: a
     // listing whose requirements carry no extra must still be cataloged WITH `extra: {}`, never with
     // extra omitted — an omitted extra is a listing a strict stock consumer rejects.
-    const out = doIngest(payload(), requirements({ scheme: "upto", extra: undefined }));
+    const out = doIngest(payload(), requirements({ scheme: "upto", asset: UNKNOWN_ASSET, extra: undefined }));
     expect(out.status).toBe("success");
     if (out.status !== "success") return;
     expect(out.entry.accepts[0]!.extra).toEqual({});
+  });
+
+  // ── Provable Stellar asset identity (facilitator-computed extra.stellar) ──────
+  it("attaches a provable asset identity, and drops any client-supplied one", () => {
+    // The default requirements pay in the real testnet USDC SAC. The facilitator must publish a
+    // DERIVED identity for it, and must IGNORE a client's forged `extra.stellar` (echoed from the
+    // resource block — attacker-controlled input).
+    const out = doIngest(
+      payload(),
+      requirements({ extra: { areFeesSponsored: true, stellar: { asset: { code: "SCAM", identity: "derived" } } } }),
+    );
+    expect(out.status).toBe("success");
+    if (out.status !== "success") return;
+    const extra = out.entry.accepts[0]!.extra as {
+      areFeesSponsored?: boolean;
+      stellar?: { asset?: { code?: string; identity?: string } };
+    };
+    expect(extra.stellar?.asset?.code).toBe("USDC");
+    expect(extra.stellar?.asset?.identity).toBe("derived");
+    // A legitimate client field survives; the forged stellar block does not.
+    expect(extra.areFeesSponsored).toBe(true);
+  });
+
+  it("does not vouch for an asset it cannot derive (no forged 'derived' label)", () => {
+    const out = doIngest(payload(), requirements({ asset: UNKNOWN_ASSET }));
+    expect(out.status).toBe("success");
+    if (out.status !== "success") return;
+    expect((out.entry.accepts[0]!.extra as { stellar?: unknown }).stellar).toBeUndefined();
   });
 
   it("refuses to let one seller overwrite another seller's listing", () => {

@@ -8,6 +8,7 @@ import {
 import { createError, type ErrorCode, type X402ErrorPayload } from "@x402-stellar/errors";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import type { DomainVerdict } from "./domain.js";
+import { identifyStellarAsset } from "./stellar-assets.js";
 import type { CatalogAccepts, CatalogEntry, ResourceType } from "./types.js";
 
 /**
@@ -284,6 +285,15 @@ export function ingest(input: IngestInput): CatalogOutcome {
     }
   }
 
+  // `extra.stellar` is FACILITATOR-COMPUTED, never client-echoed — soft-drop whatever the client put
+  // there (it is attacker-controlled input, echoed from the resource block) and attach the
+  // facilitator's own PROVABLE asset identity, derived from the SAC address. An EVM/SVM catalog can
+  // only trust a curated token list here; on Stellar this is a derivation, so a scam token cannot
+  // claim to be USDC (`stellar-assets.ts`).
+  const clientExtra: Record<string, unknown> = { ...(paymentRequirements.extra ?? {}) };
+  delete clientExtra["stellar"];
+  const assetIdentity = identifyStellarAsset(network, paymentRequirements.asset);
+
   const accepts: CatalogAccepts = {
     scheme: paymentRequirements.scheme,
     network,
@@ -291,10 +301,10 @@ export function ingest(input: IngestInput): CatalogOutcome {
     asset: paymentRequirements.asset,
     payTo,
     maxTimeoutSeconds,
-    // Always present: stock `PaymentRequirements.extra` is required, so an omitted extra is a listing
-    // a strict consumer rejects (B1). `{}` when the seller declared none; for a Stellar exact listing
-    // the guard above has already proven `extra` carries a truthful `areFeesSponsored`.
-    extra: paymentRequirements.extra ?? {},
+    // Always present (B1): stock `PaymentRequirements.extra` is required, so an omitted extra is a
+    // listing a strict consumer rejects. Client `extra.stellar` is dropped above; the facilitator's
+    // derived asset identity is added when the asset is one it can independently vouch for.
+    extra: assetIdentity ? { ...clientExtra, stellar: { asset: assetIdentity } } : clientExtra,
   };
 
   const quality = existing && !displacing
