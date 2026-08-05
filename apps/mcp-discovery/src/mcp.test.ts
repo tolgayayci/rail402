@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { PayInputSchema, SearchInputSchema, selectPayable, withinBudget, fail } from "./tools.js";
+import {
+  PayInputSchema,
+  SearchInputSchema,
+  selectPayable,
+  withinBudget,
+  fail,
+  succeed,
+  toToolCall,
+  SearchOutputSchema,
+  PayOutputSchema,
+} from "./tools.js";
 import { payAndCall, searchResources, type McpConfig } from "./server.js";
 
 const config: McpConfig = {
@@ -309,7 +319,7 @@ describe("search tool contract", () => {
               resource: "https://api.test/weather",
               type: "http",
               description: "Weather",
-              accepts: [opt("1000000")],
+              accepts: [{ ...opt("1000000"), extra: { areFeesSponsored: true } }],
               quality: { totalSettlements: 9, uniquePayers: 4 },
               extensions: { bazaar: { info: { input: { inputSchema: { type: "object" } } } } },
             },
@@ -323,6 +333,9 @@ describe("search tool contract", () => {
       const result = await searchResources(config, { query: "weather" });
       const hit = result.data!.results[0]!;
       expect(hit.price).toMatchObject({ amount: "1000000" });
+      // Fee sponsorship must reach the agent (B3): it was dropped with the rest of `extra`, so an
+      // agent could not tell a gasless call from one needing XLM without paying to find out.
+      expect(hit.price?.feesSponsored).toBe(true);
       expect(hit.usage).toEqual({ settlements: 9, uniquePayers: 4 });
       expect(hit.inputSchema).toEqual({ type: "object" });
     } finally {
@@ -349,5 +362,59 @@ describe("search tool contract", () => {
     } finally {
       globalThis.fetch = realFetch;
     }
+  });
+});
+
+describe("structured output (§3.3)", () => {
+  it("declares an output schema a real search success validates against", async () => {
+    // The SDK validates structuredContent against outputSchema on success and THROWS on a mismatch,
+    // so drift between the projection and the schema would surface only when a live client called the
+    // tool. Validating a real result here fails the build on drift instead.
+    const impl = (async () =>
+      new Response(
+        JSON.stringify({
+          resources: [
+            {
+              resource: "https://api.test/weather",
+              type: "http",
+              description: "Weather",
+              accepts: [{ ...opt("1000000"), extra: { areFeesSponsored: true } }],
+              quality: { totalSettlements: 9, uniquePayers: 4 },
+              extensions: { bazaar: { info: { input: { inputSchema: { type: "object" } } } } },
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = impl;
+    try {
+      const result = await searchResources(config, { query: "weather" });
+      expect(SearchOutputSchema.safeParse(result).success).toBe(true);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("wraps a failure as isError carrying the machine-readable envelope, not a silent success", () => {
+    // Before §3.3 structured output a refusal reached the model as a protocol-level SUCCESS with the
+    // reason buried in prose. toToolCall must set isError and carry the structured error.
+    const call = toToolCall(fail("mcp_budget_exceeded", { reason: "too dear", details: { price: "5" } }));
+    expect(call.isError).toBe(true);
+    expect(call.structuredContent).toMatchObject({
+      ok: false,
+      error: { code: "mcp_budget_exceeded", retryable: false },
+    });
+    // The error envelope still validates against the tool's declared output schema.
+    expect(PayOutputSchema.safeParse(call.structuredContent).success).toBe(true);
+    // A serialized text block is present too, for backward-compatible clients.
+    expect(call.content[0]!.text).toContain("mcp_budget_exceeded");
+  });
+
+  it("wraps a success as structuredContent with isError false", () => {
+    const call = toToolCall(succeed({ results: [], count: 0 }));
+    expect(call.isError).toBe(false);
+    expect(call.structuredContent).toMatchObject({ ok: true, data: { count: 0 } });
+    expect(SearchOutputSchema.safeParse(call.structuredContent).success).toBe(true);
   });
 });

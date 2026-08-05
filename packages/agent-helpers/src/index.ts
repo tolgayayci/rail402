@@ -30,7 +30,7 @@ export interface BazaarResource {
   serviceName?: string;
   tags?: string[];
   /** Cheapest Stellar option, or undefined if none is payable on Stellar. */
-  price?: { amount: string; asset: string; network: string; scheme: string };
+  price?: { amount: string; asset: string; network: string; scheme: string; feesSponsored: boolean };
   inputSchema?: unknown;
   usage?: { settlements: number; uniquePayers: number };
 }
@@ -219,7 +219,7 @@ interface RawResource {
   description?: string;
   serviceName?: string;
   tags?: string[];
-  accepts?: Array<{ scheme: string; network: string; amount: string; asset: string; payTo: string }>;
+  accepts?: Array<{ scheme: string; network: string; amount: string; asset: string; payTo: string; extra?: Record<string, unknown> }>;
   extensions?: Record<string, unknown>;
   quality?: { totalSettlements: number; uniquePayers: number };
 }
@@ -244,7 +244,15 @@ function toBazaarResource(r: RawResource): BazaarResource {
   if (r.tags) out.tags = r.tags;
   if (inputSchema) out.inputSchema = inputSchema;
   if (cheapest) {
-    out.price = { amount: cheapest.amount, asset: cheapest.asset, network: cheapest.network, scheme: cheapest.scheme };
+    out.price = {
+      amount: cheapest.amount,
+      asset: cheapest.asset,
+      network: cheapest.network,
+      scheme: cheapest.scheme,
+      // Surface fee sponsorship (was dropped with the rest of `extra`, B3) so a budgeting agent can
+      // prefer gasless routes without a round trip.
+      feesSponsored: cheapest.extra?.["areFeesSponsored"] === true,
+    };
   }
   if (r.quality) out.usage = { settlements: r.quality.totalSettlements, uniquePayers: r.quality.uniquePayers };
   return out;

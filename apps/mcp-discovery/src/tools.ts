@@ -85,6 +85,94 @@ export function fail<T>(
 
 export const succeed = <T>(data: T): ToolResult<T> => ({ ok: true, data });
 
+// ── Output schemas (§3.3: strict, structured outputs) ────────────────────────
+//
+// Every tool returns the `ToolResult` envelope `{ ok, data?, error? }`. Declaring it as the tool's
+// `outputSchema` hands an agent a machine-readable result instead of prose it must parse, and lets
+// the MCP SDK return `structuredContent` alongside the text block. `data` and `error` are BOTH
+// optional so this ONE schema validates a success (`ok:true` + `data`) and a failure (`ok:false` +
+// `error`). The SDK skips output validation on `isError` results (server/mcp.js `validateToolOutput`),
+// but a single envelope that accepts both is the honest description of what the tool returns.
+
+const ToolErrorSchema = z.object({
+  code: z.string().describe("Machine-readable error code from the shared registry."),
+  reason: z.string().describe("Non-null human-legible explanation. Never empty."),
+  retryable: z.boolean(),
+  details: z.record(z.string(), z.unknown()).optional(),
+});
+
+const PriceSchema = z.object({
+  amount: z.string(),
+  asset: z.string(),
+  network: z.string(),
+  scheme: z.string(),
+  feesSponsored: z.boolean().describe("True when the facilitator sponsors the network fee (gasless)."),
+});
+
+const SearchHitSchema = z.object({
+  resource: z.string(),
+  type: z.string(),
+  toolName: z.string().optional(),
+  description: z.string().optional(),
+  serviceName: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  price: PriceSchema.optional(),
+  inputSchema: z.unknown().optional(),
+  usage: z.object({ settlements: z.number(), uniquePayers: z.number() }).optional(),
+});
+
+export const SearchOutputSchema = z.object({
+  ok: z.boolean(),
+  data: z
+    .object({
+      results: z.array(SearchHitSchema),
+      count: z.number(),
+      searchToken: z.string().optional(),
+    })
+    .optional(),
+  error: ToolErrorSchema.optional(),
+});
+
+export const PayOutputSchema = z.object({
+  ok: z.boolean(),
+  data: z
+    .object({
+      status: z.number(),
+      body: z.unknown(),
+      paid: z
+        .object({
+          amount: z.string(),
+          asset: z.string(),
+          network: z.string(),
+          transaction: z.string().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+  error: ToolErrorSchema.optional(),
+});
+
+/**
+ * Render a `ToolResult` as an MCP `CallToolResult`.
+ *
+ * Returns BOTH `structuredContent` (the machine-readable envelope, validated against the tool's
+ * `outputSchema` by the SDK on success) and a serialized `content` text block, which the MCP spec
+ * asks servers to include for backward compatibility. `isError` is set on failure so the model sees
+ * the call failed and can self-correct, rather than receiving a protocol-level success with the
+ * failure buried in prose — the shape these tools returned before §3.3 structured output.
+ */
+export function toToolCall<T>(result: ToolResult<T>): {
+  content: { type: "text"; text: string }[];
+  structuredContent: Record<string, unknown>;
+  isError: boolean;
+} {
+  return {
+    content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    structuredContent: result as unknown as Record<string, unknown>,
+    isError: !result.ok,
+  };
+}
+
 // ── Price handling ───────────────────────────────────────────────────────────
 
 /**

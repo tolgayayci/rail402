@@ -191,6 +191,20 @@ describe("searchBazaar", () => {
     expect(r.data![0]!.price?.amount).toBe("100");
   });
 
+  it("surfaces fee sponsorship so a budgeting agent can prefer gasless routes (B3)", async () => {
+    // `extra.areFeesSponsored` was dropped with the rest of `extra` in the price projection, so an
+    // agent could never tell a gasless route from one requiring XLM without paying to find out.
+    const impl = catalog([
+      { resource: "https://a.test/sponsored", type: "http", accepts: [{ ...accept("100"), extra: { areFeesSponsored: true } }] },
+      { resource: "https://a.test/unsponsored", type: "http", accepts: [accept("100")] },
+    ]);
+    const r = await searchBazaar(config, "x", {}, impl);
+    const sponsored = r.data!.find(x => x.resource === "https://a.test/sponsored");
+    const unsponsored = r.data!.find(x => x.resource === "https://a.test/unsponsored");
+    expect(sponsored?.price?.feesSponsored).toBe(true);
+    expect(unsponsored?.price?.feesSponsored).toBe(false);
+  });
+
   it("filters out what the caller cannot afford", async () => {
     const impl = catalog([
       { resource: "https://a.test/cheap", type: "http", accepts: [accept("100")] },

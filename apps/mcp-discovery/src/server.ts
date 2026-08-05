@@ -14,6 +14,9 @@ import {
   isPayableResourceUrl,
   succeed,
   selectPayable,
+  toToolCall,
+  SearchOutputSchema,
+  PayOutputSchema,
   type PricedOption,
   type ToolResult,
 } from "./tools.js";
@@ -63,11 +66,12 @@ export function createMcpServer(config: McpConfig) {
       title: "Search the Stellar Bazaar",
       description: SEARCH_TOOL_DESCRIPTION,
       inputSchema: SearchInputSchema.shape,
+      outputSchema: SearchOutputSchema.shape,
+      // Hints only — the spec is explicit that clients MUST treat annotations as untrusted, so they
+      // are never a control (the budget cap in pay_and_call is). Search reads and never spends.
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async args => {
-      const result = await searchResources(config, args);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    },
+    async args => toToolCall(await searchResources(config, args)),
   );
 
   // ── paid call ─────────────────────────────────────────────────────────────
@@ -77,11 +81,10 @@ export function createMcpServer(config: McpConfig) {
       title: "Call a paid Stellar resource",
       description: PAY_TOOL_DESCRIPTION,
       inputSchema: PayInputSchema.shape,
+      outputSchema: PayOutputSchema.shape,
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
-    async args => {
-      const result = await payAndCall(config, args);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    },
+    async args => toToolCall(await payAndCall(config, args)),
   );
 
   return server;
@@ -96,7 +99,7 @@ export interface SearchHit {
   description?: string;
   serviceName?: string;
   tags?: string[];
-  price: { amount: string; asset: string; network: string; scheme: string } | undefined;
+  price: { amount: string; asset: string; network: string; scheme: string; feesSponsored: boolean } | undefined;
   inputSchema?: unknown;
   usage?: { settlements: number; uniquePayers: number };
 }
@@ -147,7 +150,15 @@ export async function searchResources(
         resource: r.resource,
         type: r.type,
         price: cheapest
-          ? { amount: cheapest.amount, asset: cheapest.asset, network: cheapest.network, scheme: cheapest.scheme }
+          ? {
+              amount: cheapest.amount,
+              asset: cheapest.asset,
+              network: cheapest.network,
+              scheme: cheapest.scheme,
+              // Surface fee sponsorship so an agent knows the call is gasless before it commits — it
+              // was being dropped with the rest of `extra` (B3). Reflects what the listing declares.
+              feesSponsored: cheapest.extra?.["areFeesSponsored"] === true,
+            }
           : undefined,
       };
       if (bazaar?.info?.input?.toolName) hit.toolName = bazaar.info.input.toolName;
