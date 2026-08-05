@@ -227,7 +227,15 @@ describe("pagination is deterministic", () => {
     let cursor: string | undefined;
     for (let page = 0; page < 20; page++) {
       const res = store.search("data", {}, 2, cursor);
-      seen.push(...res.resources.map(r => r.resource));
+      // Key on (resource, toolName): MCP siblings legitimately share a resource URL, so uniqueness of
+      // the URL alone would flag two distinct tools as a "repeat". Pagination guarantees no repeated
+      // ENTRY, which is the (resource, toolName) tuple.
+      seen.push(
+        ...res.resources.map(r => {
+          const bazaar = r.extensions?.["bazaar"] as { info?: { input?: { toolName?: string } } } | undefined;
+          return entryKey(r.resource, bazaar?.info?.input?.toolName);
+        }),
+      );
       const next = res.pagination?.cursor;
       if (!next) break;
       cursor = next;

@@ -1,4 +1,5 @@
-import type { CatalogEntry } from "../catalog/types.js";
+import { entryKey, type CatalogEntry } from "../catalog/types.js";
+import { defaultEmbedder, dot, type EmbeddingProvider } from "./embedding.js";
 
 /**
  * Natural-language search over the catalog.
@@ -326,4 +327,113 @@ function qualityMultiplier(entry: CatalogEntry): number {
   const payers = entry.quality.uniquePayers;
   const usage = Math.log1p(payers * 2) / Math.log(50);
   return 1 + Math.min(usage, 1) * 0.25;
+}
+
+// ── Hybrid retrieval: BM25 fused with static-embedding recall (RRF) ─────────────
+
+/**
+ * Text rendered per document for embedding — the legible fields an agent's query would describe:
+ * name, purpose, tags, the URL's own words, the tool name, and per-parameter prose. Deliberately NOT
+ * the ranker's weighted field structure. The exact rendering moves the numbers; the DIRECTION of the
+ * fusion win is robust across renderings and two models (semantic-deps research, 2026-08-05).
+ */
+function docText(e: CatalogEntry): string {
+  const parts: string[] = [];
+  if (e.serviceName) parts.push(e.serviceName);
+  if (e.description) parts.push(e.description);
+  if (e.tags?.length) parts.push(e.tags.join(" "));
+  try {
+    parts.push(new URL(e.resource).pathname.replace(/[/_-]+/g, " "));
+  } catch {
+    /* resource may be a non-URL identifier; skip */
+  }
+  if (e.toolName) parts.push(e.toolName);
+  const bazaar = e.extensions?.["bazaar"] as
+    | { info?: { input?: { inputSchema?: { properties?: Record<string, { description?: string }> } } } }
+    | undefined;
+  const props = bazaar?.info?.input?.inputSchema?.properties;
+  if (props) for (const p of Object.values(props)) if (p?.description) parts.push(p.description);
+  return parts.join(" . ");
+}
+
+const RRF_K = 60;
+
+/**
+ * BM25 fused with static-embedding retrieval via Reciprocal Rank Fusion.
+ *
+ * Fusion over RANKS, not scores: BM25 scores and cosines are not on comparable scales, and rank
+ * fusion needs no calibration and no tuned alpha — nothing new to overfit on a 107-judgment set.
+ * `score(key) = 1/(K + lexRank) + 1/(K + vecRank)`, K=60 (Cormack et al., SIGIR '09; insensitive
+ * across 20–100). Lexical precision (sibling discrimination, where static vectors are weak) and
+ * semantic recall (the vocabulary gap, where BM25 is weak) each contribute half, and neither can bury
+ * the other. On the 107-judgment broad set this lifts recall@10 ~45% → ~80%, sign test p < 0.0001.
+ *
+ * `Retriever` is the seam the file header promised; a managed `VectorIndex` (Vectorize) can replace
+ * the in-process brute force later without touching the store or the harness — at which point its
+ * post-ANN filtering forces an honest `truncated`/`partialResults` signal the brute force never needs.
+ */
+export class HybridRetriever implements Retriever {
+  private readonly bm25 = new Bm25Retriever();
+  private readonly provided: EmbeddingProvider | undefined;
+  private instance: EmbeddingProvider | undefined;
+  private vectors = new Map<string, Float32Array>();
+
+  constructor(embedder?: EmbeddingProvider) {
+    this.provided = embedder;
+  }
+
+  /**
+   * The static-embedding weights load LAZILY — on first index/search, not at construction — so a
+   * CatalogStore that never searches (a facilitator serving only verify/settle, or a test that only
+   * catalogs) pays nothing for the 7.56 MB table, and never fails if the asset is absent.
+   */
+  private get embedder(): EmbeddingProvider {
+    return (this.instance ??= this.provided ?? defaultEmbedder());
+  }
+
+  index(entries: readonly CatalogEntry[]): void {
+    this.bm25.index(entries);
+    const next = new Map<string, Float32Array>();
+    for (const e of entries) next.set(entryKey(e.resource, e.toolName), this.embedder.embed(docText(e)));
+    this.vectors = next;
+  }
+
+  search(query: string, candidates: readonly CatalogEntry[], limit: number): ScoredEntry[] {
+    const keyOf = (e: CatalogEntry): string => entryKey(e.resource, e.toolName);
+
+    // Lexical ranking of the candidates.
+    const lexical = this.bm25.search(query, candidates, limit);
+    const lexRank = new Map<string, number>();
+    lexical.forEach((s, i) => lexRank.set(keyOf(s.entry), i));
+
+    // Semantic ranking of the candidates (cosine over L2-normalized vectors).
+    const qv = this.embedder.embed(query);
+    const vector = candidates
+      .map(e => ({ entry: e, key: keyOf(e), score: rankScore(this.vectors.get(keyOf(e)), qv) }))
+      .filter(s => s.score > -Infinity)
+      .sort((a, b) => b.score - a.score || a.key.localeCompare(b.key))
+      .slice(0, limit);
+    const vecRank = new Map<string, number>();
+    vector.forEach((s, i) => vecRank.set(s.key, i));
+
+    // Reciprocal-rank fusion over the union of both top lists.
+    const byKey = new Map<string, CatalogEntry>();
+    for (const s of lexical) byKey.set(keyOf(s.entry), s.entry);
+    for (const s of vector) byKey.set(s.key, s.entry);
+    const fused: ScoredEntry[] = [];
+    for (const [key, entry] of byKey) {
+      const lr = lexRank.get(key);
+      const vr = vecRank.get(key);
+      const score = (lr === undefined ? 0 : 1 / (RRF_K + lr)) + (vr === undefined ? 0 : 1 / (RRF_K + vr));
+      fused.push({ entry, score });
+    }
+    fused.sort(
+      (a, b) => b.score - a.score || keyOf(a.entry).localeCompare(keyOf(b.entry)),
+    );
+    return fused.slice(0, limit);
+  }
+}
+
+function rankScore(docVec: Float32Array | undefined, queryVec: Float32Array): number {
+  return docVec ? dot(docVec, queryVec) : -Infinity;
 }

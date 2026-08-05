@@ -1,4 +1,4 @@
-import { Bm25Retriever, type Retriever, type ScoredEntry } from "../search/index.js";
+import { HybridRetriever, type Retriever, type ScoredEntry } from "../search/index.js";
 import type { SignalStore } from "../search/signals.js";
 import {
   entryKey,
@@ -37,12 +37,14 @@ const PROVISIONAL_TTL_MS = 60 * 60 * 1000; // 1 hour
 /**
  * Declared retrieval method, published in every search response.
  *
- * Deliberately specific rather than aspirational: BM25 over weighted fields with index-time synonym
- * bridging, plus a capped boost from settlement-derived quality signals. It is not a hybrid — there
- * is no vector component — and saying `hybrid` here to look competitive would be the same
- * advertised-versus-reachable dishonesty this project measures in other facilitators.
+ * Deliberately specific rather than aspirational: BM25 over weighted fields, fused by Reciprocal Rank
+ * Fusion with in-process static-embedding (model2vec) semantic retrieval, plus a capped boost from
+ * settlement-derived quality signals. It is a genuine hybrid — measured to lift recall@10 ~45% → ~80%
+ * on the 107-judgment held-out set (per-query sign test p < 0.0001), not a `hybrid` label asserted to
+ * look competitive, which would be the advertised-versus-reachable dishonesty this project measures in
+ * other facilitators (CDP declares `hybrid` while silently falling back to URL-substring matching).
  */
-const SEARCH_METHOD = "lexical+signals";
+const SEARCH_METHOD = "hybrid (bm25+static-embedding, rrf)";
 
 export class CatalogStore {
   private entries = new Map<string, CatalogEntry>();
@@ -56,7 +58,7 @@ export class CatalogStore {
    */
   readonly signals: SignalStore | undefined;
 
-  constructor(retriever: Retriever = new Bm25Retriever(), signals?: SignalStore) {
+  constructor(retriever: Retriever = new HybridRetriever(), signals?: SignalStore) {
     this.retriever = retriever;
     this.signals = signals;
   }

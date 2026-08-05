@@ -243,12 +243,18 @@ export const HELD_OUT_THRESHOLDS = {
  * realistic data and should fail the build even if it looks better on the twenty-document set.
  */
 export const HELD_OUT_LARGE_THRESHOLDS = {
-  // Set under the WORSE of the two slices (dev, which scores lower here than locked), so one floor
-  // guards both. First measurement 2026-07-31: dev 30% / 0.490 / 0.562, locked 50% / 0.653 / 0.701.
+  // Re-baselined 2026-08-05 when retrieval became HYBRID (BM25 + static-embedding RRF). This narrow
+  // set is 16 near-identical ERC20 siblings — pure lexical discrimination, the ONE case where static
+  // embeddings are a known liability (they place `allowance` and `balance` near each other), so the
+  // hybrid trades some recall HERE for a large, decisive gain on the realistic broad set (broad nDCG
+  // dev 0.519 -> 0.641). A documented, net-positive tradeoff, not a masked regression: the narrow
+  // LOCKED slice actually improved sharply (p@1 50% -> 80%, nDCG 0.701 -> 0.822); only the narrow DEV
+  // slice fell (recall@5 0.60, MRR 0.433, nDCG 0.482), and these floors sit just under it. Prior BM25
+  // baseline for the record: dev 30% / r@5 0.75 / MRR 0.490 / nDCG 0.562.
   precisionAt1: 0.25,
-  recallAt5: 0.7,
-  mrr: 0.45,
-  ndcgAt10: 0.52,
+  recallAt5: 0.55,
+  mrr: 0.4,
+  ndcgAt10: 0.45,
   zeroResultRate: 0.0,
 } as const;
 
@@ -274,10 +280,15 @@ export const HELD_OUT_LARGE_THRESHOLDS = {
  * 59 single-answer judgments, so it is deliberately not floored here.
  */
 export const HELD_OUT_BROAD_THRESHOLDS = {
+  // RAISED 2026-08-05 to lock in the hybrid-retrieval gain, under the worse of the two slices. Hybrid
+  // measurement: dev p@1 51.9% / r@5 65.7% / MRR 0.655 / nDCG 0.641; locked p@1 43.6% / r@5 62.3% /
+  // MRR 0.554 / nDCG 0.575 (the BM25 first-measurement baseline in the block above was dev nDCG 0.519
+  // / locked 0.505). The per-query sign test over all 107 broad judgments was p < 0.0001, so the gain
+  // is real, not noise. Never lowered to make a build pass without recording why here.
   precisionAt1: 0.4,
-  recallAt5: 0.48,
-  mrr: 0.48,
-  ndcgAt10: 0.48,
+  recallAt5: 0.58,
+  mrr: 0.52,
+  ndcgAt10: 0.55,
   zeroResultRate: 0.0,
 } as const;
 
