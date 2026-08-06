@@ -2,8 +2,9 @@
 #
 #   pnpm --filter @x402-stellar/facilitator deploy:worker
 #
-# Verified: the app bundles to ~384 KiB gzipped and serves /health, /supported and /discovery/*
-# under workerd, including real Stellar keypair loading.
+# Verified 2026-08-06 against a real deployment: bundles to 2,685 KiB / 595 KiB gzipped and serves
+# /health, /supported, /verify and /settle under workerd, including real Stellar keypair loading.
+# (The earlier "~384 KiB" note predated the vendored search embeddings.)
 #
 # TESTNET ONLY. `STELLAR_NETWORKS` is pinned to stellar:testnet here and there is no pubnet
 # configuration anywhere in this file.
@@ -20,12 +21,29 @@ compatibility_date = "2026-01-01"
 # resolves but fails at runtime.
 compatibility_flags = ["nodejs_compat"]
 
+# Custom domain. `custom_domain = true` makes Cloudflare create and manage the DNS record and the
+# certificate for this hostname, so there is no separate DNS step and no orange-cloud proxy in front.
+routes = [
+  { pattern = "facilitator.rail402.dev", custom_domain = true }
+]
+
 [observability]
 enabled = true
 
 [vars]
 STELLAR_NETWORKS = "stellar:testnet"
 LOG_LEVEL = "info"
+# This Worker does NOT serve /discovery/* — the catalog is in-memory and isolates are ephemeral, and
+# neither node:sqlite nor the 7.5 MB embedding blob works under workerd. So it must not advertise the
+# `bazaar` extension either: a facilitator that claims an extension it 404s is the exact
+# advertised-versus-reachable failure this project measures in other facilitators. The Bazaar runs on
+# a stateful host and advertises `bazaar` there.
+SERVES_DISCOVERY = "0"
+# A `__check_auth` smart-account payment cross-calls a signature verifier and a spending policy, so
+# it costs ~210k stroops for `exact` and ~180k for `upto` against ~23k for a plain keypair. The
+# 100,000 default REFUSES them, correctly and with a legible reason — so any deployment serving
+# smart-account buyers must raise it. Measured on-ledger, not guessed.
+MAX_TRANSACTION_FEE_STROOPS = "500000"
 # Rate limiting here is per-isolate and therefore close to meaningless — Cloudflare may run many
 # isolates concurrently. Use Cloudflare's own rate limiting rules in front of the Worker instead.
 RATE_LIMIT_ENABLED = "false"

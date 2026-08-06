@@ -99,6 +99,16 @@ const EnvSchema = z.object({
   CATALOG_DB_PATH: z.string().optional(),
 
   /**
+   * Set to "0" on a deployment that does NOT serve `/discovery/*`.
+   *
+   * `/supported` must never advertise an extension this deployment cannot answer. On Cloudflare
+   * Workers the catalog is in-memory and isolates are ephemeral, so discovery is refused unless the
+   * operator acknowledges the loss — and a Worker advertising `bazaar` while `/discovery/*` 404s is
+   * exactly the advertised-versus-reachable dishonesty this project measures in other facilitators.
+   */
+  SERVES_DISCOVERY: booleanish(true),
+
+  /**
    * Other catalogs to mirror, as a JSON array of federation sources. Unset ⇒ federate nothing, which
    * is the default and the only safe one: mirroring republishes somebody else's data, so each source
    * must declare its licence, its attribution, and that a human has read its terms.
@@ -178,6 +188,8 @@ export interface FacilitatorConfig {
   /** Catalogs to mirror read-only. Empty by default — see FEDERATION_SOURCES. */
   readonly federationSources: readonly FederationSource[];
   readonly federationRefreshSeconds: number;
+  /** Whether this deployment answers `/discovery/*`, and therefore may advertise `bazaar`. */
+  readonly servesDiscovery: boolean;
 }
 
 /**
@@ -310,6 +322,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacilitatorCon
     ...(e.CATALOG_DB_PATH ? { catalogDbPath: e.CATALOG_DB_PATH } : {}),
     federationSources: Object.freeze(parseFederationSources(e.FEDERATION_SOURCES)),
     federationRefreshSeconds: e.FEDERATION_REFRESH_SECONDS,
+    servesDiscovery: e.SERVES_DISCOVERY,
   });
 }
 

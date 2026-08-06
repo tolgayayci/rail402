@@ -268,7 +268,15 @@ export function createApp({ config, startedAt }: AppDeps) {
       // Advertise `bazaar` because the discovery endpoints below genuinely serve it. The public
       // x402.org facilitator advertises no bazaar and serves no /discovery/* — we keep the two in
       // agreement, which is the whole point of the advertised-vs-reachable critique.
-      return c.json({ ...supported, extensions: [...supported.extensions, "bazaar"] });
+      // Advertise `bazaar` ONLY where /discovery/* is actually reachable. A deployment that claims
+      // the extension and then 404s the endpoints is the advertised-versus-reachable failure this
+      // project documents in other facilitators — and a stock client reading `extensions` would
+      // believe it. On a split deployment (stateless facilitator on Workers, Bazaar on a stateful
+      // host) the Worker sets SERVES_DISCOVERY=0 and tells the truth.
+      const extensions = config.servesDiscovery
+        ? [...supported.extensions, "bazaar"]
+        : [...supported.extensions];
+      return c.json({ ...supported, extensions });
     } catch (error) {
       return c.json(
         createError("unexpected_verify_error", {
