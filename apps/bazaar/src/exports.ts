@@ -27,3 +27,11 @@ export { Bm25Retriever, type Retriever, type ScoredEntry } from "./search/index.
 export { computeMetrics, formatMetrics, type Metrics, type Judgment } from "./search/metrics.js";
 
 export { DomainVerifier, accountsFrom, type DomainVerdict } from "./catalog/domain.js";
+export {
+  TrustlineChecker,
+  trustlineTarget,
+  DEFAULT_HORIZON_URLS,
+  type TrustlineVerdict,
+  type TrustlineState,
+} from "./catalog/trustline.js";
+export { identifyStellarAsset, type StellarAssetIdentity } from "./catalog/stellar-assets.js";

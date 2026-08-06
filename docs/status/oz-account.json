@@ -1,74 +1,74 @@
 {
   "check": "oz-account",
   "status": "pass",
-  "observedAt": "2026-08-04T16:01:44.907Z",
+  "observedAt": "2026-08-06T12:31:14.275Z",
   "network": "http://127.0.0.1:4122",
-  "facilitator": "20260804160002",
-  "durationMs": 92924,
+  "facilitator": "20260806122714",
+  "durationMs": 75776,
   "steps": [
     {
       "name": "testnet-fixtures",
       "ok": true,
-      "detail": "asset CNRY160002 · seller GAKCQU5J…",
-      "ms": 33038
+      "detail": "asset CNRY122714 · seller GDUI5TEP…",
+      "ms": 25681
     },
     {
       "name": "deploy-oz-account",
       "ok": true,
-      "detail": "CDSH3MFEH4… (admin rule carries no policy)",
-      "ms": 4882
+      "detail": "CCY3IJVINB… (admin rule carries no policy)",
+      "ms": 4630
     },
     {
       "name": "fund-smart-account",
       "ok": true,
       "detail": "asset minted to the contract account (no trustline required)",
-      "ms": 4448
+      "ms": 4426
     },
     {
       "name": "two-rule-layout",
       "ok": true,
       "detail": "rule 1 scopes settle, rule 2 scopes the token",
-      "ms": 9985
+      "ms": 10318
     },
     {
       "name": "exact-payment",
       "ok": true,
-      "detail": "verified and settled 1000000 · tx 77a285ce…",
-      "ms": 10884
+      "detail": "verified and settled 1000000 · tx 5bb4f40e…",
+      "ms": 9871
     },
     {
       "name": "upto-payment",
       "ok": true,
-      "detail": "ceiling 2000000, settled 750000 · tx ad2d26b6…",
-      "ms": 9960
+      "detail": "ceiling 2000000, settled 750000 · tx 79d9599e…",
+      "ms": 5772
     },
     {
       "name": "policy-refuses-over-budget",
       "ok": true,
       "detail": "refused at verify: invalid_exact_stellar_payload_account_policy_refused",
-      "ms": 1673
+      "ms": 1585
     },
     {
       "name": "budget-state",
       "ok": true,
       "detail": "settle rule 750000 (reconciled to actual, from a 2000000 ceiling), token rule 1000000 (exact only)",
-      "ms": 8126
+      "ms": 7513
     },
     {
       "name": "reconciliation-frees-later",
       "ok": true,
-      "detail": "second upto ceiling 4000000 admitted after the first reconciled to 750000 · tx fcd9610f…",
-      "ms": 9926
+      "detail": "second upto ceiling 4000000 admitted after the first reconciled to 750000 · tx a2e0047c…",
+      "ms": 5979
     }
   ],
   "failure": null,
   "observations": {
-    "accountAddress": "CDSH3MFEH42ZRH2CKERWUROZGCH45B5Y5J3IEMES4K5WPOOGFFDYNCTX",
-    "sessionKey": "GA7OLUPQCN4YVNJSLNKLXUOPSDEBTZM7YN3PJRIKACJ6T7DOYBBO5MS4",
+    "accountAddress": "CCY3IJVINBK65YJ3DQ7UTB36TBWCB57VAKDU3ZTIY4BK2HADO4AU2A65",
+    "sessionKey": "GDNOTAOTF55CJZ3PSXJPVB7BSJ327AHPJBSLSYIFCWCNYTE2OL6H23LL",
     "settleRuleId": 1,
     "tokenRuleId": 2,
-    "exactTransaction": "77a285ce114d0ec9ed882c2fca25c2957480e1a0d03b1e05e6e15c6ea9741228",
-    "uptoTransaction": "ad2d26b61ec09c51fce54370f3d16afd2e912135d5b370095e0f73d0d786f118",
+    "exactTransaction": "5bb4f40e3d232cc4af9d0563107b19ee6ae17b1d3e397f2d7cffff41390982fc",
+    "uptoTransaction": "79d9599eb5a37690bc2fbdbe21605018da020d4b718cefe03c62bae5023ac9c6",
     "overBudgetRefusedAt": "verify",
     "overBudgetCode": "invalid_exact_stellar_payload_account_policy_refused",
     "settleRuleSpent": "750000",
@@ -76,7 +76,7 @@
     "uptoCeiling": "2000000",
     "uptoActualSettled": "750000",
     "uptoBudgetReconciled": "true",
-    "freedBudgetTransaction": "fcd9610fd7f08f0b109de2c1e4e594113b8a8944f59de937eefc471d1d3b3c27",
+    "freedBudgetTransaction": "a2e0047cc64219a95c389fb6d08ea87321bc97fe469af8a50e40f0ac7de89eb3",
     "freedBudgetCeiling": "4000000"
   }
 }

@@ -101,12 +101,45 @@ const ToolErrorSchema = z.object({
   details: z.record(z.string(), z.unknown()).optional(),
 });
 
+const AssetIdentitySchema = z.object({
+  code: z.string().describe('Asset code, e.g. "USDC".'),
+  issuer: z.string().nullable().describe("Classic issuer G-address, or null for native XLM."),
+  decimals: z.number().int().describe("Atomic units per whole unit, as a power of ten."),
+  identity: z
+    .literal("derived")
+    .describe(
+      "The catalog independently DERIVED this contract address from the canonical (code, issuer) for this network, so it is provably that asset rather than a look-alike claiming the name.",
+    ),
+});
+
+const TrustlineSchema = z.object({
+  state: z
+    .enum(["ok", "missing", "unauthorized", "unknown"])
+    .describe(
+      "Whether the payee can receive this asset. `missing` or `unauthorized` means a payment here will fail on-ledger — prefer another seller. `unknown` means the catalog could not find out.",
+    ),
+  checkedAt: z.string().describe("ISO timestamp of the check. A pre-flight, not a guarantee."),
+  reason: z.string().optional().describe("Why the state is not `ok`, and what would fix it."),
+});
+
 const PriceSchema = z.object({
-  amount: z.string(),
-  asset: z.string(),
+  amount: z.string().describe("Price in ATOMIC units — this is what maxAmount is denominated in."),
+  asset: z.string().describe("Stellar Asset Contract address of the payment token."),
   network: z.string(),
   scheme: z.string(),
   feesSponsored: z.boolean().describe("True when the facilitator sponsors the network fee (gasless)."),
+  assetIdentity: AssetIdentitySchema.optional().describe(
+    "Present only when the catalog can prove what this token is. Absent means unvouched-for, not fake.",
+  ),
+  amountDecimal: z
+    .string()
+    .optional()
+    .describe(
+      'The same price in whole units, e.g. "0.1000000" USDC. Present only alongside assetIdentity, since decimals are needed to compute it. Display only — maxAmount is still atomic.',
+    ),
+  payToTrustline: TrustlineSchema.optional().describe(
+    "Stellar-specific: whether the payee has an authorized trustline for this asset. Absent when the question does not apply (native XLM, a contract payee, an unidentifiable asset), which is not a negative signal.",
+  ),
 });
 
 const SearchHitSchema = z.object({
@@ -197,6 +230,20 @@ export interface PricedOption {
   maxTimeoutSeconds?: number;
   extra?: Record<string, unknown>;
 }
+
+// ── Stellar asset identity ───────────────────────────────────────────────────
+//
+// Re-exported from the buyer-side helper package rather than reimplemented. Both agent-facing
+// surfaces — `searchBazaar` there and `search_stellar_resources` here — need the same defensive
+// parse of the same catalog field, and a second copy of a defensive parse is a copy that will
+// eventually stop rejecting something the first one still rejects.
+export {
+  readAssetIdentity,
+  readTrustlinePreflight,
+  formatAtomicAmount,
+  type AssetIdentity,
+  type TrustlinePreflight,
+} from "@x402-stellar/agent-helpers";
 
 /**
  * Pick the cheapest option the agent can actually pay: a Stellar network, within budget.
@@ -371,7 +418,13 @@ export const SEARCH_TOOL_DESCRIPTION = `Search the Stellar Bazaar for paid APIs 
 
 Returns matching resources with their price, network and input schema so you can decide what to
 call. Nothing is paid for by this tool. Use it before pay_and_call to discover a resource you have
-no prior integration with.`;
+no prior integration with.
+
+Prices are in ATOMIC units, which is also what pay_and_call's maxAmount takes. Where the catalog can
+prove what the payment token is, the result additionally carries price.assetIdentity (the asset code,
+issuer and decimals, DERIVED from the token contract rather than claimed by the seller) and
+price.amountDecimal, the same price in whole units. A missing assetIdentity means the catalog does not
+vouch for that token, not that the token is fake.`;
 
 export const PAY_TOOL_DESCRIPTION = `Call a paid Stellar x402 resource, settling payment automatically.
 

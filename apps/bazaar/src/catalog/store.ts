@@ -1,5 +1,6 @@
 import { HybridRetriever, type Retriever, type ScoredEntry } from "../search/index.js";
 import type { SignalStore } from "../search/signals.js";
+import type { TrustlineVerdict } from "./trustline.js";
 import {
   entryKey,
   toPublic,
@@ -263,6 +264,42 @@ export class CatalogStore {
     }
     if (changed) this.dirty = true;
     return changed;
+  }
+
+  /**
+   * Record a trustline pre-flight verdict against every listing priced in that exact asset for that
+   * exact payee.
+   *
+   * Keyed on the (network, asset, payTo) triple the check was actually made about — never on the
+   * entry or its owner. A verdict is a statement about one payee's ability to receive one asset, so
+   * applying it anywhere else would publish a claim nobody verified. One check therefore updates
+   * every listing that shares the triple, which is the common case for a seller with several
+   * endpoints behind one account.
+   *
+   * Deliberately does NOT mark the index dirty: this is advisory metadata that no field weight
+   * reads, and it must not be able to move anything's rank.
+   *
+   * @returns how many payment options were updated
+   */
+  setTrustline(
+    network: string,
+    asset: string,
+    payTo: string,
+    verdict: TrustlineVerdict,
+  ): number {
+    let updated = 0;
+    for (const entry of this.entries.values()) {
+      for (const accepts of entry.accepts) {
+        if (accepts.network !== network || accepts.asset !== asset || accepts.payTo !== payTo) {
+          continue;
+        }
+        const stellar = { ...((accepts.extra["stellar"] as Record<string, unknown>) ?? {}) };
+        stellar["payToTrustline"] = verdict;
+        accepts.extra = { ...accepts.extra, stellar };
+        updated += 1;
+      }
+    }
+    return updated;
   }
 
   /** Rebuild the index eagerly, e.g. after a bulk import. */

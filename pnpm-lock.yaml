@@ -129,6 +129,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.0
         version: 1.30.0(zod@4.4.3)
+      '@x402-stellar/agent-helpers':
+        specifier: workspace:*
+        version: link:../../packages/agent-helpers
       '@x402-stellar/errors':
         specifier: workspace:*
         version: link:../../packages/errors
@@ -259,12 +262,21 @@ importers:
       '@hono/node-server':
         specifier: ^2.0.5
         version: 2.0.12(hono@4.13.0)
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.30.0
+        version: 1.30.0(zod@4.4.3)
       '@stellar/stellar-sdk':
         specifier: ^16.2.0
         version: 16.2.0
+      '@x402-stellar/bazaar':
+        specifier: workspace:*
+        version: link:../../apps/bazaar
       '@x402-stellar/errors':
         specifier: workspace:*
         version: link:../errors
+      '@x402-stellar/mcp-discovery':
+        specifier: workspace:*
+        version: link:../../apps/mcp-discovery
       '@x402/core':
         specifier: 2.20.0
         version: 2.20.0

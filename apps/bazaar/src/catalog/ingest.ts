@@ -9,6 +9,7 @@ import { createError, type ErrorCode, type X402ErrorPayload } from "@x402-stella
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import type { DomainVerdict } from "./domain.js";
 import { identifyStellarAsset } from "./stellar-assets.js";
+import type { TrustlineVerdict } from "./trustline.js";
 import type { CatalogAccepts, CatalogEntry, ResourceType } from "./types.js";
 
 /**
@@ -85,6 +86,18 @@ export interface IngestInput {
    * already known and the caller schedules a refresh afterwards.
    */
   readonly domainVerdict?: DomainVerdict | undefined;
+  /**
+   * The cached trustline verdict for (this listing's network, asset, payTo), if one is known.
+   *
+   * Synchronous and optional for the same reason as `domainVerdict`: the check is an HTTP request to
+   * Horizon and this function runs inside a settlement response. It consults what is already known
+   * and the caller schedules a refresh afterwards. **It never affects the outcome** — a listing whose
+   * payee cannot receive the asset is still cataloged, with the problem stated on it (`trustline.ts`).
+   *
+   * The caller must resolve it for THIS (network, asset, payTo); ingest only attaches what it is
+   * handed, and a verdict about some other triple would be a lie published under this listing.
+   */
+  readonly trustlineVerdict?: TrustlineVerdict | undefined;
   readonly now: string;
   /**
    * Networks this Bazaar will catalog. Because cataloging is gated on settlement by our own
@@ -294,6 +307,13 @@ export function ingest(input: IngestInput): CatalogOutcome {
   delete clientExtra["stellar"];
   const assetIdentity = identifyStellarAsset(network, paymentRequirements.asset);
 
+  // Both facilitator-computed enrichments live under one `stellar` key, and they are one feature:
+  // the trustline question is only askable once the asset identity is derived, because a SAC address
+  // cannot be reversed into the (code, issuer) a trustline is held against (`trustline.ts`).
+  const stellarExtra: Record<string, unknown> = {};
+  if (assetIdentity) stellarExtra["asset"] = assetIdentity;
+  if (input.trustlineVerdict) stellarExtra["payToTrustline"] = input.trustlineVerdict;
+
   const accepts: CatalogAccepts = {
     scheme: paymentRequirements.scheme,
     network,
@@ -303,8 +323,9 @@ export function ingest(input: IngestInput): CatalogOutcome {
     maxTimeoutSeconds,
     // Always present (B1): stock `PaymentRequirements.extra` is required, so an omitted extra is a
     // listing a strict consumer rejects. Client `extra.stellar` is dropped above; the facilitator's
-    // derived asset identity is added when the asset is one it can independently vouch for.
-    extra: assetIdentity ? { ...clientExtra, stellar: { asset: assetIdentity } } : clientExtra,
+    // own findings are added when it has any — silence, never a guess, when it has none.
+    extra:
+      Object.keys(stellarExtra).length > 0 ? { ...clientExtra, stellar: stellarExtra } : clientExtra,
   };
 
   const quality = existing && !displacing

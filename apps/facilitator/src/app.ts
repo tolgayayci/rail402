@@ -13,6 +13,7 @@ import {
   catalogSettledPayment,
   catalogProvisionalPayment,
   DomainVerifier,
+  TrustlineChecker,
   SignalStore,
 } from "@x402-stellar/bazaar";
 
@@ -72,6 +73,11 @@ export function createApp({ config, startedAt }: AppDeps) {
   // stops a squatter claiming an endpoint they do not own. Never
   // awaited on the settlement path — see `catalogSettledPayment`.
   const domains = new DomainVerifier();
+  // Trustline pre-flight. Answers "can this payee actually receive what the listing is priced in?"
+  // at discovery time instead of at settlement time, which on Stellar is the difference between an
+  // agent picking a different seller and an agent signing a payment that cannot land.
+  // Advisory, cached, never on the settlement path, and it never gates cataloging.
+  const trustlines = new TrustlineChecker();
   const servedNetworks = config.networks.map(n => n.network);
 
   const counters: Counters = {
@@ -322,6 +328,7 @@ export function createApp({ config, startedAt }: AppDeps) {
             new Date().toISOString(),
             servedNetworks,
             domains,
+            trustlines,
           );
           if (header) c.header("EXTENSION-RESPONSES", header);
         } catch (catalogError) {

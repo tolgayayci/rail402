@@ -682,6 +682,15 @@ export const ERROR_REGISTRY = {
     remediation:
       "Onboarding time is a measured deliverable; regressions are treated as bugs. Read the per-phase timings before assuming the network was slow — retryable is set because testnet latency genuinely varies.",
   },
+  canary_stellar_metadata_missing: {
+    reason:
+      "A settled Stellar listing reached an agent without the facilitator-derived metadata it should carry — the proven asset identity, or the payee's trustline pre-flight.",
+    retryable: false,
+    surface: "canary",
+    provenance: "local",
+    remediation:
+      "This is the enrichment no EVM or SVM catalog can offer, and it is only worth anything if it survives every hop: ingest attaches it, the catalog serves it, and the MCP projection must pass it through rather than dropping `extra` wholesale — which is exactly how fee sponsorship was lost once already.",
+  },
   canary_parameter_descriptions_lost: {
     reason:
       "The seller's per-parameter descriptions did not survive cataloging, so the endpoint is no longer legible to an agent.",

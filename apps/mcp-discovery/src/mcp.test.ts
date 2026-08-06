@@ -343,6 +343,77 @@ describe("search tool contract", () => {
     }
   });
 
+  it("surfaces the catalog's DERIVED asset identity and the decimal price, and validates", async () => {
+    // The Stellar-native half of the projection. A SAC address is a hash of (code, issuer, network
+    // passphrase), so the catalog can PROVE which token a `C…` address is — an assurance an EVM/SVM
+    // catalog cannot give, where the best answer is a curated list. It only reaches the agent if the
+    // projection carries it, and `extra` was previously dropped wholesale.
+    const identity = {
+      contract: opt("1").asset,
+      kind: "sac",
+      code: "USDC",
+      issuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      decimals: 7,
+      identity: "derived",
+    };
+    const impl = (async () =>
+      new Response(
+        JSON.stringify({
+          resources: [
+            {
+              resource: "https://api.test/derived",
+              type: "http",
+              accepts: [{ ...opt("1000000"), extra: { areFeesSponsored: true, stellar: { asset: identity } } }],
+            },
+            {
+              resource: "https://api.test/unvouched",
+              type: "http",
+              accepts: [{ ...opt("1000000"), extra: { areFeesSponsored: true } }],
+            },
+            {
+              // A catalog claiming an identity this build cannot interpret must not be presented as
+              // proof. Unknown-means-unproven: the agent gets no badge rather than a wrong one.
+              resource: "https://api.test/claimed",
+              type: "http",
+              accepts: [
+                {
+                  ...opt("1000000"),
+                  extra: { areFeesSponsored: true, stellar: { asset: { ...identity, identity: "claimed" } } },
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = impl;
+    try {
+      const result = await searchResources(config, { query: "usdc" });
+      const by = (u: string) => result.data!.results.find(r => r.resource === u)!;
+
+      expect(by("https://api.test/derived").price?.assetIdentity).toEqual({
+        code: "USDC",
+        issuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        decimals: 7,
+        identity: "derived",
+      });
+      // 1000000 atomic units of a 7-decimal token is a tenth of a dollar, and an agent budgeting in
+      // atomic units has no way to know that without the decimals.
+      expect(by("https://api.test/derived").price?.amountDecimal).toBe("0.1000000");
+
+      for (const url of ["https://api.test/unvouched", "https://api.test/claimed"]) {
+        expect(by(url).price?.assetIdentity).toBeUndefined();
+        expect(by(url).price?.amountDecimal).toBeUndefined();
+      }
+
+      // The enriched shape must still satisfy the declared output schema — the SDK throws on drift.
+      expect(SearchOutputSchema.safeParse(result).success).toBe(true);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
   it("filters out resources the agent cannot afford before showing them", async () => {
     const impl = (async () =>
       new Response(

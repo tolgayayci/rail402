@@ -1,58 +1,58 @@
 {
   "check": "time-to-discoverable",
   "status": "pass",
-  "observedAt": "2026-07-31T15:40:32.009Z",
+  "observedAt": "2026-08-06T12:31:48.819Z",
   "network": "stellar:testnet",
-  "facilitator": "https://gathered-zope-building-shares.trycloudflare.com",
-  "durationMs": 33979,
+  "facilitator": "http://127.0.0.1:4122",
+  "durationMs": 34533,
   "steps": [
     {
       "name": "facilitator-reachable",
       "ok": true,
       "detail": "/supported advertises bazaar",
-      "ms": 180
+      "ms": 1
     },
     {
       "name": "provision-identity",
       "ok": true,
       "detail": "funded accounts, asset issued, both trustlines up",
-      "ms": 23577
+      "ms": 24755
     },
     {
       "name": "publish-endpoint",
       "ok": true,
       "detail": "stock middleware + one `extensions` key",
-      "ms": 33
+      "ms": 26
     },
     {
       "name": "first-payment",
       "ok": true,
       "detail": "settled and catalogued in one round trip",
-      "ms": 9766
+      "ms": 9747
     },
     {
       "name": "appears-in-catalog",
       "ok": true,
-      "detail": "listed 216ms after settlement",
-      "ms": 216
+      "detail": "listed 1ms after settlement",
+      "ms": 1
     },
     {
       "name": "findable-by-search",
       "ok": true,
       "detail": "rank 3 for a natural-language query",
-      "ms": 207
+      "ms": 1
     }
   ],
   "failure": null,
   "observations": {
-    "transaction": "1bbff43a1bea5303ef5ada8faedba83d6844ef8a0e669a7965e96a7d1b669396",
-    "totalSeconds": 34,
+    "transaction": "ffcfdac69127a319f1e3d79f1644d76083671fba60615ee7ac55344865b99d68",
+    "totalSeconds": 34.5,
     "phaseMs": {
-      "provision-identity": 23577,
-      "publish-endpoint": 33,
-      "first-payment": 9766,
-      "appears-in-catalog": 216,
-      "findable-by-search": 207
+      "provision-identity": 24755,
+      "publish-endpoint": 26,
+      "first-payment": 9747,
+      "appears-in-catalog": 1,
+      "findable-by-search": 1
     },
     "targetSeconds": 3600,
     "regressionThresholdSeconds": 300,

@@ -3,6 +3,22 @@ import { wrapFetchWithPayment } from "@x402/fetch";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { createError, type ErrorCode } from "@x402-stellar/errors";
+import {
+  readAssetIdentity,
+  readTrustlinePreflight,
+  formatAtomicAmount,
+  type AssetIdentity,
+  type TrustlinePreflight,
+} from "./stellar-asset.js";
+
+export {
+  readAssetIdentity,
+  readTrustlinePreflight,
+  formatAtomicAmount,
+  type AssetIdentity,
+  type TrustlinePreflight,
+  type TrustlineState,
+} from "./stellar-asset.js";
 
 /**
  * Buyer/agent-side helpers: find a Stellar service you have never seen before, and pay for it.
@@ -30,7 +46,29 @@ export interface BazaarResource {
   serviceName?: string;
   tags?: string[];
   /** Cheapest Stellar option, or undefined if none is payable on Stellar. */
-  price?: { amount: string; asset: string; network: string; scheme: string; feesSponsored: boolean };
+  price?: {
+    /** ATOMIC units — the same scale `maxAmount` is denominated in. */
+    amount: string;
+    /** Stellar Asset Contract address of the payment token. */
+    asset: string;
+    network: string;
+    scheme: string;
+    feesSponsored: boolean;
+    /**
+     * What the catalog can PROVE this token is, when it can prove anything. Absent means the
+     * catalog does not vouch for it — which is not the same as "fake", and is deliberately not
+     * reported as a negative claim.
+     */
+    assetIdentity?: AssetIdentity;
+    /** `amount` in whole units. Present only alongside `assetIdentity`, which carries the decimals. */
+    amountDecimal?: string;
+    /**
+     * Whether the payee can actually receive this asset, checked at discovery time. Absent when the
+     * question does not apply (native XLM, a contract payee, an unidentifiable asset) — which is not
+     * a negative signal. A `missing` or `unauthorized` state means a payment here will fail.
+     */
+    payToTrustline?: TrustlinePreflight;
+  };
   inputSchema?: unknown;
   usage?: { settlements: number; uniquePayers: number };
 }
@@ -244,6 +282,14 @@ function toBazaarResource(r: RawResource): BazaarResource {
   if (r.tags) out.tags = r.tags;
   if (inputSchema) out.inputSchema = inputSchema;
   if (cheapest) {
+    // What the catalog derived about the token, plus the decimal rendering that derivation unlocks.
+    // Without them an agent sees a bare `C…` address and an integer, and has no way to tell
+    // canonical USDC from a look-alike or "1000000" from a tenth of a dollar.
+    const assetIdentity = readAssetIdentity(cheapest.extra);
+    const amountDecimal = assetIdentity
+      ? formatAtomicAmount(cheapest.amount, assetIdentity.decimals)
+      : undefined;
+    const payToTrustline = readTrustlinePreflight(cheapest.extra);
     out.price = {
       amount: cheapest.amount,
       asset: cheapest.asset,
@@ -252,6 +298,9 @@ function toBazaarResource(r: RawResource): BazaarResource {
       // Surface fee sponsorship (was dropped with the rest of `extra`, B3) so a budgeting agent can
       // prefer gasless routes without a round trip.
       feesSponsored: cheapest.extra?.["areFeesSponsored"] === true,
+      ...(assetIdentity === undefined ? {} : { assetIdentity }),
+      ...(amountDecimal === undefined ? {} : { amountDecimal }),
+      ...(payToTrustline === undefined ? {} : { payToTrustline }),
     };
   }
   if (r.quality) out.usage = { settlements: r.quality.totalSettlements, uniquePayers: r.quality.uniquePayers };

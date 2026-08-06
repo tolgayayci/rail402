@@ -1,16 +1,16 @@
 {
   "check": "supported-snapshot",
   "status": "pass",
-  "observedAt": "2026-07-31T15:39:58.030Z",
+  "observedAt": "2026-08-06T12:31:14.285Z",
   "network": "stellar:testnet",
-  "facilitator": "https://gathered-zope-building-shares.trycloudflare.com",
-  "durationMs": 912,
+  "facilitator": "http://127.0.0.1:4122",
+  "durationMs": 9,
   "steps": [
     {
       "name": "fetch",
       "ok": true,
       "detail": "2 kind(s)",
-      "ms": 144
+      "ms": 1
     },
     {
       "name": "envelope",
@@ -28,13 +28,13 @@
       "name": "sponsorship-truthful",
       "ok": true,
       "detail": "sponsored=true, 1 signer(s) funded",
-      "ms": 216
+      "ms": 1
     },
     {
       "name": "advertised-is-reachable",
       "ok": true,
       "detail": "bazaar advertised and both discovery paths answer",
-      "ms": 552
+      "ms": 7
     }
   ],
   "failure": null,
@@ -54,7 +54,7 @@
           "scheme": "upto",
           "network": "stellar:testnet",
           "extra": {
-            "uptoContract": "CB3TWFYYDS74WM2N4RKMKUBUREZ6SR5PV3PI3PGO2JEBPJ6A65PSL342",
+            "uptoContract": "CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X",
             "areFeesSponsored": true
           }
         }
@@ -64,7 +64,7 @@
       ],
       "signers": {
         "stellar:*": [
-          "GALC7PDL6LX3JR7DVR4XJWIAG46QS5LLT4MRVFEEJ4UBDD4RQYH6AUK6"
+          "GB356GVTND4Q6G7VWVH5S45CVDXK4F67O5CBN7V2YQB6OYVTU3P3JNUV"
         ]
       }
     },

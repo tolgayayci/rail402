@@ -205,6 +205,26 @@ describe("searchBazaar", () => {
     expect(unsponsored?.price?.feesSponsored).toBe(false);
   });
 
+  it("surfaces the catalog's derived asset identity and the decimal price", async () => {
+    // Without this an agent sees a bare `C…` contract and the integer 1000000, with no way to tell
+    // canonical USDC from a look-alike issuer using the same code, and no way to know whether that
+    // integer is a tenth of a dollar or a million of them.
+    const identity = { contract: accept("1").asset, kind: "sac", code: "USDC", issuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5", decimals: 7, identity: "derived" };
+    const impl = catalog([
+      { resource: "https://a.test/known", type: "http", accepts: [{ ...accept("1000000"), extra: { areFeesSponsored: true, stellar: { asset: identity } } }] },
+      { resource: "https://a.test/unknown", type: "http", accepts: [{ ...accept("1000000"), extra: { areFeesSponsored: true } }] },
+    ]);
+    const r = await searchBazaar(config, "x", {}, impl);
+    const known = r.data!.find(x => x.resource === "https://a.test/known")!;
+    expect(known.price?.assetIdentity).toEqual({ code: "USDC", issuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5", decimals: 7, identity: "derived" });
+    expect(known.price?.amountDecimal).toBe("0.1000000");
+    // An asset the catalog cannot vouch for gets no identity and no decimal price — silence, not a
+    // guess. Rendering a decimal here would require assuming 7 decimals for a token nobody derived.
+    const unknown = r.data!.find(x => x.resource === "https://a.test/unknown")!;
+    expect(unknown.price?.assetIdentity).toBeUndefined();
+    expect(unknown.price?.amountDecimal).toBeUndefined();
+  });
+
   it("filters out what the caller cannot afford", async () => {
     const impl = catalog([
       { resource: "https://a.test/cheap", type: "http", accepts: [accept("100")] },

@@ -11,6 +11,7 @@ import {
   encodeExtensionResponses,
 } from "./app.js";
 import { DomainVerifier, accountsFrom } from "./catalog/domain.js";
+import { TrustlineChecker, trustlineTarget } from "./catalog/trustline.js";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -757,6 +758,208 @@ describe("SEP-1 domain verification", () => {
     const { verifier } = verifierFor(null);
     const verdict = await verifier.verify("https://api.seller.example/x", SELLER);
     expect(verdict.verified).toBe(false);
+  });
+});
+
+describe("trustline pre-flight", () => {
+  const decode = (h: string | undefined) =>
+    h ? (JSON.parse(Buffer.from(h, "base64").toString("utf8")) as Record<string, unknown>) : undefined;
+  const USDC_ISSUER = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+  const XLM_SAC = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
+  const CONTRACT_PAYEE = "CAQSCMM6L2QVQGZ6SFPPPQGKV3TYPPTPZBQYJUQDKGNSJKGQXKPXMDBC";
+
+  const balance = (over: Record<string, unknown> = {}) => ({
+    asset_type: "credit_alphanum4",
+    asset_code: "USDC",
+    asset_issuer: USDC_ISSUER,
+    limit: "922337203685.4775807",
+    is_authorized: true,
+    ...over,
+  });
+
+  const checkerFor = (respond: () => Response | Promise<Response>) => {
+    const seen: string[] = [];
+    const impl = (async (input: URL | RequestInfo) => {
+      seen.push(String(input));
+      return respond();
+    }) as unknown as typeof fetch;
+    return { checker: new TrustlineChecker({ fetchImpl: impl }), seen };
+  };
+  const accountWith = (balances: unknown[]) =>
+    () => new Response(JSON.stringify({ balances }), { status: 200 });
+
+  // ── the three conditions that make the question askable ───────────────────
+  it("does not apply to native XLM, a contract payee, or an unidentifiable asset", () => {
+    // Each of these would produce a confidently wrong answer if checked anyway: XLM needs no
+    // trustline, a contract payee holds SAC balances in contract storage where trustlines do not
+    // exist, and a SAC address cannot be reversed into the (code, issuer) a trustline is held
+    // against. Silence is the only honest output.
+    expect(trustlineTarget("stellar:testnet", XLM_SAC, SELLER)).toBeUndefined();
+    expect(trustlineTarget("stellar:testnet", ASSET, CONTRACT_PAYEE)).toBeUndefined();
+    expect(trustlineTarget("stellar:testnet", UNKNOWN_ASSET, SELLER)).toBeUndefined();
+    // And it does apply to the case it exists for: a classic account paid in identifiable USDC.
+    expect(trustlineTarget("stellar:testnet", ASSET, SELLER)).toMatchObject({
+      code: "USDC",
+      issuer: USDC_ISSUER,
+    });
+  });
+
+  it("makes no request at all when the question does not apply", async () => {
+    const { checker, seen } = checkerFor(accountWith([balance()]));
+    expect(await checker.check("stellar:testnet", XLM_SAC, SELLER)).toBeUndefined();
+    expect(await checker.check("stellar:testnet", ASSET, CONTRACT_PAYEE)).toBeUndefined();
+    expect(seen).toEqual([]);
+  });
+
+  // ── the four states ───────────────────────────────────────────────────────
+  it("reports ok for an authorized trustline", async () => {
+    const { checker, seen } = checkerFor(accountWith([balance(), { asset_type: "native", balance: "10" }]));
+    const verdict = await checker.check("stellar:testnet", ASSET, SELLER);
+    expect(verdict?.state).toBe("ok");
+    expect(verdict?.checkedAt).toBeTruthy();
+    expect(seen).toEqual([`https://horizon-testnet.stellar.org/accounts/${SELLER}`]);
+  });
+
+  it("reports missing when the payee holds no trustline, naming the fix", async () => {
+    const { checker } = checkerFor(accountWith([{ asset_type: "native", balance: "10" }]));
+    const verdict = await checker.check("stellar:testnet", ASSET, SELLER);
+    expect(verdict?.state).toBe("missing");
+    // Non-null reason on every non-ok state, and it must be actionable.
+    expect(verdict?.reason).toContain("USDC");
+    expect(verdict?.reason).toMatch(/CHANGE_TRUST/);
+  });
+
+  it("reports missing for an account that does not exist", async () => {
+    const { checker } = checkerFor(() => new Response("{}", { status: 404 }));
+    const verdict = await checker.check("stellar:testnet", ASSET, SELLER);
+    expect(verdict?.state).toBe("missing");
+    expect(verdict?.reason).toContain("does not exist");
+  });
+
+  it("reports unauthorized for a deauthorized trustline and for a zero limit", async () => {
+    // Two different mechanisms, one consequence: the line exists and can receive nothing. The state
+    // is shared; the reason says which one it is, because they need different fixes.
+    const deauthorized = checkerFor(accountWith([balance({ is_authorized: false })]));
+    const deauthorizedVerdict = await deauthorized.checker.check("stellar:testnet", ASSET, SELLER);
+    expect(deauthorizedVerdict?.state).toBe("unauthorized");
+    expect(deauthorizedVerdict?.reason).toMatch(/issuer has not authorized/);
+
+    const zeroLimit = checkerFor(accountWith([balance({ limit: "0" })]));
+    const zeroVerdict = await zeroLimit.checker.check("stellar:testnet", ASSET, SELLER);
+    expect(zeroVerdict?.state).toBe("unauthorized");
+    expect(zeroVerdict?.reason).toMatch(/limit of 0/);
+  });
+
+  it("reports unknown — never ok — when Horizon cannot answer", async () => {
+    // Failing open here would tell an agent a payment will land when nothing checked that it would,
+    // which is strictly worse than saying nothing.
+    for (const respond of [
+      () => { throw new Error("ECONNREFUSED"); },
+      () => new Response("upstream", { status: 503 }),
+      () => new Response(JSON.stringify({ balances: "not an array" }), { status: 200 }),
+    ]) {
+      const { checker } = checkerFor(respond as () => Response);
+      const verdict = await checker.check("stellar:testnet", ASSET, SELLER);
+      expect(verdict?.state).toBe("unknown");
+      expect(verdict?.reason).toBeTruthy();
+    }
+  });
+
+  it("shares one request between concurrent checks for the same triple", async () => {
+    const { checker, seen } = checkerFor(accountWith([balance()]));
+    await Promise.all([
+      checker.check("stellar:testnet", ASSET, SELLER),
+      checker.check("stellar:testnet", ASSET, SELLER),
+      checker.check("stellar:testnet", ASSET, SELLER),
+    ]);
+    expect(seen).toHaveLength(1);
+  });
+
+  // ── advisory: it never gates cataloging ───────────────────────────────────
+  it("catalogs a listing whose payee cannot receive the asset, with the problem stated on it", async () => {
+    // The whole posture. Delisting a seller because Horizon says `missing` would be a worse failure
+    // than the one being prevented and would hand anyone a denial-of-listing lever — and Horizon
+    // being briefly down would silently unlist working sellers.
+    const store = new CatalogStore();
+    const { checker } = checkerFor(accountWith([{ asset_type: "native", balance: "10" }]));
+    const header = catalogSettledPayment(
+      store,
+      payload(),
+      requirements(),
+      "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
+      now,
+      SERVED,
+      undefined,
+      checker,
+    );
+    // Cataloged, unconditionally.
+    expect(decode(header)).toMatchObject({ bazaar: { status: "success" } });
+    expect(store.size).toBe(1);
+
+    // The check resolves afterwards and is written onto the listing, never in front of it.
+    await new Promise(resolve => setImmediate(resolve));
+    const entry = store.get("https://api.example.com/weather")!;
+    const stellar = entry.accepts[0]!.extra["stellar"] as Record<string, unknown>;
+    expect(stellar["payToTrustline"]).toMatchObject({ state: "missing" });
+    // The derived asset identity is still there — the two enrichments share one key and neither
+    // displaces the other.
+    expect(stellar["asset"]).toMatchObject({ code: "USDC", identity: "derived" });
+  });
+
+  it("attaches a cached verdict at ingest, keyed on the triple it was checked for", async () => {
+    const { checker } = checkerFor(accountWith([balance()]));
+    await checker.check("stellar:testnet", ASSET, SELLER);
+
+    const outcome = ingest({
+      paymentPayload: payload(),
+      paymentRequirements: requirements(),
+      trustlineVerdict: checker.cached("stellar:testnet", ASSET, SELLER),
+      now,
+      allowedNetworks: SERVED,
+    });
+    expect(outcome.status).toBe("success");
+    if (outcome.status !== "success") return;
+    const stellar = outcome.entry.accepts[0]!.extra["stellar"] as Record<string, unknown>;
+    expect(stellar["payToTrustline"]).toMatchObject({ state: "ok" });
+    // A verdict about a different payee is not this listing's verdict — the cache must not answer.
+    expect(checker.cached("stellar:testnet", ASSET, OTHER)).toBeUndefined();
+  });
+
+  it("updates every listing that shares the triple, and cannot move anything's rank", () => {
+    const store = new CatalogStore();
+    for (const path of ["/a", "/b"]) {
+      const entry = ingest({
+        paymentPayload: payload({ resource: { url: `https://api.example.com${path}` } }),
+        paymentRequirements: requirements(),
+        now,
+        allowedNetworks: SERVED,
+      });
+      if (entry.status === "success") store.upsert(entry.entry);
+    }
+    // A third listing for a different payee must not be touched by a verdict about SELLER.
+    const other = ingest({
+      paymentPayload: payload({ resource: { url: "https://other.example.com/c" } }),
+      paymentRequirements: requirements({ payTo: OTHER }),
+      now,
+      allowedNetworks: SERVED,
+    });
+    if (other.status === "success") store.upsert(other.entry);
+
+    const before = store.search("weather", {}).resources.map(r => r.resource);
+    const updated = store.setTrustline("stellar:testnet", ASSET, SELLER, {
+      state: "missing",
+      checkedAt: now,
+      reason: "no trustline",
+    });
+    expect(updated).toBe(2);
+    expect(
+      (store.get("https://other.example.com/c")!.accepts[0]!.extra["stellar"] as Record<string, unknown>)[
+        "payToTrustline"
+      ],
+    ).toBeUndefined();
+    // Advisory metadata is not a ranking signal. If it were, a seller could tune their rank by
+    // touching their own trustline.
+    expect(store.search("weather", {}).resources.map(r => r.resource)).toEqual(before);
   });
 });
 

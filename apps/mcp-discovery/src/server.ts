@@ -17,6 +17,11 @@ import {
   toToolCall,
   SearchOutputSchema,
   PayOutputSchema,
+  readAssetIdentity,
+  readTrustlinePreflight,
+  formatAtomicAmount,
+  type AssetIdentity,
+  type TrustlinePreflight,
   type PricedOption,
   type ToolResult,
 } from "./tools.js";
@@ -99,7 +104,18 @@ export interface SearchHit {
   description?: string;
   serviceName?: string;
   tags?: string[];
-  price: { amount: string; asset: string; network: string; scheme: string; feesSponsored: boolean } | undefined;
+  price:
+    | {
+        amount: string;
+        asset: string;
+        network: string;
+        scheme: string;
+        feesSponsored: boolean;
+        assetIdentity?: AssetIdentity;
+        amountDecimal?: string;
+        payToTrustline?: TrustlinePreflight;
+      }
+    | undefined;
   inputSchema?: unknown;
   usage?: { settlements: number; uniquePayers: number };
 }
@@ -146,6 +162,17 @@ export async function searchResources(
       const bazaar = r.extensions?.["bazaar"] as
         | { info?: { input?: { toolName?: string; inputSchema?: unknown } } }
         | undefined;
+      // The catalog's own derivation of what this token is, when it has one. An agent otherwise sees
+      // only a `C…` contract address and has no way to tell canonical USDC from a look-alike — nor
+      // any way to know the decimal scale, which is what makes "1000000" and "0.1000000" the same
+      // number. Both are surfaced together because neither is usable without the other.
+      const identity = cheapest ? readAssetIdentity(cheapest.extra) : undefined;
+      const amountDecimal = identity ? formatAtomicAmount(cheapest!.amount, identity.decimals) : undefined;
+      // Stellar's defining onboarding hazard, answered before the agent commits: a payee without an
+      // authorized trustline cannot receive the asset, and the payment fails on-ledger. Knowing that
+      // at search time turns a wasted signature into a choice of a different seller.
+      const payToTrustline = cheapest ? readTrustlinePreflight(cheapest.extra) : undefined;
+
       const hit: SearchHit = {
         resource: r.resource,
         type: r.type,
@@ -158,6 +185,9 @@ export async function searchResources(
               // Surface fee sponsorship so an agent knows the call is gasless before it commits — it
               // was being dropped with the rest of `extra` (B3). Reflects what the listing declares.
               feesSponsored: cheapest.extra?.["areFeesSponsored"] === true,
+              ...(identity === undefined ? {} : { assetIdentity: identity }),
+              ...(amountDecimal === undefined ? {} : { amountDecimal }),
+              ...(payToTrustline === undefined ? {} : { payToTrustline }),
             }
           : undefined,
       };

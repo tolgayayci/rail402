@@ -17,7 +17,10 @@
     "discovery-loop": "tsx src/cli.ts discovery-loop"
   },
   "dependencies": {
+    "@x402-stellar/bazaar": "workspace:*",
     "@x402-stellar/errors": "workspace:*",
+    "@x402-stellar/mcp-discovery": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@stellar/stellar-sdk": "^16.2.0",
     "@x402/core": "2.20.0",
     "@x402/extensions": "2.20.0",

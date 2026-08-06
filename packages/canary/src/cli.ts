@@ -11,6 +11,7 @@ import {
 } from "./oz-constants.js";
 import { runSupportedSnapshot } from "./supported.js";
 import { runTimeToDiscoverable } from "./time-to-discoverable.js";
+import { runStellarNative } from "./stellar-native.js";
 import { findRepoRoot, spawnFacilitator, type SpawnedFacilitator } from "./facilitator.js";
 import { provisionUsdcAccounts } from "./provision.js";
 import { toPayload, writeReport, type CanaryReport } from "./report.js";
@@ -54,6 +55,17 @@ const CHECKS = {
     file: "supported-snapshot.json",
     run: (facilitatorUrl: string) => runSupportedSnapshot({ facilitatorUrl }),
   },
+  "stellar-native": {
+    file: "stellar-native.json",
+    run: (facilitatorUrl: string, runId: string) => runStellarNative({ facilitatorUrl, runId }),
+    // Excluded from `all`, and this is the reason: it pays in REAL testnet USDC, which friendbot
+    // cannot mint. A run without the faucet-provisioned accounts in `.env.testnet` would fail with
+    // `canary_setup_failed` — a red nightly reporting a missing captcha rather than a regression,
+    // which is how a monitoring system teaches everyone to ignore it. Self-issued assets are not a
+    // substitute: the whole property under test is an identity the facilitator derives independently,
+    // and nothing derives an identity for an asset minted five seconds ago.
+    needsProvisionedUsdc: true,
+  },
   "time-to-discoverable": {
     file: "time-to-discoverable.json",
     run: (facilitatorUrl: string, runId: string) =>
@@ -61,7 +73,11 @@ const CHECKS = {
   },
 } as const satisfies Record<
   string,
-  { file: string; run: (facilitatorUrl: string, runId: string) => Promise<CanaryReport> }
+  {
+    file: string;
+    run: (facilitatorUrl: string, runId: string) => Promise<CanaryReport>;
+    needsProvisionedUsdc?: boolean;
+  }
 >;
 
 type CheckName = keyof typeof CHECKS;
@@ -133,8 +149,10 @@ const USAGE = `usage: x402-stellar-canary <command> [options]
   rejection-audit       every rejection path carries a code and an actionable reason
   oz-account            an OpenZeppelin smart account pays with exact AND upto under our policy
   supported-snapshot    /supported is complete, truthful, and matches what is reachable
+  stellar-native        derived asset identity + trustline pre-flight reach an agent, in real USDC
   time-to-discoverable  measures zero -> paid, discoverable endpoint
-  all                   every check above, against one facilitator
+  all                   every check above EXCEPT stellar-native, against one facilitator
+                        (stellar-native needs faucet USDC; run it by name)
   provision-usdc        prepare the accounts the upstream e2e suite needs
 
   --facilitator <url>   target a deployment (default: start one with a friendbot-funded signer)
@@ -160,7 +178,9 @@ async function main(): Promise<number> {
 
   const selected: CheckName[] =
     args.command === "all"
-      ? (Object.keys(CHECKS) as CheckName[])
+      ? (Object.keys(CHECKS) as CheckName[]).filter(
+          c => !("needsProvisionedUsdc" in CHECKS[c] && CHECKS[c].needsProvisionedUsdc),
+        )
       : isCheck(args.command)
         ? [args.command]
         : [];

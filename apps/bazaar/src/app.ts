@@ -3,6 +3,7 @@ import { createError } from "@x402-stellar/errors";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import type { CatalogStore } from "./catalog/store.js";
 import type { DomainVerifier } from "./catalog/domain.js";
+import type { TrustlineChecker } from "./catalog/trustline.js";
 import { ingest } from "./catalog/ingest.js";
 import { entryKey, type DiscoveryFilters } from "./catalog/types.js";
 
@@ -170,6 +171,13 @@ export function catalogSettledPayment(
    * able to add latency to somebody's payment — or, by hanging, to withhold their receipt.
    */
   verifier?: DomainVerifier,
+  /**
+   * Trustline pre-flight. Optional on exactly the same terms as `verifier`: consulted for what it
+   * already knows, refreshed in the background, and never able to change whether a listing is
+   * cataloged. A seller whose payTo cannot receive the asset stays listed with the problem stated on
+   * the listing — delisting them would be a worse failure and a denial-of-listing lever.
+   */
+  trustlines?: TrustlineChecker,
 ): string | undefined {
   if (!paymentPayload.extensions?.["bazaar"]) return undefined;
 
@@ -181,12 +189,16 @@ export function catalogSettledPayment(
   const payTo = paymentRequirements.payTo;
   const known =
     verifier && typeof resourceUrl === "string" ? verifier.cached(resourceUrl, payTo) : undefined;
+  const network = paymentRequirements.network;
+  const asset = paymentRequirements.asset;
+  const knownTrustline = trustlines?.cached(network, asset, payTo);
 
   const outcome = ingest({
     paymentPayload,
     paymentRequirements,
     lookup: (resource, toolName) => store.get(resource, toolName),
     ...(known === undefined ? {} : { domainVerdict: known }),
+    ...(knownTrustline === undefined ? {} : { trustlineVerdict: knownTrustline }),
     now,
     allowedNetworks,
   });
@@ -200,6 +212,20 @@ export function catalogSettledPayment(
       .then(verdict => store.setDomainVerified(resourceUrl, payTo, verdict.verified))
       .catch(() => {
         /* verification is advisory; a failure must never surface as a settlement problem */
+      });
+  }
+
+  // Same posture for the trustline pre-flight: fire-and-forget, after the entry is written. It runs
+  // even on a rejected outcome so that the answer is already cached when the seller retries — and
+  // `check` returns undefined without a request when the question does not apply at all.
+  if (trustlines) {
+    void trustlines
+      .check(network, asset, payTo)
+      .then(verdict => {
+        if (verdict) store.setTrustline(network, asset, payTo, verdict);
+      })
+      .catch(() => {
+        /* advisory; Horizon being down must never look like a settlement problem */
       });
   }
 

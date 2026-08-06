@@ -1,46 +1,52 @@
 {
   "check": "discovery-loop",
   "status": "pass",
-  "observedAt": "2026-07-31T15:37:47.177Z",
+  "observedAt": "2026-08-06T12:27:48.352Z",
   "network": "stellar:testnet",
-  "facilitator": "https://gathered-zope-building-shares.trycloudflare.com",
-  "durationMs": 43011,
+  "facilitator": "http://127.0.0.1:4122",
+  "durationMs": 29689,
   "steps": [
     {
       "name": "facilitator-reachable",
       "ok": true,
       "detail": "/supported advertises bazaar",
-      "ms": 458
+      "ms": 2
     },
     {
       "name": "testnet-fixtures",
       "ok": true,
-      "detail": "asset CNRY153704 · buyer GBOXS4J3…7DLB",
-      "ms": 31257
+      "detail": "asset CNRY122714 · buyer GDBQVEJC…NYK3",
+      "ms": 24480
     },
     {
       "name": "seller-online",
       "ok": true,
-      "detail": "http://127.0.0.1:60333/canary/20260731153704/tides",
-      "ms": 46
+      "detail": "http://127.0.0.1:51087/canary/20260806122714/tides",
+      "ms": 47
     },
     {
       "name": "payload-built",
       "ok": true,
       "detail": "stock client, discovery extension present",
-      "ms": 1464
+      "ms": 1135
     },
     {
       "name": "verify",
       "ok": true,
       "detail": "isValid: true",
-      "ms": 1659
+      "ms": 1479
+    },
+    {
+      "name": "provisional-at-verify",
+      "ok": true,
+      "detail": "discoverable provisionally after verify, before settle (0 signals)",
+      "ms": 2
     },
     {
       "name": "settle",
       "ok": true,
-      "detail": "tx 6f12bcdd…010d",
-      "ms": 7659
+      "detail": "tx f37a9d3f…2090",
+      "ms": 2535
     },
     {
       "name": "cataloging-reported",
@@ -51,8 +57,8 @@
     {
       "name": "indexed",
       "ok": true,
-      "detail": "appeared after 238ms (1 poll(s))",
-      "ms": 238
+      "detail": "appeared after 2ms (1 poll(s))",
+      "ms": 2
     },
     {
       "name": "parameter-descriptions",
@@ -64,22 +70,22 @@
       "name": "ranked",
       "ok": true,
       "detail": "rank 1 of 1 for \"tide times and sea conditions at a coastal port\"",
-      "ms": 229
+      "ms": 5
     }
   ],
   "failure": null,
   "observations": {
-    "transaction": "6f12bcdd46d50781afa95768488d9804d7517ebff84c2560278cfd0cb2b6010d",
+    "transaction": "f37a9d3f56981084302eff82a9d97f019a66d195db400635fcbcc715c0992090",
     "amount": "2500000",
-    "asset": "CCJGO7G23IJSGWOPF32P47BC53FHH3XS5UXSBCJMMSYPWIT4RPJCVQYA",
+    "asset": "CBZQ5P6VOO7BTT6Y76GH4IZJKZKKHZSNGK5LZXYBIMUTDZBLBWBU2ZFN",
     "extensionResponses": {
       "status": "success"
     },
-    "indexingLagMs": 238,
+    "indexingLagMs": 2,
     "indexingPolls": 1,
     "searchQuery": "tide times and sea conditions at a coastal port",
     "searchRank": 1,
     "searchResultCount": 1,
-    "resource": "http://127.0.0.1:60333/canary/20260731153704/tides"
+    "resource": "http://127.0.0.1:51087/canary/20260806122714/tides"
   }
 }
