@@ -135,9 +135,26 @@ export function ingest(input: IngestInput): CatalogOutcome {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      // `mcp:` deserves its own answer, because a seller reaches it by doing the obvious thing.
+      //
+      // `@x402/mcp`'s `createToolResourceUrl` defaults to `mcp://tool/<name>`, so a seller who wires
+      // up a paid MCP tool and does not override the resource URL lands here — and "must be http(s)"
+      // tells them nothing about what to put instead. Worse, the value is not merely unsupported: it
+      // is unusable. `mcp:` is not a special scheme, so `new URL("mcp://tool/get_weather").origin` is
+      // the STRING "null", and the spec's origin+path catalog key becomes `null/get_weather` — shared
+      // by every seller offering a tool of that name, anywhere. The host is dropped entirely, so
+      // `mcp://alice.example/tool/x` and `mcp://bob.example/tool/x` collide too. Cataloging it would
+      // hand the first caller a permanent global claim on the name (see the ownership rules below).
+      if (parsed.protocol === "mcp:") {
+        return reject(
+          "bazaar_mcp_resource_url_not_addressable",
+          `resource.url is "${url}". Set it to the http(s) URL of your MCP endpoint — the address an agent actually connects to, e.g. "https://api.example.com/mcp" — and leave the tool name in input.toolName; MCP resources are keyed on the pair. "mcp://…" cannot be used: it has no origin under WHATWG URL parsing, so the spec's origin+path key would collapse to a literal "null" origin shared with every other seller, and no agent could connect to it either.`,
+          { resourceUrl: url, derivedOrigin: parsed.origin },
+        );
+      }
       return reject(
         "bazaar_invalid_resource_url",
-        `Resource URL must be http(s); got "${parsed.protocol}".`,
+        `Resource URL must be http(s); got "${parsed.protocol}". The catalog key is the resource's origin and path, and an agent has to be able to reach it.`,
       );
     }
   } catch {

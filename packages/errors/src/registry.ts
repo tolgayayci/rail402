@@ -454,6 +454,15 @@ export const ERROR_REGISTRY = {
     surface: "bazaar",
     provenance: "local",
   },
+  bazaar_mcp_resource_url_not_addressable: {
+    reason:
+      "The resource.url names an MCP tool with a scheme that has no origin, so it cannot be a catalog key and an agent could not connect to it.",
+    retryable: false,
+    surface: "bazaar",
+    provenance: "local",
+    remediation:
+      "Set resource.url to the http(s) URL of the MCP ENDPOINT — the address an agent connects to — and let input.toolName carry the tool. `mcp://tool/<name>` (the @x402/mcp default) has no origin under WHATWG URL parsing, so the spec's origin+path key collapses to a literal \"null\" origin that every seller would share.",
+  },
   bazaar_mcp_missing_tool_name: {
     reason:
       "An MCP discovery entry must carry input.toolName; MCP resources are keyed on (resource.url, toolName).",

@@ -12,6 +12,7 @@ import {
 import { runSupportedSnapshot } from "./supported.js";
 import { runTimeToDiscoverable } from "./time-to-discoverable.js";
 import { runStellarNative } from "./stellar-native.js";
+import { runMcpToolLoop } from "./mcp-tool-loop.js";
 import { findRepoRoot, spawnFacilitator, type SpawnedFacilitator } from "./facilitator.js";
 import { provisionUsdcAccounts } from "./provision.js";
 import { toPayload, writeReport, type CanaryReport } from "./report.js";
@@ -54,6 +55,10 @@ const CHECKS = {
   "supported-snapshot": {
     file: "supported-snapshot.json",
     run: (facilitatorUrl: string) => runSupportedSnapshot({ facilitatorUrl }),
+  },
+  "mcp-tool-loop": {
+    file: "mcp-tool-loop.json",
+    run: (facilitatorUrl: string, runId: string) => runMcpToolLoop({ facilitatorUrl, runId }),
   },
   "stellar-native": {
     file: "stellar-native.json",
@@ -149,6 +154,7 @@ const USAGE = `usage: x402-stellar-canary <command> [options]
   rejection-audit       every rejection path carries a code and an actionable reason
   oz-account            an OpenZeppelin smart account pays with exact AND upto under our policy
   supported-snapshot    /supported is complete, truthful, and matches what is reachable
+  mcp-tool-loop         a paid MCP TOOL catalogues itself, is found, and is called and paid for
   stellar-native        derived asset identity + trustline pre-flight reach an agent, in real USDC
   time-to-discoverable  measures zero -> paid, discoverable endpoint
   all                   every check above EXCEPT stellar-native, against one facilitator

@@ -25,6 +25,7 @@ import {
   type PricedOption,
   type ToolResult,
 } from "./tools.js";
+import { callMcpTool } from "./mcp-call.js";
 
 /**
  * MCP server exposing the Stellar Bazaar to an agent runtime.
@@ -215,8 +216,12 @@ export async function searchResources(
 }
 
 export interface PayResult {
-  status: number;
+  transport: "http" | "mcp";
+  /** HTTP only. An MCP tool call has no HTTP status, and inventing one would be a field to mislead on. */
+  status?: number;
   body: unknown;
+  toolName?: string;
+  isError?: boolean;
   paid: { amount: string; asset: string; network: string; transaction?: string } | undefined;
 }
 
@@ -230,8 +235,12 @@ export async function payAndCall(
     maxAmount: string;
     network?: string | undefined;
     searchToken?: string | undefined;
-    /** Part of an MCP resource's identity, so a conversion can be attributed to the right tool. */
+    /**
+     * Part of an MCP resource's identity — and now also the switch that decides the transport.
+     * Present: this is an MCP tool call. Absent: an HTTP request.
+     */
     toolName?: string | undefined;
+    toolArguments?: Record<string, unknown> | undefined;
   },
   fetchImpl: typeof fetch = fetch,
 ): Promise<ToolResult<PayResult>> {
@@ -241,6 +250,42 @@ export async function payAndCall(
     });
   }
 
+  // An operator ceiling always wins over an agent-supplied budget. Resolved before the transport
+  // branch so both paths are governed by the same number.
+  let budget = args.maxAmount;
+  if (config.maxAmountCeiling && BigInt(budget) > BigInt(config.maxAmountCeiling)) {
+    budget = config.maxAmountCeiling;
+  }
+
+  // ── MCP tool call ─────────────────────────────────────────────────────────
+  if (args.toolName) {
+    // HTTP-shaped arguments alongside an MCP tool call are a mistake worth surfacing rather than
+    // silently dropping: an agent that thinks it passed a query parameter and did not gets a
+    // successful call with the wrong inputs, and pays for it.
+    if (args.queryParams || args.body !== undefined) {
+      return fail("invalid_payload", {
+        reason:
+          "queryParams and body are HTTP-only. An MCP tool call takes its inputs from toolArguments, matching the tool's published inputSchema. Nothing was called and nothing was paid.",
+        details: { toolName: args.toolName },
+      });
+    }
+    const result = await callMcpTool({
+      resource: args.resource,
+      toolName: args.toolName,
+      toolArguments: args.toolArguments,
+      budget,
+      network: args.network,
+      stellarSecret: config.stellarSecret,
+      allowPrivateHosts: config.allowPrivateHosts ?? false,
+    });
+    // Attribute the conversion only when money actually moved, exactly as on the HTTP path — and
+    // only after it did, so a Bazaar that is down cannot turn a settled payment into a failed call.
+    if (result.ok && result.data?.paid) {
+      void reportConversion(config, args.searchToken, args.resource, args.toolName);
+    }
+    return result as ToolResult<PayResult>;
+  }
+
   // Decide where we are willing to send a request BEFORE sending one. The probe below is an
   // outbound fetch of a caller-supplied URL whose body is returned to the caller, so this check
   // has to come first or it is not a check at all.
@@ -248,12 +293,6 @@ export async function payAndCall(
     return fail("mcp_resource_host_refused", {
       details: { resource: args.resource },
     });
-  }
-
-  // An operator ceiling always wins over an agent-supplied budget.
-  let budget = args.maxAmount;
-  if (config.maxAmountCeiling && BigInt(budget) > BigInt(config.maxAmountCeiling)) {
-    budget = config.maxAmountCeiling;
   }
 
   const target = new URL(args.resource);
@@ -277,7 +316,7 @@ export async function payAndCall(
       }
     } else {
       // Not paywalled at all — return it without spending anything.
-      return succeed({ status: probe.status, body: await safeBody(probe), paid: undefined });
+      return succeed({ transport: "http", status: probe.status, body: await safeBody(probe), paid: undefined });
     }
   } catch (error) {
     return fail("mcp_upstream_error", {
@@ -357,6 +396,7 @@ export async function payAndCall(
     void reportConversion(config, args.searchToken, args.resource, args.toolName);
 
     return succeed({
+      transport: "http",
       status: response.status,
       body: await safeBody(response),
       paid: {

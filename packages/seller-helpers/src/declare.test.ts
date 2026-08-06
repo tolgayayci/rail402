@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { describeEndpoint, describeTool } from "./declare.js";
+import { mcpToolResource } from "./mcp-resource.js";
 
 describe("describeEndpoint", () => {
   it("returns the extensions map directly, already keyed under `bazaar`", () => {
@@ -134,5 +135,63 @@ describe("describeTool", () => {
       transport: "sse",
     }) as Record<string, { info?: { input?: Record<string, unknown> } }>;
     expect(ext["bazaar"]!.info!.input!["transport"]).toBe("sse");
+  });
+});
+
+describe("mcpToolResource — the boot-time guard", () => {
+  const base = {
+    toolName: "harbour_tides",
+    description: "Tide predictions and sea state for a named harbour.",
+  };
+
+  it("refuses the @x402/mcp default resource URL, explaining why and what to use", () => {
+    // `mcp://tool/<name>` is what createToolResourceUrl produces when a seller does not override it,
+    // and it cannot be a catalog key: `mcp:` is not a WHATWG special scheme, so its origin is the
+    // STRING "null" and every seller's `harbour_tides` collapses onto `null/harbour_tides`.
+    expect(() => mcpToolResource({ ...base, url: "mcp://tool/harbour_tides" })).toThrow(
+      /mcp:.*special scheme|origin parses as the string/s,
+    );
+    try {
+      mcpToolResource({ ...base, url: "mcp://tool/harbour_tides" });
+    } catch (error) {
+      const message = (error as Error).message;
+      // The message has to carry the fix, not just the diagnosis — this is the seller's only
+      // chance to learn it before a buyer's payment is involved.
+      expect(message).toMatch(/https:\/\/api\.example\.com\/mcp/);
+      expect(message).toMatch(/input\.toolName/);
+      expect(message).toContain("null/harbour_tides");
+    }
+  });
+
+  it("refuses a URL with a host, too — the host is dropped, so it cannot be salvaged", () => {
+    expect(() => mcpToolResource({ ...base, url: "mcp://alice.example/tool/harbour_tides" })).toThrow(
+      /cannot be salvaged|null/,
+    );
+  });
+
+  it("refuses a non-absolute URL and a non-http scheme", () => {
+    expect(() => mcpToolResource({ ...base, url: "/mcp" })).toThrow(/not an absolute URL/);
+    expect(() => mcpToolResource({ ...base, url: "ws://api.example.com/mcp" })).toThrow(/not http\(s\)/);
+  });
+
+  it("requires a description, which is the only thing MCP search can rank on", () => {
+    expect(() => mcpToolResource({ ...base, description: "  ", url: "https://api.example.com/mcp" })).toThrow(
+      /undiscoverable/,
+    );
+  });
+
+  it("accepts the endpoint URL and passes the service metadata through", () => {
+    const resource = mcpToolResource({
+      ...base,
+      url: "https://api.example.com/mcp",
+      serviceName: "Harbour Tides",
+      tags: ["tides", "marine"],
+    });
+    expect(resource).toEqual({
+      url: "https://api.example.com/mcp",
+      description: base.description,
+      serviceName: "Harbour Tides",
+      tags: ["tides", "marine"],
+    });
   });
 });

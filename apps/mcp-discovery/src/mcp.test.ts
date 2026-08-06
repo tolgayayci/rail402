@@ -436,6 +436,92 @@ describe("search tool contract", () => {
   });
 });
 
+describe("MCP transport (§3.3 — calling a discovered TOOL)", () => {
+  /** A valid throwaway testnet keypair. `config`'s seed is checksum-invalid on purpose elsewhere. */
+  const payingConfigForMcp: McpConfig = {
+    ...config,
+    stellarSecret: "SCPFSWCB5PUBF2XKCAJBSWRTOPSBM4Z3TLDSP2OOFNAUOFHP6XSQAM3O",
+  };
+
+  // The live proof is `pnpm canary mcp-tool-loop`, which stands up a real paid MCP server, settles a
+  // real testnet payment through it, and reads the tool's output back. These cover the branch
+  // decisions around it, which are the parts a live run cannot isolate.
+
+  it("refuses HTTP-shaped arguments on an MCP call rather than silently dropping them", async () => {
+    // Silently ignoring queryParams would give an agent a successful, paid-for call made with the
+    // wrong inputs — strictly worse than a refusal, because it costs money and looks like success.
+    for (const extra of [{ queryParams: { harbour: "Dover" } }, { body: { harbour: "Dover" } }]) {
+      const result = await payAndCall(payingConfigForMcp, {
+        resource: "https://api.test/mcp",
+        toolName: "harbour_tides",
+        maxAmount: "1000000",
+        ...extra,
+      });
+      expect(result.ok).toBe(false);
+      expect(result.error?.code).toBe("invalid_payload");
+      expect(result.error?.reason).toMatch(/toolArguments/);
+      expect(result.error?.reason).toMatch(/nothing was paid/i);
+    }
+  });
+
+  it("applies the SSRF host policy before opening an MCP connection", async () => {
+    // Same gate as the HTTP path and for the same reason: pay_and_call connects to a
+    // caller-supplied URL and returns what comes back.
+    const result = await payAndCall(payingConfigForMcp, {
+      resource: "http://169.254.169.254/mcp",
+      toolName: "anything",
+      maxAmount: "1000000",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("mcp_resource_host_refused");
+  });
+
+  it("reports an unreachable MCP endpoint as a coded upstream error, naming the tool", async () => {
+    const result = await payAndCall(
+      { ...payingConfigForMcp, allowPrivateHosts: true },
+      { resource: "http://127.0.0.1:1/mcp", toolName: "harbour_tides", maxAmount: "1000000" },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("mcp_upstream_error");
+    expect(result.error?.reason).toContain("harbour_tides");
+    expect(result.error?.details?.["toolName"]).toBe("harbour_tides");
+  });
+
+  it("declares toolArguments and keeps maxAmount mandatory on the MCP path too", () => {
+    expect(
+      PayInputSchema.safeParse({
+        resource: "https://api.test/mcp",
+        toolName: "t",
+        toolArguments: { harbour: "Dover" },
+      }).success,
+    ).toBe(false); // still no maxAmount
+    const parsed = PayInputSchema.safeParse({
+      resource: "https://api.test/mcp",
+      toolName: "t",
+      toolArguments: { harbour: "Dover", hours: 24 },
+      maxAmount: "1000000",
+    });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.toolArguments).toEqual({ harbour: "Dover", hours: 24 });
+  });
+
+  it("validates an MCP-shaped success against the declared output schema", () => {
+    // `status` is absent on this transport by design — an MCP tool call has no HTTP status, and a
+    // synthetic 200 would be a field an agent could branch on wrongly.
+    const call = toToolCall(
+      succeed({
+        transport: "mcp" as const,
+        toolName: "harbour_tides",
+        body: [{ type: "text", text: '{"harbour":"Dover"}' }],
+        isError: false,
+        paid: { amount: "2500000", asset: "C…", network: "stellar:testnet", transaction: "abc" },
+      }),
+    );
+    expect(call.isError).toBe(false);
+    expect(PayOutputSchema.safeParse(call.structuredContent).success).toBe(true);
+  });
+});
+
 describe("structured output (§3.3)", () => {
   it("declares an output schema a real search success validates against", async () => {
     // The SDK validates structuredContent against outputSchema on success and THROWS on a mismatch,

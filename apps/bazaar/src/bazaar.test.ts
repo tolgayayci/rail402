@@ -761,6 +761,76 @@ describe("SEP-1 domain verification", () => {
   });
 });
 
+describe("MCP resource URLs", () => {
+  const mcpBazaar = (over: Record<string, unknown> = {}) => ({
+    info: {
+      input: {
+        type: "mcp",
+        toolName: "harbour_tides",
+        inputSchema: { type: "object", properties: { harbour: { type: "string" } } },
+      },
+    },
+    schema: {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object",
+      properties: {
+        input: {
+          type: "object",
+          properties: { type: { type: "string", const: "mcp" }, toolName: { type: "string" } },
+          required: ["type", "toolName"],
+        },
+      },
+      required: ["input"],
+    },
+    ...over,
+  });
+
+  it("refuses an mcp:// resource URL with a reason that says what to use instead", () => {
+    // A seller reaches this by doing the obvious thing: @x402/mcp's createToolResourceUrl defaults
+    // to `mcp://tool/<name>`. The value is not merely unsupported, it is unusable — `mcp:` is not a
+    // WHATWG special scheme, so `new URL("mcp://tool/x").origin` is the STRING "null" and the
+    // spec's origin+path key collapses to one key shared by every seller on earth.
+    expect(new URL("mcp://tool/harbour_tides").origin).toBe("null");
+    expect(new URL("mcp://alice.example/tool/x").origin).toBe("null"); // the host is dropped too
+
+    const outcome = ingest({
+      paymentPayload: payload({
+        resource: { url: "mcp://tool/harbour_tides" },
+        extensions: { bazaar: mcpBazaar() },
+      }),
+      paymentRequirements: requirements(),
+      now,
+      allowedNetworks: SERVED,
+    });
+
+    expect(outcome.status).toBe("rejected");
+    if (outcome.status !== "rejected") return;
+    expect(outcome.error.code).toBe("bazaar_mcp_resource_url_not_addressable");
+    // An actionable reason, not a restatement of the rule.
+    expect(outcome.error.reason).toMatch(/http\(s\)/);
+    expect(outcome.error.reason).toMatch(/input\.toolName/);
+    expect(outcome.error.reason).toContain("mcp://tool/harbour_tides");
+  });
+
+  it("catalogs an MCP tool whose resource URL is the http endpoint, keyed on the pair", () => {
+    const outcome = ingest({
+      paymentPayload: payload({
+        resource: { url: "https://api.example.com/mcp" },
+        extensions: { bazaar: mcpBazaar() },
+      }),
+      paymentRequirements: requirements(),
+      now,
+      allowedNetworks: SERVED,
+    });
+    expect(outcome.status).toBe("success");
+    if (outcome.status !== "success") return;
+    expect(outcome.entry.type).toBe("mcp");
+    expect(outcome.entry.toolName).toBe("harbour_tides");
+    // One endpoint multiplexes many tools, so the URL alone is not the identity.
+    expect(entryKey(outcome.entry.resource, outcome.entry.toolName)).not.toBe(outcome.entry.resource);
+  });
+});
+
 describe("trustline pre-flight", () => {
   const decode = (h: string | undefined) =>
     h ? (JSON.parse(Buffer.from(h, "base64").toString("utf8")) as Record<string, unknown>) : undefined;

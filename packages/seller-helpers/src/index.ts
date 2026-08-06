@@ -16,6 +16,12 @@ export {
 } from "./declare.js";
 
 export {
+  mcpToolResource,
+  type McpToolResourceConfig,
+  type McpToolResource,
+} from "./mcp-resource.js";
+
+export {
   preflight,
   preflightAndReport,
   type PreflightConfig,

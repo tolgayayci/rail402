@@ -1,0 +1,28 @@
+{
+  "name": "@x402-stellar/example-mcp-tool-seller",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "A paid MCP tool that catalogs itself in the Bazaar, and an agent that discovers and calls it.",
+  "type": "module",
+  "scripts": {
+    "seller": "tsx src/seller.ts",
+    "first-buyer": "tsx src/first-buyer.ts",
+    "agent": "tsx src/agent.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@x402-stellar/seller-helpers": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@x402/core": "2.20.0",
+    "@x402/mcp": "2.20.0",
+    "@x402/stellar": "2.20.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  }
+}

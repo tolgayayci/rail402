@@ -11,6 +11,7 @@ catalogs:
       version: 2.20.0
 
 overrides:
+  '@x402/mcp>zod': ^4.4.3
   brace-expansion: ^5.0.9
   fast-uri: ^3.1.5
   hono: ^4.12.34
@@ -141,6 +142,9 @@ importers:
       '@x402/fetch':
         specifier: 2.20.0
         version: 2.20.0
+      '@x402/mcp':
+        specifier: 2.20.0
+        version: 2.20.0
       '@x402/stellar':
         specifier: 2.20.0
         version: 2.20.0
@@ -193,6 +197,34 @@ importers:
       hono:
         specifier: ^4.12.34
         version: 4.13.0
+    devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.23.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  examples/mcp-tool-seller:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.30.0
+        version: 1.30.0(zod@4.4.3)
+      '@x402-stellar/seller-helpers':
+        specifier: workspace:*
+        version: link:../../packages/seller-helpers
+      '@x402/core':
+        specifier: 2.20.0
+        version: 2.20.0
+      '@x402/mcp':
+        specifier: 2.20.0
+        version: 2.20.0
+      '@x402/stellar':
+        specifier: 2.20.0
+        version: 2.20.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       tsx:
         specifier: ^4.21.0
@@ -286,12 +318,18 @@ importers:
       '@x402/hono':
         specifier: 2.20.0
         version: 2.20.0(hono@4.13.0)(typescript@5.9.3)
+      '@x402/mcp':
+        specifier: 2.20.0
+        version: 2.20.0
       '@x402/stellar':
         specifier: 2.20.0
         version: 2.20.0
       hono:
         specifier: ^4.12.34
         version: 4.13.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       tsx:
         specifier: ^4.21.0
@@ -945,6 +983,9 @@ packages:
     peerDependenciesMeta:
       '@x402/paywall':
         optional: true
+
+  '@x402/mcp@2.20.0':
+    resolution: {integrity: sha512-u0qRtTkg4S2JRS31t9R0BD3lCqx6RlMUudZAvj2JLN5D0t4KbO5Lc8v8jEunw0cw53z4sNG6DkfNGBjVt/UHbQ==}
 
   '@x402/stellar@2.20.0':
     resolution: {integrity: sha512-67swEAx96rTMoVtEao/GZ7yjbXORxCeAzPeKr8BOx4gt26Qq/TL73T8DS4Zd1bCh+8ISwkyDF3ISlWJelCosYQ==}
@@ -2500,6 +2541,15 @@ snapshots:
       - ethers
       - typescript
       - utf-8-validate
+
+  '@x402/mcp@2.20.0':
+    dependencies:
+      '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
+      '@x402/core': 2.20.0
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - supports-color
 
   '@x402/stellar@2.20.0':
     dependencies:

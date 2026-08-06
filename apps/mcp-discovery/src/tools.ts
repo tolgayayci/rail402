@@ -28,7 +28,22 @@ export const SearchInputSchema = z.object({
 
 export const PayInputSchema = z.object({
   resource: z.string().url().describe("Resource URL exactly as returned by the search tool."),
-  toolName: z.string().optional().describe("For MCP resources, the tool to invoke."),
+  /**
+   * Supplying this switches the whole call to MCP: the resource URL is treated as an MCP endpoint
+   * and the named tool is invoked over the streamable-HTTP transport, with payment carried in
+   * `_meta` per `@x402/mcp`. It used to be accepted and silently ignored, so an agent that found an
+   * MCP tool through search could not actually call it.
+   */
+  toolName: z
+    .string()
+    .optional()
+    .describe(
+      "For an MCP resource, the tool to invoke — exactly as returned by the search tool. Supplying it makes this an MCP tool call rather than an HTTP request.",
+    ),
+  toolArguments: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("MCP only. Arguments for the tool, matching its published inputSchema."),
   method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"]).default("GET"),
   queryParams: z.record(z.string(), z.string()).optional(),
   body: z.unknown().optional(),
@@ -170,8 +185,21 @@ export const PayOutputSchema = z.object({
   ok: z.boolean(),
   data: z
     .object({
-      status: z.number(),
-      body: z.unknown(),
+      transport: z
+        .enum(["http", "mcp"])
+        .describe("Which protocol the call went out over, decided by whether you supplied toolName."),
+      // Present for HTTP only. An MCP tool call has no HTTP status of its own, and reporting a
+      // synthetic 200 would be inventing a field the transport does not have — an agent that
+      // branches on it would be branching on a fiction.
+      status: z.number().optional().describe("HTTP status. Absent for MCP tool calls."),
+      body: z.unknown().describe("Response body, or the MCP tool's content blocks."),
+      toolName: z.string().optional().describe("MCP only. The tool that was invoked."),
+      isError: z
+        .boolean()
+        .optional()
+        .describe(
+          "MCP only. The tool reported a domain-level failure. The call and any payment still succeeded — this is the tool saying no, not the protocol failing.",
+        ),
       paid: z
         .object({
           amount: z.string(),
@@ -436,6 +464,11 @@ resource costs more, NO payment is made and the price is returned so you can dec
 re-applied to the price quoted at the moment of payment, not only to the price seen beforehand, so a
 resource that changes its price between the two is refused rather than paid. This tool never spends
 anything without a maxAmount and never spends more than one.
+
+Supply toolName to call an MCP TOOL instead of an HTTP endpoint: the resource URL is then treated as
+an MCP endpoint, the tool is invoked over streamable HTTP with payment carried in the MCP _meta
+fields, and toolArguments carries its arguments. The same maxAmount ceiling applies, enforced at the
+same point — nothing is signed above it.
 
 Only publicly reachable http(s) hosts can be called. Loopback, private and IP-literal addresses are
 refused.`;
