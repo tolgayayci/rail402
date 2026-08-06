@@ -25,6 +25,7 @@ export {
   parseAmount,
   byAmountAscending,
   priceable,
+  isPricedOption,
   NO_REDIRECT,
   type PricedOption,
 } from "./outbound.js";
@@ -127,7 +128,7 @@ function selectPayable(
     a => a.network.startsWith("stellar:") && (!network || a.network === network),
   );
   if (stellar.length === 0) return {};
-  const sorted = priceable(stellar).sort(byAmountAscending);
+  const sorted = priceable(stellar as unknown).sort(byAmountAscending);
   if (sorted.length === 0) return {};
   const ceiling = parseAmount(budget);
   const chosen = ceiling === undefined ? undefined : sorted.find(a => parseAmount(a.amount)! <= ceiling);
@@ -288,7 +289,7 @@ interface RawResource {
 
 function toBazaarResource(r: RawResource): BazaarResource {
   const stellar = (r.accepts ?? []).filter(a => a.network.startsWith("stellar:"));
-  const cheapest = priceable(stellar).sort(byAmountAscending)[0];
+  const cheapest = priceable(stellar as unknown).sort(byAmountAscending)[0];
 
   // Read the nested SDK-typed shape. Some catalogs in the wild place these fields at the top level
   // instead; tolerate that on read so cross-facilitator discovery does not silently return nothing.
@@ -450,7 +451,10 @@ export async function payAndFetch<T = unknown>(
     client.register("stellar:*", new ExactStellarScheme(signer));
     const paidFetch = wrapFetchWithPayment(fetchImpl, client);
 
-    const response = await paidFetch(target, { method });
+    // `NO_REDIRECT` on the PAID request too, not only the probe. Giving it to one and not the other
+    // lets a seller answer the probe honestly and 302 the paid request off to a host that was never
+    // vetted — the same asymmetry, one function apart, that this package keeps being bitten by.
+    const response = await paidFetch(target, { method, ...NO_REDIRECT });
     let transaction: string | undefined;
     const settlement = response.headers.get("PAYMENT-RESPONSE");
     if (settlement) {
@@ -463,10 +467,10 @@ export async function payAndFetch<T = unknown>(
     }
 
     if (!response.ok) {
-      return fail("mcp_upstream_error", {
-        reason: `Payment settled but the resource returned HTTP ${response.status}.`,
-        details: { status: response.status, transaction },
-      });
+      return fail("mcp_paid_but_resource_failed", {
+      reason: `Payment SETTLED (transaction ${transaction ?? "unknown"}) but the resource then returned HTTP ${response.status}. Do not retry: a retry pays again. Contact the seller with this transaction hash.`,
+      details: { status: response.status, ...(transaction === undefined ? {} : { transaction }) },
+    });
     }
 
     return ok({

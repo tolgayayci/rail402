@@ -67,9 +67,37 @@ export function byAmountAscending(a: PricedOption, b: PricedOption): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-/** Options this agent could actually price. Unparseable amounts are dropped, never guessed at. */
-export function priceable(accepts: readonly PricedOption[]): PricedOption[] {
-  return accepts.filter(a => parseAmount(a.amount) !== undefined);
+/**
+ * Is this a payment option at all?
+ *
+ * The SHAPE guard, and it has to come before the amount guard. Guarding only the amount fixed
+ * `accepts: [{amount: "NaN"}]` and left `accepts: "gimme"` and `accepts: [null]` throwing an
+ * uncaught `TypeError` out of the same tool — the identical envelope escape one step earlier in the
+ * parse. Everything here arrives from a seller's 402 challenge or from whatever catalog the operator
+ * pointed at, so nothing about its shape may be assumed.
+ */
+export function isPricedOption(value: unknown): value is PricedOption {
+  if (!value || typeof value !== "object") return false;
+  const o = value as Record<string, unknown>;
+  return (
+    typeof o["scheme"] === "string" &&
+    typeof o["network"] === "string" &&
+    typeof o["amount"] === "string" &&
+    typeof o["asset"] === "string" &&
+    typeof o["payTo"] === "string"
+  );
+}
+
+/**
+ * Options this agent could actually price: well-shaped AND with a parseable amount.
+ *
+ * Takes `unknown` on purpose. Typing the parameter `PricedOption[]` is a promise TypeScript cannot
+ * keep about JSON that arrived over the wire, and that false comfort is what left the shape
+ * unchecked. Anything that is not an array yields no options rather than throwing.
+ */
+export function priceable(accepts: unknown): PricedOption[] {
+  if (!Array.isArray(accepts)) return [];
+  return accepts.filter(a => isPricedOption(a) && parseAmount(a.amount) !== undefined);
 }
 
 

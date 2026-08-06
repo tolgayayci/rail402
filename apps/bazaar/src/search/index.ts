@@ -366,7 +366,7 @@ const RRF_K = 60;
  * `score(key) = 1/(K + lexRank) + 1/(K + vecRank)`, K=60 (Cormack et al., SIGIR '09; insensitive
  * across 20–100). Lexical precision (sibling discrimination, where static vectors are weak) and
  * semantic recall (the vocabulary gap, where BM25 is weak) each contribute half, and neither can bury
- * the other. On the 107-judgment broad set this lifts recall@10 ~45% → ~80%, sign test p < 0.0001.
+ * the other. On the 107-judgment broad set this lifts recall@10 60.8% → 72.6%, sign test p ≈ 0.003.
  *
  * `Retriever` is the seam the file header promised; a managed `VectorIndex` (Vectorize) can replace
  * the in-process brute force later without touching the store or the harness — at which point its
@@ -424,11 +424,26 @@ export class HybridRetriever implements Retriever {
     for (const [key, entry] of byKey) {
       const lr = lexRank.get(key);
       const vr = vecRank.get(key);
-      const score = (lr === undefined ? 0 : 1 / (RRF_K + lr)) + (vr === undefined ? 0 : 1 / (RRF_K + vr));
-      fused.push({ entry, score });
+      const rrf = (lr === undefined ? 0 : 1 / (RRF_K + lr)) + (vr === undefined ? 0 : 1 / (RRF_K + vr));
+      fused.push({ entry, score: rrf });
     }
+    // Usage breaks TIES, and only ties. It must reach this retriever — the boost lived solely inside
+    // `Bm25Retriever.search`, and the shipped default is this class, so the whole abuse-resistant
+    // ranking argument (the sybil fix) was verified on a code path nobody runs: two
+    // byte-identical documents, one with 20 unique payers, fused to exactly `1/60 + 1/61` and the
+    // ALPHABETICAL tiebreak decided which one an agent saw first.
+    //
+    // Applied as a tiebreak rather than as a multiplier on the fused score, deliberately. Adjacent
+    // RRF ranks differ by ~0.03%, so a ≤1.25× multiplier there is not a nudge — it vaults a document
+    // past many better-matching ones, and it measurably did: it broke the sibling-tool test by
+    // ranking the busier Finlytics tool above the one the query actually described. "Relevance
+    // leads; usage is a tiebreaker that can never bury a better-matching newcomer" is what the
+    // formula's own comment promises, and this is that sentence expressed as code.
     fused.sort(
-      (a, b) => b.score - a.score || keyOf(a.entry).localeCompare(keyOf(b.entry)),
+      (a, b) =>
+        b.score - a.score ||
+        qualityMultiplier(b.entry) - qualityMultiplier(a.entry) ||
+        keyOf(a.entry).localeCompare(keyOf(b.entry)),
     );
     return fused.slice(0, limit);
   }

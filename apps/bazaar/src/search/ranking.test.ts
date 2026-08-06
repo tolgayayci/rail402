@@ -7,7 +7,7 @@ import {
   HELD_OUT_BROAD_THRESHOLDS,
   HELD_OUT_CORPUS,
 } from "./heldout.js";
-import { Bm25Retriever } from "./index.js";
+import { HybridRetriever, Bm25Retriever, type Retriever } from "./index.js";
 import type { CatalogEntry } from "../catalog/types.js";
 
 /**
@@ -131,12 +131,38 @@ describe("ranker component invariants", () => {
     ...over,
   }) as CatalogEntry;
 
-  const scoreOf = (corpus: CatalogEntry[], query: string, resource: string): number => {
-    const r = new Bm25Retriever();
+  /**
+   * Score a document with a named retriever.
+   *
+   * WHICH retriever a test uses is itself the assertion, and getting it wrong hid a real defect:
+   * every invariant here once ran against `Bm25Retriever` while the shipped default was
+   * `HybridRetriever`, so the anti-sybil property was verified on a code path nobody runs
+   * (an invariant measured on a component that is not the one deployed).
+   *
+   * The split is now deliberate:
+   *  - **FIELD WEIGHTS are a BM25 property.** RRF fuses RANKS, so two documents at the same rank in
+   *    both arms fuse to the same score no matter how far apart their BM25 scores were. Asserting a
+   *    weight difference through RRF would be asserting something RRF cannot express.
+   *  - **USAGE and ANTI-SYBIL are deployed-behaviour claims.** They must hold on the retriever that
+   *    actually serves `/discovery/search`, which is why those tests use `HybridRetriever`.
+   */
+  const scoreWith = (
+    make: () => Retriever,
+    corpus: CatalogEntry[],
+    query: string,
+    resource: string,
+  ): number => {
+    const r = make();
     r.index(corpus);
     const hit = r.search(query, corpus, corpus.length).find(s => s.entry.resource === resource);
     return hit?.score ?? 0;
   };
+  /** Component-level: the lexical arm, where field weights live. */
+  const lexicalScore = (corpus: CatalogEntry[], query: string, resource: string) =>
+    scoreWith(() => new Bm25Retriever(), corpus, query, resource);
+  /** Deployed: what `/discovery/search` actually returns. */
+  const shippedScore = (corpus: CatalogEntry[], query: string, resource: string) =>
+    scoreWith(() => new HybridRetriever(), corpus, query, resource);
 
   it("weights a service-name match above the same term in prose", () => {
     // Both documents carry the query term exactly once and have the SAME weighted length, so BM25
@@ -146,8 +172,10 @@ describe("ranker component invariants", () => {
       entry({ resource: "https://a.example/x", serviceName: "Kestrel", description: "alpha beta gamma delta" }),
       entry({ resource: "https://b.example/x", serviceName: "Osprey", description: "Kestrel beta gamma delta" }),
     ];
-    const named = scoreOf(corpus, "kestrel", "https://a.example/x");
-    const prose = scoreOf(corpus, "kestrel", "https://b.example/x");
+    // Component-level by design: RRF fuses ranks, so this difference is invisible to the fused
+    // score. Field weighting still decides ORDER within the lexical arm, which is what feeds RRF.
+    const named = lexicalScore(corpus, "kestrel", "https://a.example/x");
+    const prose = lexicalScore(corpus, "kestrel", "https://b.example/x");
     expect(named, `serviceName match (${named}) must beat prose match (${prose})`).toBeGreaterThan(prose);
   });
 
@@ -158,8 +186,11 @@ describe("ranker component invariants", () => {
       entry({ resource: "https://busy.example/geo", ...text, quality: { totalSettlements: 40, uniquePayers: 20, firstSeenAt: new Date("2026-07-01").toISOString() } }),
       entry({ resource: "https://quiet.example/geo", ...text }),
     ];
-    const busy = scoreOf(corpus, "latitude longitude", "https://busy.example/geo");
-    const quiet = scoreOf(corpus, "latitude longitude", "https://quiet.example/geo");
+    // On the SHIPPED retriever. This previously passed against `Bm25Retriever` while the fused
+    // score ignored the multiplier entirely — two byte-identical documents tied at 1/60 + 1/61 and
+    // the alphabetical tiebreak decided, so a 20-payer endpoint lost to an unused one.
+    const busy = shippedScore(corpus, "latitude longitude", "https://busy.example/geo");
+    const quiet = shippedScore(corpus, "latitude longitude", "https://quiet.example/geo");
     expect(busy, `used endpoint (${busy}) must outrank unused twin (${quiet})`).toBeGreaterThan(quiet);
   });
 
@@ -173,9 +204,13 @@ describe("ranker component invariants", () => {
       entry({ resource: "https://washed.example/geo", ...text, quality: { totalSettlements: 1000, uniquePayers: 3, firstSeenAt: seen } }),
       entry({ resource: "https://honest.example/geo", ...text, quality: { totalSettlements: 3, uniquePayers: 3, firstSeenAt: seen } }),
     ];
-    const washed = scoreOf(corpus, "latitude longitude", "https://washed.example/geo");
-    const honest = scoreOf(corpus, "latitude longitude", "https://honest.example/geo");
-    expect(washed, `wash-settled (${washed}) must not outrank its honest twin (${honest})`).toBe(honest);
+    const washed = shippedScore(corpus, "latitude longitude", "https://washed.example/geo");
+    const honest = shippedScore(corpus, "latitude longitude", "https://honest.example/geo");
+    // `not greater than`, not `equal`: the quality multiplier is identical for both (same distinct
+    // payers), but RRF's rank inputs need not tie, so demanding exact equality would assert
+    // something about the fusion that the sybil property does not require. What must hold is that
+    // 1000 wash settlements buy NOTHING over 3 honest ones.
+    expect(washed, `wash-settled (${washed}) must not outrank its honest twin (${honest})`).toBeLessThanOrEqual(honest);
   });
 
   /**

@@ -283,7 +283,7 @@ export const HELD_OUT_BROAD_THRESHOLDS = {
   // RAISED 2026-08-05 to lock in the hybrid-retrieval gain, under the worse of the two slices. Hybrid
   // measurement: dev p@1 51.9% / r@5 65.7% / MRR 0.655 / nDCG 0.641; locked p@1 43.6% / r@5 62.3% /
   // MRR 0.554 / nDCG 0.575 (the BM25 first-measurement baseline in the block above was dev nDCG 0.519
-  // / locked 0.505). The per-query sign test over all 107 broad judgments was p < 0.0001, so the gain
+  // / locked 0.505). The per-query sign test over all 107 broad judgments is p ≈ 0.003 (40 better, 17 worse, 50 EXACT TIES — the hybrid changes nothing on half the set), so the gain
   // is real, not noise. Never lowered to make a build pass without recording why here.
   precisionAt1: 0.4,
   recallAt5: 0.58,

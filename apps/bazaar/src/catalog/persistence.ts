@@ -18,7 +18,7 @@ import type { CatalogEntry } from "./types.js";
  *
  * **It does not touch ranking.** Retrieval stays the measured in-process hybrid — BM25 fused with
  * static-embedding vectors by RRF, the configuration that lifted recall@10 from ~45% to ~80% on the
- * 107-judgment held-out set (per-query sign test p < 0.0001). Entries are restored into memory at
+ * 107-judgment held-out set (per-query sign test p ≈ 0.003). Entries are restored into memory at
  * boot and the existing retriever indexes them, unchanged.
  *
  * `node:sqlite` ships FTS5 with bm25, so using it as a candidate stage was the obvious move. It was

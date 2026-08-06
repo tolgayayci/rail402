@@ -167,7 +167,7 @@ export async function searchResources(
       // attacker-influenceable — the server is designed to point at arbitrary and federated
       // catalogs — and an unguarded `BigInt("NaN")` in a comparator escapes as a bare V8 message
       // with no code and no envelope, which is the one thing this tool must never do.
-      const stellar = priceable(r.accepts ?? []).filter(a => a.network.startsWith("stellar:"));
+      const stellar = priceable(r.accepts).filter(a => a.network.startsWith("stellar:"));
       const cheapest = [...stellar].sort(byAmountAscending)[0];
       const bazaar = r.extensions?.["bazaar"] as
         | { info?: { input?: { toolName?: string; inputSchema?: unknown } } }

@@ -276,7 +276,8 @@ export function selectPayable(
 ): { chosen?: PricedOption; cheapestRejected?: PricedOption } {
   // Soft-drop unpriceable options before anything compares them. A listing carrying `amount: "NaN"`
   // is a listing this agent cannot act on; it must not also be a listing that crashes the tool.
-  const stellar = priceable(accepts).filter(
+  // `priceable` also shape-checks and tolerates a non-array, so a hostile `accepts` cannot throw.
+  const stellar = priceable(accepts as unknown).filter(
     a => a.network.startsWith("stellar:") && (!network || a.network === network),
   );
   if (stellar.length === 0) return {};

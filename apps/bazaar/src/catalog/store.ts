@@ -47,8 +47,8 @@ const PROVISIONAL_TTL_MS = 60 * 60 * 1000; // 1 hour
  *
  * Deliberately specific rather than aspirational: BM25 over weighted fields, fused by Reciprocal Rank
  * Fusion with in-process static-embedding (model2vec) semantic retrieval, plus a capped boost from
- * settlement-derived quality signals. It is a genuine hybrid — measured to lift recall@10 ~45% → ~80%
- * on the 107-judgment held-out set (per-query sign test p < 0.0001), not a `hybrid` label asserted to
+ * settlement-derived quality signals. It is a genuine hybrid — measured to lift recall@10 60.8% → 72.6%
+ * on the 107-judgment held-out set (per-query sign test p ≈ 0.003), not a `hybrid` label asserted to
  * look competitive, which would be the advertised-versus-reachable dishonesty this project measures in
  * other facilitators (CDP declares `hybrid` while silently falling back to URL-substring matching).
  */

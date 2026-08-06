@@ -10,7 +10,7 @@ import tokenizerJson from "./potion-tokenizer.json" with { type: "json" };
  * deterministic (so `evaluate.ts` measures ranking, not infrastructure), and Workers-deployable (no
  * Wasm to compile at runtime). Its role is RECALL: pure BM25 cannot cross from "where is my package"
  * to "track a shipment", and on the 107-judgment broad set fusing this with BM25 lifted recall@10
- * from ~45% to ~80% (per-query sign test p < 0.0001). It is fused, never used alone — static vectors
+ * from 60.8% to 72.6% (per-query sign test p ≈ 0.003). It is fused, never used alone — static vectors
  * are weak at sibling discrimination (`allowance` vs `balance`), which BM25 is strong at.
  *
  * Pipeline matches MinishLab/model2vec `StaticModel._encode_batch`: BertNormalizer → BertPreTokenizer
