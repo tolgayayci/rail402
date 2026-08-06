@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Keypair } from "@stellar/stellar-sdk";
 import { X402Error } from "@x402-stellar/errors";
+import type { FederationSource } from "@x402-stellar/bazaar";
 
 /**
  * 12-factor configuration with fail-fast validation.
@@ -96,7 +97,62 @@ const EnvSchema = z.object({
    * service to operate. Ranking is unaffected either way (apps/bazaar/src/catalog/persistence.ts).
    */
   CATALOG_DB_PATH: z.string().optional(),
+
+  /**
+   * Other catalogs to mirror, as a JSON array of federation sources. Unset ⇒ federate nothing, which
+   * is the default and the only safe one: mirroring republishes somebody else's data, so each source
+   * must declare its licence, its attribution, and that a human has read its terms.
+   *
+   * `[{"id":"…","url":"https://…/discovery/resources","license":"CC-BY-4.0","attribution":"…","termsAcknowledged":true}]`
+   */
+  FEDERATION_SOURCES: z.string().optional(),
+  FEDERATION_REFRESH_SECONDS: z.coerce.number().int().positive().default(900),
 });
+
+/**
+ * Parse `FEDERATION_SOURCES`, refusing anything malformed at STARTUP.
+ *
+ * Configuration is validated before the port binds everywhere else in this file, and a mirror is not
+ * an exception: a typo that silently federates nothing is indistinguishable from a source being down,
+ * and the operator would find out from an empty result set weeks later. The per-source licence and
+ * terms checks live in `checkSource`; this only has to produce well-formed objects for it.
+ */
+function parseFederationSources(raw: string | undefined): FederationSource[] {
+  if (!raw || !raw.trim()) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new X402Error("config_federation_sources_invalid", {
+      reason: `FEDERATION_SOURCES is not valid JSON: ${error instanceof Error ? error.message : "unknown error"}. Expected an array of federation sources.`,
+    });
+  }
+  if (!Array.isArray(parsed)) {
+    throw new X402Error("config_federation_sources_invalid", {
+      reason: "FEDERATION_SOURCES must be a JSON array of federation sources.",
+    });
+  }
+  return parsed.map((entry, index) => {
+    const s = entry as Record<string, unknown>;
+    for (const field of ["id", "url", "license", "attribution"]) {
+      if (typeof s[field] !== "string" || !(s[field] as string).trim()) {
+        throw new X402Error("config_federation_sources_invalid", {
+          reason: `FEDERATION_SOURCES[${index}] is missing a non-empty "${field}". Mirroring republishes somebody else's data, so the source, its licence and the credit it requires all have to be recorded.`,
+        });
+      }
+    }
+    return {
+      id: s["id"] as string,
+      url: s["url"] as string,
+      license: s["license"] as string,
+      attribution: s["attribution"] as string,
+      termsAcknowledged: s["termsAcknowledged"] === true,
+      ...(Array.isArray(s["networks"])
+        ? { networks: (s["networks"] as unknown[]).filter((n): n is string => typeof n === "string") }
+        : {}),
+    };
+  });
+}
 
 export interface NetworkConfig {
   readonly network: StellarNetwork;
@@ -119,6 +175,9 @@ export interface FacilitatorConfig {
   readonly trustProxy: boolean;
   /** SQLite file for the catalog, or undefined for in-memory. */
   readonly catalogDbPath?: string;
+  /** Catalogs to mirror read-only. Empty by default — see FEDERATION_SOURCES. */
+  readonly federationSources: readonly FederationSource[];
+  readonly federationRefreshSeconds: number;
 }
 
 /**
@@ -249,6 +308,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacilitatorCon
     corsOrigins: Object.freeze(csv(e.CORS_ORIGINS)),
     trustProxy: e.TRUST_PROXY,
     ...(e.CATALOG_DB_PATH ? { catalogDbPath: e.CATALOG_DB_PATH } : {}),
+    federationSources: Object.freeze(parseFederationSources(e.FEDERATION_SOURCES)),
+    federationRefreshSeconds: e.FEDERATION_REFRESH_SECONDS,
   });
 }
 

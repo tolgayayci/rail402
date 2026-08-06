@@ -2,6 +2,7 @@ import { HybridRetriever, type Retriever, type ScoredEntry } from "../search/ind
 import type { SignalStore } from "../search/signals.js";
 import type { TrustlineVerdict } from "./trustline.js";
 import type { CatalogPersistence } from "./persistence.js";
+import type { FederatedCatalog } from "./federation.js";
 import {
   entryKey,
   toPublic,
@@ -73,14 +74,27 @@ export class CatalogStore {
    */
   private degraded: string | undefined;
 
+  /**
+   * Read-only mirror of other catalogs, merged at READ time only (`federation.ts`).
+   *
+   * Never consulted by `get`, which is what the ownership check reads — so a mirrored listing can
+   * never block a real seller from claiming their own key — and never persisted, because it is a
+   * cache of somebody else's data rather than something we observed.
+   */
+  private readonly federated: FederatedCatalog | undefined;
+  /** Fingerprint of the mirror last indexed, so a refresh reindexes and an unchanged one does not. */
+  private federatedStamp = "";
+
   constructor(
     retriever: Retriever = new HybridRetriever(),
     signals?: SignalStore,
     persistence?: CatalogPersistence,
+    federated?: FederatedCatalog,
   ) {
     this.retriever = retriever;
     this.signals = signals;
     this.persistence = persistence;
+    this.federated = federated;
 
     if (persistence) {
       for (const row of persistence.load()) {
@@ -218,9 +232,25 @@ export class CatalogStore {
     }
   }
 
-  /** All entries, in a stable order so pagination never wobbles between calls. */
+  /** How many mirrored entries are currently merged in. Never counted in `size`. */
+  get federatedSize(): number {
+    return this.federated?.size ?? 0;
+  }
+
+  /**
+   * Everything a read can return: owned entries, plus mirrored ones on keys we do not own.
+   *
+   * Owned always wins a collision, unconditionally. A seller who has settled here must never see
+   * their own listing shadowed by somebody else's copy of it — including a stale copy carrying an
+   * old price.
+   */
   private all(): CatalogEntry[] {
-    return [...this.entries.values()].sort((a, b) =>
+    const merged = new Map(this.entries);
+    for (const entry of this.federated?.all() ?? []) {
+      const key = entryKey(entry.resource, entry.toolName);
+      if (!merged.has(key)) merged.set(key, entry);
+    }
+    return [...merged.values()].sort((a, b) =>
       entryKey(a.resource, a.toolName).localeCompare(entryKey(b.resource, b.toolName)),
     );
   }
@@ -239,6 +269,10 @@ export class CatalogStore {
       if (f.payTo && !e.accepts.some(a => a.payTo === f.payTo)) return false;
       if (f.scheme && !e.accepts.some(a => a.scheme === f.scheme)) return false;
       if (f.network && !e.accepts.some(a => a.network === f.network)) return false;
+      // Additive, and the one filter an agent genuinely needs that the spec does not define: "only
+      // things this facilitator has actually seen settle". Ignored by any client that omits it.
+      if (f.source === "local" && e.federated) return false;
+      if (f.source !== undefined && f.source !== "local" && e.provenance?.source !== f.source) return false;
       return true;
     });
   }
@@ -258,6 +292,13 @@ export class CatalogStore {
 
   /** `GET /discovery/search` — cursor pagination, array key `resources`, plus `partialResults`. */
   search(query: string, filters: DiscoveryFilters, limit?: number, cursor?: string): SearchResponse {
+    // A federation refresh changes the corpus without touching `dirty`, so notice it here rather
+    // than serving a stale index. Cheap: size plus the freshest mirror timestamp.
+    const stamp = `${this.federatedSize}:${this.federated?.all()[0]?.provenance?.fetchedAt ?? ""}`;
+    if (stamp !== this.federatedStamp) {
+      this.federatedStamp = stamp;
+      this.dirty = true;
+    }
     if (this.dirty) {
       this.retriever.index(this.all());
       this.dirty = false;

@@ -454,6 +454,24 @@ export const ERROR_REGISTRY = {
     surface: "bazaar",
     provenance: "local",
   },
+  bazaar_federation_source_refused: {
+    reason:
+      "A configured federation source was refused: it does not declare a licence, the attribution that licence requires, an explicit acknowledgement that a human has read its terms, or an https URL.",
+    retryable: false,
+    surface: "bazaar",
+    provenance: "local",
+    remediation:
+      "Mirroring a catalog republishes somebody else's data. Fail closed: a reachable endpoint is not permission, and `termsAcknowledged` is deliberately not inferrable from anything code can observe.",
+  },
+  bazaar_federation_source_unavailable: {
+    reason:
+      "A federation source could not be refreshed. The previous mirror is still being served, so results are stale rather than missing.",
+    retryable: true,
+    surface: "bazaar",
+    provenance: "local",
+    remediation:
+      "Degrading freshness beats deleting listings an agent found minutes ago. Alert if it persists across several refresh intervals.",
+  },
   bazaar_mcp_resource_url_not_addressable: {
     reason:
       "The resource.url names an MCP tool with a scheme that has no origin, so it cannot be a catalog key and an agent could not connect to it.",
@@ -729,6 +747,15 @@ export const ERROR_REGISTRY = {
     provenance: "local",
     remediation:
       "The catalog is in-memory and Cloudflare Worker isolates are ephemeral, so listings would vanish unpredictably. Run the Bazaar on a stateful host, or set BAZAAR_EPHEMERAL_ACK=1 to accept lossy discovery for a throwaway demo.",
+  },
+  config_federation_sources_invalid: {
+    reason:
+      "FEDERATION_SOURCES is not a valid array of federation sources, or a source omits its id, url, licence or attribution.",
+    retryable: false,
+    surface: "config",
+    provenance: "local",
+    remediation:
+      "Rejected at startup rather than at first refresh: a typo that silently federates nothing looks exactly like a source being down, and nobody notices for weeks. Every source must record what it is, where it is, the licence it is mirrored under, and the credit that licence requires.",
   },
   config_no_signer: {
     reason: "No Stellar signing account is configured, so the facilitator cannot settle payments.",

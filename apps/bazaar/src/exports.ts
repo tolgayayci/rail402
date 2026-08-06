@@ -26,11 +26,18 @@ export {
 export { entryKey, toPublic } from "./catalog/types.js";
 export type {
   CatalogEntry, CatalogAccepts, PublicResource, QualitySignals,
-  DiscoveryFilters, ListResponse, SearchResponse, ResourceType,
+  DiscoveryFilters, ListResponse, SearchResponse, ResourceType, ResourceProvenance,
 } from "./catalog/types.js";
 export { Bm25Retriever, type Retriever, type ScoredEntry } from "./search/index.js";
 export { computeMetrics, formatMetrics, type Metrics, type Judgment } from "./search/metrics.js";
 
+export {
+  FederatedCatalog,
+  checkSource,
+  DEFAULT_REFRESH_MS,
+  type FederationSource,
+  type FederationRefreshResult,
+} from "./catalog/federation.js";
 export { DomainVerifier, accountsFrom, type DomainVerdict } from "./catalog/domain.js";
 export {
   TrustlineChecker,

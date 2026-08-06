@@ -28,7 +28,7 @@ async function main(): Promise<void> {
     throw error;
   }
 
-  const { app, signerAddresses, feeBumpAddress } = createApp({ config, startedAt });
+  const { app, signerAddresses, feeBumpAddress, startFederation } = createApp({ config, startedAt });
 
   // describeConfig is the redacted view — no secret reaches the log.
   log.info(
@@ -36,12 +36,17 @@ async function main(): Promise<void> {
     "starting x402 Stellar facilitator",
   );
 
+  // Mirrors of other catalogs, if any are configured. Started here rather than in createApp so that
+  // constructing an app never touches the network.
+  const stopFederation = startFederation();
+
   const server = serve({ fetch: app.fetch, port: config.port, hostname: config.host }, info => {
     log.info({ url: `http://${config.host}:${info.port}` }, "listening");
   });
 
   const shutdown = (signal: string) => {
     log.info({ signal }, "draining connections");
+    stopFederation();
     server.close(() => process.exit(0));
     // Do not let a hung connection block a redeploy indefinitely.
     setTimeout(() => process.exit(0), 10_000).unref();

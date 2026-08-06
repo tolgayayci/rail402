@@ -16,6 +16,7 @@ import {
   TrustlineChecker,
   SignalStore,
   SqliteCatalogPersistence,
+  FederatedCatalog,
 } from "@x402-stellar/bazaar";
 
 /**
@@ -76,7 +77,10 @@ export function createApp({ config, startedAt }: AppDeps) {
   const catalogDb = config.catalogDbPath
     ? new SqliteCatalogPersistence({ path: config.catalogDbPath })
     : undefined;
-  const catalog = new CatalogStore(undefined, signals, catalogDb);
+  // Read-only mirrors of other catalogs, merged at read time and clearly labelled ("Stellar is not a walled garden"). Empty unless an operator configures a source AND records that
+  // a human read its terms — mirroring republishes somebody else's data, so it fails closed.
+  const federated = new FederatedCatalog(config.federationSources);
+  const catalog = new CatalogStore(undefined, signals, catalogDb, federated);
   // SEP-1 seller verification. Ties the party being paid to the domain being listed, which is what
   // stops a squatter claiming an endpoint they do not own. Never
   // awaited on the settlement path — see `catalogSettledPayment`.
@@ -241,6 +245,14 @@ export function createApp({ config, startedAt }: AppDeps) {
       feeBump: feeBumpAddress ? "enabled" : "disabled",
       catalog: {
         entries: catalog.size,
+        ...(catalog.federatedSize > 0 || federated.refusals.length > 0
+          ? {
+              federated: catalog.federatedSize,
+              ...(federated.refusals.length > 0
+                ? { federationRefused: federated.refusals.map(r => r.code) }
+                : {}),
+            }
+          : {}),
         // The degraded-mode story, stated where an operator will actually see it.
         // "durable" means writes are landing; "degraded" means the catalog is still SERVING but will
         // not survive a restart, with the reason attached.
@@ -447,7 +459,40 @@ export function createApp({ config, startedAt }: AppDeps) {
     ),
   );
 
-  return { app, facilitator, signerAddresses, feeBumpAddress, catalog, signals, domains };
+  /**
+   * Refresh every mirror, then keep refreshing on a timer. Returns a stop function.
+   *
+   * Not started by `createApp`: a timer created at construction leaks into every test that builds an
+   * app, and a boot-time fetch would make constructing one depend on the network. The service
+   * entrypoint starts it; tests and the eval harness never do.
+   */
+  const startFederation = (): (() => void) => {
+    if (config.federationSources.length === 0) return () => {};
+    const tick = () => {
+      void federated.refresh().then(results => {
+        for (const r of results) {
+          if (r.error) console.error(`federation: ${r.error.code} — ${r.error.reason}`);
+        }
+      });
+    };
+    tick();
+    const timer = setInterval(tick, config.federationRefreshSeconds * 1000);
+    // Unref so a mirror refresh never keeps the process alive through a shutdown.
+    timer.unref();
+    return () => clearInterval(timer);
+  };
+
+  return {
+    app,
+    facilitator,
+    signerAddresses,
+    feeBumpAddress,
+    catalog,
+    signals,
+    domains,
+    federated,
+    startFederation,
+  };
 }
 
 /** Parse and shape-check a facilitator request, returning a coded error rather than a bare 400. */

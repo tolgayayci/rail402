@@ -21,7 +21,7 @@ export interface BazaarDeps {
   readonly startedAt: number;
 }
 
-/** Read the seven spec-defined filters. Unknown query params are ignored, not rejected. */
+/** Read the spec-defined filters, plus the additive `source`. Unknown params are ignored. */
 function filtersFrom(url: URL): DiscoveryFilters {
   const get = (k: string) => url.searchParams.get(k) ?? undefined;
   const f: DiscoveryFilters = {};
@@ -30,11 +30,13 @@ function filtersFrom(url: URL): DiscoveryFilters {
   const scheme = get("scheme");
   const network = get("network");
   const extensions = get("extensions");
+  const source = get("source");
   if (type !== undefined) f.type = type;
   if (payTo !== undefined) f.payTo = payTo;
   if (scheme !== undefined) f.scheme = scheme;
   if (network !== undefined) f.network = network;
   if (extensions !== undefined) f.extensions = extensions;
+  if (source !== undefined) f.source = source;
   return f;
 }
 

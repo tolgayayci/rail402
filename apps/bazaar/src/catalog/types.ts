@@ -98,6 +98,34 @@ export interface CatalogEntry {
   provisional?: boolean;
   /** ISO deadline after which an unsettled provisional entry may be pruned. Set only when provisional. */
   provisionalUntil?: string;
+  /**
+   * Mirrored from another catalog rather than earned by a settlement here (`federation.ts`).
+   *
+   * A federated entry owns nothing, carries no ranking signal, and is always displaced by an owned
+   * entry on the same key. Kept as a flag AND a separate storage map so the distinction survives a
+   * refactor that only remembers one of them.
+   */
+  federated?: true;
+  provenance?: ResourceProvenance;
+}
+
+/**
+ * Where a listing came from, when we did not settle it ourselves.
+ *
+ * Additive and ignorable — a stock client that has never heard of it drops it, and everything the
+ * spec defines is still in its usual place. Published because an agent deciding whether to trust a
+ * listing should be able to tell "this facilitator saw a payment for this" from "somebody else says
+ * this exists", and because the licences that make mirroring permissible require the credit.
+ */
+export interface ResourceProvenance {
+  /** Stable source slug, e.g. `"x402-list"`. */
+  source: string;
+  sourceUrl: string;
+  /** SPDX identifier or licence name under which the source permits republication. */
+  license: string;
+  attribution: string;
+  /** When this copy was taken. A mirror's value is inseparable from its age. */
+  fetchedAt: string;
 }
 
 /**
@@ -121,13 +149,21 @@ export function entryKey(resource: string, toolName?: string): string {
   return toolName ? `${resource}${KEY_SEPARATOR}${toolName}` : resource;
 }
 
-/** Filters shared by both discovery endpoints. All seven are spec-defined. */
+/**
+ * Filters shared by both discovery endpoints.
+ *
+ * The first five are spec-defined (with `limit`/`offset` or `cursor`, that is the spec's seven).
+ * `source` is ours and additive: `local` restricts results to listings this facilitator saw settle,
+ * and a source slug restricts them to one mirror. A client that omits it gets everything, which is
+ * the spec's behaviour unchanged.
+ */
 export interface DiscoveryFilters {
   type?: string;
   payTo?: string;
   scheme?: string;
   network?: string;
   extensions?: string;
+  source?: string;
 }
 
 export interface ListResponse {
@@ -173,6 +209,11 @@ export interface PublicResource {
   quality?: QualitySignals;
   /** Present once checked. Buyers can prefer verified sellers; nothing forces them to. */
   domainVerified?: boolean;
+  /**
+   * Present only on entries mirrored from another catalog. Its absence means this facilitator saw a
+   * payment settle for the listing; its presence means somebody else says the listing exists.
+   */
+  provenance?: ResourceProvenance;
 }
 
 export function toPublic(entry: CatalogEntry): PublicResource {
@@ -191,5 +232,12 @@ export function toPublic(entry: CatalogEntry): PublicResource {
   if (entry.iconUrl !== undefined) out.iconUrl = entry.iconUrl;
   if (entry.extensions !== undefined) out.extensions = entry.extensions;
   if (entry.domainVerified !== undefined) out.domainVerified = entry.domainVerified;
+  if (entry.provenance !== undefined) {
+    out.provenance = entry.provenance;
+    // A mirrored listing must never appear to carry earned signals. They are zeroed at import, and
+    // dropped here as well: a `quality` block of zeroes reads as "nobody has ever paid for this",
+    // which is a claim about the resource rather than about what we know.
+    delete out.quality;
+  }
   return out;
 }
