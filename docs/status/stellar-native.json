@@ -1,75 +1,75 @@
 {
   "check": "stellar-native",
   "status": "pass",
-  "observedAt": "2026-08-06T12:25:03.298Z",
+  "observedAt": "2026-08-06T13:26:01.089Z",
   "network": "stellar:testnet",
   "facilitator": "http://127.0.0.1:4122",
-  "durationMs": 14983,
+  "durationMs": 14820,
   "steps": [
     {
       "name": "facilitator-reachable",
       "ok": true,
       "detail": "/supported advertises bazaar",
-      "ms": 2
+      "ms": 1
     },
     {
       "name": "usdc-accounts",
       "ok": true,
-      "detail": "payer GBOQSB3F…RQR2 holds 19.9920000 USDC · seller trustline present",
-      "ms": 814
+      "detail": "payer GBOQSB3F…RQR2 holds 19.9820000 USDC · seller trustline present",
+      "ms": 319
     },
     {
       "name": "seller-online",
       "ok": true,
-      "detail": "http://127.0.0.1:50967/canary/20260806122440/tides priced at 100000 (0.0100000 USDC)",
+      "detail": "http://127.0.0.1:55154/canary/20260806132542/tides priced at 100000 (0.0100000 USDC)",
       "ms": 37
     },
     {
       "name": "payload-built",
       "ok": true,
       "detail": "stock client, discovery extension present",
-      "ms": 1299
+      "ms": 1394
     },
     {
       "name": "verify",
       "ok": true,
       "detail": "isValid: true",
-      "ms": 1606
+      "ms": 1544
     },
     {
       "name": "settle",
       "ok": true,
-      "detail": "tx dd8158d1…aa3b · cataloged",
-      "ms": 6184
+      "detail": "tx f22d8d18…a7cc · cataloged",
+      "ms": 6601
     },
     {
       "name": "asset-identity",
       "ok": true,
       "detail": "USDC issued by GBBD47IF…FLA5 · 7 decimals · derived",
-      "ms": 2
+      "ms": 1
     },
     {
       "name": "trustline-preflight",
       "ok": true,
-      "detail": "state \"ok\" for GB4W6EAH…VE67 (checked 2026-08-06T12:24:58.256Z)",
-      "ms": 761
+      "detail": "state \"ok\" for GB4W6EAH…VE67 (checked 2026-08-06T13:25:56.165Z)",
+      "ms": 760
     },
     {
       "name": "trustline-missing-detected",
       "ok": true,
-      "detail": "fresh account GCZJK6LS…UXAO -> \"missing\", with a reason",
-      "ms": 4090
+      "detail": "fresh account GCTTUDWM…SIXO -> \"missing\", with a reason",
+      "ms": 3972
     },
     {
       "name": "agent-sees-it",
       "ok": true,
       "detail": "MCP tool reports 0.0100000 USDC (derived) · trustline ok",
-      "ms": 186
+      "ms": 188
     }
   ],
   "failure": null,
   "observations": {
-    "transaction": "dd8158d153e81ecd04a21497ed24d2a9b4a518fd4414e8005941190211e9aa3b",
+    "transaction": "f22d8d18fe0f78baad91842c2eb9ecc68622c024938261dfc5280cc51da4a7cc",
     "amount": "100000",
     "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
     "assetCode": "USDC",
@@ -83,11 +83,11 @@
     },
     "payToTrustline": {
       "state": "ok",
-      "checkedAt": "2026-08-06T12:24:58.256Z"
+      "checkedAt": "2026-08-06T13:25:56.165Z"
     },
     "trustlineMissingProbe": {
-      "account": "GCZJK6LSZSXXSXY2RPTUQZQKRFUPENHSTKK4GL6QXC5YZSVWWTCUUXAO",
-      "reason": "GCZJK6LSZSXXSXY2RPTUQZQKRFUPENHSTKK4GL6QXC5YZSVWWTCUUXAO has no trustline to USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5. A payment in this asset will fail until the account establishes one (a classic CHANGE_TRUST operation)."
+      "account": "GCTTUDWMWJWJLOLEABM3OMJUXZIEJ6CYBZNN2PXCN2FSLZY6O6FZSIXO",
+      "reason": "GCTTUDWMWJWJLOLEABM3OMJUXZIEJ6CYBZNN2PXCN2FSLZY6O6FZSIXO has no trustline to USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5. A payment in this asset will fail until the account establishes one (a classic CHANGE_TRUST operation)."
     },
     "agentPrice": {
       "amount": "100000",
@@ -104,10 +104,10 @@
       "amountDecimal": "0.0100000",
       "payToTrustline": {
         "state": "ok",
-        "checkedAt": "2026-08-06T12:24:58.256Z"
+        "checkedAt": "2026-08-06T13:25:56.165Z"
       }
     },
-    "resource": "http://127.0.0.1:50967/canary/20260806122440/tides",
-    "settledTransaction": "dd8158d153e81ecd04a21497ed24d2a9b4a518fd4414e8005941190211e9aa3b"
+    "resource": "http://127.0.0.1:55154/canary/20260806132542/tides",
+    "settledTransaction": "f22d8d18fe0f78baad91842c2eb9ecc68622c024938261dfc5280cc51da4a7cc"
   }
 }

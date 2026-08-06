@@ -1,10 +1,10 @@
 {
   "check": "discovery-loop",
   "status": "pass",
-  "observedAt": "2026-08-06T12:27:48.352Z",
+  "observedAt": "2026-08-06T13:19:49.572Z",
   "network": "stellar:testnet",
   "facilitator": "http://127.0.0.1:4122",
-  "durationMs": 29689,
+  "durationMs": 33951,
   "steps": [
     {
       "name": "facilitator-reachable",
@@ -15,26 +15,26 @@
     {
       "name": "testnet-fixtures",
       "ok": true,
-      "detail": "asset CNRY122714 · buyer GDBQVEJC…NYK3",
-      "ms": 24480
+      "detail": "asset CNRY131911 · buyer GDG35Y6H…LULW",
+      "ms": 24576
     },
     {
       "name": "seller-online",
       "ok": true,
-      "detail": "http://127.0.0.1:51087/canary/20260806122714/tides",
-      "ms": 47
+      "detail": "http://127.0.0.1:54758/canary/20260806131911/tides",
+      "ms": 31
     },
     {
       "name": "payload-built",
       "ok": true,
       "detail": "stock client, discovery extension present",
-      "ms": 1135
+      "ms": 1426
     },
     {
       "name": "verify",
       "ok": true,
       "detail": "isValid: true",
-      "ms": 1479
+      "ms": 1549
     },
     {
       "name": "provisional-at-verify",
@@ -45,8 +45,8 @@
     {
       "name": "settle",
       "ok": true,
-      "detail": "tx f37a9d3f…2090",
-      "ms": 2535
+      "detail": "tx 7d99447d…a782",
+      "ms": 6360
     },
     {
       "name": "cataloging-reported",
@@ -57,8 +57,8 @@
     {
       "name": "indexed",
       "ok": true,
-      "detail": "appeared after 2ms (1 poll(s))",
-      "ms": 2
+      "detail": "appeared after 1ms (1 poll(s))",
+      "ms": 1
     },
     {
       "name": "parameter-descriptions",
@@ -70,22 +70,22 @@
       "name": "ranked",
       "ok": true,
       "detail": "rank 1 of 1 for \"tide times and sea conditions at a coastal port\"",
-      "ms": 5
+      "ms": 4
     }
   ],
   "failure": null,
   "observations": {
-    "transaction": "f37a9d3f56981084302eff82a9d97f019a66d195db400635fcbcc715c0992090",
+    "transaction": "7d99447d034a1ceb0dfe750192b96e30eebea71e63f4e20851c174bc65b3a782",
     "amount": "2500000",
-    "asset": "CBZQ5P6VOO7BTT6Y76GH4IZJKZKKHZSNGK5LZXYBIMUTDZBLBWBU2ZFN",
+    "asset": "CCNPPCAGTYZQLKPVIEXOXPMBFIPY7MOQETLNC7SHMQVIUTTEKINA3GTT",
     "extensionResponses": {
       "status": "success"
     },
-    "indexingLagMs": 2,
+    "indexingLagMs": 1,
     "indexingPolls": 1,
     "searchQuery": "tide times and sea conditions at a coastal port",
     "searchRank": 1,
     "searchResultCount": 1,
-    "resource": "http://127.0.0.1:51087/canary/20260806122714/tides"
+    "resource": "http://127.0.0.1:54758/canary/20260806131911/tides"
   }
 }

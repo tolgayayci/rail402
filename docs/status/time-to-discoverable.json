@@ -1,10 +1,10 @@
 {
   "check": "time-to-discoverable",
   "status": "pass",
-  "observedAt": "2026-08-06T12:31:48.819Z",
+  "observedAt": "2026-08-06T13:25:41.344Z",
   "network": "stellar:testnet",
   "facilitator": "http://127.0.0.1:4122",
-  "durationMs": 34533,
+  "durationMs": 30132,
   "steps": [
     {
       "name": "facilitator-reachable",
@@ -16,19 +16,19 @@
       "name": "provision-identity",
       "ok": true,
       "detail": "funded accounts, asset issued, both trustlines up",
-      "ms": 24755
+      "ms": 23989
     },
     {
       "name": "publish-endpoint",
       "ok": true,
       "detail": "stock middleware + one `extensions` key",
-      "ms": 26
+      "ms": 30
     },
     {
       "name": "first-payment",
       "ok": true,
       "detail": "settled and catalogued in one round trip",
-      "ms": 9747
+      "ms": 6109
     },
     {
       "name": "appears-in-catalog",
@@ -39,18 +39,18 @@
     {
       "name": "findable-by-search",
       "ok": true,
-      "detail": "rank 3 for a natural-language query",
+      "detail": "rank 4 for a natural-language query",
       "ms": 1
     }
   ],
   "failure": null,
   "observations": {
-    "transaction": "ffcfdac69127a319f1e3d79f1644d76083671fba60615ee7ac55344865b99d68",
-    "totalSeconds": 34.5,
+    "transaction": "0f40cb12993666e0ce8bbc3feb4b8f3de81ac986a1771e78dba52138a61b4ffe",
+    "totalSeconds": 30.1,
     "phaseMs": {
-      "provision-identity": 24755,
-      "publish-endpoint": 26,
-      "first-payment": 9747,
+      "provision-identity": 23989,
+      "publish-endpoint": 31,
+      "first-payment": 6109,
       "appears-in-catalog": 1,
       "findable-by-search": 1
     },

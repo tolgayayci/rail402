@@ -135,6 +135,13 @@ export class FederatedCatalog {
   private readonly refused = new Map<string, X402ErrorPayload<ErrorCode>>();
   private entriesBySource = new Map<string, CatalogEntry[]>();
   private readonly fetchImpl: typeof fetch;
+  /**
+   * Bumped whenever a refresh changes what is mirrored, so a reader can notice staleness in O(1).
+   *
+   * `CatalogStore.search` checks this on every query. Fingerprinting the mirror by walking its
+   * entries instead would make every search O(n) in the size of somebody else's catalog.
+   */
+  private revision = 0;
 
   constructor(sources: readonly FederationSource[] = [], fetchImpl: typeof fetch = fetch) {
     this.fetchImpl = fetchImpl;
@@ -154,6 +161,11 @@ export class FederatedCatalog {
   /** Sources that failed their declaration check, for `/health` and the operator's logs. */
   get refusals(): X402ErrorPayload<ErrorCode>[] {
     return [...this.refused.values()];
+  }
+
+  /** Monotonic counter identifying the current mirror contents. Cheap to compare. */
+  get version(): number {
+    return this.revision;
   }
 
   get size(): number {
@@ -178,6 +190,7 @@ export class FederatedCatalog {
       try {
         const { entries, rejected } = await this.readSource(source, now);
         this.entriesBySource.set(source.id, entries);
+        this.revision += 1;
         results.push({ source: source.id, imported: entries.length, rejected });
       } catch (error) {
         // Keep whatever was mirrored last time. A source's outage should degrade freshness, not

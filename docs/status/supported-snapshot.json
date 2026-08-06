@@ -1,16 +1,16 @@
 {
   "check": "supported-snapshot",
   "status": "pass",
-  "observedAt": "2026-08-06T12:31:14.285Z",
+  "observedAt": "2026-08-06T13:24:35.237Z",
   "network": "stellar:testnet",
   "facilitator": "http://127.0.0.1:4122",
-  "durationMs": 9,
+  "durationMs": 22,
   "steps": [
     {
       "name": "fetch",
       "ok": true,
       "detail": "2 kind(s)",
-      "ms": 1
+      "ms": 2
     },
     {
       "name": "envelope",
@@ -28,13 +28,13 @@
       "name": "sponsorship-truthful",
       "ok": true,
       "detail": "sponsored=true, 1 signer(s) funded",
-      "ms": 1
+      "ms": 3
     },
     {
       "name": "advertised-is-reachable",
       "ok": true,
       "detail": "bazaar advertised and both discovery paths answer",
-      "ms": 7
+      "ms": 16
     }
   ],
   "failure": null,
@@ -64,7 +64,7 @@
       ],
       "signers": {
         "stellar:*": [
-          "GB356GVTND4Q6G7VWVH5S45CVDXK4F67O5CBN7V2YQB6OYVTU3P3JNUV"
+          "GCTLENLFGUQWK47K3BRQNBJI65N5R4XUTFRI7YBERMQ3GXXL5WO4FHMU"
         ]
       }
     },

@@ -82,8 +82,8 @@ export class CatalogStore {
    * cache of somebody else's data rather than something we observed.
    */
   private readonly federated: FederatedCatalog | undefined;
-  /** Fingerprint of the mirror last indexed, so a refresh reindexes and an unchanged one does not. */
-  private federatedStamp = "";
+  /** Mirror revision last indexed, so a refresh reindexes and an unchanged mirror does not. */
+  private federatedStamp = 0;
 
   constructor(
     retriever: Retriever = new HybridRetriever(),
@@ -293,10 +293,11 @@ export class CatalogStore {
   /** `GET /discovery/search` — cursor pagination, array key `resources`, plus `partialResults`. */
   search(query: string, filters: DiscoveryFilters, limit?: number, cursor?: string): SearchResponse {
     // A federation refresh changes the corpus without touching `dirty`, so notice it here rather
-    // than serving a stale index. Cheap: size plus the freshest mirror timestamp.
-    const stamp = `${this.federatedSize}:${this.federated?.all()[0]?.provenance?.fetchedAt ?? ""}`;
-    if (stamp !== this.federatedStamp) {
-      this.federatedStamp = stamp;
+    // than serving a stale index. An integer compare, not a walk of the mirror — this runs on every
+    // query, and fingerprinting somebody else's catalog per search would be O(n) for nothing.
+    const version = this.federated?.version ?? 0;
+    if (version !== this.federatedStamp) {
+      this.federatedStamp = version;
       this.dirty = true;
     }
     if (this.dirty) {

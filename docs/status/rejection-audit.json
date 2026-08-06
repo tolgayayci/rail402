@@ -1,34 +1,34 @@
 {
   "check": "rejection-audit",
   "status": "pass",
-  "observedAt": "2026-08-06T12:29:58.498Z",
+  "observedAt": "2026-08-06T13:23:15.607Z",
   "network": "stellar:testnet",
   "facilitator": "http://127.0.0.1:4122",
-  "durationMs": 130145,
+  "durationMs": 125196,
   "steps": [
     {
       "name": "facilitator-reachable",
       "ok": true,
       "detail": "/supported advertises bazaar",
-      "ms": 1
+      "ms": 2
     },
     {
       "name": "testnet-fixtures",
       "ok": true,
-      "detail": "asset CNRY122714",
-      "ms": 24688
+      "detail": "asset CNRY1911R1",
+      "ms": 24683
     },
     {
       "name": "malformed-json",
       "ok": true,
       "detail": "invalid_payload — Request body is not valid JSON.",
-      "ms": 5
+      "ms": 2
     },
     {
       "name": "missing-fields",
       "ok": true,
       "detail": "invalid_payload — Request must contain \"paymentPayload\" and \"paymentRequirements\" objec…",
-      "ms": 3
+      "ms": 1
     },
     {
       "name": "search-without-query",
@@ -40,13 +40,13 @@
       "name": "unknown-endpoint",
       "ok": true,
       "detail": "invalid_payload — No such endpoint: GET /discovery/resource. This facilitator serves /v…",
-      "ms": 1
+      "ms": 0
     },
     {
       "name": "signed-payment",
       "ok": true,
       "detail": "stock client payload ready",
-      "ms": 1307
+      "ms": 1411
     },
     {
       "name": "unknown-x402-version",
@@ -70,84 +70,84 @@
       "name": "tampered-amount",
       "ok": true,
       "detail": "invalid_exact_stellar_payload_wrong_amount — The transfer amount does not exactly match the amount in the payment …",
-      "ms": 2
+      "ms": 5
     },
     {
       "name": "wrong-recipient",
       "ok": true,
       "detail": "invalid_exact_stellar_payload_wrong_recipient — The transfer recipient does not match the payTo address in the paymen…",
-      "ms": 2
+      "ms": 3
     },
     {
       "name": "wrong-asset",
       "ok": true,
       "detail": "invalid_exact_stellar_payload_wrong_asset — The contract invoked by the transaction is not the asset named in the…",
-      "ms": 2
+      "ms": 3
     },
     {
       "name": "malformed-transaction",
       "ok": true,
       "detail": "invalid_exact_stellar_payload_malformed — The payload transaction is missing or is not a base64-encoded Stellar…",
-      "ms": 7
+      "ms": 2
     },
     {
       "name": "stripped-auth-entries",
       "ok": true,
       "detail": "invalid_exact_stellar_payload_no_auth_entries — The transaction contains no Soroban authorization entries.",
-      "ms": 1452
+      "ms": 1546
     },
     {
       "name": "auth-entry-signature-cleared",
       "ok": true,
       "detail": "invalid_exact_stellar_payload_simulation_failed — Simulating the payment transaction against current ledger state failed.",
-      "ms": 381
+      "ms": 435
     },
     {
       "name": "recipient-trustline-removed",
       "ok": true,
       "detail": "invalid_exact_stellar_payload_missing_trustline_recipient — The payTo account has no trustline to the payment asset and cannot re…",
-      "ms": 17419
+      "ms": 17144
     },
     {
       "name": "payer-balance-drained",
       "ok": true,
       "detail": "invalid_exact_stellar_payload_insufficient_balance — The payer's balance of the payment asset is lower than the required a…",
-      "ms": 30132
+      "ms": 30395
     },
     {
       "name": "settle-once",
       "ok": true,
-      "detail": "tx 14487cd07543…",
-      "ms": 4581
+      "detail": "tx ca6cb60a11c1…",
+      "ms": 4547
     },
     {
       "name": "replayed-payload",
       "ok": true,
       "detail": "invalid_exact_stellar_payload_authorization_replayed — This authorization has already been used. Soroban consumed its nonce,…",
-      "ms": 408
+      "ms": 405
     },
     {
       "name": "catalog-resource-url-missing",
       "ok": true,
       "detail": "bazaar_missing_resource_url — The payment payload carries a bazaar extension but no resource.url to…",
-      "ms": 14414
+      "ms": 13674
     },
     {
       "name": "catalog-non-http-url",
       "ok": true,
-      "detail": "bazaar_invalid_resource_url — Resource URL must be http(s); got \"ftp:\".",
-      "ms": 15670
+      "detail": "bazaar_invalid_resource_url — Resource URL must be http(s); got \"ftp:\". The catalog key is the reso…",
+      "ms": 15137
     },
     {
       "name": "catalog-ownership-conflict",
       "ok": true,
-      "detail": "bazaar_listing_ownership_conflict — This resource is already cataloged under payTo GCCPYJZ23TOU7WH2FFJZNU…",
-      "ms": 19634
+      "detail": "bazaar_listing_ownership_conflict — This resource is already cataloged under payTo GCE4OQ52ELWHLVB4TUI7XN…",
+      "ms": 15778
     }
   ],
   "failure": null,
   "observations": {
-    "referenceTransaction": "14487cd0754376d3c41a6b7eb5a8556b19b1a02cfee8d665115701da3d6e6031",
+    "referenceTransaction": "ca6cb60a11c1b7358d716206d284789390e01cff5d55d068eb902e133852f768",
     "cases": [
       {
         "name": "malformed-json",
@@ -311,7 +311,7 @@
           "bazaar_invalid_resource_url"
         ],
         "observed": "bazaar_invalid_resource_url",
-        "reason": "Resource URL must be http(s); got \"ftp:\".",
+        "reason": "Resource URL must be http(s); got \"ftp:\". The catalog key is the resource's origin and path, and an agent has to be able to reach it.",
         "ok": true
       },
       {
@@ -320,7 +320,7 @@
           "bazaar_listing_ownership_conflict"
         ],
         "observed": "bazaar_listing_ownership_conflict",
-        "reason": "This resource is already cataloged under payTo GCCPYJZ23TOU7WH2FFJZNUKKGMIBCCTQVJL573RHBHAEWEXUWM6FGFJS; a payment to GDW4AVP3XYW5FGWRZCEOF6R5L5NZUHRX6EUFSDXZHDBS6T6KM77T2TBM cannot modify it. If you control this domain, list GDW4AVP3XYW5FGWRZCEOF6R5L5NZUHRX6EUFSDXZHDBS6T6KM77T2TBM in the ACCOUNTS array of its SEP-1 stellar.toml and pay again — a domain-verified seller takes precedence over an unverified one.",
+        "reason": "This resource is already cataloged under payTo GCE4OQ52ELWHLVB4TUI7XNEWE7OA5X2G7EFB37Q74EZ54AVUPYE777U4; a payment to GDI7254FC4FRZX626AIUK37X4C2EGJL6HNPZ3BNGA2CNSSR5AYPYXMVM cannot modify it. If you control this domain, list GDI7254FC4FRZX626AIUK37X4C2EGJL6HNPZ3BNGA2CNSSR5AYPYXMVM in the ACCOUNTS array of its SEP-1 stellar.toml and pay again — a domain-verified seller takes precedence over an unverified one.",
         "ok": true
       }
     ],
