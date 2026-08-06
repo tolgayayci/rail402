@@ -85,6 +85,17 @@ const EnvSchema = z.object({
 
   CORS_ORIGINS: z.string().optional(),
   TRUST_PROXY: booleanish(false),
+
+  /**
+   * Where the catalog is persisted. Unset ⇒ in-memory, which is the historical behaviour and still
+   * the right default for a test or a throwaway run.
+   *
+   * Set it on any deployment you would be sorry to restart: the catalog is derived state in
+   * principle, but "rebuild it from settlement history" is a replay tool nobody has written, so in
+   * practice a restart forgets every seller. Uses Node's built-in SQLite — no new dependency, no
+   * service to operate. Ranking is unaffected either way (apps/bazaar/src/catalog/persistence.ts).
+   */
+  CATALOG_DB_PATH: z.string().optional(),
 });
 
 export interface NetworkConfig {
@@ -106,6 +117,8 @@ export interface FacilitatorConfig {
   readonly rateLimit: { enabled: boolean; windowSeconds: number; maxRequests: number };
   readonly corsOrigins: readonly string[];
   readonly trustProxy: boolean;
+  /** SQLite file for the catalog, or undefined for in-memory. */
+  readonly catalogDbPath?: string;
 }
 
 /**
@@ -235,6 +248,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacilitatorCon
     }),
     corsOrigins: Object.freeze(csv(e.CORS_ORIGINS)),
     trustProxy: e.TRUST_PROXY,
+    ...(e.CATALOG_DB_PATH ? { catalogDbPath: e.CATALOG_DB_PATH } : {}),
   });
 }
 

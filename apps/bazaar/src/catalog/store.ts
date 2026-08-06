@@ -1,6 +1,7 @@
 import { HybridRetriever, type Retriever, type ScoredEntry } from "../search/index.js";
 import type { SignalStore } from "../search/signals.js";
 import type { TrustlineVerdict } from "./trustline.js";
+import type { CatalogPersistence } from "./persistence.js";
 import {
   entryKey,
   toPublic,
@@ -17,9 +18,14 @@ import {
  * second transaction on the per-payment hot path, roughly doubling settlement cost. Nothing here
  * touches the settlement path — cataloging happens after a payment has already settled.
  *
- * The in-memory implementation is deliberate for v1: the whole catalog is derived state that can be
- * rebuilt from settlement history, so durability is a replay concern rather than a storage one.
- * `CatalogStore` is the seam a persistent backend slots into.
+ * Entries live in memory and are optionally MIRRORED to a `CatalogPersistence` backend, so a restart
+ * restores the catalog instead of forgetting every seller. Memory is written first and persistence
+ * second, on purpose: if the disk is full or the file is unwritable, discovery keeps working and only
+ * durability is lost. `persistenceDegraded` says so out loud rather than pretending otherwise.
+ *
+ * Ranking is deliberately untouched by any of this — the retriever indexes what is in memory, which
+ * is now restored at boot rather than starting empty. See `persistence.ts` for why the storage
+ * layer's own full-text engine is not used for retrieval.
  */
 
 const MAX_LIMIT = 100;
@@ -58,10 +64,63 @@ export class CatalogStore {
    * harness without dragging behavioural state into a measurement that must be deterministic.
    */
   readonly signals: SignalStore | undefined;
+  private readonly persistence: CatalogPersistence | undefined;
+  /**
+   * A persistence write has failed since boot.
+   *
+   * Surfaced on `/health` rather than swallowed: the catalog is still serving, but it will not
+   * survive a restart, and an operator who cannot see that finds out at the worst moment.
+   */
+  private degraded: string | undefined;
 
-  constructor(retriever: Retriever = new HybridRetriever(), signals?: SignalStore) {
+  constructor(
+    retriever: Retriever = new HybridRetriever(),
+    signals?: SignalStore,
+    persistence?: CatalogPersistence,
+  ) {
     this.retriever = retriever;
     this.signals = signals;
+    this.persistence = persistence;
+
+    if (persistence) {
+      for (const row of persistence.load()) {
+        // The key is rebuilt here, never stored. See persistence.ts: a null-joined composite key
+        // cannot survive a SQLite TEXT bind, and the failure is invisible.
+        const key = entryKey(row.entry.resource, row.entry.toolName);
+        this.entries.set(key, row.entry);
+        if (row.payers.length > 0) this.payers.set(key, new Set(row.payers));
+      }
+      this.dirty = true;
+    }
+  }
+
+  /** Null when durable, otherwise why the last persistence write failed. */
+  get persistenceDegraded(): string | undefined {
+    return this.degraded;
+  }
+
+  /**
+   * Mirror one entry to the backend, never letting a storage fault reach the caller.
+   *
+   * The in-memory write has already happened by the time this runs, so a failure here costs
+   * durability and nothing else — a settled payment must not be reported as failed because a disk
+   * filled up, and a listing must not vanish from search for the same reason.
+   */
+  private persist(resource: string, toolName?: string): void {
+    if (!this.persistence) return;
+    const key = entryKey(resource, toolName);
+    const entry = this.entries.get(key);
+    try {
+      if (entry === undefined) {
+        this.persistence.remove(resource, toolName);
+      } else {
+        this.persistence.save({ entry, payers: [...(this.payers.get(key) ?? [])] });
+      }
+      this.degraded = undefined;
+    } catch (error) {
+      this.degraded = error instanceof Error ? error.message : String(error);
+      console.error(`catalog persistence write failed (serving from memory): ${this.degraded}`);
+    }
   }
 
   get size(): number {
@@ -104,6 +163,7 @@ export class CatalogStore {
 
     this.entries.set(key, entry);
     this.dirty = true;
+    this.persist(entry.resource, entry.toolName);
     return entry;
   }
 
@@ -139,6 +199,10 @@ export class CatalogStore {
     };
     this.entries.set(key, provisional);
     this.dirty = true;
+    // Provisional entries are persisted too. They carry no rank and no ownership, so restoring one
+    // grants nothing — and dropping them on restart would make a verify-then-settle that straddles a
+    // deploy behave differently from one that does not.
+    this.persist(provisional.resource, provisional.toolName);
     return provisional;
   }
 
@@ -149,6 +213,7 @@ export class CatalogStore {
         this.entries.delete(key);
         this.payers.delete(key);
         this.dirty = true;
+        this.persist(e.resource, e.toolName);
       }
     }
   }
@@ -261,6 +326,7 @@ export class CatalogStore {
       if (entry.domainVerified === verified) continue;
       entry.domainVerified = verified;
       changed = true;
+      this.persist(entry.resource, entry.toolName);
     }
     if (changed) this.dirty = true;
     return changed;
@@ -289,6 +355,7 @@ export class CatalogStore {
   ): number {
     let updated = 0;
     for (const entry of this.entries.values()) {
+      let touched = false;
       for (const accepts of entry.accepts) {
         if (accepts.network !== network || accepts.asset !== asset || accepts.payTo !== payTo) {
           continue;
@@ -297,7 +364,9 @@ export class CatalogStore {
         stellar["payToTrustline"] = verdict;
         accepts.extra = { ...accepts.extra, stellar };
         updated += 1;
+        touched = true;
       }
+      if (touched) this.persist(entry.resource, entry.toolName);
     }
     return updated;
   }

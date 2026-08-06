@@ -3,6 +3,11 @@
  * The standalone service entrypoint is `index.ts`.
  */
 export { CatalogStore } from "./catalog/store.js";
+export {
+  SqliteCatalogPersistence,
+  type CatalogPersistence,
+  type StoredEntry,
+} from "./catalog/persistence.js";
 export { SignalStore } from "./search/signals.js";
 export type {
   SignalsReport,

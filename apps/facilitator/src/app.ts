@@ -15,6 +15,7 @@ import {
   DomainVerifier,
   TrustlineChecker,
   SignalStore,
+  SqliteCatalogPersistence,
 } from "@x402-stellar/bazaar";
 
 /**
@@ -68,7 +69,14 @@ export function createApp({ config, startedAt }: AppDeps) {
   // nothing here influences live ranking, because conversions are caller-reported and therefore
   // forgeable. See apps/bazaar/src/search/signals.ts.
   const signals = new SignalStore();
-  const catalog = new CatalogStore(undefined, signals);
+  // Durable when configured, in-memory otherwise. The catalog is derived state, but nothing replays
+  // settlement history to rebuild it, so an unconfigured restart genuinely forgets every seller.
+  // Ranking is identical either way — the retriever indexes what is in memory, which is now restored
+  // at boot rather than starting empty.
+  const catalogDb = config.catalogDbPath
+    ? new SqliteCatalogPersistence({ path: config.catalogDbPath })
+    : undefined;
+  const catalog = new CatalogStore(undefined, signals, catalogDb);
   // SEP-1 seller verification. Ties the party being paid to the domain being listed, which is what
   // stops a squatter claiming an endpoint they do not own. Never
   // awaited on the settlement path — see `catalogSettledPayment`.
@@ -231,6 +239,14 @@ export function createApp({ config, startedAt }: AppDeps) {
       networks: config.networks.map(n => n.network),
       signers: signerAddresses.length,
       feeBump: feeBumpAddress ? "enabled" : "disabled",
+      catalog: {
+        entries: catalog.size,
+        // The degraded-mode story, stated where an operator will actually see it.
+        // "durable" means writes are landing; "degraded" means the catalog is still SERVING but will
+        // not survive a restart, with the reason attached.
+        storage: catalogDb === undefined ? "memory" : catalog.persistenceDegraded ? "degraded" : "durable",
+        ...(catalog.persistenceDegraded ? { storageError: catalog.persistenceDegraded } : {}),
+      },
     }),
   );
 
