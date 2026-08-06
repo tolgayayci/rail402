@@ -1,10 +1,10 @@
 {
   "check": "mcp-tool-loop",
   "status": "pass",
-  "observedAt": "2026-08-06T13:26:41.546Z",
+  "observedAt": "2026-08-06T14:16:17.437Z",
   "network": "stellar:testnet",
-  "facilitator": "http://127.0.0.1:4124",
-  "durationMs": 35008,
+  "facilitator": "http://127.0.0.1:4122",
+  "durationMs": 34400,
   "steps": [
     {
       "name": "facilitator-reachable",
@@ -15,32 +15,32 @@
     {
       "name": "testnet-fixtures",
       "ok": true,
-      "detail": "asset MCPT132601 · buyer GBUMZL33…ORR7",
-      "ms": 23665
+      "detail": "asset MCPT141535 · buyer GDSNF5N5…BINE",
+      "ms": 24135
     },
     {
       "name": "mcp-seller-online",
       "ok": true,
-      "detail": "http://127.0.0.1:55203/mcp/20260806132601 · tool harbour_tides",
-      "ms": 14
+      "detail": "http://127.0.0.1:57478/mcp/20260806141535 · tool harbour_tides",
+      "ms": 9
     },
     {
       "name": "agent-connected",
       "ok": true,
       "detail": "tools: search_stellar_resources, pay_and_call",
-      "ms": 164
+      "ms": 169
     },
     {
       "name": "paid-mcp-tool-call",
       "ok": true,
-      "detail": "settled 059909b1…756a · tool output returned",
-      "ms": 11146
+      "detail": "settled 7bf0eddb…8b30 · tool output returned",
+      "ms": 10071
     },
     {
       "name": "catalogued-as-mcp",
       "ok": true,
-      "detail": "type=mcp, toolName and parameter prose intact (2ms)",
-      "ms": 2
+      "detail": "type=mcp, toolName and parameter prose intact (1ms)",
+      "ms": 1
     },
     {
       "name": "discoverable-by-an-agent",
@@ -52,17 +52,17 @@
       "name": "spend-cap-enforced",
       "ok": true,
       "detail": "refused [mcp_budget_exceeded], naming the real price",
-      "ms": 7
+      "ms": 6
     }
   ],
   "failure": null,
   "observations": {
-    "transaction": "059909b1ca2e604ce5e41d318b14aaf34e1d27e4086bf0f25d582f1683ae756a",
+    "transaction": "7bf0eddb8c3e046fbce86e865eb992ed466029975ff90237a20e8e738b778b30",
     "amount": "2500000",
     "toolName": "harbour_tides",
-    "indexingLagMs": 2,
+    "indexingLagMs": 1,
     "searchRank": 1,
     "searchQuery": "tide times and sea conditions at a coastal port",
-    "resource": "http://127.0.0.1:55203/mcp/20260806132601"
+    "resource": "http://127.0.0.1:57478/mcp/20260806141535"
   }
 }

@@ -7,6 +7,7 @@ import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import {
   budgetSelector,
+  selectPayable,
   fail,
   isPayableResourceUrl,
   succeed,
@@ -114,10 +115,18 @@ export async function callMcpTool(options: McpCallOptions): Promise<ToolResult<M
     const paidClient = wrapMCPClientWithPayment(mcpClient, paymentClient, {
       autoPayment: true,
       onPaymentRequested: context => {
-        // Record what was asked before deciding anything. The selector below is what decides.
-        quoted = (context.paymentRequired?.accepts ?? []).find(a =>
-          a.network.startsWith("stellar:"),
-        ) as PricedOption | undefined;
+        // Record what the SELECTOR would choose, not merely the first Stellar option on offer.
+        //
+        // `selectPayable` picks the CHEAPEST affordable option; taking `accepts.find(...)` here
+        // instead reported the first one, so a seller offering [expensive, cheap] would be paid
+        // `cheap` while the agent was told it paid `expensive`. An agent reconciling spend against
+        // its own ledger would over-count, and the number is about money.
+        const { chosen } = selectPayable(
+          (context.paymentRequired?.accepts ?? []) as PricedOption[],
+          options.budget,
+          options.network,
+        );
+        quoted = chosen;
         return true;
       },
     });

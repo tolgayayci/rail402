@@ -547,6 +547,15 @@ export const ERROR_REGISTRY = {
     surface: "mcp",
     provenance: "local",
   },
+  mcp_paid_but_resource_failed: {
+    reason:
+      "The payment settled on-ledger but the resource then failed. The money has moved; retrying buys it a second time.",
+    retryable: false,
+    surface: "mcp",
+    provenance: "local",
+    remediation:
+      "Deliberately NOT mcp_upstream_error, which is retryable. An agent that acts on retryable advice here pays twice — the settlement hash in `details.transaction` is the receipt to take to the seller instead. Gotcha #12 (a retryable code on a non-retryable condition) recurring where the advice costs money rather than a round trip.",
+  },
   mcp_upstream_error: {
     reason: "The paid resource returned an error after payment was settled.",
     retryable: true,

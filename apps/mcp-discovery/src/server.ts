@@ -14,6 +14,11 @@ import {
   isPayableResourceUrl,
   succeed,
   selectPayable,
+  NO_REDIRECT,
+  priceable,
+  byAmountAscending,
+  parseAmount,
+  withinBudget,
   toToolCall,
   SearchOutputSchema,
   PayOutputSchema,
@@ -158,8 +163,12 @@ export async function searchResources(
 
   const results: SearchHit[] = (payload.resources ?? [])
     .map(r => {
-      const stellar = r.accepts?.filter(a => a.network.startsWith("stellar:")) ?? [];
-      const cheapest = [...stellar].sort((a, b) => (BigInt(a.amount) < BigInt(b.amount) ? -1 : 1))[0];
+      // Soft-drop options this agent cannot price before sorting them. Catalog rows are
+      // attacker-influenceable — the server is designed to point at arbitrary and federated
+      // catalogs — and an unguarded `BigInt("NaN")` in a comparator escapes as a bare V8 message
+      // with no code and no envelope, which is the one thing this tool must never do.
+      const stellar = priceable(r.accepts ?? []).filter(a => a.network.startsWith("stellar:"));
+      const cheapest = [...stellar].sort(byAmountAscending)[0];
       const bazaar = r.extensions?.["bazaar"] as
         | { info?: { input?: { toolName?: string; inputSchema?: unknown } } }
         | undefined;
@@ -204,7 +213,7 @@ export async function searchResources(
     })
     // Price filtering happens here rather than being left to the agent: showing a resource an agent
     // cannot afford invites it to try, fail, and burn a round trip.
-    .filter(hit => !args.maxPrice || !hit.price || BigInt(hit.price.amount) <= BigInt(args.maxPrice));
+    .filter(hit => !args.maxPrice || !hit.price || withinBudget(hit.price.amount, args.maxPrice));
 
   // Hand the token back so the agent can cite it on pay_and_call. Present only if the Bazaar issued
   // one; a catalog that does not do signal collection simply omits it and nothing changes.
@@ -253,8 +262,19 @@ export async function payAndCall(
   // An operator ceiling always wins over an agent-supplied budget. Resolved before the transport
   // branch so both paths are governed by the same number.
   let budget = args.maxAmount;
-  if (config.maxAmountCeiling && BigInt(budget) > BigInt(config.maxAmountCeiling)) {
-    budget = config.maxAmountCeiling;
+  if (config.maxAmountCeiling !== undefined) {
+    // A malformed operator ceiling must fail closed and legibly, not throw a bare SyntaxError on
+    // every paid call. `MAX_AMOUNT_CEILING` is read straight from the environment (`index.ts`), so
+    // a typo here is a configuration mistake, not an attack — and it should read like one.
+    const ceiling = parseAmount(config.maxAmountCeiling);
+    if (ceiling === undefined) {
+      return fail("mcp_resource_not_payable", {
+        reason: `This MCP server's configured spend ceiling (${JSON.stringify(config.maxAmountCeiling)}) is not an integer number of atomic units, so no payment can be safely bounded. Nothing was called and nothing was paid.`,
+        details: { maxAmountCeiling: config.maxAmountCeiling },
+      });
+    }
+    const requested = parseAmount(budget);
+    if (requested === undefined || requested > ceiling) budget = config.maxAmountCeiling;
   }
 
   // ── MCP tool call ─────────────────────────────────────────────────────────
@@ -298,6 +318,30 @@ export async function payAndCall(
   const target = new URL(args.resource);
   for (const [k, v] of Object.entries(args.queryParams ?? {})) target.searchParams.set(k, v);
 
+  const method = args.method ?? "GET";
+  if (args.body !== undefined && (method === "GET" || method === "HEAD")) {
+    return fail("invalid_payload", {
+      reason: `A ${method} request cannot carry a body. Either drop \`body\` or use POST, PUT or PATCH. Nothing was called and nothing was paid.`,
+      details: { method },
+    });
+  }
+
+  // ONE request init, shared by the probe and the paid call.
+  //
+  // Built once on purpose. The two requests must be the same request — a probe that omits the body
+  // can be priced differently, or answered differently, from the call that is actually paid for, and
+  // an agent would have no way to see the divergence. `body` was previously declared on the input
+  // schema and then never sent at all, so a POST was paid for and delivered empty.
+  const init: RequestInit =
+    args.body === undefined
+      ? { method, ...NO_REDIRECT }
+      : {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(args.body),
+          ...NO_REDIRECT,
+        };
+
   // Step 1: unpaid probe, so an over-budget resource costs one HTTP request and zero money, and so
   // the agent is told the real price it declined.
   //
@@ -308,7 +352,7 @@ export async function payAndCall(
   // `budgetSelector`, which runs immediately before anything is signed.
   let challenge: { accepts?: PricedOption[] } | undefined;
   try {
-    const probe = await fetchImpl(target, { method: args.method ?? "GET" });
+    const probe = await fetchImpl(target, init);
     if (probe.status === 402) {
       const header = probe.headers.get("PAYMENT-REQUIRED");
       if (header) {
@@ -369,7 +413,7 @@ export async function payAndCall(
     client.register("stellar:*", new ExactStellarScheme(signer));
     const paidFetch = wrapFetchWithPayment(fetchImpl, client);
 
-    const response = await paidFetch(target, { method: args.method ?? "GET" });
+    const response = await paidFetch(target, init);
     const settlementHeader = response.headers.get("PAYMENT-RESPONSE");
     let transaction: string | undefined;
     if (settlementHeader) {
@@ -384,9 +428,13 @@ export async function payAndCall(
     }
 
     if (!response.ok) {
-      return fail("mcp_upstream_error", {
-        reason: `Payment settled but the resource returned HTTP ${response.status}.`,
-        details: { status: response.status, transaction },
+      // NOT `mcp_upstream_error`. That code is retryable, and money has already moved — the
+      // settlement hash below proves it. Telling an agent to retry here buys the same resource a
+      // second time. This is the classic trap (a retryable code on a non-retryable condition) recurring
+      // on the surface where acting on the advice costs money rather than a round trip.
+      return fail("mcp_paid_but_resource_failed", {
+        reason: `Payment SETTLED (transaction ${transaction ?? "unknown"}) but the resource then returned HTTP ${response.status}. Do not retry: a retry pays again. Contact the seller with this transaction hash.`,
+        details: { status: response.status, ...(transaction === undefined ? {} : { transaction }) },
       });
     }
 
@@ -440,10 +488,15 @@ function findBudgetError(error: unknown, depth = 0): BudgetExceededError | undef
   if (error instanceof Error) {
     const nested = findBudgetError(error.cause, depth + 1);
     if (nested) return nested;
-    // Some wrappers stringify rather than chain; fall back to the marker in the message.
-    if (error.message.includes("exceeding the authorized maximum of")) {
-      return new BudgetExceededError(undefined, "the configured maximum");
-    }
+    // Deliberately NO message-marker fallback here any more.
+    //
+    // It used to reconstruct `new BudgetExceededError(undefined, "the configured maximum")` — which
+    // is the placeholder-string defect preserved verbatim: a sentence published into a numeric
+    // `details.maxAmount` that `BigInt()` throws on, with the refused price lost. It was unreachable
+    // (the `onRefusal` closure fires first and is preferred at the call site) but it was live code
+    // that would republish the bug the moment the closure path changed. A refusal we cannot describe
+    // accurately is better reported as an upstream failure than as a budget refusal with fabricated
+    // numbers in it.
   }
   return undefined;
 }

@@ -267,6 +267,90 @@ describe("searchBazaar", () => {
   });
 });
 
+describe("outbound host policy — ported here late", () => {
+  // The MCP server has had this gate since §F4. This package never got it, and it matters MORE
+  // here: `discoverAndPay` takes its URL from the CATALOG, and the Bazaar's ingest validates only
+  // the URL scheme — so a listing pointing at link-local passed cataloging, and this helper fetched
+  // it and handed the body back. Same fixed-here-not-there pattern as §F20.
+  const spy = () => {
+    const seen: string[] = [];
+    const impl = (async (input: URL | RequestInfo) => {
+      seen.push(String(input));
+      return json({ token: "SECRET" }, 200);
+    }) as unknown as typeof fetch;
+    return { impl, seen };
+  };
+
+  it("refuses metadata, loopback and IP-literal hosts without fetching them", async () => {
+    for (const url of [
+      "http://169.254.169.254/latest/meta-data/",
+      "http://127.0.0.1:4022/verify",
+      "http://localhost./x",
+      "http://foo.localhost/x",
+      "http://metadata.google.internal/computeMetadata/v1/",
+      "http://[::1]/",
+      "file:///etc/passwd",
+    ]) {
+      const { impl, seen } = spy();
+      const r = await payAndFetch(config, url, { maxAmount: "0" }, impl);
+      expect(r.ok, `${url} was not refused`).toBe(false);
+      expect(r.error?.code).toBe("mcp_resource_host_refused");
+      expect(seen, `${url} was fetched anyway`).toEqual([]);
+    }
+  });
+
+  it("refuses a catalog-supplied link-local URL in discoverAndPay, after the search", async () => {
+    // The dangerous shape: the agent never typed this URL — the catalog supplied it.
+    const seen: string[] = [];
+    const impl = (async (input: URL | RequestInfo) => {
+      const u = String(input);
+      seen.push(u);
+      if (u.includes("/discovery/search")) {
+        return json({
+          resources: [
+            { resource: "http://169.254.169.254/latest/meta-data/", type: "http", accepts: [accept("100")] },
+          ],
+        });
+      }
+      return json({ token: "SECRET" }, 200);
+    }) as unknown as typeof fetch;
+
+    const r = await discoverAndPay(config, "cheap data", { maxAmount: "1000" }, impl);
+    expect(r.ok).toBe(false);
+    expect(r.error?.code).toBe("mcp_resource_host_refused");
+    // The search happened; the metadata endpoint was never touched.
+    expect(seen.filter(u => u.includes("169.254"))).toEqual([]);
+  });
+
+  it("returns a coded result for a malformed URL instead of throwing a raw TypeError", async () => {
+    const r = await payAndFetch(config, "not a url", { maxAmount: "100" });
+    expect(r.ok).toBe(false);
+    expect(r.error?.code).toBe("mcp_resource_host_refused");
+    expect(r.error?.reason).toBeTruthy();
+  });
+
+  it("survives an unparseable amount from the catalog", async () => {
+    const impl = (async () =>
+      json({
+        resources: [
+          { resource: "https://a.test/x", type: "http", accepts: [{ ...accept("100"), amount: "NaN" }] },
+          { resource: "https://a.test/y", type: "http", accepts: [accept("200")] },
+        ],
+      })) as unknown as typeof fetch;
+    const r = await searchBazaar(config, "x", { maxPrice: "5000" }, impl);
+    // The point is that it does not throw. `BigInt("NaN")` in a sort comparator used to escape as a
+    // bare SyntaxError, and a comparator cannot recover from a throw.
+    expect(r.ok).toBe(true);
+    // The unpriceable option is soft-dropped, so the entry surfaces with NO price rather than a
+    // guessed one — identical to the MCP server's projection, which matters more than either
+    // choice on its own: two agent-facing surfaces that disagree about the same catalog row are
+    // how an agent ends up with a price the other surface says does not exist.
+    const x = r.data!.find(e => e.resource === "https://a.test/x")!;
+    expect(x.price).toBeUndefined();
+    expect(r.data!.find(e => e.resource === "https://a.test/y")!.price?.amount).toBe("200");
+  });
+});
+
 describe("discoverAndPay", () => {
   it("says so clearly when nothing matches within budget, and spends nothing", async () => {
     const impl = (async () => json({ resources: [] })) as unknown as typeof fetch;

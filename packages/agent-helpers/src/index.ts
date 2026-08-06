@@ -4,12 +4,30 @@ import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { createError, type ErrorCode } from "@x402-stellar/errors";
 import {
+  isPayableResourceUrl,
+  parseAmount,
+  byAmountAscending,
+  priceable,
+  NO_REDIRECT,
+  type PricedOption,
+} from "./outbound.js";
+import {
   readAssetIdentity,
   readTrustlinePreflight,
   formatAtomicAmount,
   type AssetIdentity,
   type TrustlinePreflight,
 } from "./stellar-asset.js";
+
+export {
+  isPayableResourceUrl,
+  withinBudget,
+  parseAmount,
+  byAmountAscending,
+  priceable,
+  NO_REDIRECT,
+  type PricedOption,
+} from "./outbound.js";
 
 export {
   readAssetIdentity,
@@ -93,18 +111,6 @@ const fail = <T>(code: ErrorCode, opts: { reason?: string; details?: Record<stri
 };
 const ok = <T>(data: T): Result<T> => ({ ok: true, data });
 
-/** The shape of a payment option, as it appears in a 402 challenge and in the catalog. */
-interface PricedOption {
-  scheme: string;
-  network: string;
-  amount: string;
-  asset: string;
-  payTo: string;
-  /** Carried so this structurally satisfies `PaymentRequirements` where the selector is installed. */
-  maxTimeoutSeconds?: number;
-  extra?: Record<string, unknown>;
-}
-
 /**
  * Pick the cheapest option that is on a supported Stellar network AND within budget.
  *
@@ -121,8 +127,10 @@ function selectPayable(
     a => a.network.startsWith("stellar:") && (!network || a.network === network),
   );
   if (stellar.length === 0) return {};
-  const sorted = [...stellar].sort((a, b) => (BigInt(a.amount) < BigInt(b.amount) ? -1 : 1));
-  const chosen = sorted.find(a => BigInt(a.amount) <= BigInt(budget));
+  const sorted = priceable(stellar).sort(byAmountAscending);
+  if (sorted.length === 0) return {};
+  const ceiling = parseAmount(budget);
+  const chosen = ceiling === undefined ? undefined : sorted.find(a => parseAmount(a.amount)! <= ceiling);
   return chosen ? { chosen } : { cheapestRejected: sorted[0]! };
 }
 
@@ -193,6 +201,15 @@ export interface AgentConfig {
   network?: string;
   /** Hard ceiling the caller cannot exceed, whatever they pass per-call. */
   maxAmountCeiling?: string;
+  /**
+   * Permit paying loopback, private and IP-literal hosts.
+   *
+   * Off by default. `discoverAndPay` takes its URL from the CATALOG, so without this gate a listing
+   * pointing at link-local metadata would be fetched and its body handed back — the MCP server's
+   * SSRF bug, reachable through the buyer SDK. The bundled examples run a seller on localhost and
+   * opt in; anything reading a catalog it does not control must not.
+   */
+  allowPrivateHosts?: boolean;
 }
 
 // ── Discovery ────────────────────────────────────────────────────────────────
@@ -246,7 +263,14 @@ export async function searchBazaar(
 
   const results = (body.resources ?? [])
     .map(toBazaarResource)
-    .filter(r => !options.maxPrice || !r.price || BigInt(r.price.amount) <= BigInt(options.maxPrice));
+    .filter(r => {
+      if (!options.maxPrice || !r.price) return true;
+      const price = parseAmount(r.price.amount);
+      const ceiling = parseAmount(options.maxPrice);
+      // Unpriceable is unaffordable: a listing whose amount will not parse is one this agent cannot
+      // act on, and it must not crash the search either (a comparator cannot recover from a throw).
+      return price !== undefined && ceiling !== undefined && price <= ceiling;
+    });
 
   return ok(results);
 }
@@ -264,7 +288,7 @@ interface RawResource {
 
 function toBazaarResource(r: RawResource): BazaarResource {
   const stellar = (r.accepts ?? []).filter(a => a.network.startsWith("stellar:"));
-  const cheapest = [...stellar].sort((a, b) => (BigInt(a.amount) < BigInt(b.amount) ? -1 : 1))[0];
+  const cheapest = priceable(stellar).sort(byAmountAscending)[0];
 
   // Read the nested SDK-typed shape. Some catalogs in the wild place these fields at the top level
   // instead; tolerate that on read so cross-facilitator discovery does not silently return nothing.
@@ -347,10 +371,30 @@ export async function payAndFetch<T = unknown>(
     });
   }
 
+  // Where we are willing to send a request, decided BEFORE sending one.
+  //
+  // This was fixed in the MCP server first and never ported here — the same fixed-here-not-there
+  // pattern as §F20. It matters more in this package than it looks: `discoverAndPay` below takes the
+  // URL from the CATALOG, and the Bazaar's ingest validates only the URL scheme, so a listing
+  // pointing at link-local passes cataloging and this function would fetch it and hand the body
+  // back. `new URL()` also lives inside this guard now, so a malformed URL returns a coded result
+  // instead of throwing a raw TypeError past the caller's error handling.
+  if (!isPayableResourceUrl(resourceUrl, config.allowPrivateHosts ?? false)) {
+    return fail("mcp_resource_host_refused", { details: { resource: resourceUrl } });
+  }
+
   // An operator ceiling always beats a caller-supplied budget.
   let budget = options.maxAmount;
-  if (config.maxAmountCeiling && BigInt(budget) > BigInt(config.maxAmountCeiling)) {
-    budget = config.maxAmountCeiling;
+  if (config.maxAmountCeiling !== undefined) {
+    const ceiling = parseAmount(config.maxAmountCeiling);
+    if (ceiling === undefined) {
+      return fail("mcp_resource_not_payable", {
+        reason: `The configured maxAmountCeiling (${JSON.stringify(config.maxAmountCeiling)}) is not an integer number of atomic units, so no payment can be safely bounded. Nothing was called and nothing was paid.`,
+        details: { maxAmountCeiling: config.maxAmountCeiling },
+      });
+    }
+    const requested = parseAmount(budget);
+    if (requested === undefined || requested > ceiling) budget = config.maxAmountCeiling;
   }
 
   const target = new URL(resourceUrl);
@@ -360,7 +404,7 @@ export async function payAndFetch<T = unknown>(
   // Step 1 — unpaid probe. Learn the price before committing anything.
   let accepts: Array<{ scheme: string; network: string; amount: string; asset: string; payTo: string }> = [];
   try {
-    const probe = await fetchImpl(target, { method });
+    const probe = await fetchImpl(target, { method, ...NO_REDIRECT });
     if (probe.status !== 402) {
       return ok({ status: probe.status, body: (await safeJson(probe)) as T });
     }

@@ -160,6 +160,13 @@ describe("outbound host policy", () => {
 
   it("refuses cloud metadata and loopback addresses without fetching them", async () => {
     for (const url of [
+      // A trailing dot makes an FQDN absolute; `localhost.` resolves to loopback exactly as
+      // `localhost` does, and was a one-character bypass of a set-membership check.
+      "http://localhost./x",
+      // RFC 6761 reserves the whole `.localhost` tree for loopback.
+      "http://foo.localhost/x",
+      // Consul service discovery — a mainstream internal-resolution suffix.
+      "http://web.service.consul/x",
       "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
       "http://127.0.0.1:4022/verify",
       "http://localhost:8080/admin",
@@ -519,6 +526,110 @@ describe("MCP transport (§3.3 — calling a discovered TOOL)", () => {
     );
     expect(call.isError).toBe(false);
     expect(PayOutputSchema.safeParse(call.structuredContent).success).toBe(true);
+  });
+});
+
+describe("hostile amounts cannot escape the envelope (§3.3)", () => {
+  // "Every rejection carries a non null reason so an agent can reason about failure
+  // instead of parsing prose." An unguarded BigInt in a sort comparator broke that with one bad
+  // row: `BigInt("NaN")` THROWS, the throw escaped `searchResources`, and the agent received a bare
+  // V8 message with no code, no reason and no envelope. Catalog rows are attacker-influenceable —
+  // this server is designed to point at arbitrary and federated catalogs.
+  const catalogWith = (accepts: unknown[]) =>
+    (async () =>
+      new Response(JSON.stringify({ resources: [{ resource: "https://a.test/x", type: "http", accepts }] }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+
+  it("survives an unparseable amount in a catalog entry and still returns the envelope", async () => {
+    const realFetch = globalThis.fetch;
+    for (const bad of ["NaN", "1e9", "-1", "1.5", "", "0x10"]) {
+      globalThis.fetch = catalogWith([{ ...opt("1000"), amount: bad }, opt("2000")]);
+      try {
+        const result = await searchResources(config, { query: "x" });
+        expect(result.ok, `amount ${JSON.stringify(bad)} broke the envelope`).toBe(true);
+        // The unpriceable option is soft-dropped; the priceable sibling still reaches the agent.
+        expect(result.data!.results[0]!.price?.amount).toBe("2000");
+        expect(SearchOutputSchema.safeParse(result).success).toBe(true);
+      } finally {
+        globalThis.fetch = realFetch;
+      }
+    }
+  });
+
+  it("drops an entry whose only option is unpriceable rather than crashing the whole search", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = catalogWith([{ ...opt("1000"), amount: "NaN" }]);
+    try {
+      const result = await searchResources(config, { query: "x", maxPrice: "5000" });
+      expect(result.ok).toBe(true);
+      expect(result.data!.results[0]!.price).toBeUndefined();
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("refuses a hostile amount in a 402 challenge with a code, not a SyntaxError", async () => {
+    const { impl } = challengeFetch([{ ...opt("1000"), amount: "NaN" }]);
+    const result = await payAndCall(config, { resource: "https://api.test/x", maxAmount: "5000" }, impl);
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBeTruthy();
+    expect(result.error?.reason).toBeTruthy();
+  });
+
+  it("fails closed and legibly on a malformed operator ceiling", async () => {
+    // Read straight from MAX_AMOUNT_CEILING, so a typo is a config mistake — and it used to throw an
+    // uncaught SyntaxError on EVERY paid call.
+    const result = await payAndCall(
+      { ...config, maxAmountCeiling: "abc" },
+      { resource: "https://api.test/x", maxAmount: "100" },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error?.reason).toMatch(/atomic units/);
+    expect(result.error?.reason).toMatch(/nothing was paid/i);
+  });
+});
+
+describe("the HTTP request actually carries what the agent asked for", () => {
+  it("transmits the body, and sends the SAME request to the probe and the paid call", async () => {
+    // `body` was declared on the input schema, documented as HTTP-only in the MCP path's rejection
+    // message, and never sent — so an agent POSTing paid for a request that went out empty. The two
+    // requests share one init on purpose: a probe that omits the body can be priced differently from
+    // the call that is actually paid for, and the agent could not see the divergence.
+    const seen: { method?: string; body?: unknown; ct?: string }[] = [];
+    const impl = (async (_input: URL | RequestInfo, init?: RequestInit) => {
+      seen.push({
+        method: init?.method,
+        body: init?.body,
+        ct: (init?.headers as Record<string, string> | undefined)?.["Content-Type"],
+      });
+      const header = Buffer.from(JSON.stringify({ x402Version: 2, accepts: [opt("5000000")] }), "utf8").toString("base64");
+      return new Response("{}", { status: 402, headers: { "PAYMENT-REQUIRED": header } });
+    }) as unknown as typeof fetch;
+
+    // Over budget, so it stops after the probe — enough to observe what the probe was given.
+    await payAndCall(config, {
+      resource: "https://api.test/x",
+      method: "POST",
+      body: { harbour: "Dover" },
+      maxAmount: "1",
+    }, impl);
+
+    expect(seen[0]!.method).toBe("POST");
+    expect(seen[0]!.body).toBe(JSON.stringify({ harbour: "Dover" }));
+    expect(seen[0]!.ct).toBe("application/json");
+  });
+
+  it("refuses a body on GET rather than dropping it", async () => {
+    const result = await payAndCall(config, {
+      resource: "https://api.test/x",
+      method: "GET",
+      body: { a: 1 },
+      maxAmount: "100",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("invalid_payload");
+    expect(result.error?.reason).toMatch(/cannot carry a body/);
   });
 });
 

@@ -236,28 +236,18 @@ export function toToolCall<T>(result: ToolResult<T>): {
 
 // ── Price handling ───────────────────────────────────────────────────────────
 
-/**
- * Amounts are bigint end to end. A budget check done in floating point is a bug
- * waiting to overspend: `Number("9007199254740993")` silently loses precision, and this is the
- * comparison that decides whether real money moves.
- */
-export function withinBudget(price: string, maxAmount: string): boolean {
-  try {
-    return BigInt(price) <= BigInt(maxAmount);
-  } catch {
-    return false;
-  }
-}
-
-export interface PricedOption {
-  scheme: string;
-  network: string;
-  amount: string;
-  asset: string;
-  payTo: string;
-  maxTimeoutSeconds?: number;
-  extra?: Record<string, unknown>;
-}
+// Outbound safety and amount parsing live in the buyer-side package and are re-exported here.
+// One implementation, two surfaces — see `packages/agent-helpers/src/outbound.ts` for why.
+export {
+  isPayableResourceUrl,
+  withinBudget,
+  parseAmount,
+  byAmountAscending,
+  priceable,
+  NO_REDIRECT,
+  type PricedOption,
+} from "@x402-stellar/agent-helpers";
+import { withinBudget, byAmountAscending, priceable, type PricedOption } from "@x402-stellar/agent-helpers";
 
 // ── Stellar asset identity ───────────────────────────────────────────────────
 //
@@ -284,12 +274,14 @@ export function selectPayable(
   maxAmount: string,
   network?: string,
 ): { chosen?: PricedOption; cheapestRejected?: PricedOption } {
-  const stellar = accepts.filter(
+  // Soft-drop unpriceable options before anything compares them. A listing carrying `amount: "NaN"`
+  // is a listing this agent cannot act on; it must not also be a listing that crashes the tool.
+  const stellar = priceable(accepts).filter(
     a => a.network.startsWith("stellar:") && (!network || a.network === network),
   );
   if (stellar.length === 0) return {};
 
-  const sorted = [...stellar].sort((a, b) => (BigInt(a.amount) < BigInt(b.amount) ? -1 : 1));
+  const sorted = [...stellar].sort(byAmountAscending);
   const affordable = sorted.filter(a => withinBudget(a.amount, maxAmount));
 
   if (affordable.length > 0) return { chosen: affordable[0]! };
@@ -297,89 +289,6 @@ export function selectPayable(
 }
 
 // ── Where this server is willing to send a request ───────────────────────────
-
-/** Hostnames that name an infrastructure endpoint rather than a paid service. */
-const REFUSED_HOSTNAMES = new Set([
-  "metadata.google.internal",
-  "metadata",
-  "instance-data",
-  "kubernetes.default.svc",
-]);
-/** Suffixes reserved for internal resolution. Never a public paid API. */
-const REFUSED_SUFFIXES = [".internal", ".local", ".localdomain", ".cluster.local"];
-const LOOPBACK_HOSTNAMES = new Set(["localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"]);
-
-const IPV4_LITERAL = /^\d{1,3}(\.\d{1,3}){3}$/;
-/** `http://2852039166/` and `http://0x7f000001/` are both 127.0.0.1 to a resolver. */
-const ALL_DIGITS = /^\d+$/;
-const HEX_LITERAL = /^0x[0-9a-f]+$/i;
-
-/**
- * Decide whether this server will fetch a caller-supplied resource URL.
- *
- * `pay_and_call` takes a URL from the agent, fetches it, and returns the body — which makes it a
- * read primitive pointed at whatever the MCP server's network position can reach. Before this check
- * it would fetch `http://169.254.169.254/latest/meta-data/…` and hand the response straight back
- * In an agent runtime "the caller" includes anything that can get a tool
- * call into the conversation, so this is not hypothetical.
- *
- * ## Why this is written out rather than reusing the SDK's `isValidIconUrl`
- *
- * That helper happens to encode nearly this policy, and reuse is the house rule everywhere else in
- * this codebase. Not here. It exists to decide whether a *decorative image link* is acceptable, and
- * upstream is free to relax it on those grounds — at which point our SSRF boundary would widen
- * silently, with no diff in this repository and no test failing. A security control should not be a
- * side effect of somebody else's product decision about favicons. It is fifteen lines; we own them.
- *
- * ## The policy
- *
- * http(s) only · no credentials in the URL · no IPv6 literal · no IPv4 literal in any encoding
- * (dotted, decimal or hex) · no loopback name · no internal-resolution suffix · no known metadata
- * hostname. Rejecting every IP literal rather than enumerating private ranges is deliberate: it
- * covers 127/8, 10/8, 172.16/12, 192.168/16, 169.254/16, CGNAT and anything else in one rule that
- * cannot be wrong, and a public paid service advertises a hostname anyway.
- *
- * ## Residual, stated rather than papered over
- *
- * A public DNS name that resolves to a private address still passes, and this runs before the
- * socket, so DNS rebinding is not closed. Closing it needs resolve-then-pin at the connection
- * layer.
- *
- * @param raw - the caller-supplied resource URL
- * @param allowPrivateHosts - operator opt-in for local development, where the seller genuinely is
- *   on localhost. Off by default; a hosted deployment must never turn it on. Even then the
- *   metadata and internal-suffix rules still apply — the escape hatch is for a local seller, not
- *   for reaching an instance metadata service.
- */
-export function isPayableResourceUrl(raw: string, allowPrivateHosts = false): boolean {
-  let parsed: URL;
-  try {
-    // WHATWG URL parsing normalises IDN to punycode and percent-decodes the host for us, so the
-    // checks below see the same string a resolver would.
-    parsed = new URL(raw);
-  } catch {
-    return false;
-  }
-
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-  if (parsed.username !== "" || parsed.password !== "") return false;
-
-  const hostname = parsed.hostname.toLowerCase();
-  if (hostname === "") return false;
-  if (REFUSED_HOSTNAMES.has(hostname)) return false;
-  if (REFUSED_SUFFIXES.some(suffix => hostname.endsWith(suffix))) return false;
-
-  // These stay enforced even under the opt-in.
-  if (allowPrivateHosts) return true;
-
-  if (parsed.host.startsWith("[")) return false; // IPv6 literal
-  if (IPV4_LITERAL.test(hostname)) return false;
-  if (ALL_DIGITS.test(hostname)) return false;
-  if (HEX_LITERAL.test(hostname)) return false;
-  if (LOOPBACK_HOSTNAMES.has(hostname)) return false;
-
-  return true;
-}
 
 // ── Budget enforcement ───────────────────────────────────────────────────────
 
