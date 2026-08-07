@@ -27,6 +27,8 @@ export interface ScoredEntry {
 }
 
 export interface Retriever {
+  /** What this retriever actually does, surfaced as `searchMethod`. Optional for simple retrievers. */
+  readonly method?: string;
   index(entries: readonly CatalogEntry[]): void;
   search(query: string, candidates: readonly CatalogEntry[], limit: number): ScoredEntry[];
 }
@@ -387,6 +389,24 @@ export class HybridRetriever implements Retriever {
    * CatalogStore that never searches (a facilitator serving only verify/settle, or a test that only
    * catalogs) pays nothing for the 7.56 MB table, and never fails if the asset is absent.
    */
+  /**
+   * True once the semantic arm has been confirmed unavailable.
+   *
+   * The weight table is read from disk, which no Workers runtime allows. Rather than let a search
+   * throw, the retriever degrades to its lexical arm — and, crucially, SAYS SO: `method` below feeds
+   * the `searchMethod` field on every response. A deployment that silently served BM25 while
+   * advertising `hybrid` would be the advertised-versus-reachable dishonesty this project measures
+   * in other facilitators, committed against ourselves.
+   */
+  private semanticUnavailable: string | undefined;
+
+  /** What this retriever is ACTUALLY doing right now, for `searchMethod`. */
+  get method(): string {
+    return this.semanticUnavailable
+      ? "bm25 (semantic arm unavailable)"
+      : "hybrid (bm25+static-embedding, rrf)";
+  }
+
   private get embedder(): EmbeddingProvider {
     return (this.instance ??= this.provided ?? defaultEmbedder());
   }
@@ -394,8 +414,17 @@ export class HybridRetriever implements Retriever {
   index(entries: readonly CatalogEntry[]): void {
     this.bm25.index(entries);
     const next = new Map<string, Float32Array>();
-    for (const e of entries) next.set(entryKey(e.resource, e.toolName), this.embedder.embed(docText(e)));
-    this.vectors = next;
+    try {
+      for (const e of entries) next.set(entryKey(e.resource, e.toolName), this.embedder.embed(docText(e)));
+      this.vectors = next;
+      this.semanticUnavailable = undefined;
+    } catch (error) {
+      // No weights on this runtime. Serve lexical-only rather than failing every search, and record
+      // why so `searchMethod` stops claiming a hybrid it is not running.
+      this.semanticUnavailable = error instanceof Error ? error.message : String(error);
+      this.vectors = new Map();
+      console.error(`search: semantic arm unavailable, serving BM25 only — ${this.semanticUnavailable}`);
+    }
   }
 
   search(query: string, candidates: readonly CatalogEntry[], limit: number): ScoredEntry[] {
@@ -407,7 +436,19 @@ export class HybridRetriever implements Retriever {
     lexical.forEach((s, i) => lexRank.set(keyOf(s.entry), i));
 
     // Semantic ranking of the candidates (cosine over L2-normalized vectors).
-    const qv = this.embedder.embed(query);
+    if (this.semanticUnavailable) return lexical;
+    let qv: Float32Array;
+    try {
+      qv = this.embedder.embed(query);
+    } catch (error) {
+      // Record it, do not just swallow it. An empty catalog never calls embed() during index(), so
+      // without this a fresh deployment would answer `searchMethod: "hybrid"` having never once
+      // proven it can load the weights — advertising a capability on the strength of not having
+      // tried it, which is the exact failure this field exists to prevent.
+      this.semanticUnavailable = error instanceof Error ? error.message : String(error);
+      console.error(`search: semantic arm unavailable, serving BM25 only — ${this.semanticUnavailable}`);
+      return lexical;
+    }
     const vector = candidates
       .map(e => ({ entry: e, key: keyOf(e), score: rankScore(this.vectors.get(keyOf(e)), qv) }))
       .filter(s => s.score > -Infinity)

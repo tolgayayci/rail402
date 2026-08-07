@@ -17,6 +17,7 @@ import {
   SignalStore,
   SqliteCatalogPersistence,
   FederatedCatalog,
+  type CatalogPersistence,
 } from "@x402-stellar/bazaar";
 
 /**
@@ -39,6 +40,14 @@ const FacilitatorRequestSchema = z.object({
 });
 
 export interface AppDeps {
+  /**
+   * Catalog durability backend, injected.
+   *
+   * Node deployments build a SQLite backend from `CATALOG_DB_PATH`. Workers cannot — no disk
+   * survives an isolate — so the Worker entrypoint injects a D1-backed one instead. Same seam,
+   * different storage; nothing else in the app knows the difference.
+   */
+  readonly persistence?: CatalogPersistence;
   readonly config: FacilitatorConfig;
   readonly startedAt: number;
 }
@@ -59,7 +68,7 @@ interface Counters {
   rejectedByCode: Map<string, number>;
 }
 
-export function createApp({ config, startedAt }: AppDeps) {
+export function createApp({ config, startedAt, persistence }: AppDeps) {
   const { facilitator, signerAddresses, feeBumpAddress } = buildFacilitator(config);
 
   // Bazaar co-deployed in-process. The module boundary stays clean (it is a separate package with
@@ -74,9 +83,8 @@ export function createApp({ config, startedAt }: AppDeps) {
   // settlement history to rebuild it, so an unconfigured restart genuinely forgets every seller.
   // Ranking is identical either way — the retriever indexes what is in memory, which is now restored
   // at boot rather than starting empty.
-  const catalogDb = config.catalogDbPath
-    ? new SqliteCatalogPersistence({ path: config.catalogDbPath })
-    : undefined;
+  const catalogDb =
+    persistence ?? (config.catalogDbPath ? new SqliteCatalogPersistence({ path: config.catalogDbPath }) : undefined);
   // Read-only mirrors of other catalogs, merged at read time and clearly labelled ("Stellar is not a walled garden"). Empty unless an operator configures a source AND records that
   // a human read its terms — mirroring republishes somebody else's data, so it fails closed.
   const federated = new FederatedCatalog(config.federationSources);

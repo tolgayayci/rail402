@@ -27,6 +27,14 @@ routes = [
   { pattern = "facilitator.rail402.dev", custom_domain = true }
 ]
 
+# Catalog durability. Cloudflare gives no durable disk to a Worker or a Container ("all disk is
+# ephemeral"), so the catalog lives in D1 behind the same `CatalogPersistence` seam the Node
+# deployment fills with SQLite.
+[[d1_databases]]
+binding = "CATALOG_DB"
+database_name = "rail402-catalog"
+database_id = "7a83ba3e-3aee-4e16-b68c-bb84c2c5a667"
+
 [observability]
 enabled = true
 
@@ -38,7 +46,9 @@ LOG_LEVEL = "info"
 # `bazaar` extension either: a facilitator that claims an extension it 404s is the exact
 # advertised-versus-reachable failure this project measures in other facilitators. The Bazaar runs on
 # a stateful host and advertises `bazaar` there.
-SERVES_DISCOVERY = "0"
+# Discovery IS served here now: the catalog lives in D1, not on an isolate's memory or disk, so a
+# listing survives isolate replacement. That is what makes advertising `bazaar` truthful.
+SERVES_DISCOVERY = "1"
 # A `__check_auth` smart-account payment cross-calls a signature verifier and a spending policy, so
 # it costs ~210k stroops for `exact` and ~180k for `upto` against ~23k for a plain keypair. The
 # 100,000 default REFUSES them, correctly and with a legible reason — so any deployment serving

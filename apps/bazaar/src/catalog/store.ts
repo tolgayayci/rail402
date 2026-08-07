@@ -359,7 +359,9 @@ export class CatalogStore {
       x402Version: 2,
       resources: page.map(s => toPublic(s.entry)),
       pagination: { limit: lim, cursor: hasMore ? encodeCursor(nextStart, query, filters) : null },
-      searchMethod: SEARCH_METHOD,
+      // Reported from the retriever rather than a constant: if the semantic arm could not load
+      // on this runtime, this must say so instead of advertising a hybrid that is not running.
+      searchMethod: this.retriever.method ?? SEARCH_METHOD,
     };
     if (truncated) response.partialResults = true;
 

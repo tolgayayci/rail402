@@ -58,6 +58,18 @@ export function createBazaarApp({ store, startedAt }: BazaarDeps) {
     }),
   );
 
+  // Discovery answers must never be cached at the edge.
+  //
+  // A CDN in front of a catalog is a CDN serving "this seller does not exist" after they have paid
+  // to exist. Cataloging is settlement-gated and lands in single-digit milliseconds, so the whole
+  // value proposition is that a listing appears immediately — a cached 501 or a cached empty page
+  // silently undoes that, and the seller cannot tell. Observed live on Cloudflare, where an earlier
+  // 501 kept being served after discovery had been enabled.
+  app.use("/discovery/*", async (c, next) => {
+    await next();
+    c.header("Cache-Control", "no-store");
+  });
+
   app.get("/discovery/resources", c => {
     const url = new URL(c.req.url);
     return c.json(
