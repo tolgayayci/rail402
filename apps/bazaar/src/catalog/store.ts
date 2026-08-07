@@ -1,7 +1,7 @@
 import { HybridRetriever, type Retriever, type ScoredEntry } from "../search/index.js";
 import type { SignalStore } from "../search/signals.js";
 import type { TrustlineVerdict } from "./trustline.js";
-import type { CatalogPersistence } from "./persistence.js";
+import type { CatalogPersistence, StoredEntry } from "./persistence.js";
 import type { FederatedCatalog } from "./federation.js";
 import {
   entryKey,
@@ -73,6 +73,8 @@ export class CatalogStore {
    * survive a restart, and an operator who cannot see that finds out at the worst moment.
    */
   private degraded: string | undefined;
+  /** Pending hydration for an async backend; undefined for sync backends and for no backend. */
+  private hydration: Promise<void> | undefined;
 
   /**
    * Read-only mirror of other catalogs, merged at READ time only (`federation.ts`).
@@ -97,7 +99,35 @@ export class CatalogStore {
     this.federated = federated;
 
     if (persistence) {
-      for (const row of persistence.load()) {
+      const loaded = persistence.load();
+      if (loaded instanceof Promise) {
+        // An async backend cannot hydrate in a constructor. Hold the promise and let the caller
+        // await `ready()` before serving — a facilitator that answered /discovery/* from an
+        // un-hydrated store would report an empty catalog as though nothing had ever settled.
+        this.hydration = loaded
+          .then(rows => this.hydrate(rows))
+          .catch(error => {
+            this.degraded = error instanceof Error ? error.message : String(error);
+            console.error(`catalog hydration failed (serving empty): ${this.degraded}`);
+          });
+      } else {
+        this.hydrate(loaded);
+      }
+    }
+  }
+
+  /**
+   * Resolve once the catalog has been restored from an async backend.
+   *
+   * A no-op for a synchronous backend or no backend at all, so callers can await it unconditionally.
+   */
+  async ready(): Promise<void> {
+    await this.hydration;
+  }
+
+  private hydrate(rows: readonly StoredEntry[]): void {
+    {
+      for (const row of rows) {
         // The key is rebuilt here, never stored. See persistence.ts: a null-joined composite key
         // cannot survive a SQLite TEXT bind, and the failure is invisible.
         const key = entryKey(row.entry.resource, row.entry.toolName);
@@ -125,10 +155,18 @@ export class CatalogStore {
     const key = entryKey(resource, toolName);
     const entry = this.entries.get(key);
     try {
-      if (entry === undefined) {
-        this.persistence.remove(resource, toolName);
-      } else {
-        this.persistence.save({ entry, payers: [...(this.payers.get(key) ?? [])] });
+      const written =
+        entry === undefined
+          ? this.persistence.remove(resource, toolName)
+          : this.persistence.save({ entry, payers: [...(this.payers.get(key) ?? [])] });
+      // An async backend rejects later than this frame, so the catch below cannot see it. Attach a
+      // handler rather than leaving an unhandled rejection to take the process down — a storage
+      // fault must cost durability and nothing else.
+      if (written instanceof Promise) {
+        void written.catch((error: unknown) => {
+          this.degraded = error instanceof Error ? error.message : String(error);
+          console.error(`catalog persistence write failed (serving from memory): ${this.degraded}`);
+        });
       }
       this.degraded = undefined;
     } catch (error) {

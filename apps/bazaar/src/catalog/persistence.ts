@@ -68,13 +68,22 @@ export interface StoredEntry {
   payers: string[];
 }
 
+/**
+ * A backend the catalog mirrors itself to.
+ *
+ * Every method may be synchronous or asynchronous. `node:sqlite` is synchronous and stays that way —
+ * a settlement is already an on-chain round trip, so a microsecond local write costs nothing and
+ * cannot be lost. A network-backed store (D1) cannot be synchronous, so the store awaits hydration
+ * once at boot via `CatalogStore.ready()` and treats writes as fire-and-forget, exactly as it
+ * already treated SQLite writes: memory first, durability second, degraded flag if it fails.
+ */
 export interface CatalogPersistence {
-  /** Every stored row. Called once, at construction. */
-  load(): StoredEntry[];
+  /** Every stored row. Called once, at construction (sync backends) or from `ready()` (async). */
+  load(): StoredEntry[] | Promise<StoredEntry[]>;
   /** Insert or replace, keyed on (`entry.resource`, `entry.toolName`). */
-  save(row: StoredEntry): void;
-  remove(resource: string, toolName?: string): void;
-  close(): void;
+  save(row: StoredEntry): void | Promise<void>;
+  remove(resource: string, toolName?: string): void | Promise<void>;
+  close(): void | Promise<void>;
 }
 
 /** Bump when the row format changes in a way a previous build could not read. */

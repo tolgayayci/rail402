@@ -4,6 +4,11 @@
  */
 export { CatalogStore } from "./catalog/store.js";
 export {
+  D1CatalogPersistence,
+  type D1Like,
+  type D1StatementLike,
+} from "./catalog/d1.js";
+export {
   SqliteCatalogPersistence,
   type CatalogPersistence,
   type StoredEntry,
