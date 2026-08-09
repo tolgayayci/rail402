@@ -75,6 +75,21 @@ export class CatalogStore {
   private degraded: string | undefined;
   /** Pending hydration for an async backend; undefined for sync backends and for no backend. */
   private hydration: Promise<void> | undefined;
+  /**
+   * Keeps an async write alive past the response that triggered it.
+   *
+   * On a Node server a floating promise finishes on its own. On Cloudflare Workers it does NOT:
+   * pending work is cancelled the moment the response is returned unless it is handed to
+   * `ctx.waitUntil`. Without this the D1 write for every settled payment was silently discarded —
+   * `/health` reported `storage: "durable"`, the catalog served correctly from the isolate that
+   * wrote it, and D1 contained ZERO rows. Measured, not theorised.
+   */
+  private keepAlive: ((work: Promise<unknown>) => void) | undefined;
+
+  /** Hand the store a `ctx.waitUntil`, so background writes survive the response. */
+  setKeepAlive(keepAlive: (work: Promise<unknown>) => void): void {
+    this.keepAlive = keepAlive;
+  }
 
   /**
    * Read-only mirror of other catalogs, merged at READ time only (`federation.ts`).
@@ -163,6 +178,7 @@ export class CatalogStore {
       // handler rather than leaving an unhandled rejection to take the process down — a storage
       // fault must cost durability and nothing else.
       if (written instanceof Promise) {
+        this.keepAlive?.(written);
         void written.catch((error: unknown) => {
           this.degraded = error instanceof Error ? error.message : String(error);
           console.error(`catalog persistence write failed (serving from memory): ${this.degraded}`);

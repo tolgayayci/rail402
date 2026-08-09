@@ -51,7 +51,7 @@ export interface WorkerEnv extends Record<string, unknown> {
 let cached: { config: FacilitatorConfig; app: ReturnType<typeof createApp> } | undefined;
 
 export default {
-  async fetch(request: Request, env: WorkerEnv): Promise<Response> {
+  async fetch(request: Request, env: WorkerEnv, ctx: { waitUntil(work: Promise<unknown>): void }): Promise<Response> {
     try {
       if (!cached) {
         const config = loadConfig(env as unknown as NodeJS.ProcessEnv);
@@ -62,6 +62,11 @@ export default {
         });
         cached = { config, app };
       }
+
+      // Background catalog writes must outlive the response that caused them. Workers cancels
+      // pending work at response time, so without this every settled payment's D1 write is dropped
+      // — silently, because the isolate that made the write still serves the listing from memory.
+      cached.app.catalog.setKeepAlive(work => ctx.waitUntil(work));
 
       // Hydrate before serving. A D1 read is a network call, so a fresh isolate would otherwise
       // answer /discovery/* from an empty store and report "nothing has ever settled here" — a

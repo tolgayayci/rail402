@@ -109,6 +109,26 @@ describe("D1 catalog durability", () => {
     expect(store.persistenceDegraded).toMatch(/D1_ERROR/);
   });
 
+  it("hands every pending write to the host keep-alive so a Worker cannot cancel it", async () => {
+    // On Workers, pending work is cancelled when the response returns unless it was passed to
+    // `ctx.waitUntil`. Without this the D1 write for each settled payment was dropped in silence:
+    // /health still said "durable" and the writing isolate still served the listing from its own
+    // memory, so the only visible symptom was a permanently empty catalog on a fresh isolate.
+    const d1 = fakeD1();
+    const kept: Promise<unknown>[] = [];
+    const store = new CatalogStore(undefined, undefined, new D1CatalogPersistence(d1));
+    await store.ready();
+    store.setKeepAlive(work => void kept.push(work));
+
+    store.upsert(entry());
+    expect(kept).toHaveLength(1);
+
+    // Awaiting what the host was handed must be enough for the row to land. If the store passed on
+    // some already-settled promise instead of the write itself, this would still be 0.
+    await Promise.all(kept);
+    expect(d1.rows()).toBe(1);
+  });
+
   it("serves an empty catalog rather than crashing when hydration fails", async () => {
     const broken: D1Like = {
       prepare: () => { throw new Error("D1_ERROR: unavailable"); },
