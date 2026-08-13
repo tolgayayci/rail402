@@ -1,0 +1,10 @@
+name = "rail402-apex-redirect"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+workers_dev = false
+
+# A plain route, not a custom domain: the apex DNS record already exists and is proxied, so this
+# attaches without wrangler taking ownership of DNS. Removing the Worker leaves DNS untouched.
+routes = [
+  { pattern = "rail402.dev/*", zone_name = "rail402.dev" }
+]

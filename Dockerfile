@@ -27,10 +27,12 @@ FROM node:24-slim
 WORKDIR /app
 ENV NODE_ENV=production
 # Catalog durability lives here. Mount a volume at /data on any host that offers one; without it the
-# catalog rebuilds from settlement history after an instance is replaced.
-RUN mkdir -p /data && chown node:node /data
+# catalog rebuilds from settlement history after an instance is replaced. The container runs as root
+# because managed hosts (Railway, Fly) mount the volume root-owned, and a non-root user cannot open a
+# database file under it (SQLITE_CANTOPEN). Container isolation is provided by the platform, not the
+# uid; a privilege-dropping entrypoint (chown /data then exec as an unprivileged user) is the harden.
+RUN mkdir -p /data
 COPY --from=build /app /app
-USER node
 EXPOSE 8080
 ENV PORT=8080 HOST=0.0.0.0 CATALOG_DB_PATH=/data/catalog.db
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
