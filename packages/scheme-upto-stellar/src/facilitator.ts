@@ -10,6 +10,7 @@ import {
 } from "@stellar/stellar-sdk";
 import { Api } from "@stellar/stellar-sdk/rpc";
 import {
+  gatherAuthEntrySignatureStatus,
   getNetworkPassphrase,
   getRpcClient,
   isStellarNetwork,
@@ -109,6 +110,25 @@ function maxLedgerWindow(maxTimeoutSeconds: number | undefined): number {
   return Math.ceil(seconds / ESTIMATED_LEDGER_SECONDS) + LEDGER_SKEW_TOLERANCE;
 }
 
+/**
+ * Parse an attacker-supplied atomic amount without throwing. `BigInt("NaN")`, `BigInt("1e9")` and
+ * `BigInt("10.5")` all throw, and this runs on the echoed `payload.maxAmount` inside `decode` — which
+ * is called OUTSIDE verify/settle's try block — so an unguarded throw surfaced as a retryable
+ * HTTP 500 with a raw V8 message on the wire. Returns `null` for anything non-integer.
+ */
+function parseIntegerAmount(value: unknown): bigint | null {
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number") return Number.isSafeInteger(value) ? BigInt(value) : null;
+  if (typeof value === "string" && /^-?\d+$/.test(value.trim())) {
+    try {
+      return BigInt(value.trim());
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function invalid(reason: ErrorCode, payer?: string, message?: string): VerifyResponse {
   const e = createError(reason, message === undefined ? {} : { reason: message });
   return { isValid: false, invalidReason: e.code, invalidMessage: e.reason, ...(payer ? { payer } : {}) };
@@ -174,13 +194,28 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
     if ("error" in decoded) return decoded.error;
     const d = decoded.value;
 
-    if (d.maxAmount !== BigInt(requirements.amount)) {
+    const requiredCeiling = parseIntegerAmount(requirements.amount);
+    if (requiredCeiling === null) {
+      return invalid(
+        "invalid_payment_requirements",
+        d.from,
+        `requirements.amount (${String(requirements.amount)}) is not an integer.`,
+      );
+    }
+    if (d.maxAmount !== requiredCeiling) {
       return invalid(
         "invalid_upto_stellar_payload_wrong_max_amount",
         d.from,
         `The signed ceiling is ${d.maxAmount} but the requirements ask to authorize ${requirements.amount}. At verification time these must match exactly.`,
       );
     }
+
+    // Structural authorization check before any RPC: closes the zero-auth gap (a zero-auth payload
+    // simulates successfully in recording mode, so simulation alone is not a signature check) and is
+    // unit-testable without a ledger. The signature-presence and expiration checks that need the
+    // simulation run below in `validateAuthEntries`.
+    const structuralAuthError = this.structuralAuthCheck(d.invokeOp);
+    if (structuralAuthError) return invalid(structuralAuthError, d.from);
 
     try {
       const server = getRpcClient(requirements.network, this.options.rpcConfig);
@@ -220,6 +255,12 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
         }
         return invalid("invalid_upto_stellar_payload_simulation_failed", d.from);
       }
+
+      // Signature-presence and expiration, which need the simulated ledger. Together with the
+      // pre-RPC structural check above this means a payload signed by nobody now fails
+      // instead of verifying as valid.
+      const authError = this.validateAuthEntries(d, sequence + maxLedgers, sim);
+      if (authError) return authError;
     } catch (error) {
       return invalid(
         "unexpected_verify_error",
@@ -263,7 +304,14 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
 
     // Re-verify against the SIGNED CEILING, never against requirements.amount. Comparing the
     // signature to the metered amount would reject every partial settlement.
-    const actual = BigInt(requirements.amount);
+    const actual = parseIntegerAmount(requirements.amount);
+    if (actual === null) {
+      return fail(
+        "invalid_payment_requirements",
+        d.from,
+        `requirements.amount (${String(requirements.amount)}) is not an integer.`,
+      );
+    }
     if (actual < 0n) {
       return fail("invalid_upto_stellar_payload_settlement_exceeds_amount", d.from, "A negative settlement amount is not permitted.");
     }
@@ -274,6 +322,12 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
         `Attempted to settle ${actual} against a client-authorized ceiling of ${d.maxAmount}. The contract would reject this on-ledger; refusing here.`,
       );
     }
+
+    // A zero-auth payload would simulate in recording mode and submit a doomed transaction that
+    // burns the operator's sponsored fee. Reject it before any RPC. Positioned after the amount
+    // checks so a wrong-amount settle still reports the wrong-amount reason.
+    const structuralAuthError = this.structuralAuthCheck(d.invokeOp);
+    if (structuralAuthError) return fail(structuralAuthError, d.from);
 
     // A zero charge still goes on-ledger, and deliberately so.
     //
@@ -493,19 +547,92 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
     }
 
     // The echoed convenience fields are never authoritative — reject any disagreement with the XDR.
-    if (raw.maxAmount !== undefined && BigInt(raw.maxAmount) !== maxAmount) {
-      return {
-        error: invalid(
-          "invalid_upto_stellar_payload_malformed",
-          from,
-          `payload.maxAmount (${raw.maxAmount}) disagrees with the signed transaction (${maxAmount}). The transaction is authoritative.`,
-        ),
-      };
+    // Parse defensively: `raw.maxAmount` is attacker-controlled and `BigInt()` throws on a
+    // non-integer string, which `decode` (outside the try block) would turn into a retryable 500.
+    if (raw.maxAmount !== undefined) {
+      const echoed = parseIntegerAmount(raw.maxAmount);
+      if (echoed === null) {
+        return {
+          error: invalid(
+            "invalid_upto_stellar_payload_malformed",
+            from,
+            `payload.maxAmount (${String(raw.maxAmount)}) is not an integer amount.`,
+          ),
+        };
+      }
+      if (echoed !== maxAmount) {
+        return {
+          error: invalid(
+            "invalid_upto_stellar_payload_malformed",
+            from,
+            `payload.maxAmount (${echoed}) disagrees with the signed transaction (${maxAmount}). The transaction is authoritative.`,
+          ),
+        };
+      }
     }
 
     return {
       value: { transaction, invokeOp, contract, token, from, to, maxAmount, expirationLedger, nonceHex },
     };
+  }
+
+  /**
+   * Structural authorization-entry checks that need no ledger, run before any RPC in both `verify`
+   * and `settle`. The load-bearing one is non-emptiness: a payload with zero auth entries simulates
+   * successfully in recording mode, so without this `/verify` returned `isValid: true` for a payload
+   * signed by nobody and `/settle` would submit a doomed transaction that burns the
+   * operator's sponsored fee. Returns the error code, or `undefined` if the entries are sound.
+   */
+  private structuralAuthCheck(invokeOp: Operation.InvokeHostFunction): ErrorCode | undefined {
+    const auth = invokeOp.auth ?? [];
+    if (auth.length === 0) {
+      return "invalid_exact_stellar_payload_no_auth_entries";
+    }
+    for (const entry of auth) {
+      if (entry.credentials().switch() !== xdr.SorobanCredentialsType.sorobanCredentialsAddress()) {
+        return "invalid_exact_stellar_payload_unsupported_credential_type";
+      }
+      const authAddress = Address.fromScAddress(entry.credentials().address().address()).toString();
+      if (this.addresses.has(authAddress)) {
+        return "invalid_exact_stellar_payload_facilitator_in_auth";
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * The ledger-dependent half of authorization validation, run after a successful simulation.
+   *
+   * `@x402/stellar`'s exact scheme validates auth entries in `validateAuthEntries`; `upto` is our own
+   * code and previously skipped it, establishing authorization from `Api.isSimulationSuccess` alone —
+   * which is NOT a signature check, because an empty auth tree simulates in recording mode and
+   * succeeds. The structural checks (present, address credentials, no facilitator in the
+   * tree) run before the RPC in `structuralAuthCheck`; here we add the two that need the simulated
+   * ledger: the auth-entry signature has not expired, and the payer actually signed. We deliberately
+   * do NOT reject sub-invocations — the legitimate `upto` tree carries the token `approve` as a
+   * sub-invocation of `settle` (see `client.ts`), where the exact scheme's single `transfer` never
+   * has one.
+   */
+  private validateAuthEntries(
+    d: DecodedSettle,
+    maxLedger: number,
+    sim: Api.SimulateTransactionResponse,
+  ): VerifyResponse | undefined {
+    // Every entry is an address credential by construction (checked in `structuralAuthCheck`), so
+    // `.address()` is safe.
+    for (const entry of d.invokeOp.auth ?? []) {
+      if (entry.credentials().address().signatureExpirationLedger() > maxLedger) {
+        return invalid("invalid_exact_stellar_signature_expiration_too_far", d.from);
+      }
+    }
+    // Signature-presence is the load-bearing check: an unsigned entry has a void signature and lands
+    // in `pendingSignature`, so requiring the payer in `alreadySigned` rejects a payload that
+    // carries an entry structurally but was never signed.
+    const status = gatherAuthEntrySignatureStatus({ transaction: d.transaction, simulationResponse: sim });
+    if (!status.alreadySigned.includes(d.from)) {
+      return invalid("invalid_exact_stellar_payload_missing_payer_signature", d.from);
+    }
+    return undefined;
   }
 
   /**

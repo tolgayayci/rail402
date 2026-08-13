@@ -1,12 +1,11 @@
 import { describe, it, expect } from "vitest";
-import type {
-  Operation} from "@stellar/stellar-sdk";
 import {
   Address,
   BASE_FEE,
   Contract,
   Keypair,
   Networks,
+  Operation,
   TransactionBuilder,
   nativeToScVal,
   scValToNative,
@@ -33,6 +32,34 @@ const signer = {
   signTransaction: async () => ({ signedTxXdr: "" }) as never,
 };
 
+/**
+ * A structurally-valid Soroban authorization entry for `from`. Unsigned (void signature): enough to
+ * pass the pre-RPC structural check (`structuralAuthCheck`) so a test can reach the ledger-dependent
+ * logic, but not the signature-presence check, which needs a real simulation.
+ */
+function dummyAuthEntry(from: string): xdr.SorobanAuthorizationEntry {
+  return new xdr.SorobanAuthorizationEntry({
+    credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
+      new xdr.SorobanAddressCredentials({
+        address: new Address(from).toScAddress(),
+        nonce: xdr.Int64.fromString("1"),
+        signatureExpirationLedger: 100,
+        signature: xdr.ScVal.scvVoid(),
+      }),
+    ),
+    rootInvocation: new xdr.SorobanAuthorizedInvocation({
+      function: xdr.SorobanAuthorizedFunction.sorobanAuthorizedFunctionTypeContractFn(
+        new xdr.InvokeContractArgs({
+          contractAddress: new Address(CONTRACT).toScAddress(),
+          functionName: SETTLE_FN,
+          args: [],
+        }),
+      ),
+      subInvocations: [],
+    }),
+  });
+}
+
 /** Build a `settle` invocation. Only structure matters here — no network access. */
 function buildSettleTx(over: Partial<{
   contract: string;
@@ -45,6 +72,7 @@ function buildSettleTx(over: Partial<{
   txSource: string;
   argCount: number;
   fnName: string;
+  withPayerAuth: boolean;
 }> = {}) {
   const account = { accountId: () => over.txSource ?? source.publicKey(), sequenceNumber: () => "1", incrementSequenceNumber: () => {} };
   const c = new Contract(over.contract ?? CONTRACT);
@@ -59,8 +87,17 @@ function buildSettleTx(over: Partial<{
     xdr.ScVal.scvVoid(), // hook: None
   ].slice(0, over.argCount ?? 8);
 
-  return new TransactionBuilder(account as never, { fee: BASE_FEE, networkPassphrase: PASS })
+  const tx = new TransactionBuilder(account as never, { fee: BASE_FEE, networkPassphrase: PASS })
     .addOperation(c.call(over.fnName ?? SETTLE_FN, ...args))
+    .setTimeout(60)
+    .build();
+  if (!over.withPayerAuth) return tx;
+
+  // Re-emit the operation with a (dummy) authorization entry for the payer so a test can get past
+  // the structural auth check and exercise the ledger-dependent path.
+  const op = tx.operations[0] as Operation.InvokeHostFunction;
+  return new TransactionBuilder(account as never, { fee: BASE_FEE, networkPassphrase: PASS })
+    .addOperation(Operation.invokeHostFunction({ func: op.func, auth: [dummyAuthEntry(over.from ?? payer.publicKey())] }))
     .setTimeout(60)
     .build();
 }
@@ -157,7 +194,7 @@ describe("structural validation", () => {
     // single-use guarantee stops holding. Validity is bounded by
     // `maxTimeoutSeconds`; this is that bound.
     const r = await verifyStructure(
-      payload(buildSettleTx({ expirationLedger: 999_999_999 })),
+      payload(buildSettleTx({ expirationLedger: 999_999_999, withPayerAuth: true })),
       requirements({ maxTimeoutSeconds: 60 }),
     );
     expect(r.isValid).toBe(false);
@@ -320,5 +357,50 @@ Event log (newest first):
     const { isReplayForTest } = await import("./facilitator.js");
     expect(isReplayForTest("HostError: Error(Contract, #10)")).toBe(false);
     expect(isReplayForTest("")).toBe(false);
+  });
+});
+
+describe("authorization-entry validation", () => {
+  // The critical defect this closes: `verify` established authorization from a successful simulation
+  // alone, but a transaction with NO auth entries simulates in RECORDING mode and succeeds — so a
+  // payload signed by nobody returned `isValid: true` in production. `buildSettleTx()` attaches no
+  // auth, so these are exactly that payload; the structural check runs before any RPC.
+  it("rejects a payload with no authorization entries at VERIFY, before any RPC", async () => {
+    const r = await verifyStructure(payload(buildSettleTx({ maxAmount: 1_000_000n })), requirements());
+    expect(r.isValid).toBe(false);
+    expect(r.invalidReason).toBe("invalid_exact_stellar_payload_no_auth_entries");
+    expect(r.invalidMessage!.length).toBeGreaterThan(0);
+  });
+
+  it("rejects a no-auth payload at SETTLE before submitting a fee-burning transaction", async () => {
+    const res = await scheme.settle(payload(buildSettleTx({ maxAmount: 1_000_000n })), requirements({ amount: "250000" }));
+    expect(res.success).toBe(false);
+    expect(res.errorReason).toBe("invalid_exact_stellar_payload_no_auth_entries");
+  });
+
+  it("passes the structural check once a payer authorization entry is present", async () => {
+    // With a (dummy, unsigned) address-credential entry for the payer, the structural check no longer
+    // rejects: the flow proceeds to the ledger-dependent checks, so the reason is no longer no-auth.
+    const r = await verifyStructure(payload(buildSettleTx({ maxAmount: 1_000_000n, withPayerAuth: true })), requirements());
+    expect(r.invalidReason).not.toBe("invalid_exact_stellar_payload_no_auth_entries");
+  });
+});
+
+describe("amount parsing never throws a retryable 500", () => {
+  it("rejects a non-integer echoed payload.maxAmount with a coded reason, not a thrown 500", async () => {
+    for (const bad of ["NaN", "1e9", "10.5"]) {
+      const r = await verifyStructure(payload(buildSettleTx({ maxAmount: 1_000_000n }), { maxAmount: bad }), requirements());
+      expect(r.isValid).toBe(false);
+      expect(r.invalidReason).toBe("invalid_upto_stellar_payload_malformed");
+      expect(r.invalidMessage).toMatch(/not an integer/i);
+    }
+  });
+
+  it("rejects a non-integer requirements.amount instead of throwing, at verify and settle", async () => {
+    const v = await verifyStructure(payload(buildSettleTx()), requirements({ amount: "NaN" }));
+    expect(v.invalidReason).toBe("invalid_payment_requirements");
+    const s = await scheme.settle(payload(buildSettleTx()), requirements({ amount: "1e9" }));
+    expect(s.success).toBe(false);
+    expect(s.errorReason).toBe("invalid_payment_requirements");
   });
 });
