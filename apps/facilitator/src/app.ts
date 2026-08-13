@@ -71,6 +71,19 @@ interface Counters {
 export function createApp({ config, startedAt, persistence }: AppDeps) {
   const { facilitator, signerAddresses, feeBumpAddress } = buildFacilitator(config);
 
+  // The schemes this facilitator actually serves on a network, derived from the same source as
+  // `/supported`, so an `unsupported_scheme` rejection can never contradict what is advertised
+  // (the old payload hardcoded `["exact"]` while `/supported` advertised `upto` too).
+  const supportedSchemesFor = (network: string | undefined): string[] => {
+    try {
+      return (facilitator.getSupported().kinds as { scheme: string; network: string }[])
+        .filter(k => k.network === network)
+        .map(k => k.scheme);
+    } catch {
+      return [];
+    }
+  };
+
   // Bazaar co-deployed in-process. The module boundary stays clean (it is a separate package with
   // its own service entrypoint), but running it here means cataloging needs no network hop and the
   // seller gets the EXTENSION-RESPONSES verdict on the same response that settled their payment.
@@ -339,6 +352,7 @@ export function createApp({ config, startedAt, persistence }: AppDeps) {
         parsed.paymentRequirements,
         config,
         "unexpected_verify_error",
+        supportedSchemesFor,
       );
       countRejection(payload.code);
       return c.json(payload, status);
@@ -390,6 +404,7 @@ export function createApp({ config, startedAt, persistence }: AppDeps) {
         parsed.paymentRequirements,
         config,
         "unexpected_settle_error",
+        supportedSchemesFor,
       );
       countRejection(payload.code);
       return c.json(payload, status);
@@ -580,6 +595,7 @@ function classifyFacilitatorThrow(
   requirements: PaymentRequirements | undefined,
   config: FacilitatorConfig,
   fallback: "unexpected_verify_error" | "unexpected_settle_error",
+  supportedSchemesFor: (network: string | undefined) => string[],
 ): { payload: ReturnType<typeof createError>; status: 400 | 500 } {
   const message = asMessage(error);
 
@@ -605,10 +621,14 @@ function classifyFacilitatorThrow(
         status: 400,
       };
     }
+    const schemes = supportedSchemesFor(network);
     return {
       payload: createError("unsupported_scheme", {
-        reason: `Scheme ${requirements?.scheme ?? "(unspecified)"} is not supported on ${network}. This facilitator implements the "exact" scheme.`,
-        details: { network, supportedSchemes: ["exact"] },
+        reason:
+          schemes.length > 0
+            ? `Scheme ${requirements?.scheme ?? "(unspecified)"} is not supported on ${network}. This facilitator implements: ${schemes.map(s => `"${s}"`).join(", ")}.`
+            : `Scheme ${requirements?.scheme ?? "(unspecified)"} is not supported on ${network}.`,
+        details: { network, supportedSchemes: schemes },
       }),
       status: 400,
     };
