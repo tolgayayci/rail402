@@ -61,12 +61,19 @@ export class EnrichedExactStellarScheme implements SchemeNetworkFacilitator {
   }
 
   async verify(payload: PaymentPayload, requirements: PaymentRequirements): Promise<VerifyResponse> {
+    // Guard the XDR decode before upstream touches it. A base64-valid-but-undecodable transaction
+    // ("AAAA") slips past upstream's base64 gate and TypeErrors on an unguarded read inside
+    // `@x402/stellar`, which on settle escaped as an HTTP 500 with a raw V8 message and
+    // `retryable: true` — an agent honoring that contract loops forever. Return the
+    // registered malformed code instead, on both surfaces.
+    if (this.isTransactionUndecodable(payload, requirements)) return this.malformedVerify();
     const response = await this.upstream.verify(payload, requirements);
     if (response.isValid) return response;
     return this.enrichVerify(response, payload, requirements);
   }
 
   async settle(payload: PaymentPayload, requirements: PaymentRequirements): Promise<SettleResponse> {
+    if (this.isTransactionUndecodable(payload, requirements)) return this.malformedSettle(payload);
     const response = await this.upstream.settle(payload, requirements);
     if (response.success) return response;
 
@@ -95,6 +102,50 @@ export class EnrichedExactStellarScheme implements SchemeNetworkFacilitator {
       // `retryable` has no field anywhere in the spec or the SDK, so it rides in `extra`. An agent
       // that cannot tell "retry this" from "never retry this" turns one bad request into a loop.
       extra: { ...(response.extra ?? {}), reason: enriched.reason, retryable: enriched.retryable },
+    } as SettleResponse;
+  }
+
+  /**
+   * Whether the payload's transaction cannot be decoded. Upstream throws a bare `TypeError` on this
+   * rather than returning a coded rejection, so we detect it up front. Degrades to `false` (let
+   * upstream reject the bad network with its own code) if the network passphrase is unusable — that
+   * is `invalid_network`, not a malformed transaction.
+   */
+  private isTransactionUndecodable(payload: PaymentPayload, requirements: PaymentRequirements): boolean {
+    const raw = (payload.payload as { transaction?: unknown } | undefined)?.transaction;
+    // A missing/non-string transaction is a different concern (the envelope schema and upstream
+    // structural validation own it); we only guard a PRESENT string that fails to decode, which is
+    // the case that reaches upstream's unguarded read and 500s.
+    if (typeof raw !== "string") return false;
+    let passphrase: string;
+    try {
+      passphrase = getNetworkPassphrase(requirements.network);
+    } catch {
+      return false;
+    }
+    try {
+      // Throws (XdrReaderError) on a base64-valid-but-invalid transaction envelope.
+      const decoded = new Transaction(raw, passphrase);
+      return decoded == null;
+    } catch {
+      return true;
+    }
+  }
+
+  private malformedVerify(): VerifyResponse {
+    const e = createError("invalid_exact_stellar_payload_malformed");
+    return { isValid: false, invalidReason: e.code, invalidMessage: e.reason };
+  }
+
+  private malformedSettle(payload: PaymentPayload): SettleResponse {
+    const e = createError("invalid_exact_stellar_payload_malformed");
+    return {
+      success: false,
+      network: payload.accepted.network,
+      transaction: "",
+      errorReason: e.code,
+      errorMessage: e.reason,
+      extra: { reason: e.reason, retryable: e.retryable },
     } as SettleResponse;
   }
 

@@ -126,3 +126,31 @@ describe("EnrichedExactStellarScheme — non-null reason enrichment", () => {
     expect(extra.reason).toBeTruthy();
   });
 });
+
+describe("EnrichedExactStellarScheme — undecodable transaction guard", () => {
+  // A base64-valid-but-undecodable transaction ("AAAA") slips past upstream's base64 gate and makes
+  // upstream TypeError on an unguarded read, which on settle escaped as a retryable HTTP 500 with a
+  // raw V8 message — an agent honoring that `retryable` contract loops forever. The guard returns the
+  // registered malformed code on both surfaces, and fires BEFORE upstream, so the fake upstream's
+  // success response is never reached.
+  const badPayload = {
+    x402Version: 2,
+    accepted: { scheme: "exact", network: "stellar:testnet" },
+    payload: { transaction: "AAAA" },
+  } as unknown as PaymentPayload;
+
+  it("returns a coded malformed rejection at verify, not an unexpected error", async () => {
+    const r = await make().verify(badPayload, requirements);
+    expect(r.isValid).toBe(false);
+    expect(r.invalidReason).toBe("invalid_exact_stellar_payload_malformed");
+    expect(r.invalidMessage!.length).toBeGreaterThan(0);
+  });
+
+  it("returns a coded, NON-retryable malformed rejection at settle, not a 500", async () => {
+    const r = await make().settle(badPayload, requirements);
+    expect(r.success).toBe(false);
+    expect(r.errorReason).toBe("invalid_exact_stellar_payload_malformed");
+    expect((r as { errorMessage?: string }).errorMessage!.length).toBeGreaterThan(0);
+    expect((r as { extra?: { retryable?: boolean } }).extra?.retryable).toBe(false);
+  });
+});
