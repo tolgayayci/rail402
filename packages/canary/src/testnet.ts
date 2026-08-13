@@ -48,13 +48,43 @@ const setupFailure = (reason: string, details?: Record<string, unknown>): X402Er
   });
 
 export async function friendbotFund(kp: Keypair): Promise<void> {
-  const response = await fetch(`${HORIZON_URL}/friendbot?addr=${kp.publicKey()}`);
-  if (!response.ok) {
+  // Testnet friendbot is intermittently unavailable (observed 200, a 307 redirect, and 500 within the
+  // same minute), so one call is not a reliable fund. Retry with backoff before declaring testnet
+  // funding down. Pure setup robustness — it changes nothing about what the facilitator is measured on.
+  let lastStatus = 0;
+  let funded = false;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    if (attempt > 0) await sleep(2500);
+    const response = await fetch(`${HORIZON_URL}/friendbot?addr=${kp.publicKey()}`).catch(() => null);
+    if (response?.ok || response?.status === 400) {
+      funded = true; // 400 is friendbot's "account already exists" — funded is funded.
+      break;
+    }
+    lastStatus = response?.status ?? 0;
+  }
+  if (!funded) {
     throw setupFailure(
-      `Friendbot refused to fund ${kp.publicKey()} (HTTP ${response.status}). Testnet funding is unavailable, so this run proves nothing about the facilitator.`,
-      { account: kp.publicKey(), status: response.status },
+      `Friendbot could not fund ${kp.publicKey()} after 8 attempts (last HTTP ${lastStatus}). Testnet funding is unavailable right now, so this run proves nothing about the facilitator.`,
+      { account: kp.publicKey(), status: lastStatus },
     );
   }
+  // Friendbot funds via Horizon, but the Soroban RPC indexes accounts separately and lags — more so
+  // now that friendbot 307-redirects and takes several seconds. The next setup step calls
+  // `server.getAccount`, so wait until the funded account is actually visible on the RPC rather than
+  // racing it. Racing it is exactly the "Account not found" that aborts a run in its own setup,
+  // before it ever reaches the facilitator.
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const visible = await server
+      .getAccount(kp.publicKey())
+      .then(() => true)
+      .catch(() => false);
+    if (visible) return;
+    await sleep(1000);
+  }
+  throw setupFailure(
+    `Friendbot accepted funding for ${kp.publicKey()} but it never appeared on the Soroban RPC (testnet indexing lag).`,
+    { account: kp.publicKey() },
+  );
 }
 
 /** Submit a signed classic transaction. Exported so canaries can move ledger state deliberately. */
@@ -74,7 +104,7 @@ export async function submitClassic(
 }
 
 async function awaitTransaction(hash: string): Promise<void> {
-  for (let attempt = 0; attempt < 30; attempt++) {
+  for (let attempt = 0; attempt < 60; attempt++) {
     await sleep(1000);
     const got = await server.getTransaction(hash).catch(() => null);
     if (got?.status === "SUCCESS") return;
@@ -82,7 +112,7 @@ async function awaitTransaction(hash: string): Promise<void> {
       throw setupFailure(`Setup transaction ${hash} failed on-ledger.`, { hash });
     }
   }
-  throw setupFailure(`Setup transaction ${hash} did not confirm within 30 seconds.`, { hash });
+  throw setupFailure(`Setup transaction ${hash} did not confirm within 60 seconds.`, { hash });
 }
 
 /**
@@ -125,7 +155,11 @@ export async function prepareFixtures(assetCode: string): Promise<Fixtures> {
   const buyer = Keypair.random();
   const seller = Keypair.random();
 
-  await Promise.all([friendbotFund(issuer), friendbotFund(buyer), friendbotFund(seller)]);
+  // Sequential, not concurrent: three simultaneous friendbot calls are what tip an already-flaky
+  // testnet friendbot into 429/500. One at a time is slower but far likelier to complete.
+  await friendbotFund(issuer);
+  await friendbotFund(buyer);
+  await friendbotFund(seller);
 
   const asset = new Asset(assetCode, issuer.publicKey());
   await deployAssetContract(issuer, asset);
