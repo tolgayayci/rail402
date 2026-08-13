@@ -1,0 +1,19 @@
+{
+  "name": "rail402-demo-seller",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "A public, USDC-priced x402 demo seller for the Rail402 live Bazaar.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.5",
+    "@x402/core": "2.20.0",
+    "@x402/extensions": "2.20.0",
+    "@x402/hono": "2.20.0",
+    "@x402/stellar": "2.20.0",
+    "hono": "^4.12.0"
+  }
+}
