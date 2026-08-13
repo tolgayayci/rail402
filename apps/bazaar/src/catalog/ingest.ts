@@ -11,6 +11,7 @@ import type { DomainVerdict } from "./domain.js";
 import { identifyStellarAsset } from "./stellar-assets.js";
 import type { TrustlineVerdict } from "./trustline.js";
 import type { CatalogAccepts, CatalogEntry, ResourceType } from "./types.js";
+import { budgetClientSchema } from "./schema-budget.js";
 
 /**
  * Automatic cataloging — the facilitator is a trust boundary.
@@ -169,6 +170,19 @@ export function ingest(input: IngestInput): CatalogOutcome {
       "bazaar_unsupported_input_type",
       `Discovery extension failed protocol validation: ${specResult.errors?.join("; ")}`,
       { errors: specResult.errors },
+    );
+  }
+
+  // Budget the client-supplied schema before the stock validator compiles it with Ajv
+  // (`new Function(...)`): a crafted `pattern` like `^(a+)+$` would make cataloging a ReDoS on a
+  // free, unauthenticated endpoint. Eval-free and structural; the stock validator still runs on
+  // everything that passes, so verdicts stay in sync with other facilitators.
+  const schemaBudget = budgetClientSchema((bazaar as Record<string, unknown>)["schema"]);
+  if (!schemaBudget.ok) {
+    return reject(
+      "bazaar_info_schema_validation_failed",
+      `The declared schema was rejected before validation: ${schemaBudget.reason}.`,
+      { schemaBudget: schemaBudget.reason },
     );
   }
 
