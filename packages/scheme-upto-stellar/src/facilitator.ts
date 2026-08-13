@@ -16,7 +16,7 @@ import {
   type FacilitatorStellarSigner,
   type RpcConfig,
 } from "@x402/stellar";
-import { createError, type ErrorCode } from "@x402-stellar/errors";
+import { createError, type ErrorCode } from "@rail402/errors";
 import type {
   Network,
   PaymentPayload,

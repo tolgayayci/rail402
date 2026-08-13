@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { X402Error } from "@x402-stellar/errors";
+import { X402Error } from "@rail402/errors";
 import { fundedSigner, sleep } from "./testnet.js";
 
 /**
@@ -47,7 +47,7 @@ export async function spawnFacilitator(port: number): Promise<SpawnedFacilitator
 
   const child: ChildProcess = spawn(
     "pnpm",
-    ["--filter", "@x402-stellar/facilitator", "exec", "tsx", "src/index.ts"],
+    ["--filter", "@rail402/facilitator", "exec", "tsx", "src/index.ts"],
     {
       cwd: root,
       env: {

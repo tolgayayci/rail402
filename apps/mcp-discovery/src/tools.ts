@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createError, type ErrorCode } from "@x402-stellar/errors";
+import { createError, type ErrorCode } from "@rail402/errors";
 
 /**
  * The two agent-facing tools, defined independently of any transport so they can be unit-tested
@@ -246,8 +246,8 @@ export {
   priceable,
   NO_REDIRECT,
   type PricedOption,
-} from "@x402-stellar/agent-helpers";
-import { withinBudget, byAmountAscending, priceable, type PricedOption } from "@x402-stellar/agent-helpers";
+} from "@rail402/agent-helpers";
+import { withinBudget, byAmountAscending, priceable, type PricedOption } from "@rail402/agent-helpers";
 
 // ── Stellar asset identity ───────────────────────────────────────────────────
 //
@@ -261,7 +261,7 @@ export {
   formatAtomicAmount,
   type AssetIdentity,
   type TrustlinePreflight,
-} from "@x402-stellar/agent-helpers";
+} from "@rail402/agent-helpers";
 
 /**
  * Pick the cheapest option the agent can actually pay: a Stellar network, within budget.

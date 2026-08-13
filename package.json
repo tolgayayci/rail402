@@ -1,5 +1,5 @@
 {
-  "name": "x402-stellar-facilitator",
+  "name": "rail402",
   "private": true,
   "license": "Apache-2.0",
   "description": "Production x402 facilitator for Stellar with a Stellar-native Bazaar discovery layer and agent-facing MCP discovery server.",
@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "canary": "pnpm --filter @x402-stellar/canary exec tsx src/cli.ts",
+    "canary": "pnpm --filter @rail402/canary exec tsx src/cli.ts",
     "conformance": "node packages/conformance/bin/conformance.mjs",
     "license:gate": "node scripts/license-gate.mjs",
     "license:report": "node scripts/license-gate.mjs --report",

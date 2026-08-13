@@ -13,9 +13,9 @@ RUN pnpm install --frozen-lockfile
 
 COPY packages/errors packages/errors
 COPY apps/facilitator apps/facilitator
-RUN pnpm --filter @x402-stellar/errors build \
- && pnpm --filter @x402-stellar/facilitator build \
- && pnpm deploy --filter @x402-stellar/facilitator --prod /out
+RUN pnpm --filter @rail402/errors build \
+ && pnpm --filter @rail402/facilitator build \
+ && pnpm deploy --filter @rail402/facilitator --prod /out
 
 FROM node:22-alpine AS runtime
 WORKDIR /app

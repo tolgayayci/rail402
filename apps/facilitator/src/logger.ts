@@ -14,5 +14,5 @@ import { pino } from "pino";
  * redacted `describeConfig` view reaches the startup line.
  */
 export function createLogger(level: string) {
-  return pino({ level, base: { service: "x402-stellar-facilitator" } });
+  return pino({ level, base: { service: "rail402-facilitator" } });
 }

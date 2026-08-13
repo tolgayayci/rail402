@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Keypair } from "@stellar/stellar-sdk";
-import { X402Error } from "@x402-stellar/errors";
-import type { FederationSource } from "@x402-stellar/bazaar";
+import { X402Error } from "@rail402/errors";
+import type { FederationSource } from "@rail402/bazaar";
 
 /**
  * 12-factor configuration with fail-fast validation.

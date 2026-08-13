@@ -1,4 +1,4 @@
-import type { ErrorCode } from "@x402-stellar/errors";
+import type { ErrorCode } from "@rail402/errors";
 
 /**
  * Classify a Soroban simulation failure into an actionable error code.

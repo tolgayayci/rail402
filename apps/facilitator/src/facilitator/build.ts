@@ -4,7 +4,7 @@ import { ExactStellarScheme } from "@x402/stellar/exact/facilitator";
 import type { Network } from "@x402/core/types";
 import type { FacilitatorConfig } from "../config/env.js";
 import { EnrichedExactStellarScheme } from "./scheme.js";
-import { UptoStellarFacilitatorScheme, uptoContractFor } from "@x402-stellar/scheme-upto-stellar";
+import { UptoStellarFacilitatorScheme, uptoContractFor } from "@rail402/scheme-upto-stellar";
 
 /**
  * Assemble the facilitator from validated configuration.

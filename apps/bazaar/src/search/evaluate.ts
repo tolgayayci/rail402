@@ -114,7 +114,7 @@ function belowThresholds(metrics: Metrics, thresholds: Record<string, number>): 
     .map(([key]) => key);
 }
 
-// CLI: `pnpm --filter @x402-stellar/bazaar eval`
+// CLI: `pnpm --filter @rail402/bazaar eval`
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop() ?? " ")) {
   console.log(
     `held-out corpus: ${HELD_OUT_SOURCE.entries} real resources from ${HELD_OUT_SOURCE.source}` +

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
 import { createApp } from "./app.js";
 import { loadConfig, type FacilitatorConfig } from "./config/env.js";
-import { previewCataloging } from "@x402-stellar/bazaar";
+import { previewCataloging } from "@rail402/bazaar";
 
 /**
  * HTTP-surface tests. These never touch the network: every assertion here is about wire shape,

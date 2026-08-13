@@ -2,7 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { Keypair } from "@stellar/stellar-sdk";
 import { USDC_TESTNET_ADDRESS } from "@x402/stellar";
-import { X402Error } from "@x402-stellar/errors";
+import { X402Error } from "@rail402/errors";
 import { CanaryRun, type CanaryReport } from "./report.js";
 import { callFacilitator, decodeExtensionResponses, reasonOf, stockBuyer } from "./payment.js";
 import { requireBazaarFacilitator } from "./supported.js";
@@ -247,7 +247,7 @@ export async function runStellarNative(options: StellarNativeOptions): Promise<C
     await run.step("trustline-missing-detected", async () => {
       const fresh = Keypair.random();
       await friendbotFund(fresh);
-      const { TrustlineChecker } = await import("@x402-stellar/bazaar");
+      const { TrustlineChecker } = await import("@rail402/bazaar");
       const verdict = await new TrustlineChecker().check(
         NETWORK,
         USDC_TESTNET_ADDRESS,

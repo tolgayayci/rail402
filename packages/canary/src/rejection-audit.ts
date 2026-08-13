@@ -1,5 +1,5 @@
 import { Asset, Keypair, Operation, Transaction, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
-import { ALL_ERROR_CODES, X402Error, type ErrorCode } from "@x402-stellar/errors";
+import { ALL_ERROR_CODES, X402Error, type ErrorCode } from "@rail402/errors";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import { CanaryRun, type CanaryReport } from "./report.js";
 import { callFacilitator, decodeExtensionResponses, postRaw, stockBuyer } from "./payment.js";

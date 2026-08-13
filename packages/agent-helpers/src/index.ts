@@ -2,7 +2,7 @@ import { x402Client } from "@x402/core/client";
 import { wrapFetchWithPayment } from "@x402/fetch";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
-import { createError, type ErrorCode } from "@x402-stellar/errors";
+import { createError, type ErrorCode } from "@rail402/errors";
 import {
   isPayableResourceUrl,
   parseAmount,

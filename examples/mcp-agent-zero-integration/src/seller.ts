@@ -4,7 +4,7 @@ import { paymentMiddleware } from "@x402/hono";
 import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
-import { describeEndpoint } from "@x402-stellar/seller-helpers";
+import { describeEndpoint } from "@rail402/seller-helpers";
 
 /**
  * The service the agent will discover.

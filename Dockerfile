@@ -21,7 +21,7 @@ COPY scripts ./scripts
 RUN pnpm install --frozen-lockfile --ignore-scripts
 # Turbo builds the facilitator's workspace dependencies too. This also runs copy-weights.mjs, which
 # is what puts the search embedding blob into dist — `tsc` does not copy a .bin.
-RUN pnpm --filter @x402-stellar/facilitator... build
+RUN pnpm --filter @rail402/facilitator... build
 
 FROM node:24-slim
 WORKDIR /app

@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { X402Error } from "@x402-stellar/errors";
+import { X402Error } from "@rail402/errors";
 import { CanaryRun, type CanaryReport } from "./report.js";
 import { requireBazaarFacilitator } from "./supported.js";
 import {

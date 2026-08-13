@@ -1,6 +1,6 @@
 # Cloudflare Workers deployment for the x402 Stellar facilitator.
 #
-#   pnpm --filter @x402-stellar/facilitator deploy:worker
+#   pnpm --filter @rail402/facilitator deploy:worker
 #
 # Verified 2026-08-06 against a real deployment: bundles to 2,685 KiB / 595 KiB gzipped and serves
 # /health, /supported, /verify and /settle under workerd, including real Stellar keypair loading.
@@ -13,7 +13,7 @@
 # ephemeral, so listings do not survive between requests. The facilitator endpoints (/verify,
 # /settle, /supported) are stateless and unaffected.
 
-name = "x402-stellar-facilitator"
+name = "rail402-facilitator"
 main = "dist/worker.js"
 compatibility_date = "2026-01-01"
 

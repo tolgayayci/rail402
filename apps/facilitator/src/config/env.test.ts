@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
-import { X402Error } from "@x402-stellar/errors";
+import { X402Error } from "@rail402/errors";
 import { loadConfig, describeConfig } from "./env.js";
 
 const SECRET = Keypair.random().secret();

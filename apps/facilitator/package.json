@@ -1,5 +1,5 @@
 {
-  "name": "@x402-stellar/facilitator",
+  "name": "@rail402/facilitator",
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
@@ -26,7 +26,7 @@
     "build:worker": "tsc -p tsconfig.json && npx --yes wrangler@4 deploy --dry-run --outdir=.wrangler/preview"
   },
   "dependencies": {
-    "@x402-stellar/errors": "workspace:*",
+    "@rail402/errors": "workspace:*",
     "@x402/core": "2.20.0",
     "@x402/stellar": "2.20.0",
     "@stellar/stellar-sdk": "^16.2.0",
@@ -34,8 +34,8 @@
     "hono": "^4.12.0",
     "pino": "^10.3.1",
     "zod": "^4.4.3",
-    "@x402-stellar/bazaar": "workspace:*",
-    "@x402-stellar/scheme-upto-stellar": "workspace:*"
+    "@rail402/bazaar": "workspace:*",
+    "@rail402/scheme-upto-stellar": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.21.0",

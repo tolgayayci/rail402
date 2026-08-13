@@ -1,5 +1,5 @@
 import { Horizon } from "@stellar/stellar-sdk";
-import { createError, type ErrorCode } from "@x402-stellar/errors";
+import { createError, type ErrorCode } from "@rail402/errors";
 import {
   validateStellarAssetAddress,
   validateStellarDestinationAddress,

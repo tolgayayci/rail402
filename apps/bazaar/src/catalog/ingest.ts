@@ -5,7 +5,7 @@ import {
   validateDiscoveryExtension,
   validateDiscoveryExtensionSpec,
 } from "@x402/extensions/bazaar";
-import { createError, type ErrorCode, type X402ErrorPayload } from "@x402-stellar/errors";
+import { createError, type ErrorCode, type X402ErrorPayload } from "@rail402/errors";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import type { DomainVerdict } from "./domain.js";
 import { identifyStellarAsset } from "./stellar-assets.js";

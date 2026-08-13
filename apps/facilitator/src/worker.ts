@@ -1,7 +1,7 @@
 import { createApp } from "./app.js";
 import { loadConfig, type FacilitatorConfig } from "./config/env.js";
-import { X402Error } from "@x402-stellar/errors";
-import { D1CatalogPersistence, type D1Like } from "@x402-stellar/bazaar";
+import { X402Error } from "@rail402/errors";
+import { D1CatalogPersistence, type D1Like } from "@rail402/bazaar";
 
 /**
  * Cloudflare Workers entrypoint.

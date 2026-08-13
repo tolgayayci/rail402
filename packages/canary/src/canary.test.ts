@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Asset, Keypair } from "@stellar/stellar-sdk";
-import { X402Error } from "@x402-stellar/errors";
+import { X402Error } from "@rail402/errors";
 import { assetCodeFor } from "./discovery-loop.js";
 import { decodeExtensionResponses } from "./payment.js";
 import { CanaryRun, toPayload } from "./report.js";

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createError } from "@x402-stellar/errors";
+import { createError } from "@rail402/errors";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import type { CatalogStore } from "./catalog/store.js";
 import type { DomainVerifier } from "./catalog/domain.js";

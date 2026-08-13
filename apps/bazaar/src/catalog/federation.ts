@@ -1,4 +1,4 @@
-import { createError, type X402ErrorPayload, type ErrorCode } from "@x402-stellar/errors";
+import { createError, type X402ErrorPayload, type ErrorCode } from "@rail402/errors";
 import type { CatalogAccepts, CatalogEntry, ResourceProvenance, ResourceType } from "./types.js";
 
 /**

@@ -1,4 +1,4 @@
-import { X402Error } from "@x402-stellar/errors";
+import { X402Error } from "@rail402/errors";
 import { CanaryRun, type CanaryReport } from "./report.js";
 import { NETWORK } from "./testnet.js";
 
