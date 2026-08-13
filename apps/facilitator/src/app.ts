@@ -335,6 +335,7 @@ export function createApp({ config, startedAt, persistence }: AppDeps) {
             parsed.paymentRequirements,
             new Date().toISOString(),
             servedNetworks,
+            config.allowPrivateHosts,
           );
           if (header) c.header("EXTENSION-RESPONSES", header);
         } catch (provisionalError) {
@@ -387,6 +388,7 @@ export function createApp({ config, startedAt, persistence }: AppDeps) {
             servedNetworks,
             domains,
             trustlines,
+            config.allowPrivateHosts,
           );
           if (header) c.header("EXTENSION-RESPONSES", header);
         } catch (catalogError) {

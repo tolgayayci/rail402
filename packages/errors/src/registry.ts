@@ -441,6 +441,15 @@ export const ERROR_REGISTRY = {
     surface: "bazaar",
     provenance: "local",
   },
+  bazaar_resource_url_not_public: {
+    reason:
+      "The resource.url resolves to a loopback, private-range, or internal-only host, so it is not an endpoint an agent on the public internet could reach; it will not be cataloged.",
+    retryable: false,
+    surface: "bazaar",
+    provenance: "local",
+    remediation:
+      "Publish the resource under a publicly reachable https host. The live catalog exists so an agent can discover then pay a service it has never seen, which a private address defeats. For local development where the seller genuinely is on localhost, set BAZAAR_ALLOW_PRIVATE_HOSTS=1 on the facilitator — never on a hosted deployment.",
+  },
   bazaar_invalid_route_template: {
     reason:
       "The routeTemplate failed validation and was discarded; the concrete URL path was used instead.",

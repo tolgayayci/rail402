@@ -62,6 +62,11 @@ export async function spawnFacilitator(port: number): Promise<SpawnedFacilitator
         // that serves smart-account buyers (the oz-account canary does) must raise the cap. This is
         // a real deployment requirement, documented in the operator guide, not a test artifact.
         MAX_TRANSACTION_FEE_STROOPS: "500000",
+        // The synthetic sellers bind 127.0.0.1, and the catalog refuses loopback resource URLs by
+        // default (they are unreachable from the public internet and a stored SSRF target). A locally
+        // spawned facilitator is the one place that opt-in is correct — a hosted deployment never
+        // sets it. Without this, cataloging every canary listing would be rejected as a private host.
+        BAZAAR_ALLOW_PRIVATE_HOSTS: "1",
         LOG_LEVEL: "warn",
       },
       stdio: ["ignore", "pipe", "pipe"],

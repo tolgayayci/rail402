@@ -192,6 +192,11 @@ export function catalogSettledPayment(
    * the listing — delisting them would be a worse failure and a denial-of-listing lever.
    */
   trustlines?: TrustlineChecker,
+  /**
+   * Permit loopback / private-host `resource.url` values (local development only). Off by default:
+   * a hosted catalog must never list an endpoint no agent can reach. See `host-policy.ts`.
+   */
+  allowPrivateHosts?: boolean,
 ): string | undefined {
   if (!paymentPayload.extensions?.["bazaar"]) return undefined;
 
@@ -215,6 +220,7 @@ export function catalogSettledPayment(
     ...(knownTrustline === undefined ? {} : { trustlineVerdict: knownTrustline }),
     now,
     allowedNetworks,
+    allowPrivateHosts,
   });
 
   // Refresh in the background, whatever the outcome above. A rejected ownership challenge is
@@ -273,6 +279,7 @@ export function previewCataloging(
   paymentPayload: PaymentPayload,
   paymentRequirements: PaymentRequirements,
   allowedNetworks?: readonly string[],
+  allowPrivateHosts?: boolean,
 ): string | undefined {
   if (!paymentPayload.extensions?.["bazaar"]) return undefined;
 
@@ -282,6 +289,7 @@ export function previewCataloging(
     // No lookup: at verify nobody has paid yet, so there is no owner to compare against.
     now: new Date().toISOString(),
     allowedNetworks,
+    allowPrivateHosts,
   });
 
   return outcome.status === "rejected"
@@ -316,6 +324,7 @@ export function catalogProvisionalPayment(
   paymentRequirements: PaymentRequirements,
   now: string = new Date().toISOString(),
   allowedNetworks?: readonly string[],
+  allowPrivateHosts?: boolean,
 ): string | undefined {
   if (!paymentPayload.extensions?.["bazaar"]) return undefined;
 
@@ -326,6 +335,7 @@ export function catalogProvisionalPayment(
     // establishes no ownership, and settlement resolves any conflict (see `upsertProvisional`).
     now,
     allowedNetworks,
+    allowPrivateHosts,
   });
 
   if (outcome.status === "rejected") {

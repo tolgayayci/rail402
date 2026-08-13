@@ -109,6 +109,17 @@ const EnvSchema = z.object({
   SERVES_DISCOVERY: booleanish(true),
 
   /**
+   * Permit loopback / private-range / internal-only `resource.url` hosts in the catalog.
+   *
+   * Off by default, and it must stay off on any hosted deployment: a catalog that lists
+   * `http://127.0.0.1:*` or an instance-metadata address advertises endpoints no agent can reach and
+   * turns the agent surfaces into stored SSRF vectors (CURRENT_STATUS §6 P9). The opt-in exists only
+   * for local development, where the seller genuinely is on localhost — the canary sets it because
+   * its synthetic sellers bind 127.0.0.1.
+   */
+  BAZAAR_ALLOW_PRIVATE_HOSTS: booleanish(false),
+
+  /**
    * Other catalogs to mirror, as a JSON array of federation sources. Unset ⇒ federate nothing, which
    * is the default and the only safe one: mirroring republishes somebody else's data, so each source
    * must declare its licence, its attribution, and that a human has read its terms.
@@ -190,6 +201,8 @@ export interface FacilitatorConfig {
   readonly federationRefreshSeconds: number;
   /** Whether this deployment answers `/discovery/*`, and therefore may advertise `bazaar`. */
   readonly servesDiscovery: boolean;
+  /** Catalog loopback/private `resource.url` hosts. Local development only — never on a deployment. */
+  readonly allowPrivateHosts: boolean;
 }
 
 /**
@@ -323,6 +336,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacilitatorCon
     federationSources: Object.freeze(parseFederationSources(e.FEDERATION_SOURCES)),
     federationRefreshSeconds: e.FEDERATION_REFRESH_SECONDS,
     servesDiscovery: e.SERVES_DISCOVERY,
+    allowPrivateHosts: e.BAZAAR_ALLOW_PRIVATE_HOSTS,
   });
 }
 

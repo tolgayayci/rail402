@@ -286,6 +286,68 @@ describe("catalog integrity", () => {
     expect(out.status).toBe("rejected");
   });
 
+  // ── Loopback / private-host resource URLs are not payable by any agent (B6) ──
+  // The live catalog was 100% http://127.0.0.1:* canary residue that no agent could reach and the
+  // buyer surfaces refuse as SSRF (CURRENT_STATUS §6 P9). Catch it at ingest, the moment it arrives.
+  it("rejects a loopback resource URL with a coded, non-null reason", () => {
+    const out = doIngest(payload({ resource: { url: "http://127.0.0.1:4022/api" } }));
+    expect(out.status).toBe("rejected");
+    if (out.status !== "rejected") return;
+    expect(out.error.code).toBe("bazaar_resource_url_not_public");
+    expect(out.error.reason).toBeTruthy();
+    expect(out.error.details).toMatchObject({ host: "127.0.0.1" });
+  });
+
+  it("rejects private-range, link-local, localhost, and metadata resource URLs", () => {
+    for (const url of [
+      "http://10.0.0.5/api",
+      "http://192.168.1.10/api",
+      "http://169.254.169.254/latest/meta-data/",
+      "http://localhost:3000/api",
+      "http://metadata.google.internal/x",
+      "http://vault.internal/x",
+    ]) {
+      const out = doIngest(payload({ resource: { url } }));
+      expect(out.status, url).toBe("rejected");
+      if (out.status !== "rejected") continue;
+      expect(out.error.code, url).toBe("bazaar_resource_url_not_public");
+    }
+  });
+
+  it("catalogs a loopback resource URL only when the local-dev opt-in is set", () => {
+    const out = ingest({
+      paymentPayload: payload({ resource: { url: "http://127.0.0.1:4022/api" } }),
+      paymentRequirements: requirements(),
+      now,
+      allowedNetworks: SERVED,
+      allowPrivateHosts: true,
+    });
+    expect(out.status).toBe("success");
+    if (out.status !== "success") return;
+    expect(out.entry.resource).toBe("http://127.0.0.1:4022/api");
+  });
+
+  it("threads the private-host opt-in through catalogSettledPayment", () => {
+    // Proves the flag reaches ingest through the facilitator-facing entry point, not only when ingest
+    // is called directly — the seam is where a wiring bug would hide.
+    const decode = (h: string | undefined) =>
+      h ? (JSON.parse(Buffer.from(h, "base64").toString("utf8")) as { bazaar: { status: string } }).bazaar : undefined;
+    const store = new CatalogStore();
+    const loop = () => payload({ resource: { url: "http://127.0.0.1:9/api" } });
+    // Off by default: refused, nothing written.
+    expect(decode(catalogSettledPayment(store, loop(), requirements(), "GP1", now, SERVED))?.status).toBe(
+      "rejected",
+    );
+    expect(store.size).toBe(0);
+    // Opt-in on: the same listing catalogs.
+    expect(
+      decode(
+        catalogSettledPayment(store, loop(), requirements(), "GP1", now, SERVED, undefined, undefined, true),
+      )?.status,
+    ).toBe("success");
+    expect(store.size).toBe(1);
+  });
+
   it("rejects a malformed network identifier", () => {
     const out = doIngest(payload(), requirements({ network: "not a caip2 id!" }));
     expect(out.status).toBe("rejected");

@@ -12,6 +12,7 @@ import { identifyStellarAsset } from "./stellar-assets.js";
 import type { TrustlineVerdict } from "./trustline.js";
 import type { CatalogAccepts, CatalogEntry, ResourceType } from "./types.js";
 import { budgetClientSchema } from "./schema-budget.js";
+import { checkResourceHost } from "./host-policy.js";
 
 /**
  * Automatic cataloging — the facilitator is a trust boundary.
@@ -107,6 +108,15 @@ export interface IngestInput {
    * valid CAIP-2 identifier.
    */
   readonly allowedNetworks?: readonly string[] | undefined;
+  /**
+   * Permit loopback / private-range / internal-only `resource.url` hosts.
+   *
+   * Off by default → such a listing is refused, because it is not reachable from the public internet
+   * and, since the agent surfaces fetch the URL, it is a stored SSRF target. The opt-in exists only
+   * for local development where the seller genuinely is on localhost; a hosted deployment must never
+   * set it (see `host-policy.ts` and BAZAAR_ALLOW_PRIVATE_HOSTS).
+   */
+  readonly allowPrivateHosts?: boolean | undefined;
 }
 
 /**
@@ -116,7 +126,7 @@ export interface IngestInput {
  *   reported back to the seller via the `EXTENSION-RESPONSES` header — always with a non-null reason.
  */
 export function ingest(input: IngestInput): CatalogOutcome {
-  const { paymentPayload, paymentRequirements, lookup, now, allowedNetworks } = input;
+  const { paymentPayload, paymentRequirements, lookup, now, allowedNetworks, allowPrivateHosts } = input;
 
   const bazaar = paymentPayload.extensions?.["bazaar"];
   if (!bazaar || typeof bazaar !== "object") {
@@ -156,6 +166,19 @@ export function ingest(input: IngestInput): CatalogOutcome {
       return reject(
         "bazaar_invalid_resource_url",
         `Resource URL must be http(s); got "${parsed.protocol}". The catalog key is the resource's origin and path, and an agent has to be able to reach it.`,
+      );
+    }
+    // The host must be reachable from the public internet. A loopback / private-range / internal-only
+    // URL is not payable by any agent but the one on the cataloging machine, and — because the agent
+    // surfaces fetch this URL — it is a stored SSRF target (CURRENT_STATUS §6 P9). The check mirrors
+    // the buyer-side host policy (`@rail402/agent-helpers` `isPayableResourceUrl`); the opt-in is for
+    // local development only.
+    const hostVerdict = checkResourceHost(parsed, allowPrivateHosts === true);
+    if (!hostVerdict.ok) {
+      return reject(
+        "bazaar_resource_url_not_public",
+        `Resource URL host "${parsed.hostname}" ${hostVerdict.reason}, so an agent on the public internet could not reach it; the listing will not be cataloged.`,
+        { resourceUrl: url, host: parsed.hostname },
       );
     }
   } catch {
