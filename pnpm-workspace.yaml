@@ -2,18 +2,13 @@ packages:
   - "apps/*"
   - "packages/*"
   - "examples/*"
-  # The documentation site is deliberately OUTSIDE this workspace, with its own lockfile and its
-  # own install (`apps/docs/README.md`).
+  # The documentation site is deliberately OUTSIDE this workspace (`apps/docs/README.md`).
   #
-  # Why: every dependency of the deliverable must be compatible with permissive
-  # redistribution AND with operating the code as a network service, and `scripts/license-gate.mjs`
-  # enforces that fail-closed over the whole tree. A Next.js docs site drags in ~440 further
-  # packages — sharp/libvips (LGPL-3.0), lightningcss and axe-core (MPL-2.0), caniuse-lite
-  # (CC-BY-4.0) — none of which the facilitator, Bazaar, MCP server or any shipped package touches.
-  #
-  # Excluding it keeps the licence gate measuring exactly the service we
-  # operate. The docs site is scanned on its own terms instead of quietly relaxing the standard
-  # that covers settlement code.
+  # It is a Mintlify site, which runs from its own standalone CLI (`npx mint dev`), so it has no
+  # package.json and no pnpm dependencies to install. The exclusion is kept so that if a
+  # package.json is ever added under apps/docs, its dev tooling cannot silently pull weak-copyleft
+  # or unusual-licence packages into the tree that `scripts/license-gate.mjs` enforces fail-closed
+  # over — the licence gate must keep measuring exactly the service we operate.
   - "!apps/docs"
 
 # Keep a single resolved version of the x402 SDK family and the Stellar SDK across
