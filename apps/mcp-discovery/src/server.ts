@@ -3,6 +3,7 @@ import { x402Client } from "@x402/core/client";
 import { wrapFetchWithPayment } from "@x402/fetch";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
+import { UptoStellarClientScheme } from "@rail402/scheme-upto-stellar";
 import {
   PayInputSchema,
   SearchInputSchema,
@@ -411,6 +412,8 @@ export async function payAndCall(
       }) as ConstructorParameters<typeof x402Client>[0],
     );
     client.register("stellar:*", new ExactStellarScheme(signer));
+    // Register `upto` too, so an agent can pay an `upto` resource it discovered.
+    client.register("stellar:*", new UptoStellarClientScheme(signer));
     const paidFetch = wrapFetchWithPayment(fetchImpl, client);
 
     const response = await paidFetch(target, init);

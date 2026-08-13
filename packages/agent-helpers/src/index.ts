@@ -2,6 +2,7 @@ import { x402Client } from "@x402/core/client";
 import { wrapFetchWithPayment } from "@x402/fetch";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
+import { UptoStellarClientScheme } from "@rail402/scheme-upto-stellar";
 import { createError, type ErrorCode } from "@rail402/errors";
 import {
   isPayableResourceUrl,
@@ -449,6 +450,11 @@ export async function payAndFetch<T = unknown>(
       }) as ConstructorParameters<typeof x402Client>[0],
     );
     client.register("stellar:*", new ExactStellarScheme(signer));
+    // Also register `upto` so an agent can pay an `upto` resource it discovered — `/supported`
+    // advertises both schemes, and registering only `exact` left an `upto` resource discoverable but
+    // unpayable through this surface. The client keys schemes by (network, scheme), so
+    // both coexist and are selected by the payment requirements' scheme.
+    client.register("stellar:*", new UptoStellarClientScheme(signer));
     const paidFetch = wrapFetchWithPayment(fetchImpl, client);
 
     // `NO_REDIRECT` on the PAID request too, not only the probe. Giving it to one and not the other
