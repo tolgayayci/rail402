@@ -476,6 +476,14 @@ export function createApp({ config, startedAt, persistence }: AppDeps) {
       "# HELP x402_bazaar_mean_converted_rank Mean rank of the resource a buyer paid for. Drifting up means ranking is degrading.",
       "# TYPE x402_bazaar_mean_converted_rank gauge",
       `x402_bazaar_mean_converted_rank ${s.meanConvertedRank ?? 0}`,
+      // Operator status stats — aggregate and unattributed, never per-caller (F1). The facilitator
+      // is free; these describe the service, not who used it.
+      "# HELP x402_uptime_seconds Process uptime.",
+      "# TYPE x402_uptime_seconds gauge",
+      `x402_uptime_seconds ${Math.floor((Date.now() - startedAt) / 1000)}`,
+      "# HELP x402_catalog_entries Resources currently in the discovery catalog.",
+      "# TYPE x402_catalog_entries gauge",
+      `x402_catalog_entries ${catalog.size}`,
     ];
     return c.text(lines.join("\n") + "\n", 200, { "Content-Type": "text/plain; version=0.0.4" });
   });

@@ -7,7 +7,9 @@ import type { FederationSource } from "@rail402/bazaar";
  * 12-factor configuration with fail-fast validation.
  *
  * Everything configurable is genuinely config here: networks, RPC endpoints,
- * sponsorship, fees, caller auth, metering, and rate limits.
+ * sponsorship, fees, caller auth, and rate limits. There is deliberately
+ * no caller *metering* — this facilitator is free, so there is no usage billing to configure;
+ * aggregate usage is observable on `/metrics` but never attributed to or billed to a caller.
  *
  * Two rules drive the design:
  *
