@@ -12,6 +12,10 @@ import {
   HELD_OUT_BROAD_THRESHOLDS,
   HELD_OUT_BROAD_DEV,
   HELD_OUT_BROAD_LOCKED,
+  HELD_OUT_MCP_CORPUS,
+  HELD_OUT_MCP_DEV,
+  HELD_OUT_MCP_LOCKED,
+  HELD_OUT_MCP_THRESHOLDS,
 } from "./heldout.js";
 import {
   computeMetrics,
@@ -82,6 +86,11 @@ export function evaluateAll(): SetResult[] {
     // two rankers apart — this is the set that matters now.
     runSet("broad · dev @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_BROAD_DEV),
     runSet("broad · locked @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_BROAD_LOCKED),
+    // MCP tools (Z3), scored against the full catalog — the 2000 http entries PLUS the 24 MCP tools —
+    // so a tool must out-rank realistic http distractors, and sibling tools on one endpoint must be
+    // told apart by (url, toolName). The one slice that measures the project's differentiator.
+    runSet("mcp · dev @2k", [...HELD_OUT_CORPUS_LARGE, ...HELD_OUT_MCP_CORPUS], HELD_OUT_MCP_DEV),
+    runSet("mcp · locked @2k", [...HELD_OUT_CORPUS_LARGE, ...HELD_OUT_MCP_CORPUS], HELD_OUT_MCP_LOCKED),
   ];
 }
 
@@ -147,11 +156,13 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
 
     const thresholds = set.name === "synthetic"
       ? THRESHOLDS
-      : set.name.startsWith("broad")
-        ? HELD_OUT_BROAD_THRESHOLDS
-        : set.name.includes("@2k")
-          ? HELD_OUT_LARGE_THRESHOLDS
-          : HELD_OUT_THRESHOLDS;
+      : set.name.startsWith("mcp")
+        ? HELD_OUT_MCP_THRESHOLDS
+        : set.name.startsWith("broad")
+          ? HELD_OUT_BROAD_THRESHOLDS
+          : set.name.includes("@2k")
+            ? HELD_OUT_LARGE_THRESHOLDS
+            : HELD_OUT_THRESHOLDS;
     const below = belowThresholds(set.metrics, thresholds);
     if (below.length > 0) {
       console.error(`\n  BELOW THRESHOLD: ${below.join(", ")}`);

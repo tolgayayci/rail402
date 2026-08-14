@@ -1,0 +1,166 @@
+{
+  "dev": [
+    {
+      "query": "is this deployed contract safe to interact with or does it hide exploitable flaws",
+      "relevant": [
+        "https://mcp.chainlens.xyz/mcp\u0000contract_audit"
+      ],
+      "grades": {
+        "https://mcp.chainlens.xyz/mcp\u0000contract_audit": 3
+      },
+      "note": "Sibling discrimination on Chainlens: contract_audit, not token_holders/wallet_pnl. 'contract' also appears near token/wallet tools, so the security intent must carry the ranking."
+    },
+    {
+      "query": "how fast does my call lose value each day as expiry nears if the stock barely moves",
+      "relevant": [
+        "https://mcp.quantdesk.io/mcp\u0000options_greeks"
+      ],
+      "grades": {
+        "https://mcp.quantdesk.io/mcp\u0000options_greeks": 3
+      },
+      "note": "Describes theta/time-decay without naming any greek. Must beat the three other QuantDesk tools on the same endpoint (rebalance, earnings, dividends)."
+    },
+    {
+      "query": "give me an expression that matches any valid phone number inside a block of text",
+      "relevant": [
+        "https://mcp.devforge.tools/mcp\u0000regex_build"
+      ],
+      "grades": {
+        "https://mcp.devforge.tools/mcp\u0000regex_build": 3
+      },
+      "note": "DevForge sibling pick: regex_build over code_review and dependency_audit, which share no vocabulary with a pattern-matching request."
+    },
+    {
+      "query": "my photo looks grainy and small, make it sharp and much bigger",
+      "relevant": [
+        "https://mcp.pixelforge.studio/mcp\u0000image_upscale"
+      ],
+      "grades": {
+        "https://mcp.pixelforge.studio/mcp\u0000image_upscale": 3
+      },
+      "note": "PixelForge sibling pick: image_upscale, not video_caption or voice_clone. Query uses 'grainy/small/sharp/bigger' where the tool says 'resolution/detail/artifacts'."
+    },
+    {
+      "query": "which newer studies have built on this particular paper",
+      "relevant": [
+        "https://mcp.scholarly.ai/mcp\u0000citation_graph",
+        "https://mcp.scholarly.ai/mcp\u0000paper_search"
+      ],
+      "grades": {
+        "https://mcp.scholarly.ai/mcp\u0000citation_graph": 3,
+        "https://mcp.scholarly.ai/mcp\u0000paper_search": 2
+      },
+      "note": "Between-sibling grading on Scholarly: forward citations are citation_graph (grade 3); paper_search is a decent alternative that could surface citing work by topic (grade 2)."
+    },
+    {
+      "query": "surface prior scientific literature relevant to a hypothesis I am exploring",
+      "relevant": [
+        "https://mcp.scholarly.ai/mcp\u0000paper_search",
+        "https://mcp.scholarly.ai/mcp\u0000citation_graph"
+      ],
+      "grades": {
+        "https://mcp.scholarly.ai/mcp\u0000paper_search": 3,
+        "https://mcp.scholarly.ai/mcp\u0000citation_graph": 1
+      },
+      "note": "Reverse of the previous judgment on the same endpoint: an open literature search is paper_search (3); citation_graph only helps once you already hold a seed paper (partial, 1)."
+    },
+    {
+      "query": "cheapest way to trade one crypto asset for a different one right now",
+      "relevant": [
+        "https://mcp.tradepipe.fi/mcp\u0000dex_quote"
+      ],
+      "grades": {
+        "https://mcp.tradepipe.fi/mcp\u0000dex_quote": 3
+      },
+      "note": "TradePipe sibling pick: dex_quote ('swap/route/best price'), not gas_estimate. Query says 'trade/crypto asset', the tool says 'swap/token/exchanges'."
+    },
+    {
+      "query": "collect every product row from an online shop page as clean structured data",
+      "relevant": [
+        "https://mcp.harvestly.io/mcp\u0000web_scrape"
+      ],
+      "grades": {
+        "https://mcp.harvestly.io/mcp\u0000web_scrape": 3
+      },
+      "note": "Harvestly sibling pick: web_scrape for a web page, not pdf_extract or invoice_parse which read documents/invoices."
+    }
+  ],
+  "locked": [
+    {
+      "query": "did this address end up in the green after all its token swaps",
+      "relevant": [
+        "https://mcp.chainlens.xyz/mcp\u0000wallet_pnl"
+      ],
+      "grades": {
+        "https://mcp.chainlens.xyz/mcp\u0000wallet_pnl": 3
+      },
+      "note": "Chainlens has four tools on one URL; only wallet_pnl answers 'made or lost money'. Must beat token_holders, contract_audit and nft_floor_price, none of which the query shares words with."
+    },
+    {
+      "query": "when do the shares I hold next pay me cash and how much per share",
+      "relevant": [
+        "https://mcp.quantdesk.io/mcp\u0000dividend_calendar"
+      ],
+      "grades": {
+        "https://mcp.quantdesk.io/mcp\u0000dividend_calendar": 3
+      },
+      "note": "Sibling discrimination on QuantDesk: 'pay me cash for holding shares' is dividends, not earnings_estimate or rebalance. The word 'dividend' never appears in the query."
+    },
+    {
+      "query": "pull the tables out of a long scanned report so I can work with the numbers",
+      "relevant": [
+        "https://mcp.harvestly.io/mcp\u0000pdf_extract",
+        "https://mcp.harvestly.io/mcp\u0000invoice_parse"
+      ],
+      "grades": {
+        "https://mcp.harvestly.io/mcp\u0000pdf_extract": 3,
+        "https://mcp.harvestly.io/mcp\u0000invoice_parse": 1
+      },
+      "note": "Between-sibling grading on Harvestly: pdf_extract is the answer for a scanned document with tables; invoice_parse is only partially relevant (it OCRs documents too, but is narrow to invoices). web_scrape is off-topic."
+    },
+    {
+      "query": "predict what the network will charge me to push a transaction through soon",
+      "relevant": [
+        "https://mcp.tradepipe.fi/mcp\u0000gas_estimate"
+      ],
+      "grades": {
+        "https://mcp.tradepipe.fi/mcp\u0000gas_estimate": 3
+      },
+      "note": "TradePipe sibling pick: gas_estimate, not dex_quote. Both mention chains and transactions, so fee-prediction intent must decide it."
+    },
+    {
+      "query": "deliver a one-time login code straight to a customer's mobile",
+      "relevant": [
+        "https://mcp.pinghub.dev/mcp\u0000send_sms",
+        "https://mcp.pinghub.dev/mcp\u0000send_email"
+      ],
+      "grades": {
+        "https://mcp.pinghub.dev/mcp\u0000send_sms": 3,
+        "https://mcp.pinghub.dev/mcp\u0000send_email": 1
+      },
+      "note": "Between-sibling grading on PingHub: 'to a mobile' is SMS (3); send_email is the same messaging service but the wrong channel (partial, 1)."
+    },
+    {
+      "query": "read this script aloud so it sounds like a specific sample speaker",
+      "relevant": [
+        "https://mcp.pixelforge.studio/mcp\u0000voice_clone"
+      ],
+      "grades": {
+        "https://mcp.pixelforge.studio/mcp\u0000voice_clone": 3
+      },
+      "note": "PixelForge sibling pick: voice_clone, not video_caption (which also touches audio/speech) or image_upscale."
+    },
+    {
+      "query": "flag any libraries in my build that carry known published security advisories",
+      "relevant": [
+        "https://mcp.devforge.tools/mcp\u0000dependency_audit",
+        "https://mcp.devforge.tools/mcp\u0000code_review"
+      ],
+      "grades": {
+        "https://mcp.devforge.tools/mcp\u0000dependency_audit": 3,
+        "https://mcp.devforge.tools/mcp\u0000code_review": 2
+      },
+      "note": "Between-sibling grading on DevForge: dependency_audit matches 'libraries + advisories' exactly (3); code_review also reports security issues so it is a real alternative (grade 2)."
+    }
+  ]
+}

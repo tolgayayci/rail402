@@ -3,6 +3,8 @@ import type { Judgment } from "./metrics.js";
 import corpus from "./heldout-corpus.json" with { type: "json" };
 import largeCorpus from "./heldout-corpus-large.json" with { type: "json" };
 import broadJudgments from "./heldout-judgments-large.json" with { type: "json" };
+import mcpCorpus from "./heldout-mcp-corpus.json" with { type: "json" };
+import mcpJudgments from "./heldout-mcp-judgments.json" with { type: "json" };
 
 /**
  * The held-out evaluation set: **real** resources, and queries written against them.
@@ -218,6 +220,19 @@ export const HELD_OUT_BROAD_DEV = broadJudgments.dev as unknown as Judgment[];
 export const HELD_OUT_BROAD_LOCKED = broadJudgments.locked as unknown as Judgment[];
 
 /**
+ * MCP-tool coverage (Z3). The 2000-resource corpus is 100% `type:"http"`, so ranking over MCP TOOLS
+ * — the project's differentiator, where one endpoint multiplexes several tools keyed on `toolName` —
+ * was unmeasured. These 24 synthetic MCP entries (8 endpoints, 2-4 sibling tools each) plus 15 blind
+ * judgments make it measurable. The judgments score against the FULL catalog (the 2000 http entries
+ * PLUS these 24), so an MCP tool must out-rank 2000 http distractors, not just its siblings — the
+ * honest measurement, not the flattering one. Several judgments discriminate between sibling tools on
+ * one endpoint, which is the hard case `entryKey`'s (url, toolName) tuple exists for.
+ */
+export const HELD_OUT_MCP_CORPUS = mcpCorpus.entries as unknown as CatalogEntry[];
+export const HELD_OUT_MCP_DEV = mcpJudgments.dev as unknown as Judgment[];
+export const HELD_OUT_MCP_LOCKED = mcpJudgments.locked as unknown as Judgment[];
+
+/**
  * Floors for the held-out slices.
  *
  * Set from the FIRST measured run rather than from ambition, so they are a regression guard and not
@@ -289,6 +304,38 @@ export const HELD_OUT_BROAD_THRESHOLDS = {
   recallAt5: 0.58,
   mrr: 0.52,
   ndcgAt10: 0.55,
+  zeroResultRate: 0.0,
+} as const;
+
+/**
+ * Floors for the MCP-tool slice (Z3), set under the worse of the two slices from the FIRST
+ * measurement (2026-08-14) and slightly below it — a regression guard, never a target, never lowered
+ * to make a build pass without recording why here.
+ *
+ * First measurement, MCP tools scored against the full 2024-document catalog (2000 http + 24 MCP):
+ *
+ * | | mcp dev (8) | mcp locked (7) |
+ * |---|---|---|
+ * | precision@1 | 37.5% | 85.7% |
+ * | recall@5 | 68.8% | 64.3% |
+ * | MRR | 0.509 | 0.857 |
+ * | nDCG@10 | 0.552 | 0.809 |
+ * | zero-result | 0% | 0% |
+ *
+ * The 37.5%/85.7% spread on p@1 is real slice-size noise (n=7-8), not a ranker property — the floors
+ * therefore sit under the WORSE slice on every metric (dev on p@1/MRR/nDCG, locked on recall@5), so a
+ * green build means BOTH slices cleared the bar. These are the first numbers that measure ranking over
+ * MCP tools at all: until Z3 the 2000-document corpus was 100% http, so the (url, toolName) tuple that
+ * tells sibling tools on one endpoint apart had never been scored against realistic distractors. The
+ * dev misses are near-matches (an http `contract.guard` endpoint out-ranking the `contract_audit`
+ * tool), i.e. the ranker is competing, not failing — which is exactly what a floor, not a target,
+ * should encode.
+ */
+export const HELD_OUT_MCP_THRESHOLDS = {
+  precisionAt1: 0.3,
+  recallAt5: 0.55,
+  mrr: 0.42,
+  ndcgAt10: 0.46,
   zeroResultRate: 0.0,
 } as const;
 

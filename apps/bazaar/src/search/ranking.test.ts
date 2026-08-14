@@ -5,6 +5,7 @@ import {
   HELD_OUT_THRESHOLDS,
   HELD_OUT_LARGE_THRESHOLDS,
   HELD_OUT_BROAD_THRESHOLDS,
+  HELD_OUT_MCP_THRESHOLDS,
   HELD_OUT_CORPUS,
 } from "./heldout.js";
 import { HybridRetriever, Bm25Retriever, type Retriever } from "./index.js";
@@ -36,15 +37,19 @@ describe("ranking quality gate", () => {
   it.each(sets.map(s => [s.name, s] as const))("%s meets its thresholds", (name, set) => {
     // The `@2k` sets score the SAME queries against 1,980 extra real distractors, so they get
     // their own (much lower, first-measurement) floors. Applying the twenty-document floors to
-    // them would fail the build permanently and teach everyone to ignore this gate.
+    // them would fail the build permanently and teach everyone to ignore this gate. The `mcp`
+    // slices also carry "@2k" but score MCP tools, not the ERC20 siblings, so they must be routed
+    // to their own floors BEFORE the generic @2k fallthrough.
     const thresholds: Record<string, number> =
       name === "synthetic"
         ? THRESHOLDS
-        : name.startsWith("broad")
-          ? HELD_OUT_BROAD_THRESHOLDS
-          : name.includes("@2k")
-            ? HELD_OUT_LARGE_THRESHOLDS
-            : HELD_OUT_THRESHOLDS;
+        : name.startsWith("mcp")
+          ? HELD_OUT_MCP_THRESHOLDS
+          : name.startsWith("broad")
+            ? HELD_OUT_BROAD_THRESHOLDS
+            : name.includes("@2k")
+              ? HELD_OUT_LARGE_THRESHOLDS
+              : HELD_OUT_THRESHOLDS;
     for (const [metric, floor] of Object.entries(thresholds)) {
       const value = (set.metrics as unknown as Record<string, number>)[metric]!;
       if (metric === "zeroResultRate") {
