@@ -61,6 +61,12 @@ export class CatalogStore {
   private retriever: Retriever;
   private dirty = true;
   /**
+   * Clock used to expire provisional entries on read (Z6). Real time in production; tests set it to a
+   * fixed value so a provisional entry written with a fixed timestamp is judged against the same
+   * clock rather than evicted by wall-clock drift.
+   */
+  now: () => string = () => new Date().toISOString();
+  /**
    * Online-signal recorder. Optional so the store stays usable in tests and in the evaluation
    * harness without dragging behavioural state into a measurement that must be deterministic.
    */
@@ -333,6 +339,10 @@ export class CatalogStore {
 
   /** `GET /discovery/resources` — offset pagination, array key `items`. */
   list(filters: DiscoveryFilters, limit?: number, offset?: number): ListResponse {
+    // Prune expired provisionals on READ, not only on the next provisional write (Z6): an idle
+    // facilitator that verifies once and never settles again would otherwise keep serving a stale,
+    // never-paid entry forever. A no-op unless a provisional has actually expired.
+    this.pruneProvisional(this.now());
     const lim = clamp(limit ?? DEFAULT_LIMIT, 1, MAX_LIMIT);
     const off = Math.max(0, Math.floor(offset ?? 0));
     const filtered = this.filter(this.all(), filters);
@@ -346,6 +356,9 @@ export class CatalogStore {
 
   /** `GET /discovery/search` — cursor pagination, array key `resources`, plus `partialResults`. */
   search(query: string, filters: DiscoveryFilters, limit?: number, cursor?: string): SearchResponse {
+    // Prune expired provisionals on read (Z6) — see `list`. Runs before indexing so a pruned entry
+    // never scores. Settled fixtures (the eval harness) are never provisional, so ranking is unaffected.
+    this.pruneProvisional(this.now());
     // A federation refresh changes the corpus without touching `dirty`, so notice it here rather
     // than serving a stale index. An integer compare, not a walk of the mirror — this runs on every
     // query, and fingerprinting somebody else's catalog per search would be O(n) for nothing.

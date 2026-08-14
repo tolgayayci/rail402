@@ -586,6 +586,7 @@ describe("hybrid cataloging — provisional at verify", () => {
 
   it("catalogs a discoverable provisional entry at verify, carrying no ranking signals", () => {
     const store = new CatalogStore();
+    store.now = () => now; // pin the read-time prune clock to the fixture's timestamp (Z6)
     const header = catalogProvisionalPayment(store, payload(), requirements(), now, SERVED);
     expect(decode(header!).status).toBe("processing");
     // Discoverable — a resource appears "during payment verification", matching the reference impl.
@@ -633,6 +634,7 @@ describe("hybrid cataloging — provisional at verify", () => {
 
   it("projects the provisional flag on the wire, so an agent can tell it from a settled listing (Z6)", () => {
     const store = new CatalogStore();
+    store.now = () => now; // read-time prune must not evict a fixture written at the same timestamp
     catalogProvisionalPayment(store, payload(), requirements(), now, SERVED);
     const provisional = store.list({}, 10, 0).items.find(i => i.resource === "https://api.example.com/weather");
     expect(provisional?.provisional).toBe(true);
@@ -640,6 +642,18 @@ describe("hybrid cataloging — provisional at verify", () => {
     catalogSettledPayment(store, payload(), requirements(), OTHER, now, SERVED);
     const settled = store.list({}, 10, 0).items.find(i => i.resource === "https://api.example.com/weather");
     expect(settled?.provisional).toBeUndefined();
+  });
+
+  it("prunes an expired provisional entry on read, not only on the next write (Z6b)", () => {
+    const store = new CatalogStore();
+    store.now = () => now; // write within the TTL window
+    catalogProvisionalPayment(store, payload(), requirements(), now, SERVED);
+    expect(store.get("https://api.example.com/weather")?.provisional).toBe(true);
+    // Time advances past the provisional TTL, and a plain READ (no write) evicts it — an idle
+    // facilitator does not keep a never-settled entry discoverable forever.
+    store.now = () => "2030-01-01T00:00:00.000Z";
+    expect(store.list({}, 10, 0).items.find(i => i.resource === "https://api.example.com/weather")).toBeUndefined();
+    expect(store.get("https://api.example.com/weather")).toBeUndefined();
   });
 });
 
