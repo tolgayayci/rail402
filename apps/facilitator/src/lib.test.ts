@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
+import { x402ResourceServer } from "@x402/core/server";
+import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { buildFacilitator, createApp, loadConfig } from "./lib.js";
 
 /**
@@ -20,6 +22,27 @@ describe("self-facilitation library entry", () => {
     const schemes = facilitator.getSupported().kinds.map(k => k.scheme);
     expect(schemes).toContain("exact");
     expect(schemes).toContain("upto");
+  });
+
+  it("embeds the facilitator as a FacilitatorClient in a resource server (the documented snippet)", async () => {
+    // The exact self-facilitation shape operator.md documents: a seller's own x402ResourceServer
+    // uses the in-process facilitator as its client, with no HTTP hop and no third party in the
+    // payment path. The one adaptation the interface needs is getSupported — the embedded
+    // facilitator answers synchronously, the FacilitatorClient interface is async. Passing the raw
+    // facilitator (as the old doc snippet did) does NOT type-check for that reason; this adapter is
+    // the fix, and if this test compiles, the documented snippet compiles.
+    const { facilitator } = buildFacilitator(testConfig());
+    const localFacilitator = {
+      verify: facilitator.verify.bind(facilitator),
+      settle: facilitator.settle.bind(facilitator),
+      getSupported: async () => facilitator.getSupported(),
+    };
+    const server = new x402ResourceServer([localFacilitator]);
+    server.register("stellar:*", new ExactStellarScheme());
+    // The seller can consult its embedded facilitator with no network hop.
+    const supported = await localFacilitator.getSupported();
+    expect(supported.kinds.map(k => k.scheme)).toContain("exact");
+    expect(server).toBeDefined();
   });
 
   it("exposes createApp to mount the routes in-process, answered without a port", async () => {
