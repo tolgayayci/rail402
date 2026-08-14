@@ -129,6 +129,9 @@ importers:
 
   apps/mcp-discovery:
     dependencies:
+      '@hono/node-server':
+        specifier: ^2.0.5
+        version: 2.0.12(hono@4.13.0)
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.0
         version: 1.30.0(zod@4.4.3)
@@ -153,6 +156,9 @@ importers:
       '@x402/stellar':
         specifier: 2.20.0
         version: 2.20.0
+      hono:
+        specifier: ^4.12.34
+        version: 4.13.0
       zod:
         specifier: ^4.4.3
         version: 4.4.3

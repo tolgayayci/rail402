@@ -11,14 +11,18 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "dev": "tsx src/index.ts",
+    "dev:http": "tsx src/serve-http.ts",
     "start": "node dist/index.js",
+    "start:http": "node dist/serve-http.js",
     "lint": "eslint src"
   },
   "dependencies": {
     "@rail402/agent-helpers": "workspace:*",
     "@rail402/errors": "workspace:*",
     "@rail402/scheme-upto-stellar": "workspace:*",
+    "@hono/node-server": "^2.0.5",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "hono": "^4.12.0",
     "@x402/core": "2.20.0",
     "@x402/fetch": "2.20.0",
     "@x402/mcp": "2.20.0",
