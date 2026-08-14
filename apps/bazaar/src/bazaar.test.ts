@@ -4,6 +4,7 @@ import { ingest } from "./catalog/ingest.js";
 import { entryKey, type CatalogEntry } from "./catalog/types.js";
 import { CORPUS, JUDGMENTS, THRESHOLDS } from "./search/fixtures.js";
 import { evaluate, failures } from "./search/evaluate.js";
+import { docText } from "./search/index.js";
 import {
   createBazaarApp,
   catalogSettledPayment,
@@ -742,6 +743,15 @@ describe("per-parameter descriptions are searchable", () => {
     const store = new CatalogStore();
     store.upsert(withDescribedParam);
     expect(store.search("isbn", {}, 5).resources).toHaveLength(1);
+  });
+
+  it("feeds the parameter description to the semantic arm, not only BM25 (Z2)", () => {
+    // The description lives ONLY in bazaar.schema (the JSON Schema that validates info), not in
+    // info.input. `docText` is the text the vector embedder sees; before Z2 it read only
+    // info.input.inputSchema and missed the schema descriptions entirely — degrading the semantic
+    // arm for the majority of HTTP entries while the BM25 arm saw them.
+    const text = docText(withDescribedParam);
+    expect(text).toContain("International Standard Book Number of the publication.");
   });
 });
 

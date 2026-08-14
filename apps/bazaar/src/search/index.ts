@@ -339,7 +339,7 @@ function qualityMultiplier(entry: CatalogEntry): number {
  * the ranker's weighted field structure. The exact rendering moves the numbers; the DIRECTION of the
  * fusion win is robust across renderings and two models (semantic-deps research, 2026-08-05).
  */
-function docText(e: CatalogEntry): string {
+export function docText(e: CatalogEntry): string {
   const parts: string[] = [];
   if (e.serviceName) parts.push(e.serviceName);
   if (e.description) parts.push(e.description);
@@ -351,11 +351,42 @@ function docText(e: CatalogEntry): string {
   }
   if (e.toolName) parts.push(e.toolName);
   const bazaar = e.extensions?.["bazaar"] as
-    | { info?: { input?: { inputSchema?: { properties?: Record<string, { description?: string }> } } } }
+    | { info?: { input?: { inputSchema?: unknown } }; schema?: unknown }
     | undefined;
-  const props = bazaar?.info?.input?.inputSchema?.properties;
-  if (props) for (const p of Object.values(props)) if (p?.description) parts.push(p.description);
+  // The vector arm must see the same per-parameter descriptions the lexical arm does (§6 P3). HTTP
+  // endpoints carry those descriptions in the JSON Schema that validates `info`
+  // (`bazaar.schema…queryParams.properties[].description`), NOT in `info.input` — so reading only
+  // `info.input.inputSchema.properties` silently dropped them for the ~68% of HTTP entries that
+  // describe their params, degrading the semantic arm while the BM25 arm saw them.
+  //
+  // Only the PROSE (`description`/`title`) is added, not the property names, type keywords and enum
+  // values `collectSchemaText` also tokenizes for BM25 — those are structural scaffolding, identical
+  // across every HTTP entry, and feeding them to the embedder is noise that dilutes the meaning.
+  const descriptions: string[] = [];
+  schemaDescriptions(bazaar?.info?.input?.inputSchema, descriptions);
+  schemaDescriptions(bazaar?.schema, descriptions);
+  const seen = new Set<string>();
+  for (const d of descriptions) {
+    if (!seen.has(d)) {
+      seen.add(d);
+      parts.push(d);
+    }
+  }
   return parts.join(" . ");
+}
+
+/** Collect only the prose (`description`/`title`) from a JSON Schema, for the semantic arm. */
+function schemaDescriptions(schema: unknown, out: string[], depth = 0): void {
+  if (!schema || typeof schema !== "object" || depth > 8) return;
+  const s = schema as Record<string, unknown>;
+  for (const key of ["description", "title"]) {
+    if (typeof s[key] === "string") out.push(s[key] as string);
+  }
+  const props = s["properties"];
+  if (props && typeof props === "object") {
+    for (const sub of Object.values(props as Record<string, unknown>)) schemaDescriptions(sub, out, depth + 1);
+  }
+  schemaDescriptions(s["items"], out, depth + 1);
 }
 
 const RRF_K = 60;
