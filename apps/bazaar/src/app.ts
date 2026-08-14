@@ -273,46 +273,6 @@ export function catalogSettledPayment(
 }
 
 /**
- * Dry-run cataloging for the `/verify` response.
- *
- * Returns the `EXTENSION-RESPONSES` value a seller should see *before* paying: `processing` when
- * the listing would be accepted, or `rejected` carrying the same code and reason settle would give.
- *
- * Deliberately touches no store, no network and no ledger. Ownership and SEP-1 verification are
- * settle-time concerns — they depend on who actually paid — so `processing` promises only that the
- * metadata itself is well-formed. Promising more at verify would be guessing, and a seller who
- * acts on a guess is worse off than one who waited.
- *
- * That decision was recorded when cataloging was designed; only the settle half was ever
- * built, so sellers had to spend a real payment to discover a typo.
- */
-export function previewCataloging(
-  paymentPayload: PaymentPayload,
-  paymentRequirements: PaymentRequirements,
-  allowedNetworks?: readonly string[],
-  allowPrivateHosts?: boolean,
-): string | undefined {
-  if (!paymentPayload.extensions?.["bazaar"]) return undefined;
-
-  const outcome = ingest({
-    paymentPayload,
-    paymentRequirements,
-    // No lookup: at verify nobody has paid yet, so there is no owner to compare against.
-    now: new Date().toISOString(),
-    allowedNetworks,
-    allowPrivateHosts,
-  });
-
-  return outcome.status === "rejected"
-    ? encodeExtensionResponses({
-        status: "rejected",
-        rejectedReason: outcome.error.reason,
-        code: outcome.error.code,
-      })
-    : encodeExtensionResponses({ status: "processing" });
-}
-
-/**
  * Catalog a resource PROVISIONALLY at verify — the write half of hybrid cataloging.
  *
  * The upstream reference facilitator and the e2e conformance suite catalog a resource during payment

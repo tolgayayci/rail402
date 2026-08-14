@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
 import { createApp } from "./app.js";
 import { loadConfig, type FacilitatorConfig } from "./config/env.js";
-import { previewCataloging } from "@rail402/bazaar";
 
 /**
  * HTTP-surface tests. These never touch the network: every assertion here is about wire shape,
@@ -314,78 +313,6 @@ describe("unsupported version and network are client errors, not server faults",
     const res = await post("/settle", { paymentPayload: { x402Version: 1 }, paymentRequirements: {} });
     expect(res.status).toBe(400);
     expect(((await res.json()) as any).code).toBe("invalid_x402_version");
-  });
-});
-
-describe("cataloging feedback at verify", () => {
-  // The design: sellers get fast feedback at verify and an authoritative verdict at
-  // settle. Only the settle half was built, so a seller had to spend a real payment to learn their
-  // metadata had a typo.
-  it("reports `processing` for metadata that would catalog", async () => {
-    const preview = previewCataloging(
-      {
-        x402Version: 2,
-        resource: { url: "https://api.seller.example/quotes" },
-        accepted: {},
-        payload: { transaction: "AAAA" },
-        extensions: {
-          bazaar: {
-            info: { input: { type: "http", method: "GET" } },
-            schema: {
-              $schema: "https://json-schema.org/draft/2020-12/schema",
-              type: "object",
-              properties: {
-                input: {
-                  type: "object",
-                  properties: { type: { type: "string" }, method: { type: "string" } },
-                  required: ["type", "method"],
-                },
-              },
-              required: ["input"],
-            },
-          },
-        },
-      } as never,
-      {
-        scheme: "exact",
-        network: "stellar:testnet",
-        amount: "1",
-        asset: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-        payTo: "GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO",
-        maxTimeoutSeconds: 60,
-        extra: { areFeesSponsored: true },
-      } as never,
-      ["stellar:testnet"],
-    );
-    expect(preview).toBeDefined();
-    const decoded = JSON.parse(Buffer.from(preview!, "base64").toString("utf8"));
-    expect(decoded.bazaar.status).toBe("processing");
-  });
-
-  it("reports `rejected` with the same code settle would give", async () => {
-    const preview = previewCataloging(
-      {
-        x402Version: 2,
-        // No resource.url — the case that used to crash the SDK helper.
-        accepted: {},
-        payload: { transaction: "AAAA" },
-        extensions: { bazaar: { info: { input: { type: "http", method: "GET" } }, schema: {} } },
-      } as never,
-      { scheme: "exact", network: "stellar:testnet", amount: "1", asset: "C", payTo: "G", maxTimeoutSeconds: 60 } as never,
-      ["stellar:testnet"],
-    );
-    const decoded = JSON.parse(Buffer.from(preview!, "base64").toString("utf8"));
-    expect(decoded.bazaar.status).toBe("rejected");
-    expect(decoded.bazaar.code).toBe("bazaar_missing_resource_url");
-    expect(decoded.bazaar.rejectedReason.length).toBeGreaterThan(20);
-  });
-
-  it("says nothing at all when there is no discovery extension", () => {
-    const preview = previewCataloging(
-      { x402Version: 2, accepted: {}, payload: {} } as never,
-      { scheme: "exact", network: "stellar:testnet", amount: "1", asset: "C", payTo: "G", maxTimeoutSeconds: 60 } as never,
-    );
-    expect(preview).toBeUndefined();
   });
 });
 

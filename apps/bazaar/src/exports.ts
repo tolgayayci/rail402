@@ -25,7 +25,6 @@ export {
   createBazaarApp,
   catalogSettledPayment,
   catalogProvisionalPayment,
-  previewCataloging,
   encodeExtensionResponses,
 } from "./app.js";
 export { entryKey, toPublic } from "./catalog/types.js";
