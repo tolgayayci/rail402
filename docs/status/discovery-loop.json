@@ -1,91 +1,91 @@
 {
   "check": "discovery-loop",
   "status": "pass",
-  "observedAt": "2026-08-11T20:32:13.061Z",
+  "observedAt": "2026-08-14T12:05:17.437Z",
   "network": "stellar:testnet",
-  "facilitator": "https://facilitator.rail402.dev",
-  "durationMs": 61243,
+  "facilitator": "http://127.0.0.1:4122",
+  "durationMs": 52695,
   "steps": [
     {
       "name": "facilitator-reachable",
       "ok": true,
       "detail": "/supported advertises bazaar",
-      "ms": 1022
+      "ms": 1
     },
     {
       "name": "testnet-fixtures",
       "ok": true,
-      "detail": "asset CNRY203111 · buyer GCVKPS5X…QGCR",
-      "ms": 48279
+      "detail": "asset CNRY120416 · buyer GCPUDZ2F…G62D",
+      "ms": 42072
     },
     {
       "name": "seller-online",
       "ok": true,
-      "detail": "http://127.0.0.1:64672/canary/20260811203111/tides",
-      "ms": 21
+      "detail": "http://127.0.0.1:60336/canary/20260814120416/tides",
+      "ms": 28
     },
     {
       "name": "payload-built",
       "ok": true,
       "detail": "stock client, discovery extension present",
-      "ms": 2254
+      "ms": 2593
     },
     {
       "name": "verify",
       "ok": true,
       "detail": "isValid: true",
-      "ms": 980
+      "ms": 2800
     },
     {
       "name": "provisional-at-verify",
       "ok": true,
       "detail": "discoverable provisionally after verify, before settle (0 signals)",
-      "ms": 455
+      "ms": 2
     },
     {
       "name": "settle",
       "ok": true,
-      "detail": "tx feb9bedb…25b1",
-      "ms": 7393
+      "detail": "tx b691cb2a…39d7",
+      "ms": 5192
     },
     {
       "name": "cataloging-reported",
       "ok": true,
       "detail": "bazaar status \"success\"",
-      "ms": 0
+      "ms": 1
     },
     {
       "name": "indexed",
       "ok": true,
-      "detail": "appeared after 511ms (1 poll(s))",
-      "ms": 511
+      "detail": "appeared after 2ms (1 poll(s))",
+      "ms": 1
     },
     {
       "name": "parameter-descriptions",
       "ok": true,
       "detail": "seller's parameter prose survived cataloging",
-      "ms": 1
+      "ms": 0
     },
     {
       "name": "ranked",
       "ok": true,
       "detail": "rank 1 of 1 for \"tide times and sea conditions at a coastal port\"",
-      "ms": 326
+      "ms": 5
     }
   ],
   "failure": null,
   "observations": {
-    "transaction": "feb9bedb674f3b39bd52e8802fe150a4e296edb762bf80e7898d7ce16fea25b1",
+    "transaction": "b691cb2a1e5900254eaf572fcac0643d73db74e04d61fc3500a192a7269c39d7",
     "amount": "2500000",
-    "asset": "CCLNIKT3EFMP4TPJLNJFVQDQW6WW3XCUYVFUWEMW6PQJK2BYNIYEHR2D",
+    "asset": "CDLCU4OX6SSSQWMNIZW5QZFGHPCCEZAIALULG6ZBAHYZLTARFPHIYLRS",
     "extensionResponses": {
       "status": "success"
     },
-    "indexingLagMs": 511,
+    "indexingLagMs": 2,
     "indexingPolls": 1,
     "searchQuery": "tide times and sea conditions at a coastal port",
     "searchRank": 1,
     "searchResultCount": 1,
-    "resource": "http://127.0.0.1:64672/canary/20260811203111/tides"
+    "resource": "http://127.0.0.1:60336/canary/20260814120416/tides"
   }
 }

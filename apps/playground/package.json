@@ -1,0 +1,51 @@
+{
+  "name": "@rail402/playground",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Rail402 playground: session bootstrap, USDC dispenser, demo sellers, and the browser helper library the playground UI is built on.",
+  "type": "module",
+  "main": "./dist/server/lib.js",
+  "types": "./dist/server/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/server/lib.d.ts",
+      "default": "./dist/server/lib.js"
+    },
+    "./server": "./dist/server/index.js",
+    "./browser": {
+      "types": "./dist/browser/index.d.ts",
+      "default": "./dist/browser/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "tsx watch src/server/index.ts",
+    "start": "node dist/server/index.js",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@rail402/agent-helpers": "workspace:*",
+    "@rail402/facilitator": "workspace:*",
+    "@rail402/errors": "workspace:*",
+    "@rail402/scheme-upto-stellar": "workspace:*",
+    "@rail402/seller-helpers": "workspace:*",
+    "@x402/core": "2.20.0",
+    "@x402/extensions": "2.20.0",
+    "@x402/fetch": "2.20.0",
+    "@x402/hono": "2.20.0",
+    "@x402/stellar": "2.20.0",
+    "@stellar/stellar-sdk": "^16.2.0",
+    "@hono/node-server": "^2.0.5",
+    "hono": "^4.12.0",
+    "pino": "^10.3.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

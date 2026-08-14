@@ -12,7 +12,11 @@
       "types": "./dist/lib.d.ts",
       "default": "./dist/lib.js"
     },
-    "./server": "./dist/index.js"
+    "./server": "./dist/index.js",
+    "./rate-limit": {
+      "types": "./dist/rate-limit.d.ts",
+      "default": "./dist/rate-limit.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

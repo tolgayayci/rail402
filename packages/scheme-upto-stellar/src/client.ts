@@ -1,17 +1,18 @@
 import {
   Address,
-  BASE_FEE,
-  Contract,
-  Operation,
   Transaction,
-  TransactionBuilder,
-  authorizeEntry,
+  contract,
   nativeToScVal,
   rpc,
   xdr,
 } from "@stellar/stellar-sdk";
-import { getNetworkPassphrase, getRpcClient, type ClientStellarSigner, type RpcConfig } from "@x402/stellar";
-import { randomBytes } from "node:crypto";
+import {
+  getNetworkPassphrase,
+  getRpcClient,
+  getRpcUrl,
+  type ClientStellarSigner,
+  type RpcConfig,
+} from "@x402/stellar";
 import type { Network, PaymentRequirements, SchemeNetworkClient } from "@x402/core/types";
 import { SETTLE_FN, uptoContractFor } from "./constants.js";
 import type { UptoStellarExtra, UptoStellarPayloadV2 } from "./types.js";
@@ -36,6 +37,7 @@ export interface UptoStellarClientOptions {
   /** Placeholder for the unsigned `actual_amount` argument. Any value works; it is replaced at settle. */
   placeholderActual?: bigint;
 }
+
 
 export class UptoStellarClientScheme implements SchemeNetworkClient {
   readonly scheme = "upto";
@@ -67,61 +69,76 @@ export class UptoStellarClientScheme implements SchemeNetworkClient {
     }
 
     const maxAmount = BigInt(requirements.amount);
-    const nonce = randomBytes(32);
+    // Web Crypto rather than node:crypto so this scheme bundles for the browser (the playground's
+    // buyer signs upto authorizations client-side). `globalThis.crypto` is standard in Node 20+ and
+    // every browser; a Uint8Array is byte-identical to the previous Buffer for both the ScVal and
+    // the hex encoding, so the on-ledger authorization is unchanged.
+    const nonce = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(nonce);
+    const nonceHex = Array.from(nonce, b => b.toString(16).padStart(2, "0")).join("");
 
     const { sequence } = await server.getLatestLedger();
     // Same derivation as `exact`: ceil(maxTimeoutSeconds / estimatedLedgerSeconds), fallback 5s.
     const expirationLedger = sequence + Math.ceil((requirements.maxTimeoutSeconds ?? 60) / 5);
+    const rpcUrl = getRpcUrl(network, this.options.rpcConfig);
 
-    const account = await server.getAccount(this.signer.address);
-    const contract = new Contract(canonical);
+    // Build via AssembledTransaction — exactly as the `exact` scheme does — for two reasons:
+    //
+    //  1. It builds against a NULL account source, so the payer is never the transaction source.
+    //     When the invoker signs and is also the tx source, Soroban emits source-account
+    //     credentials, which the facilitator rejects (`unsupported_credential_type`). This is why
+    //     the class had never settled end to end. The facilitator re-sources
+    //     the transaction to its own account at settle, so the null source never reaches the ledger.
+    //
+    //  2. `signAuthEntries` drives a SEP-43 `ClientStellarSigner` (the `signAuthEntry` string form
+    //     that `createEd25519Signer` and browser wallets both implement). The previous
+    //     `authorizeEntry(entry, signer)` call required a raw `Keypair`/callback and threw
+    //     `signer.sign is not a function` for the standard signer — the second half of why this
+    //     path was never exercised.
+    //
+    // The signed transaction still carries a placeholder `actual_amount`; the facilitator swaps in
+    // the real charge at settle without invalidating the signature (that argument is unsigned).
+    const tx = await contract.AssembledTransaction.build({
+      contractId: canonical,
+      method: SETTLE_FN,
+      args: [
+        new Address(requirements.asset).toScVal(),
+        new Address(this.signer.address).toScVal(),
+        new Address(requirements.payTo).toScVal(),
+        nativeToScVal(maxAmount, { type: "i128" }),
+        nativeToScVal(expirationLedger, { type: "u32" }),
+        nativeToScVal(nonce, { type: "bytes" }),
+        nativeToScVal(this.options.placeholderActual ?? maxAmount, { type: "i128" }),
+        // hook: None. A keypair payer has no spending policy to reconcile, so nothing is called.
+        xdr.ScVal.scvVoid(),
+      ],
+      networkPassphrase: passphrase,
+      rpcUrl,
+      parseResultXdr: (result: xdr.ScVal) => result,
+    });
 
-    const build = (actual: bigint) =>
-      new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase })
-        .addOperation(
-          contract.call(
-            SETTLE_FN,
-            new Address(requirements.asset).toScVal(),
-            new Address(this.signer.address).toScVal(),
-            new Address(requirements.payTo).toScVal(),
-            nativeToScVal(maxAmount, { type: "i128" }),
-            nativeToScVal(expirationLedger, { type: "u32" }),
-            nativeToScVal(nonce, { type: "bytes" }),
-            nativeToScVal(actual, { type: "i128" }),
-            // hook: None. A keypair payer has no spending policy to reconcile, so nothing is called.
-            xdr.ScVal.scvVoid(),
-          ),
-        )
-        .setTimeout(requirements.maxTimeoutSeconds ?? 60)
-        .build();
-
-    // Simulate to discover the authorization tree the host will require, then sign exactly that.
-    const probe = build(this.options.placeholderActual ?? maxAmount);
-    const sim = await server.simulateTransaction(probe);
-    if (!rpc.Api.isSimulationSuccess(sim)) {
-      const detail = rpc.Api.isSimulationError(sim) ? sim.error : "unknown";
-      throw new Error(`Could not simulate the upto authorization: ${detail}`);
+    if (rpc.Api.isSimulationError(tx.simulation!)) {
+      throw new Error(`Could not simulate the upto authorization: ${tx.simulation.error}`);
     }
 
-    const entries = sim.result?.auth ?? [];
-    const signed: xdr.SorobanAuthorizationEntry[] = [];
-    for (const entry of entries) {
-      signed.push(await authorizeEntry(entry, this.signer as never, expirationLedger, passphrase));
-    }
+    await tx.signAuthEntries({
+      address: this.signer.address,
+      signAuthEntry: this.signer.signAuthEntry,
+      expiration: expirationLedger,
+    });
 
-    const op = probe.operations[0] as Operation.InvokeHostFunction;
-    const withAuth = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase })
-      .addOperation(Operation.invokeHostFunction({ func: op.func, auth: signed }))
-      .setTimeout(requirements.maxTimeoutSeconds ?? 60)
-      .build();
+    const stillMissing = tx.needsNonInvokerSigningBy();
+    if (stillMissing.length > 0) {
+      throw new Error(`upto authorization still needs signatures from: [${stillMissing.join(", ")}]`);
+    }
 
     return {
       x402Version,
       payload: {
-        transaction: withAuth.toXDR(),
+        transaction: tx.built!.toXDR(),
         maxAmount: maxAmount.toString(),
         expirationLedger,
-        nonce: nonce.toString("hex"),
+        nonce: nonceHex,
       },
     };
   }
