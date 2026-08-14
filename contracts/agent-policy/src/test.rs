@@ -3,7 +3,7 @@
 use soroban_sdk::{
     auth::{Context, ContractContext},
     contract,
-    testutils::{Address as _, Ledger as _},
+    testutils::{storage::Persistent as _, Address as _, Ledger as _},
     vec, Address, BytesN, Env, IntoVal, String, Symbol, Vec,
 };
 use stellar_accounts::{
@@ -470,4 +470,33 @@ fn release_rejects_an_actual_over_the_reserved_ceiling() {
     let f = setup();
     enforce(&f, settle_ctx_n(&f.e, 7, 500_000));
     release(&f, 7, 500_001);
+}
+
+// ── TTL: neither the budget nor a reservation is archived out from under the account ──
+
+#[test]
+fn every_write_refreshes_the_ttl_so_neither_entry_is_archived() {
+    // A Soroban persistent entry is ARCHIVED once its TTL lapses. Archival is not benign here: an
+    // archived Account entry resets an account's remaining budget (a later `read` faults with
+    // NotInstalled), and an archived Reservation is a spend `release` can no longer reconcile — its
+    // reserved ceiling stays over-counted forever. So every write bumps the TTL. Reading both TTLs
+    // back proves the bump ran with the intended floors.
+    let f = setup();
+    enforce(&f, settle_ctx_n(&f.e, 9, 400_000)); // writes the budget AND a reservation
+
+    let nonce = BytesN::from_array(&f.e, &[9u8; 32]);
+    let (budget_ttl, reservation_ttl, max) = f.e.as_contract(&f.host, || {
+        let p = f.e.storage().persistent();
+        (
+            p.get_ttl(&crate::DataKey::Account(f.account.clone(), f.rule.id)),
+            p.get_ttl(&crate::DataKey::Reservation(f.account.clone(), nonce.clone())),
+            f.e.storage().max_ttl(),
+        )
+    });
+    // Each entry was extended to its floor, clamped to the ledger's maximum.
+    assert_eq!(budget_ttl, crate::BUDGET_TTL_LEDGERS.min(max));
+    assert_eq!(reservation_ttl, crate::RESERVATION_TTL_LEDGERS.min(max));
+    // And a reservation is held for far less time than the budget — it only has to outlive one
+    // payment's settle window, whereas the budget spans a whole spending period.
+    assert!(reservation_ttl <= budget_ttl);
 }

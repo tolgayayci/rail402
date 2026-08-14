@@ -97,6 +97,27 @@ const FN_APPROVE: &str = "approve";
 /// spending inside one period.
 const MAX_HISTORY: u32 = 30;
 
+/// TTL floors (ledgers) for the two persistent entries this contract keeps. A Soroban persistent
+/// entry is ARCHIVED once its TTL lapses, and an archived entry here is not benign: an archived
+/// `Account` entry resets an account's remaining budget (a `read` would then fault on `NotInstalled`),
+/// and an archived `Reservation` is a spend record that `release` can no longer reconcile — the
+/// reserved ceiling stays over-counted forever. So every write refreshes the TTL, and an
+/// actively-used account never loses either entry.
+///
+/// ~24h for a reservation matches the `upto` auth's own lifetime (the settlement contract's
+/// `NONCE_TTL_LEDGERS`): a reservation not released within a day means the authorization has expired
+/// and can never settle. The account budget is held far longer because it spans a spending PERIOD,
+/// not a single payment.
+const RESERVATION_TTL_LEDGERS: u32 = 17_280; // ~24h at 5s ledgers
+const BUDGET_TTL_LEDGERS: u32 = 518_400; // ~30 days at 5s ledgers
+
+/// Refresh a persistent entry's TTL to `ttl` ledgers, clamped to the network maximum so a bump can
+/// never panic by asking for more than the ledger allows.
+fn bump(e: &Env, key: &DataKey, ttl: u32) {
+    let capped = ttl.min(e.storage().max_ttl());
+    e.storage().persistent().extend_ttl(key, capped, capped);
+}
+
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
@@ -197,9 +218,11 @@ fn read(e: &Env, smart_account: &Address, rule_id: u32) -> X402PolicyData {
 }
 
 fn write(e: &Env, smart_account: &Address, rule_id: u32, data: &X402PolicyData) {
-    e.storage()
-        .persistent()
-        .set(&DataKey::Account(smart_account.clone(), rule_id), data);
+    let key = DataKey::Account(smart_account.clone(), rule_id);
+    e.storage().persistent().set(&key, data);
+    // Every enforced payment refreshes the budget's TTL, so an account paying at least once a month
+    // never has its remaining budget archived out from under it.
+    bump(e, &key, BUDGET_TTL_LEDGERS);
 }
 
 #[contract]
@@ -233,6 +256,7 @@ impl Policy for X402AgentPolicy {
                 total_spent: 0,
             },
         );
+        bump(e, &key, BUDGET_TTL_LEDGERS);
     }
 
     /// Validate one authorization context and commit its amount to the budget.
@@ -325,10 +349,14 @@ impl Policy for X402AgentPolicy {
         write(e, &smart_account, context_rule.id, &data);
 
         if let Some(settlement_contract) = settlement {
+            let res_key = DataKey::Reservation(smart_account.clone(), payment_id);
             e.storage().persistent().set(
-                &DataKey::Reservation(smart_account.clone(), payment_id),
+                &res_key,
                 &Reservation { rule_id: context_rule.id, reserved: amount, settlement_contract },
             );
+            // A reservation must outlive the window in which its `upto` payment can settle. If it were
+            // archived before `release`, the ceiling it holds would stay over-counted forever.
+            bump(e, &res_key, RESERVATION_TTL_LEDGERS);
         }
     }
 
