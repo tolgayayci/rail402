@@ -214,20 +214,23 @@ export class FacilitatorRegistry {
         lastSeenAt: this.now().toISOString(),
         // lastError deliberately dropped on success.
       });
-      // When a facilitator's signer set gains addresses (e.g. it just became verified), attribute
-      // the history already stored as x402-shaped. Only run on a change so a steady poll is cheap;
-      // first-claim-wins means only signers this facilitator legitimately owns get claimed.
-      const gained = probe.signers.filter(s => !facilitator.signers.includes(s));
-      if (gained.length > 0) {
-        const owned = gained.filter(s => (this.store.signerIndex().get(s) ?? facilitator.id) === facilitator.id);
-        const confidence = facilitator.id === "rail402" ? "rail402" : "verified-facilitator";
-        const changed = this.store.reattribute(facilitator.id, confidence, owned);
-        if (changed > 0) {
-          this.logger.info(
-            { id: facilitator.id, reattributed: changed },
-            "attributed stored payments to a newly-known facilitator",
-          );
-        }
+      // Attribute any stored x402-shaped rows whose source is one of this facilitator's signers.
+      // Run on EVERY refresh, not just on signer change: the history backfill keeps inserting older
+      // rows over many passes, and INSERT OR IGNORE cannot flip a row that was already stored as
+      // x402-shaped before this facilitator was known — so a periodic sweep is what converges a
+      // facilitator's attributed count to its true historical volume. It is a cheap UPDATE that
+      // only touches currently-unattributed rows. First-claim-wins: only signers this facilitator
+      // legitimately owns are claimed.
+      const owned = probe.signers.filter(
+        s => (this.store.signerIndex().get(s) ?? facilitator.id) === facilitator.id,
+      );
+      const confidence = facilitator.id === "rail402" ? "rail402" : "verified-facilitator";
+      const changed = this.store.reattribute(facilitator.id, confidence, owned);
+      if (changed > 0) {
+        this.logger.info(
+          { id: facilitator.id, reattributed: changed },
+          "attributed stored payments to a known facilitator",
+        );
       }
       this.logger.debug(
         { id: facilitator.id, signers: probe.signers.length },

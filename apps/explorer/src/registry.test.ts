@@ -164,6 +164,35 @@ describe("FacilitatorRegistry", () => {
     expect(row.facilitatorId).toBe("rail402");
   });
 
+  it("re-attributes on EVERY refresh, so backfilled history converges even after verify", async () => {
+    const store = new ExplorerStore();
+    const r = registry(store, serving({ "facilitator.rail402.dev": RAIL402_SUPPORTED }));
+    r.seed();
+    await r.refreshAll(); // facilitator now verified & known; nothing to flip yet
+
+    // A row arrives LATER (as the history backfill walks further back), stored x402-shaped with a
+    // source matching the already-known signer. The next periodic refresh must still flip it.
+    store.insertPayment({
+      network: "stellar:testnet",
+      epoch: "E1",
+      ledger: 2,
+      txHash: "e".repeat(64),
+      opIndex: 0,
+      scheme: "exact",
+      buyer: "GBUYER",
+      seller: "GSELLER",
+      amount: "10000",
+      assetContract: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      txSource: "GBRVXNCL55KOEB7WU3BPSEL34PSUH63UCIFPZDUBIVJBRRG5ZB7V4YR7",
+      confidence: "x402-shaped",
+      closedAt: "2026-08-13T00:00:00Z",
+      rawEnvelope: "{}",
+      ingestedAt: "2026-08-14T18:00:01Z",
+    });
+    await r.refreshAll();
+    expect(store.getPaymentByHash("e".repeat(64))!.confidence).toBe("rail402");
+  });
+
   it("caps signers/contracts a single /supported can contribute (review M7)", () => {
     const many = Array.from({ length: 500 }, () => "GBRVXNCL55KOEB7WU3BPSEL34PSUH63UCIFPZDUBIVJBRRG5ZB7V4YR7");
     const probe = parseSupported({ signers: { "stellar:*": many } });
