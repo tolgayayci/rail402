@@ -319,6 +319,7 @@ if (cmd === "install") {
   if (missing.length > 0) {
     writeDual({
       generatedAt: new Date().toISOString(),
+      facilitatorUrl: process.env.X402_STELLAR_FACILITATOR_URL ?? null,
       pinned: { sha: PINNED, ok: null },
       latest: { sha: null, ok: null },
       verdict: "blocked",
@@ -372,6 +373,7 @@ if (cmd === "install") {
 
   writeDual({
     generatedAt: new Date().toISOString(),
+    facilitatorUrl: process.env.X402_STELLAR_FACILITATOR_URL ?? null,
     pinned: { sha: pinned.head, ok: pinned.ok, scenarios: pinned.scenarios },
     latest: { sha: latest.head, ok: latest.ok, scenarios: latest.scenarios },
     verdict: verdict.state,
