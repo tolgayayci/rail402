@@ -591,10 +591,13 @@ export const ERROR_REGISTRY = {
       "Deliberately NOT mcp_upstream_error, which is retryable. An agent that acts on retryable advice here pays twice — the settlement hash in `details.transaction` is the receipt to take to the seller instead. Gotcha #12 (a retryable code on a non-retryable condition) recurring where the advice costs money rather than a round trip.",
   },
   mcp_upstream_error: {
-    reason: "The paid resource returned an error after payment was settled.",
+    reason:
+      "An upstream dependency — the Bazaar, or the resource being called — returned an error or was unreachable, so the call could not complete. No payment settled.",
     retryable: true,
     surface: "mcp",
     provenance: "local",
+    remediation:
+      "Safe to retry: the failure is transient and no money moved. A payment that DID settle and then failed is the separate, non-retryable mcp_paid_but_resource_failed — do not confuse the two, because retrying THAT one pays twice.",
   },
   invalid_exact_stellar_payload_account_policy_refused: {
     reason:
