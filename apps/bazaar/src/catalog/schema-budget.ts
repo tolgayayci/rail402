@@ -78,6 +78,18 @@ function walk(node: unknown, depth: number, budget: SchemaBudget): SchemaBudgetR
           reason: `schema uses "${key}"; a catalog schema may not carry a regular expression, which a crafted value could make validation unbounded on`,
         };
       }
+      // bazaar.md "Schema Validation" (@ 2026-08-04): `$ref` and `$id` values must be same-document
+      // JSON Pointer fragments (starting with `#`); external references (`http(s)://`, `file://`, or
+      // any other absolute/relative URI) are not allowed. An external `$ref` makes Ajv resolve — or
+      // attempt to fetch — a remote schema, and an external `$id` rebases resolution; both are a
+      // schema-injection / SSRF surface on a free, unauthenticated cataloging path. Refuse before the
+      // stock validator (Ajv) ever compiles it.
+      if ((key === "$ref" || key === "$id") && typeof value === "string" && !value.startsWith("#")) {
+        return {
+          ok: false,
+          reason: `schema "${key}" is ${JSON.stringify(value)}; $ref and $id must be same-document fragments starting with "#", never an external URI`,
+        };
+      }
       const r = walk(value, depth + 1, budget);
       if (!r.ok) return r;
     }

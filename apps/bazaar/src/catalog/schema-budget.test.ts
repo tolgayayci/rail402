@@ -21,6 +21,36 @@ describe("budgetClientSchema", () => {
     expect(budgetClientSchema(schema)).toEqual({ ok: true });
   });
 
+  // bazaar.md "Schema Validation" (2026-08-04): $ref/$id must be same-document "#…" fragments;
+  // external URIs are not allowed — an external $ref makes Ajv resolve a remote schema (Z1).
+  it("refuses an external $ref or $id (schema-injection / SSRF surface)", () => {
+    for (const ext of [
+      "https://evil.example/schema.json",
+      "http://x/y",
+      "file:///etc/passwd",
+      "./local.json",
+      "//cdn.example/x",
+      "urn:foo",
+    ]) {
+      const byRef = budgetClientSchema({ type: "object", properties: { input: { $ref: ext } } });
+      expect(byRef.ok, `$ref ${ext}`).toBe(false);
+      if (!byRef.ok) expect(byRef.reason).toMatch(/\$ref|\$id|fragment/);
+      const byId = budgetClientSchema({ $id: ext, type: "object" });
+      expect(byId.ok, `$id ${ext}`).toBe(false);
+    }
+  });
+
+  it("accepts same-document #-fragment $ref and $id", () => {
+    expect(
+      budgetClientSchema({
+        $id: "#root",
+        type: "object",
+        properties: { a: { $ref: "#/$defs/x" } },
+        $defs: { x: { type: "string" } },
+      }),
+    ).toEqual({ ok: true });
+  });
+
   it("refuses a catastrophic-backtracking `pattern` on its presence, without executing it", () => {
     const r = budgetClientSchema({ type: "string", pattern: "^(a+)+$" });
     expect(r.ok).toBe(false);
