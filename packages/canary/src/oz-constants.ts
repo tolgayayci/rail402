@@ -24,10 +24,14 @@ export const OZ_ED25519_VERIFIER = "CCC4DCEZYW2GLEF2JCASZASC34AH4VHR2KISPODRQDC6
 
 /**
  * Our x402 spending policy, wasm sha256
- * `041d8c79cfdbd4a0ff6aaca83c387fea718417b3ac31355ca08614a9952adfe8`. This build carries the
- * `release` entrypoint that reconciles a committed ceiling down to the actual settled amount.
+ * `6d9307303a7f11e14b98530688e1cccb259fc35c537b71561429e77bc4aaa232`. Carries the `release`
+ * entrypoint that reconciles a committed ceiling down to the actual settled amount, AND (as of this
+ * build) refreshes each persistent entry's TTL on write, so an active account's budget or a pending
+ * reservation is never archived out from under it (S6). Deployed testnet tx
+ * `b122fcede162ca4acf154ad0db68a1a78d390253311dd722cccfd4c4c3ba0f02`. Supersedes `CC34LRGI…` (wasm
+ * `041d8c79…`), which had the `release` hook but no TTL refresh.
  */
-export const X402_POLICY = "CC34LRGI3NHGY7H4BZW4YXXZ7PJRVXMSMHXUSXHA2TZW3UN4UBOFIFEC";
+export const X402_POLICY = "CC3XJMYTTLQNDHOQHNQPQWLRIABQDUQBNJQKED7D67A3RMLGVQHF7LEC";
 
 /**
  * The `upto` settlement contract on testnet, mirrored here to keep the canary dependency-free. This
