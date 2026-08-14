@@ -1259,3 +1259,40 @@ describe("search cursors bind to the whole request", () => {
     expect(page2.resources).toHaveLength(1);
   });
 });
+
+describe("partialResults truncation (Z4)", () => {
+  // `partialResults` is one of the three §3.2 search features and shipped with zero tests. It means
+  // matches were TRUNCATED at the facilitator's scoring ceiling — NOT merely that another page
+  // exists. It fires when scored matches reach SEARCH_CEILING (200); the page limit (MAX_LIMIT 100)
+  // only bounds the page, so the flag is genuinely reachable with enough matching entries.
+  const many = (count: number) => {
+    const store = new CatalogStore();
+    for (let i = 0; i < count; i++) {
+      store.upsert({
+        resource: `https://api.example.com/forecast/${i}`,
+        type: "http",
+        x402Version: 2,
+        accepts: [{ scheme: "exact", network: "stellar:testnet", amount: "1", asset: ASSET, payTo: SELLER }],
+        lastUpdated: now,
+        description: "coastal weather forecast service",
+        quality: { totalSettlements: 1, uniquePayers: 1, firstSeenAt: now },
+        ownerPayTo: SELLER,
+      } as CatalogEntry);
+    }
+    return store;
+  };
+
+  it("sets partialResults when matches hit the scoring ceiling", () => {
+    const res = many(260).search("coastal weather forecast", {}, 100);
+    expect(res.resources).toHaveLength(100); // page capped at MAX_LIMIT
+    expect(res.pagination?.cursor).toBeTruthy(); // more pages exist
+    expect(res.partialResults).toBe(true); // and the match set itself was truncated
+  });
+
+  it("omits partialResults when matches are under the ceiling, even across pages", () => {
+    const res = many(30).search("coastal weather forecast", {}, 10);
+    // A next page exists (30 matches, page of 10) but nothing was truncated — the flag must stay off.
+    expect(res.pagination?.cursor).toBeTruthy();
+    expect(res.partialResults).toBeUndefined();
+  });
+});
