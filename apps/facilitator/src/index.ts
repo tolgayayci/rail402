@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { X402Error } from "@rail402/errors";
 import { loadConfig, describeConfig } from "./config/env.js";
 import { createApp } from "./app.js";
+import { startExplorerAnnounce } from "./announce.js";
 import { createLogger } from "./logger.js";
 
 // The log level is read from the environment here rather than from config, because the very first
@@ -40,12 +41,17 @@ async function main(): Promise<void> {
   // constructing an app never touches the network.
   const stopFederation = startFederation();
 
+  // Explorer announce heartbeat (default on; EXPLORER_ANNOUNCE_URL="" disables). Fire-and-forget
+  // by design — an explorer outage must never touch a payment path.
+  const stopAnnounce = startExplorerAnnounce({ config, logger: log });
+
   const server = serve({ fetch: app.fetch, port: config.port, hostname: config.host }, info => {
     log.info({ url: `http://${config.host}:${info.port}` }, "listening");
   });
 
   const shutdown = (signal: string) => {
     log.info({ signal }, "draining connections");
+    stopAnnounce();
     stopFederation();
     server.close(() => process.exit(0));
     // Do not let a hung connection block a redeploy indefinitely.

@@ -130,6 +130,21 @@ const EnvSchema = z.object({
    */
   FEDERATION_SOURCES: z.string().optional(),
   FEDERATION_REFRESH_SECONDS: z.coerce.number().int().positive().default(900),
+
+  /**
+   * This deployment's own public base URL (e.g. "https://facilitator.rail402.dev"). Announcing
+   * to an explorer needs it — a facilitator does not otherwise know its public address, and
+   * announcing a loopback bind would be refused by the intake anyway.
+   */
+  FACILITATOR_PUBLIC_URL: z.string().optional(),
+
+  /**
+   * Explorer announce intake, DEFAULT ON pointing at the Rail402 explorer; set to "" to disable.
+   * The heartbeat carries ONLY the public base URL above — the explorer probes /supported itself
+   * and trusts nothing it did not verify. No secrets, no traffic data, nothing else travels.
+   * Announce fires only when FACILITATOR_PUBLIC_URL is also set.
+   */
+  EXPLORER_ANNOUNCE_URL: z.string().default("https://explorer-api.rail402.dev/announce"),
 });
 
 /**
@@ -203,6 +218,10 @@ export interface FacilitatorConfig {
   readonly federationRefreshSeconds: number;
   /** Whether this deployment answers `/discovery/*`, and therefore may advertise `bazaar`. */
   readonly servesDiscovery: boolean;
+  /** This deployment's own public base URL, when the operator has told us. */
+  readonly publicUrl?: string;
+  /** Explorer announce endpoint; undefined when disabled via EXPLORER_ANNOUNCE_URL="". */
+  readonly explorerAnnounceUrl?: string;
   /** Catalog loopback/private `resource.url` hosts. Local development only — never on a deployment. */
   readonly allowPrivateHosts: boolean;
 }
@@ -314,6 +333,28 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacilitatorCon
     });
   }
 
+  // ── Explorer announce ─────────────────────────────────────────────────────
+  const publicUrl = (e.FACILITATOR_PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
+  if (publicUrl !== "") {
+    try {
+      new URL(publicUrl);
+    } catch {
+      throw new X402Error("config_invalid_value", {
+        reason: `FACILITATOR_PUBLIC_URL is not a valid URL: "${publicUrl}".`,
+      });
+    }
+  }
+  const explorerAnnounceUrl = e.EXPLORER_ANNOUNCE_URL.trim();
+  if (explorerAnnounceUrl !== "") {
+    try {
+      new URL(explorerAnnounceUrl);
+    } catch {
+      throw new X402Error("config_invalid_value", {
+        reason: `EXPLORER_ANNOUNCE_URL is not a valid URL: "${explorerAnnounceUrl}". Set it to "" to disable announcing.`,
+      });
+    }
+  }
+
   return Object.freeze({
     port: e.PORT,
     host: e.HOST,
@@ -339,6 +380,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacilitatorCon
     federationRefreshSeconds: e.FEDERATION_REFRESH_SECONDS,
     servesDiscovery: e.SERVES_DISCOVERY,
     allowPrivateHosts: e.BAZAAR_ALLOW_PRIVATE_HOSTS,
+    ...(publicUrl !== "" ? { publicUrl } : {}),
+    ...(explorerAnnounceUrl !== "" ? { explorerAnnounceUrl } : {}),
   });
 }
 
@@ -356,5 +399,9 @@ export function describeConfig(config: FacilitatorConfig): Record<string, unknow
     rateLimit: config.rateLimit.enabled
       ? `${config.rateLimit.maxRequests}/${config.rateLimit.windowSeconds}s`
       : "disabled",
+    explorerAnnounce:
+      config.publicUrl !== undefined && config.explorerAnnounceUrl !== undefined
+        ? config.explorerAnnounceUrl
+        : "off",
   };
 }
