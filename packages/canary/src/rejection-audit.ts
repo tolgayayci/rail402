@@ -404,10 +404,20 @@ export async function runRejectionAudit(options: RejectionAuditOptions): Promise
       return catalogVerdict(await callFacilitator(url, "/settle", poisoned, payment.accepted));
     });
 
-    await audit("catalog-ownership-conflict", "bazaar_listing_ownership_conflict", async () => {
-      // Someone else's listing, claimed by paying a different seller for the same URL. This is the
-      // spoofing attack: nobody may overwrite another seller's entry
-      // or its pricing.
+    await audit(
+      "catalog-ownership-conflict",
+      // On a facilitator that allows the canary's private seller URLs (localhost, where the canary
+      // opts into allow-private-hosts), the takeover is refused by the OWNERSHIP check. Against a
+      // PUBLIC deployment (allow-private-hosts off, as it must be), the same takeover payload carries
+      // a private local-seller URL that the host-policy gate (B6) refuses FIRST — the takeover is
+      // still refused, just at an earlier gate. Both are correct refusals of a listing spoof, so
+      // either code passes; only silent acceptance would fail. This is the exact deployed-vs-localhost
+      // gap C3 exists to catch: the product is correct, the single-code expectation was localhost-only.
+      ["bazaar_listing_ownership_conflict", "bazaar_resource_url_not_public"],
+      async () => {
+        // Someone else's listing, claimed by paying a different seller for the same URL. This is the
+        // spoofing attack: nobody may overwrite another seller's entry
+        // or its pricing.
       const attacker = await freshSeller(url, fixtures, options.runId, "attacker");
       sellers.push(attacker.seller);
       const payment = await buyer.pay(attacker.seller.resourceUrl);
