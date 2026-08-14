@@ -620,6 +620,610 @@
         "https://www.x402joker.com/api/buy": 3
       },
       "note": "Two-word descriptions and almost no metadata. Included because short, near-empty entries are a real part of this catalog and the ranker should still find them."
+    },
+    {
+      "query": "did the Lakers win their game last night and what was the final tally",
+      "relevant": [
+        "https://www.stratalize.com/api/x402/sports-nba-scores",
+        "https://www.stratalize.com/api/x402/resolve-game-outcome"
+      ],
+      "grades": {
+        "https://www.stratalize.com/api/x402/sports-nba-scores": 3,
+        "https://www.stratalize.com/api/x402/resolve-game-outcome": 1
+      },
+      "note": "NBA-scores is the direct answer (final scores + team names) but the query names a team, not the league or the word 'score'; the game-outcome resolver only returns a win/lose boolean so it is a weak partial."
+    },
+    {
+      "query": "automatically settle a wager on whether the home side won, with a receipt I can independently verify on-chain",
+      "relevant": [
+        "https://www.stratalize.com/api/x402/resolve-game-outcome",
+        "https://www.stratalize.com/api/x402/sports-nba-scores",
+        "https://www.stratalize.com/api/x402/sports-nfl-scores"
+      ],
+      "grades": {
+        "https://www.stratalize.com/api/x402/resolve-game-outcome": 3,
+        "https://www.stratalize.com/api/x402/sports-nba-scores": 1,
+        "https://www.stratalize.com/api/x402/sports-nfl-scores": 1
+      },
+      "note": "The binary resolver with a verifiable settlement receipt is the exact fit; the raw score feeds could supply the underlying fact but do nothing for settlement. Hard because 'wager/home side/receipt' share almost no tokens with 'prediction market resolver'."
+    },
+    {
+      "query": "I want to book a plane ticket from New York to Tokyo next month and compare cash fares",
+      "relevant": [
+        "https://stabletravel.dev/api/google-flights/search",
+        "https://stabletravel.dev/api/seats-aero/search"
+      ],
+      "grades": {
+        "https://stabletravel.dev/api/google-flights/search": 3,
+        "https://stabletravel.dev/api/seats-aero/search": 1
+      },
+      "note": "Google-Flights search returns paid fare offers and price insights; Seats.aero is award/mileage inventory, so it is a weak partial for a cash-fare shopper. Tests distinguishing revenue tickets from award seats."
+    },
+    {
+      "query": "current runway conditions and visibility a pilot would check right before takeoff",
+      "relevant": [
+        "https://stabletravel.dev/api/flightaware/airports/KJFK/weather/observations",
+        "https://stabletravel.dev/api/flightaware/airports/KMIA/weather/observations",
+        "https://aviation.x402.press/aviation/ask"
+      ],
+      "grades": {
+        "https://stabletravel.dev/api/flightaware/airports/KJFK/weather/observations": 3,
+        "https://stabletravel.dev/api/flightaware/airports/KMIA/weather/observations": 3,
+        "https://aviation.x402.press/aviation/ask": 2
+      },
+      "note": "The two per-airport METAR observation endpoints are precisely what a pilot reads; the natural-language aviation service can answer it but is a broader synthesizer. Hard: no 'METAR', 'weather', or 'airport code' in the query."
+    },
+    {
+      "query": "restate our marketing slogan in another language without losing its voice or nuance",
+      "relevant": [
+        "https://api.relaystation.ai/v1/llm/translate",
+        "https://bazaar-gateway.vercel.app/api/translate",
+        "https://netintel.dev/translate/short"
+      ],
+      "grades": {
+        "https://api.relaystation.ai/v1/llm/translate": 3,
+        "https://bazaar-gateway.vercel.app/api/translate": 2,
+        "https://netintel.dev/translate/short": 2
+      },
+      "note": "The tone/meaning-preserving LLM translator is the best fit for nuanced copy; the context-aware and Claude-Haiku translators are solid partials; a plain phrase-model would be worse. 'Voice/nuance' rewards quality-of-translation understanding over keyword 'translate'."
+    },
+    {
+      "query": "I have a single logo image and need it exported at every icon size an iPhone app, an Android app, and a web PWA manifest require",
+      "relevant": [
+        "https://imagcon.app/routes/x402/icons-from-image",
+        "https://api.relaystation.ai/v1/generate/favicon",
+        "https://imagcon.app/routes/x402/splash-from-image"
+      ],
+      "grades": {
+        "https://imagcon.app/routes/x402/icons-from-image": 3,
+        "https://api.relaystation.ai/v1/generate/favicon": 2,
+        "https://imagcon.app/routes/x402/splash-from-image": 1
+      },
+      "note": "Only the icons-from-image tool explicitly spans iOS + Android + web/PWA icons from an existing image; the favicon generator covers only the web slice; splash-screens are launch images, not icons. Tests platform-coverage reasoning, not the word 'icon'."
+    },
+    {
+      "query": "grade the condition and centering of my vintage Charizard card from a photo, PSA-style",
+      "relevant": [
+        "https://oracle.the-undesirables.com/api/v1/grade"
+      ],
+      "grades": {
+        "https://oracle.the-undesirables.com/api/v1/grade": 3
+      },
+      "note": "Single distinctive service: AI trading-card grading with corner/edge/centering analysis and PSA/Beckett-calibrated subgrades. 'Charizard' implies a Pokemon card without naming the card game; nothing else in the corpus grades collectibles."
+    },
+    {
+      "query": "convert a .mov clip into an mp4 with H.264 so it plays on any device",
+      "relevant": [
+        "https://api.relaystation.ai/v1/media/convert"
+      ],
+      "grades": {
+        "https://api.relaystation.ai/v1/media/convert": 3
+      },
+      "note": "Distinctive video/audio re-encoder (container/codec change, H.264/AAC). The image-conversion services are near-neighbors by wording ('convert') but cannot touch video, so they are correctly excluded — a classic false-friend trap."
+    },
+    {
+      "query": "has a specific GDPR provision been amended, or is the consolidated text I'm citing still current",
+      "relevant": [
+        "https://api.invoket.com/legal/eu-act",
+        "https://api.invoket.com/legal/history",
+        "https://api.invoket.com/legal/article"
+      ],
+      "grades": {
+        "https://api.invoket.com/legal/eu-act": 3,
+        "https://api.invoket.com/legal/history": 2,
+        "https://api.invoket.com/legal/article": 1
+      },
+      "note": "GDPR is an EU act, so the EUR-Lex act checker is the direct fit; the history timeline shows when it changed (strong partial); the French-code checker is the wrong corpus. Mirror-image of the French-law query to test jurisdiction routing."
+    },
+    {
+      "query": "what does a contract ICU nurse typically earn in Texas right now",
+      "relevant": [
+        "https://www.stratalize.com/api/x402/travel-nurse-rate-benchmark",
+        "https://www.stratalize.com/api/x402/staffing-agency-markup-analysis"
+      ],
+      "grades": {
+        "https://www.stratalize.com/api/x402/travel-nurse-rate-benchmark": 3,
+        "https://www.stratalize.com/api/x402/staffing-agency-markup-analysis": 2
+      },
+      "note": "The travel-nurse bill-rate benchmark by specialty/state is exactly a per-state ICU rate; the agency-markup analysis is adjacent (what the agency adds) rather than the take-home rate. Distinguishes pay rate from agency margin."
+    },
+    {
+      "query": "pull together current openings for a marketing manager from the major job boards so I can apply",
+      "relevant": [
+        "https://hirescrape.com/api/tools/jobs",
+        "https://api.linkedpanda.com/agent/v1/jobs/search",
+        "https://hirescrape.com/api/tools/linkedin",
+        "https://stablejobs.dev/api/coresignal/job-search"
+      ],
+      "grades": {
+        "https://hirescrape.com/api/tools/jobs": 3,
+        "https://api.linkedpanda.com/agent/v1/jobs/search": 3,
+        "https://hirescrape.com/api/tools/linkedin": 2,
+        "https://stablejobs.dev/api/coresignal/job-search": 2
+      },
+      "note": "The multi-board jobs scraper and the LinkedIn job search directly return apply-able listings; the general LinkedIn tool and the CoreSignal preview (no descriptions/URLs, step 1 only) are partials. Tests 'job boards to apply' vs enrichment/preview."
+    },
+    {
+      "query": "flag whether a website's domain was set up only days ago, to catch a likely phishing site",
+      "relevant": [
+        "https://domain-age-checker.underscoredone.com/lookup",
+        "https://x402.ottoai.services/whois-lookup"
+      ],
+      "grades": {
+        "https://domain-age-checker.underscoredone.com/lookup": 3,
+        "https://x402.ottoai.services/whois-lookup": 2
+      },
+      "note": "The domain-age checker is purpose-built for spotting brand-new suspicious domains; a WHOIS/RDAP lookup carries the creation date but leaves the age math to the caller. Query leads with the phishing motive, not 'domain age'."
+    },
+    {
+      "query": "I have a shortlist of brand names — tell me which ones are still free to register",
+      "relevant": [
+        "https://domain-availability-checker.underscoredone.com/check",
+        "https://netintel.dev/bulk-domain/check"
+      ],
+      "grades": {
+        "https://domain-availability-checker.underscoredone.com/check": 3,
+        "https://netintel.dev/bulk-domain/check": 3
+      },
+      "note": "Both check registration availability for a batch of names; the bulk checker adds multi-TLD scanning, so both are strong. The trap is age/WHOIS lookups that report on already-registered domains, which do not answer 'still free'."
+    },
+    {
+      "query": "is the address hammering my server a known source of spam or malicious traffic",
+      "relevant": [
+        "https://netintel.dev/ip-blacklist/check",
+        "https://netintel.dev/ip-reputation/analyze",
+        "https://netintel.dev/ip-risk/score",
+        "https://api.interzoid.com/getipprofile"
+      ],
+      "grades": {
+        "https://netintel.dev/ip-blacklist/check": 3,
+        "https://netintel.dev/ip-reputation/analyze": 3,
+        "https://netintel.dev/ip-risk/score": 2,
+        "https://api.interzoid.com/getipprofile": 2
+      },
+      "note": "DNSBL blacklist and AbuseIPDB reputation checks directly answer 'is this a bad IP'; the composite risk score and the IP profile (with a reputation field) are broader partials. Plain IP-geolocation endpoints are a tempting but wrong neighbor and are excluded."
+    },
+    {
+      "query": "decode a car's 17-character chassis identifier into its make, model and year",
+      "relevant": [
+        "https://2s.io/api/vehicle/vin-decode",
+        "https://agent402.tools/api/vin-decode",
+        "https://2s.io/api/vehicle/decode-wmi"
+      ],
+      "grades": {
+        "https://2s.io/api/vehicle/vin-decode": 3,
+        "https://agent402.tools/api/vin-decode": 3,
+        "https://2s.io/api/vehicle/decode-wmi": 1
+      },
+      "note": "Two full NHTSA VIN decoders return make/model/year; the WMI decoder only reads the first three characters (manufacturer) and cannot give the model or year — a weak partial. '17-character chassis identifier' avoids the token 'VIN'."
+    },
+    {
+      "query": "tell me if a given phone number is a mobile, a landline, or an internet line, and which country it belongs to",
+      "relevant": [
+        "https://api.qonoro.ai/v1/phone/validate",
+        "https://netintel.dev/phone-intel/analyze",
+        "https://api.invoket.com/phone/validate",
+        "https://brasil-dados-api.onrender.com/verify/phone/:var1"
+      ],
+      "grades": {
+        "https://api.qonoro.ai/v1/phone/validate": 3,
+        "https://netintel.dev/phone-intel/analyze": 3,
+        "https://api.invoket.com/phone/validate": 2,
+        "https://brasil-dados-api.onrender.com/verify/phone/:var1": 2
+      },
+      "note": "Two validators explicitly return line type (mobile/landline/VOIP) plus country; the other two validate and give country/E.164 but are lighter on line-type detail. SMS-number-rental services in the corpus are a different need and excluded."
+    },
+    {
+      "query": "I need to move money and want the least fees — compare what a transaction costs across the major EVM chains so I can route to the cheapest one",
+      "relevant": [
+        "https://evm-gas.apitoll.cloud/v1/evm/gas",
+        "https://api.402rates.com/v1/settlement/costs",
+        "https://store.agentexchange.work/chain/gas",
+        "https://vibesprings.net/api/gas"
+      ],
+      "grades": {
+        "https://evm-gas.apitoll.cloud/v1/evm/gas": 3,
+        "https://api.402rates.com/v1/settlement/costs": 2,
+        "https://store.agentexchange.work/chain/gas": 2,
+        "https://vibesprings.net/api/gas": 1
+      },
+      "note": "Cross-chain fee comparison: evm-gas spans 17 chains (best), 402rates literally sorts a USDC transfer cheapest-first, agentexchange covers 6 chains, vibesprings only 4. Many near-identical gas oracles exist, so ranking must reward breadth."
+    },
+    {
+      "query": "test whether a contract call would revert before I actually broadcast it and burn the fee",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/blockchain/simulate",
+        "https://api.onesource.io/api/chain/call"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/blockchain/simulate": 3,
+        "https://api.onesource.io/api/chain/call": 2
+      },
+      "note": "'Would it revert' is exactly the simulate endpoint (best); onesource's read-only eth_call also dry-runs a call but is framed as a generic read, not a revert check. Neither says 'dry-run' the way the query implies."
+    },
+    {
+      "query": "before I release USDC to a counterparty, confirm their crypto wallet isn't on a government blocked-persons list",
+      "relevant": [
+        "https://x402-endpoints.onrender.com/compliance/wallet-screen",
+        "https://eagle.quickai.build/check",
+        "https://x402.payperbyte.io/feeds/sanctions-screen",
+        "https://induction.aarei.ai/services/ofacs/check/entity"
+      ],
+      "grades": {
+        "https://x402-endpoints.onrender.com/compliance/wallet-screen": 3,
+        "https://eagle.quickai.build/check": 2,
+        "https://x402.payperbyte.io/feeds/sanctions-screen": 2,
+        "https://induction.aarei.ai/services/ofacs/check/entity": 1
+      },
+      "note": "OFAC wallet screening: wallet-screen adds mixer exposure + a signed receipt (best), eagle adds the Circle blacklist, sanctions-screen does address-or-name; induction only matches an entity NAME, not a wallet, so it's the weak one."
+    },
+    {
+      "query": "the address I pasted looks almost identical to the one I copied — make sure it isn't a decoy trying to intercept my payment",
+      "relevant": [
+        "https://x402.dailyelo.com/v1/address-poison-check",
+        "https://x402.dailyelo.com/v1/recipient-check",
+        "https://x402.payperbyte.io/feeds/address-reputation"
+      ],
+      "grades": {
+        "https://x402.dailyelo.com/v1/address-poison-check": 3,
+        "https://x402.dailyelo.com/v1/recipient-check": 2,
+        "https://x402.payperbyte.io/feeds/address-reputation": 1
+      },
+      "note": "'Almost identical decoy' is the address-poisoning look-alike check (best); recipient-check covers look-alikes plus known-malicious; address-reputation is a broader go/no-go verdict. Query avoids the term 'poisoning' entirely."
+    },
+    {
+      "query": "I'm drawing a giveaway winner and need a random pick the entrants can independently prove wasn't rigged",
+      "relevant": [
+        "https://api.anchor-x402.com/v1/roll",
+        "https://x402.shizu.me/rand",
+        "https://verifiable-random.use.x402atlas.com/dice",
+        "https://agent402.tools/api/random"
+      ],
+      "grades": {
+        "https://api.anchor-x402.com/v1/roll": 3,
+        "https://x402.shizu.me/rand": 2,
+        "https://verifiable-random.use.x402atlas.com/dice": 2,
+        "https://agent402.tools/api/random": 1
+      },
+      "note": "The hook is provable fairness, not just randomness: anchor/roll signs each draw (best), shizu offers commit-reveal receipts, drand-dice carries a proof transcript; agent402 is cryptographically secure but unverifiable, so it's the trap partial."
+    },
+    {
+      "query": "produce a stable fingerprint of a chunk of text so I can later tell if even one character changed",
+      "relevant": [
+        "https://hash-hmac.underscoredone.com/hash",
+        "https://agent402.tools/api/hash",
+        "https://webtools402.176-109-107-191.sslip.io/crypto/hash"
+      ],
+      "grades": {
+        "https://hash-hmac.underscoredone.com/hash": 3,
+        "https://agent402.tools/api/hash": 2,
+        "https://webtools402.176-109-107-191.sslip.io/crypto/hash": 1
+      },
+      "note": "Integrity fingerprint: hash-hmac offers many algorithms plus timing-safe verify (best), agent402 the common SHA/MD5 set; webtools402 is Ethereum-flavoured (keccak/selector/namehash) so it's a weaker general-purpose fit."
+    },
+    {
+      "query": "peek at the claims and expiry buried inside a login bearer token without checking whether the signature is valid",
+      "relevant": [
+        "https://tools.ipintel.ai/jwt-decode",
+        "https://tools.ipintel.ai/base64-decode"
+      ],
+      "grades": {
+        "https://tools.ipintel.ai/jwt-decode": 3,
+        "https://tools.ipintel.ai/base64-decode": 1
+      },
+      "note": "A JWT is base64 under the hood so base64-decode partially works, but only jwt-decode parses claims/exp/alg directly and explicitly skips signature verification. Query never says 'JWT'."
+    },
+    {
+      "query": "someone linked me a site I've never heard of — how recently was it set up, so I can judge whether it's a throwaway scam",
+      "relevant": [
+        "https://netintel.dev/domain-age/check",
+        "https://x402.ottoai.services/domain-age",
+        "https://domain-age-checker.underscoredone.com/lookup"
+      ],
+      "grades": {
+        "https://netintel.dev/domain-age/check": 3,
+        "https://x402.ottoai.services/domain-age": 2,
+        "https://domain-age-checker.underscoredone.com/lookup": 2
+      },
+      "note": "Domain-age-as-trust-signal: netintel adds Wayback history + an explicit fraud/phishing framing (best); ottoai and underscoredone both return creation date + age but with less scam-detection framing."
+    },
+    {
+      "query": "I've settled on a brand name for my project — can I still grab the matching web address",
+      "relevant": [
+        "https://domain-availability-checker.underscoredone.com/check",
+        "https://netintel.dev/domain-availability/check",
+        "https://tools.ipintel.ai/domain-availability"
+      ],
+      "grades": {
+        "https://domain-availability-checker.underscoredone.com/check": 3,
+        "https://netintel.dev/domain-availability/check": 2,
+        "https://tools.ipintel.ai/domain-availability": 2
+      },
+      "note": "Registration-availability check: the underscoredone checker is single-purpose (best), netintel sweeps popular TLDs, ipintel returns an availability verdict. Query says 'grab the web address', sharing almost no tokens with 'domain registration'."
+    },
+    {
+      "query": "an unfamiliar server keeps hitting us — has its address turned up on abuse or spam blocklists? I don't care where it is, just its reputation",
+      "relevant": [
+        "https://netintel.dev/ip-blacklist/check",
+        "https://netintel.dev/ip-reputation/analyze",
+        "https://api.ipintel.ai/x402v2"
+      ],
+      "grades": {
+        "https://netintel.dev/ip-blacklist/check": 3,
+        "https://netintel.dev/ip-reputation/analyze": 2,
+        "https://api.ipintel.ai/x402v2": 1
+      },
+      "note": "'I don't care where it is' deliberately steers off geolocation: ip-blacklist checks 15 spam/abuse DNSBLs (best), ip-reputation adds threat feeds, ipintel does reputation but is geolocation-heavy so it's the weakest against this phrasing."
+    },
+    {
+      "query": "current wholesale price levels for crude and the natural-gas benchmark, for an inflation read",
+      "relevant": [
+        "https://crownblock.lonestaroracle.xyz/report",
+        "https://www.stratalize.com/api/x402/eia-energy-public-snapshot",
+        "https://www.stratalize.com/api/x402/commodity-benchmark"
+      ],
+      "grades": {
+        "https://crownblock.lonestaroracle.xyz/report": 3,
+        "https://www.stratalize.com/api/x402/eia-energy-public-snapshot": 2,
+        "https://www.stratalize.com/api/x402/commodity-benchmark": 2
+      },
+      "note": "Energy price levels: crownblock is oil-and-gas specific (WTI/Brent/Henry Hub, best), eia-energy gives WTI + natural-gas spot, commodity-benchmark bundles energy with metals and grains so it's broader than asked."
+    },
+    {
+      "query": "how much did leveraged crypto positions get wiped out in the past day, and was it mostly longs or shorts",
+      "relevant": [
+        "https://x402.ochinimus.app/api/liquidation-stats",
+        "https://liq.lonestaroracle.xyz/liquidations",
+        "https://api.hyperextend.xyz/v1/liquidations/BTC"
+      ],
+      "grades": {
+        "https://x402.ochinimus.app/api/liquidation-stats": 3,
+        "https://liq.lonestaroracle.xyz/liquidations": 2,
+        "https://api.hyperextend.xyz/v1/liquidations/BTC": 1
+      },
+      "note": "24h forced-liquidation totals with long/short split; ochinimus reports exactly that, lonestar's full report is close, hyperextend is a raw single-asset tape you would have to aggregate yourself."
+    },
+    {
+      "query": "what minimum price per kilo is a cocoa grower in Ivory Coast guaranteed by the marketing board",
+      "relevant": [
+        "https://data.lagoontechsystems.com/api/cocoa/price",
+        "https://agri.lonestaroracle.xyz/report",
+        "https://www.stratalize.com/api/x402/agricultural-commodity-benchmark"
+      ],
+      "grades": {
+        "https://data.lagoontechsystems.com/api/cocoa/price": 3,
+        "https://agri.lonestaroracle.xyz/report": 2,
+        "https://www.stratalize.com/api/x402/agricultural-commodity-benchmark": 1
+      },
+      "note": "Ivorian cocoa farmgate floor; lagoon's cocoa endpoint is the decreed floor, lonestar's ag report may cover it, stratalize's benchmark lists other crops but not cocoa."
+    },
+    {
+      "query": "I want to time my compute for when the electricity behind it is least carbon-heavy, so what's the greenest window today",
+      "relevant": [
+        "https://gridpulse.theaslangroupllc.com/api/energy/carbon-intensity",
+        "https://grid.lonestaroracle.xyz/report"
+      ],
+      "grades": {
+        "https://gridpulse.theaslangroupllc.com/api/energy/carbon-intensity": 3,
+        "https://grid.lonestaroracle.xyz/report": 1
+      },
+      "note": "hourly grid carbon intensity to time a workload; gridpulse gives the cleanest slot and forward curve, the grid report only shows the generation mix."
+    },
+    {
+      "query": "convert a recipe's eight fluid ounces to milliliters and a couple of pounds to kilograms",
+      "relevant": [
+        "https://2s.io/api/convert/unit"
+      ],
+      "grades": {
+        "https://2s.io/api/convert/unit": 3
+      },
+      "note": "physical unit conversion across volume and mass; 2s.io's unit converter handles floz-to-ml and lb-to-kg directly."
+    },
+    {
+      "query": "the bank account number I scanned off a paper invoice has a few illegible digits, so rebuild the correct one",
+      "relevant": [
+        "https://api.invoket.com/iban/repair",
+        "https://api.invoket.com/iban/resolve"
+      ],
+      "grades": {
+        "https://api.invoket.com/iban/repair": 3,
+        "https://api.invoket.com/iban/resolve": 2
+      },
+      "note": "reconstructing a garbled account number from OCR; repair recovers unreadable characters and fixes check digits, resolve only validates and looks up an already-clean IBAN."
+    },
+    {
+      "query": "before wiring funds, make sure the payee's bank isn't on any sanctions or watchlist",
+      "relevant": [
+        "https://api.invoket.com/iban/screen/batch",
+        "https://api.osf-master-server.com/x402/screen/sanctions/:name",
+        "https://api.invoket.com/iban/resolve"
+      ],
+      "grades": {
+        "https://api.invoket.com/iban/screen/batch": 3,
+        "https://api.osf-master-server.com/x402/screen/sanctions/:name": 2,
+        "https://api.invoket.com/iban/resolve": 1
+      },
+      "note": "sanctions screening of a payee bank; screen/batch checks the bank's BIC against OFAC/EU/UN lists, osf screens named parties generally, resolve only identifies the bank."
+    },
+    {
+      "query": "turn my structured order details into a polished, multi-page invoice document to send a client",
+      "relevant": [
+        "https://vibesprings.net/api/generate-pdf",
+        "https://makespdf.com/api/v1/markdown"
+      ],
+      "grades": {
+        "https://vibesprings.net/api/generate-pdf": 3,
+        "https://makespdf.com/api/v1/markdown": 1
+      },
+      "note": "PDF from structured data with an invoice template; generate-pdf renders JSON into a templated invoice, makespdf only converts hand-written markdown."
+    },
+    {
+      "query": "spot the same real-world question priced differently on two betting exchanges so I can lock a riskless edge",
+      "relevant": [
+        "https://oracle.the-undesirables.com/api/v1/arb-cross",
+        "https://polynews.news/api/v1/arbitrage",
+        "https://oracle.the-undesirables.com/api/v1/arb-basket"
+      ],
+      "grades": {
+        "https://oracle.the-undesirables.com/api/v1/arb-cross": 3,
+        "https://polynews.news/api/v1/arbitrage": 2,
+        "https://oracle.the-undesirables.com/api/v1/arb-basket": 1
+      },
+      "note": "matched cross-venue event arbitrage; arb-cross and polynews both compare the same event across Polymarket and Kalshi, arb-basket is a single-market NO-basket strategy instead."
+    },
+    {
+      "query": "warn me the moment a big dollar-pegged coin starts drifting below one dollar",
+      "relevant": [
+        "https://x402.ottoai.services/stablecoin-watch",
+        "https://stable.lonestaroracle.xyz/pulse",
+        "https://crypto.apitoll.cloud/v1/crypto/stablecoins"
+      ],
+      "grades": {
+        "https://x402.ottoai.services/stablecoin-watch": 3,
+        "https://stable.lonestaroracle.xyz/pulse": 2,
+        "https://crypto.apitoll.cloud/v1/crypto/stablecoins": 1
+      },
+      "note": "depeg alerting; stablecoin-watch emits downside depeg alerts on peg deviation, lonestar's pulse scores peg deviation and risk, apitoll only reports current peg price."
+    },
+    {
+      "query": "draw a raffle winner from a list of entrants with a proof no one could have rigged it",
+      "relevant": [
+        "https://verifiable-random.use.x402atlas.com/pick",
+        "https://verifiable-random.use.x402atlas.com/shuffle",
+        "https://api.anchor-x402.com/v1/roll"
+      ],
+      "grades": {
+        "https://verifiable-random.use.x402atlas.com/pick": 3,
+        "https://verifiable-random.use.x402atlas.com/shuffle": 2,
+        "https://api.anchor-x402.com/v1/roll": 1
+      },
+      "note": "provably-fair selection from a list; pick chooses an entrant with a drand proof, shuffle only permutes the list, anchor's roll returns signed integers you would map yourself."
+    },
+    {
+      "query": "just hand me a secure random integer between 1 and 100, nothing fancy",
+      "relevant": [
+        "https://agent402.tools/api/random",
+        "https://rng.sociologic.ai/random/int",
+        "https://api.anchor-x402.com/v1/roll"
+      ],
+      "grades": {
+        "https://agent402.tools/api/random": 3,
+        "https://rng.sociologic.ai/random/int": 2,
+        "https://api.anchor-x402.com/v1/roll": 1
+      },
+      "note": "plain secure random integer in a range; agent402 documents a min/max integer, rng.sociologic returns an integer in a range, anchor's roll adds treasury-signed verifiability that isn't needed here."
+    },
+    {
+      "query": "buy a prepaid data plan for a phone I'll use traveling in Japan, paying with stablecoin",
+      "relevant": [
+        "https://api.bitrefill.com/x402/esims/search",
+        "https://api.bitrefill.com/x402/invoice/create",
+        "https://api.bitrefill.com/x402/gift-cards/search"
+      ],
+      "grades": {
+        "https://api.bitrefill.com/x402/esims/search": 3,
+        "https://api.bitrefill.com/x402/invoice/create": 2,
+        "https://api.bitrefill.com/x402/gift-cards/search": 1
+      },
+      "note": "prepaid travel data paid in crypto; esims/search finds the data plan, invoice/create prices and locks it, gift-cards/search is the wrong product line."
+    },
+    {
+      "query": "when will the space station next pass over my location and where is it right now",
+      "relevant": [
+        "https://space.bip-rep.com/satellites"
+      ],
+      "grades": {
+        "https://space.bip-rep.com/satellites": 3
+      },
+      "note": "satellite pass prediction and live position; bip-rep tracks ISS position and predicts the next overhead pass for an observer."
+    },
+    {
+      "query": "my model returned JSON with trailing commas and code fences that won't parse, so fix it so it loads",
+      "relevant": [
+        "https://x402.fenixfoundry.com/repair-json",
+        "https://json-suite.underscoredone.com/json",
+        "https://tools.ipintel.ai/json-schema-validator"
+      ],
+      "grades": {
+        "https://x402.fenixfoundry.com/repair-json": 3,
+        "https://json-suite.underscoredone.com/json": 2,
+        "https://tools.ipintel.ai/json-schema-validator": 1
+      },
+      "note": "fixing malformed JSON that won't parse; fenixfoundry repairs trailing commas and code fences, json-suite includes a fixer among many tools, the validator only reports errors without repairing."
+    },
+    {
+      "query": "read a messy paragraph of contact info and return just name, email and price as fixed keys",
+      "relevant": [
+        "https://402.com.tr/api/x402/ai-extract",
+        "https://netintel.dev/schema-parse/extract",
+        "https://api.agentx402.ai/v1/scout/extract"
+      ],
+      "grades": {
+        "https://402.com.tr/api/x402/ai-extract": 3,
+        "https://netintel.dev/schema-parse/extract": 2,
+        "https://api.agentx402.ai/v1/scout/extract": 1
+      },
+      "note": "free-text to fixed keys; 402's ai-extract names the exact fields wanted, netintel maps arbitrary text to a supplied schema, agentx402 extracts from a URL rather than a raw text block."
+    },
+    {
+      "query": "how crowded is the SOL perpetual right now, with open interest, skew and utilization in one snapshot",
+      "relevant": [
+        "https://api.solenrich.com/entrypoints/perps-market-structure/invoke",
+        "https://x402.payperbyte.io/feeds/positioning-snapshot",
+        "https://crypto.apitoll.cloud/v1/crypto/perps"
+      ],
+      "grades": {
+        "https://api.solenrich.com/entrypoints/perps-market-structure/invoke": 3,
+        "https://x402.payperbyte.io/feeds/positioning-snapshot": 2,
+        "https://crypto.apitoll.cloud/v1/crypto/perps": 1
+      },
+      "note": "single-market perp positioning snapshot; perps-market-structure gives current OI/skew/utilization for the Jupiter SOL market, payperbyte is cross-venue OI/funding, apitoll is generic per-coin perp data."
+    },
+    {
+      "query": "is it cheaper to rent or to buy a home in this metro, using price indices and price-to-rent ratios",
+      "relevant": [
+        "https://www.stratalize.com/api/x402/residential-market-benchmark",
+        "https://www.stratalize.com/api/x402/mortgage-market-benchmark",
+        "https://www.stratalize.com/api/x402/housing-supply-benchmark"
+      ],
+      "grades": {
+        "https://www.stratalize.com/api/x402/residential-market-benchmark": 3,
+        "https://www.stratalize.com/api/x402/mortgage-market-benchmark": 2,
+        "https://www.stratalize.com/api/x402/housing-supply-benchmark": 1
+      },
+      "note": "rent-vs-buy housing metrics; residential-market returns price-to-rent and home-price indices, mortgage-market adds rate and affordability context, housing-supply is only starts and permits."
+    },
+    {
+      "query": "will Brazilian electricity prices spike because the hydro reservoirs are running low",
+      "relevant": [
+        "https://api.brazilayer.com/v1/cadeias/energia_br",
+        "https://api.brazilayer.com/v1/commodities/hidrologia"
+      ],
+      "grades": {
+        "https://api.brazilayer.com/v1/cadeias/energia_br": 3,
+        "https://api.brazilayer.com/v1/commodities/hidrologia": 2
+      },
+      "note": "hydro-driven power-price risk; cadeias/energia_br chains rainfall to reservoir levels to thermal-dispatch cost pressure, hidrologia gives the raw stored-hydro levels behind it."
     }
   ],
   "locked": [
@@ -1248,6 +1852,668 @@
         "https://places.use.x402atlas.com/ddg/local": 3
       },
       "note": "Local business search. Must beat the general web-search cluster, which is one of the largest families in the corpus."
+    },
+    {
+      "query": "find a guaranteed no-loss edge where the same real-world event is priced differently on two betting exchanges",
+      "relevant": [
+        "https://oracle.the-undesirables.com/api/v1/arb-cross",
+        "https://polynews.news/api/v1/arbitrage",
+        "https://oracle.the-undesirables.com/api/v1/arb-basket",
+        "https://blockrun.ai/api/v1/pm/markets/search"
+      ],
+      "grades": {
+        "https://oracle.the-undesirables.com/api/v1/arb-cross": 3,
+        "https://polynews.news/api/v1/arbitrage": 3,
+        "https://oracle.the-undesirables.com/api/v1/arb-basket": 2,
+        "https://blockrun.ai/api/v1/pm/markets/search": 1
+      },
+      "note": "Two cross-platform arbitrage scanners (Polymarket vs Kalshi) are the direct fit; basket-arb is a different arbitrage flavor (all-NO), and the multi-venue market search is only a raw ingredient. Query hides the word 'arbitrage'."
+    },
+    {
+      "query": "spend my frequent-flyer miles on a lie-flat business seat and see which dates actually have availability",
+      "relevant": [
+        "https://stabletravel.dev/api/seats-aero/search",
+        "https://stabletravel.dev/api/seats-aero/availability",
+        "https://stabletravel.dev/api/google-flights/search"
+      ],
+      "grades": {
+        "https://stabletravel.dev/api/seats-aero/search": 3,
+        "https://stabletravel.dev/api/seats-aero/availability": 2,
+        "https://stabletravel.dev/api/google-flights/search": 1
+      },
+      "note": "Award-availability search by cabin/date is the bullseye; bulk availability by mileage program is close but coarser; cash Google-Flights is the wrong product for a points redemption. 'Miles/lie-flat' avoids the words 'award' and 'availability'."
+    },
+    {
+      "query": "are planes being held on the ground at Chicago O'Hare because of the storm",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/transit/faa-delays",
+        "https://statepulse-api.hahavoid0.workers.dev/transit/airport-board"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/transit/faa-delays": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/transit/airport-board": 1
+      },
+      "note": "The FAA delays/ground-stops feed is exactly a weather-driven hold; the arrivals board just lists landing aircraft and does not report the stoppage cause. Query says nothing about 'FAA', 'delay', or 'ground stop'."
+    },
+    {
+      "query": "I have a snippet of text and only need to know what language it is written in, not a translation",
+      "relevant": [
+        "https://netintel.dev/lang-detect/analyze",
+        "https://netintel.dev/translate/short",
+        "https://api.interzoid.com/translatetoenglish"
+      ],
+      "grades": {
+        "https://netintel.dev/lang-detect/analyze": 3,
+        "https://netintel.dev/translate/short": 1,
+        "https://api.interzoid.com/translatetoenglish": 1
+      },
+      "note": "Pure language identification is the specialist endpoint; the translators only detect the source as a side effect and would over-serve by translating. The 'not a translation' clause is the discriminator."
+    },
+    {
+      "query": "a scanned invoice gave me a bank account number with a couple of characters unreadable — reconstruct the correct one",
+      "relevant": [
+        "https://api.invoket.com/iban/repair",
+        "https://api.invoket.com/iban/resolve"
+      ],
+      "grades": {
+        "https://api.invoket.com/iban/repair": 3,
+        "https://api.invoket.com/iban/resolve": 1
+      },
+      "note": "The repair endpoint specifically recomputes check digits and recovers unreadable characters from OCR; resolve only validates a clean number. Query never says 'IBAN', only 'bank account number' and 'scanned/unreadable'."
+    },
+    {
+      "query": "verify a European bank account number's check digits are correct before I wire money to it",
+      "relevant": [
+        "https://data.greeneris.io/v1/validate/iban",
+        "https://x402-endpoints.onrender.com/iban/validate",
+        "https://api.invoket.com/iban/resolve",
+        "https://data.greeneris.io/v1/validate/bic"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/validate/iban": 3,
+        "https://x402-endpoints.onrender.com/iban/validate": 3,
+        "https://api.invoket.com/iban/resolve": 2,
+        "https://data.greeneris.io/v1/validate/bic": 2
+      },
+      "note": "Two deterministic IBAN mod-97 validators are the direct answer; resolve validates too but does more; the BIC checker validates the wrong identifier (bank code, not account). Tests IBAN-vs-BIC discrimination."
+    },
+    {
+      "query": "make sure the identifier stamped on an intermodal shipping box isn't a transcription typo before the bill of lading is filed",
+      "relevant": [
+        "https://data.greeneris.io/v1/logistics/container-check"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/logistics/container-check": 3
+      },
+      "note": "Uniquely the ISO 6346 container-number check-digit validator, aimed at catching errors before a B/L. 'Intermodal shipping box' + 'bill of lading' describe the need without saying 'container number' or 'ISO 6346'."
+    },
+    {
+      "query": "one of my product barcodes keeps getting rejected by the marketplace — check whether the number itself is corrupted",
+      "relevant": [
+        "https://data.greeneris.io/v1/logistics/gtin-check"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/logistics/gtin-check": 3
+      },
+      "note": "The GTIN/EAN/UPC checksum validator explicitly targets barcodes Amazon/Google reject. Query uses 'barcode/corrupted/rejected' rather than the term 'GTIN', testing the synonym mapping."
+    },
+    {
+      "query": "confirm a business is registered to clear goods through customs in the European Union",
+      "relevant": [
+        "https://data.greeneris.io/v1/eu/eori"
+      ],
+      "grades": {
+        "https://data.greeneris.io/v1/eu/eori": 3
+      },
+      "note": "The EORI validator is exactly 'the number every business needs to clear customs in the EU'. The query deliberately spells out the customs-clearance need instead of the acronym EORI."
+    },
+    {
+      "query": "is this clause of the French labour code still valid law today or has it been struck out",
+      "relevant": [
+        "https://api.invoket.com/legal/article",
+        "https://api.invoket.com/legal/history",
+        "https://api.invoket.com/legal/eu-act"
+      ],
+      "grades": {
+        "https://api.invoket.com/legal/article": 3,
+        "https://api.invoket.com/legal/history": 2,
+        "https://api.invoket.com/legal/eu-act": 1
+      },
+      "note": "The French-law article checker (in force / repealed at a date) is the bullseye; the version-history endpoint answers it more heavily; the EU-act checker covers the wrong jurisdiction. Grading separates French from EU sources."
+    },
+    {
+      "query": "screen a new customer's name against government watchlists to see if they're subject to sanctions",
+      "relevant": [
+        "https://api.relaystation.ai/v1/screening/match",
+        "https://api.invoket.com/iban/screen"
+      ],
+      "grades": {
+        "https://api.relaystation.ai/v1/screening/match": 3,
+        "https://api.invoket.com/iban/screen": 2
+      },
+      "note": "Name-based OFAC/EU/UK + PEP screening is the direct match; the IBAN screen also hits OFAC/EU/UN lists but is keyed on a bank account, not a person's name — a partial. Wallet-address screeners in the corpus are the wrong entity type and excluded."
+    },
+    {
+      "query": "has a particular brand of blood-pressure medication been pulled from shelves for a safety problem",
+      "relevant": [
+        "https://x402-endpoints.onrender.com/recalls/search",
+        "https://www.stratalize.com/api/x402/fda-recall-history"
+      ],
+      "grades": {
+        "https://x402-endpoints.onrender.com/recalls/search": 3,
+        "https://www.stratalize.com/api/x402/fda-recall-history": 2
+      },
+      "note": "The openFDA recall lookup by product/firm is the direct answer for 'is this drug recalled'; the recall-history benchmark is company/class oriented for diligence, so a partial. Query says 'pulled from shelves', never 'recall'."
+    },
+    {
+      "query": "what pay did tech companies officially report to the government for their visa-sponsored foreign workers",
+      "relevant": [
+        "https://www.stratalize.com/api/x402/employer-h1b-wages"
+      ],
+      "grades": {
+        "https://www.stratalize.com/api/x402/employer-h1b-wages": 3
+      },
+      "note": "Uniquely the H-1B prevailing-wage dataset from DOL LCA filings, by employer. The query describes visa-sponsored wage disclosures without the token 'H-1B'."
+    },
+    {
+      "query": "before I add a lead to my list, tell me whether their email address is fake, a throwaway, or won't accept mail",
+      "relevant": [
+        "https://netintel.dev/email-intel/analyze",
+        "https://api.qonoro.ai/v1/email/validate",
+        "https://api.x402dataapi.com/v1/mail-security"
+      ],
+      "grades": {
+        "https://netintel.dev/email-intel/analyze": 3,
+        "https://api.qonoro.ai/v1/email/validate": 3,
+        "https://api.x402dataapi.com/v1/mail-security": 1
+      },
+      "note": "Two address-level verifiers (disposable detection, MX/SMTP reachability, risk score) directly answer it; the mail-security service checks a domain's SPF/DMARC posture, not whether one address is deliverable — a weak partial. 'Fake/throwaway' vs 'deliverability' is the semantic test."
+    },
+    {
+      "query": "how long is the wait for a table at a busy restaurant right now",
+      "relevant": [
+        "https://agentres.dev/api/wait-times",
+        "https://agentres.dev/api/book"
+      ],
+      "grades": {
+        "https://agentres.dev/api/wait-times": 3,
+        "https://agentres.dev/api/book": 1
+      },
+      "note": "The live crowd/wait-times feed is the direct answer; the reservation-booking endpoint is adjacent (it gets you a table) but does not report current wait length. Tests 'how long is the wait' vs 'make a reservation'."
+    },
+    {
+      "query": "roughly how backed up is the Bitcoin network right now, and what fee would get a payment confirmed",
+      "relevant": [
+        "https://x402.chainquery.com/v1/rpc/getmempoolinfo",
+        "https://x402.chainquery.com/v1/rpc/getrawmempool",
+        "https://x402.chainquery.com/v1/rpc/getmininginfo"
+      ],
+      "grades": {
+        "https://x402.chainquery.com/v1/rpc/getmempoolinfo": 3,
+        "https://x402.chainquery.com/v1/rpc/getrawmempool": 2,
+        "https://x402.chainquery.com/v1/rpc/getmininginfo": 1
+      },
+      "note": "'Backed up' + 'fee to confirm' is the mempool summary (getmempoolinfo: tx count, size, min fee), best; getrawmempool dumps the raw txid list; getmininginfo only mentions mempool in passing. Hard because none of them say 'congestion' or 'backlog'."
+    },
+    {
+      "query": "how hard is it at the moment to mine a fresh Bitcoin block",
+      "relevant": [
+        "https://x402.chainquery.com/v1/rpc/getdifficulty",
+        "https://x402.chainquery.com/v1/rpc/getmininginfo",
+        "https://x402.chainquery.com/v1/rpc/getnetworkhashps"
+      ],
+      "grades": {
+        "https://x402.chainquery.com/v1/rpc/getdifficulty": 3,
+        "https://x402.chainquery.com/v1/rpc/getmininginfo": 2,
+        "https://x402.chainquery.com/v1/rpc/getnetworkhashps": 1
+      },
+      "note": "'How hard to mine' = proof-of-work difficulty (getdifficulty, best); getmininginfo bundles difficulty with hashrate; getnetworkhashps is only a hashrate proxy. Sibling RPCs on one host that a lexical match can't separate."
+    },
+    {
+      "query": "give me a full readout of what one address holds on Base — its native coin plus every token sitting in it",
+      "relevant": [
+        "https://orcpin.dev/v1/wallet-snapshot",
+        "https://statepulse-api.hahavoid0.workers.dev/blockchain/balances",
+        "https://store.agentexchange.work/chain/balance"
+      ],
+      "grades": {
+        "https://orcpin.dev/v1/wallet-snapshot": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/blockchain/balances": 2,
+        "https://store.agentexchange.work/chain/balance": 1
+      },
+      "note": "'Coin plus every token' — orcpin returns native + ERC-20 holdings and flags (best), statepulse scans native + ERC-20, but agentexchange returns only the native balance and nonce so it misses the tokens the query asks for."
+    },
+    {
+      "query": "I have a transaction hash and want a plain-language explanation of what it actually moved and called",
+      "relevant": [
+        "https://api.blockchainmoneymap.com/api/x402/tx-decode",
+        "https://api.anchor-x402.com/v1/decode/tx",
+        "https://api.anchor-x402.com/v1/decode/calldata"
+      ],
+      "grades": {
+        "https://api.blockchainmoneymap.com/api/x402/tx-decode": 3,
+        "https://api.anchor-x402.com/v1/decode/tx": 2,
+        "https://api.anchor-x402.com/v1/decode/calldata": 1
+      },
+      "note": "'Plain-language' picks the money-map decoder (best); anchor's decode/tx gives a structured (not prose) decode; decode/calldata only decodes a raw calldata blob, not a whole transaction by hash."
+    },
+    {
+      "query": "an app is asking my wallet to sign something — break down which token, spender and cap I'd be approving before I click",
+      "relevant": [
+        "https://x402.dailyelo.com/v1/sign-decode",
+        "https://x402-store.dgdb.workers.dev/v1/sign-decode"
+      ],
+      "grades": {
+        "https://x402.dailyelo.com/v1/sign-decode": 3,
+        "https://x402-store.dgdb.workers.dev/v1/sign-decode": 2
+      },
+      "note": "Both decode an EIP-712/Permit signature request into token/spender/amount intent; two mirrored deployments of the same service, so the ranker must surface both while picking one as canonical."
+    },
+    {
+      "query": "my app displays raw 0x wallet strings and I want to show a friendly readable name for each one instead",
+      "relevant": [
+        "https://api.justaname.id/ens/v2/reverse",
+        "https://store.agentexchange.work/chain/ens",
+        "https://ens-resolver.underscoredone.com/resolve",
+        "https://public.zapper.xyz/x402/account-identity"
+      ],
+      "grades": {
+        "https://api.justaname.id/ens/v2/reverse": 3,
+        "https://store.agentexchange.work/chain/ens": 2,
+        "https://ens-resolver.underscoredone.com/resolve": 2,
+        "https://public.zapper.xyz/x402/account-identity": 1
+      },
+      "note": "Address-to-name (reverse) lookup: justaname's reverse endpoint is purpose-built (best), agentexchange and ens-resolver are bidirectional so they cover it too, zapper returns social identities (ENS/Farcaster/Lens) as a weaker fit."
+    },
+    {
+      "query": "which machines actually accept incoming mail for a particular domain",
+      "relevant": [
+        "https://dns.use.x402atlas.com/mx",
+        "https://netintel.dev/dns/lookup",
+        "https://tools.ipintel.ai/dns-lookup"
+      ],
+      "grades": {
+        "https://dns.use.x402atlas.com/mx": 3,
+        "https://netintel.dev/dns/lookup": 2,
+        "https://tools.ipintel.ai/dns-lookup": 2
+      },
+      "note": "'Machines that accept incoming mail' = MX records: the atlas /mx endpoint returns exactly that (best); the two general DNS-lookup tools return all record types including MX, so they're strong partials."
+    },
+    {
+      "query": "my company's emails keep getting flagged as spoofed — check whether our domain is set up to prove our messages are genuinely from us",
+      "relevant": [
+        "https://netintel.dev/email-auth",
+        "https://email-auth.use.x402atlas.com/check",
+        "https://api.x402dataapi.com/v1/mail-security"
+      ],
+      "grades": {
+        "https://netintel.dev/email-auth": 3,
+        "https://email-auth.use.x402atlas.com/check": 2,
+        "https://api.x402dataapi.com/v1/mail-security": 2
+      },
+      "note": "'Prove messages are from us' = SPF/DKIM/DMARC posture: netintel grades A-F with itemized deductions (best); the atlas and x402dataapi checks report the same anti-spoofing records with less scoring depth."
+    },
+    {
+      "query": "before I trust a new signup's address, tell me if it's a real reachable inbox or a burner temp-mail",
+      "relevant": [
+        "https://netintel.dev/email-intel/analyze",
+        "https://x402.agentutility.ai/email-deliverability",
+        "https://api.qonoro.ai/v1/email/validate"
+      ],
+      "grades": {
+        "https://netintel.dev/email-intel/analyze": 3,
+        "https://x402.agentutility.ai/email-deliverability": 2,
+        "https://api.qonoro.ai/v1/email/validate": 1
+      },
+      "note": "The 'burner temp-mail' clause is decisive: netintel and agentutility both flag disposable/temp addresses (netintel best on trust scoring), while qonoro only checks syntax + MX + SMTP and never calls out throwaways."
+    },
+    {
+      "query": "which organisation actually operates the slice of the internet that a given address sits in",
+      "relevant": [
+        "https://asn-lookup.underscoredone.com/lookup",
+        "https://netintel.dev/asn-lookup/analyze"
+      ],
+      "grades": {
+        "https://asn-lookup.underscoredone.com/lookup": 3,
+        "https://netintel.dev/asn-lookup/analyze": 2
+      },
+      "note": "ASN/network-owner lookup phrased as 'who operates that slice of the internet': the underscoredone tool describes exactly that (best); netintel resolves ASN + owner but frames it as infrastructure-risk scoring."
+    },
+    {
+      "query": "remind me how many days are left before a website's security certificate lapses",
+      "relevant": [
+        "https://statepulse-api.hahavoid0.workers.dev/network/ssl-expiry",
+        "https://api.trustsource.cc/sslcheck"
+      ],
+      "grades": {
+        "https://statepulse-api.hahavoid0.workers.dev/network/ssl-expiry": 3,
+        "https://api.trustsource.cc/sslcheck": 2
+      },
+      "note": "'Days left before it lapses' is the ssl-expiry countdown endpoint (best); sslcheck reports days-to-expiry too but as one field inside a broader validity/trust score."
+    },
+    {
+      "query": "what is a given US-listed company's share changing hands for at the moment",
+      "relevant": [
+        "https://api.tickersfeed.net/stock/:symbol",
+        "https://stablefinance.dev/api/prices/snapshot",
+        "https://www.x402financialdata.com/quote/:ticker"
+      ],
+      "grades": {
+        "https://api.tickersfeed.net/stock/:symbol": 3,
+        "https://stablefinance.dev/api/prices/snapshot": 2,
+        "https://www.x402financialdata.com/quote/:ticker": 2
+      },
+      "note": "Real-time equity quote: tickersfeed is a dedicated stock-quote endpoint (best), stablefinance's snapshot is a single-ticker quote, x402financialdata quotes stocks but also forex/commodities so it's less focused. Query avoids the words 'stock', 'price', 'quote'."
+    },
+    {
+      "query": "pull up the yearly report a public company is required to file with the securities regulator",
+      "relevant": [
+        "https://edgar.apitoll.cloud/v1/edgar/filings",
+        "https://api.kadec0.xyz/v1/sec-edgar",
+        "https://api.tickersfeed.net/sec/:symbol/financials"
+      ],
+      "grades": {
+        "https://edgar.apitoll.cloud/v1/edgar/filings": 3,
+        "https://api.kadec0.xyz/v1/sec-edgar": 2,
+        "https://api.tickersfeed.net/sec/:symbol/financials": 1
+      },
+      "note": "'Yearly report filed with the regulator' = the 10-K: edgar/filings returns the parsed filing (best), kadec0 full-text-searches filings, but tickersfeed returns the XBRL financial numbers rather than the report document itself."
+    },
+    {
+      "query": "have the executives and directors of a company been buying or offloading their own shares lately",
+      "relevant": [
+        "https://edgar.apitoll.cloud/v1/edgar/insider",
+        "https://insider.lonestaroracle.xyz/trades"
+      ],
+      "grades": {
+        "https://edgar.apitoll.cloud/v1/edgar/insider": 3,
+        "https://insider.lonestaroracle.xyz/trades": 2
+      },
+      "note": "SEC Form 4 insider activity: edgar/insider returns full trade detail (role, buy/sell code, shares, price) making it the best, while lonestaroracle offers a simpler officer/director buys-and-sells feed."
+    },
+    {
+      "query": "when is a company next due to announce its quarterly results",
+      "relevant": [
+        "https://earnings.lonestaroracle.xyz/calendar",
+        "https://api.tickersfeed.net/stock/:symbol/earnings",
+        "https://stablefinance.dev/api/earnings"
+      ],
+      "grades": {
+        "https://earnings.lonestaroracle.xyz/calendar": 3,
+        "https://api.tickersfeed.net/stock/:symbol/earnings": 1,
+        "https://stablefinance.dev/api/earnings": 1
+      },
+      "note": "The ask is a FUTURE date: only the earnings calendar lists upcoming report dates (best); the tickersfeed and stablefinance earnings endpoints return past/most-recent results, so they're tempting-but-wrong partials that a keyword match would over-rank."
+    },
+    {
+      "query": "work out what 850 of one country's money is worth in another currency at today's rate",
+      "relevant": [
+        "https://x402currencyconvert.vercel.app/api/currency-convert",
+        "https://agents.dyoeway.org/fx",
+        "https://vibesprings.net/api/exchange/convert"
+      ],
+      "grades": {
+        "https://x402currencyconvert.vercel.app/api/currency-convert": 3,
+        "https://agents.dyoeway.org/fx": 2,
+        "https://vibesprings.net/api/exchange/convert": 2
+      },
+      "note": "Fiat amount conversion at live rates: the dedicated currency-convert endpoint is the cleanest fit (best); dyoeway's /fx and vibesprings' converter do the same with extra framing. Query names no currencies and never says 'forex' or 'exchange rate'."
+    },
+    {
+      "query": "spot price benchmarks for staple crops like soybeans, wheat and coffee to feed a food-cost model",
+      "relevant": [
+        "https://www.stratalize.com/api/x402/agricultural-commodity-benchmark",
+        "https://agri.lonestaroracle.xyz/report",
+        "https://api.brazilayer.com/v1/commodities/exportacoes"
+      ],
+      "grades": {
+        "https://www.stratalize.com/api/x402/agricultural-commodity-benchmark": 3,
+        "https://agri.lonestaroracle.xyz/report": 2,
+        "https://api.brazilayer.com/v1/commodities/exportacoes": 1
+      },
+      "note": "Crop spot prices: the ag-commodity benchmark returns exactly USD spot prices for those crops (best), agri-report is a narrative agricultural report, but brazilayer gives Brazilian export VOLUMES/values — not prices — so it's a weak partial despite naming the same crops."
+    },
+    {
+      "query": "boil a long web article down to a handful of takeaway bullets",
+      "relevant": [
+        "https://api.anchor-x402.com/v1/tldr",
+        "https://web-production-78e17.up.railway.app/v1/summarize",
+        "https://api.webbersites.com/api/summarize"
+      ],
+      "grades": {
+        "https://api.anchor-x402.com/v1/tldr": 3,
+        "https://web-production-78e17.up.railway.app/v1/summarize": 2,
+        "https://api.webbersites.com/api/summarize": 2
+      },
+      "note": "Article-to-bullets: anchor's tldr outputs 3-5 bullets from a URL or text (best), the web-production summarizer offers bullet/tldr output on arbitrary text, webbersites returns extractive key sentences from a page. Query says 'boil down', not 'summarize'."
+    },
+    {
+      "query": "is the recent press around a particular company running positive or negative overall",
+      "relevant": [
+        "https://api.qonoro.ai/v1/news/sentiment",
+        "https://news.lonestaroracle.xyz/news",
+        "https://api.tickersfeed.net/stock/:symbol/news"
+      ],
+      "grades": {
+        "https://api.qonoro.ai/v1/news/sentiment": 3,
+        "https://news.lonestaroracle.xyz/news": 2,
+        "https://api.tickersfeed.net/stock/:symbol/news": 1
+      },
+      "note": "Scored news sentiment: qonoro returns overall sentiment + themes for a company (best), lonestaroracle scores ticker/topic sentiment, but tickersfeed only returns raw headlines with no sentiment score — the partial that shares the most surface words."
+    },
+    {
+      "query": "from a photo of my collectible card, estimate its condition grade the way a professional grader would",
+      "relevant": [
+        "https://oracle.the-undesirables.com/api/v1/grade"
+      ],
+      "grades": {
+        "https://oracle.the-undesirables.com/api/v1/grade": 3
+      },
+      "note": "Distinctive single-service target: image-based PSA/Beckett-style grading of physical trading cards. Hard because 'condition grade from a photo' shares no obvious keyword with any pricing or NFT service in the catalog."
+    },
+    {
+      "query": "turn my home wifi's name and password into a little square my guests can point a phone at to join",
+      "relevant": [
+        "https://qr-code-generator.underscoredone.com/generate"
+      ],
+      "grades": {
+        "https://qr-code-generator.underscoredone.com/generate": 3
+      },
+      "note": "Distinctive single-service target described purely by function — a WiFi QR code — without ever saying 'QR' or 'barcode'; the generator explicitly turns WiFi details into a scannable image."
+    },
+    {
+      "query": "scan lending protocols for wallets whose collateral is close to dropping under the safety line",
+      "relevant": [
+        "https://liquita-x402-edge.liquita.workers.dev/v1/at-risk",
+        "https://liquidation-oracle.api.klymax402.com/api/levels",
+        "https://orcpin.dev/v1/defi-snapshot"
+      ],
+      "grades": {
+        "https://liquita-x402-edge.liquita.workers.dev/v1/at-risk": 3,
+        "https://liquidation-oracle.api.klymax402.com/api/levels": 2,
+        "https://orcpin.dev/v1/defi-snapshot": 1
+      },
+      "note": "at-risk borrower scan by health factor; liquita scans borrowers across protocols, klymax returns risk levels, orcpin only profiles a single wallet's health."
+    },
+    {
+      "query": "where can I park idle dollar-stablecoin holdings to earn the most interest across the major money markets",
+      "relevant": [
+        "https://x402.ottoai.services/yield-recommendations",
+        "https://www.stratalize.com/api/x402/defi-yield-benchmark",
+        "https://crypto.apitoll.cloud/v1/crypto/yields"
+      ],
+      "grades": {
+        "https://x402.ottoai.services/yield-recommendations": 3,
+        "https://www.stratalize.com/api/x402/defi-yield-benchmark": 2,
+        "https://crypto.apitoll.cloud/v1/crypto/yields": 1
+      },
+      "note": "best stablecoin deposit rate; yield-recommendations returns the single top lending venue per stablecoin, stratalize ranks stablecoin pools, apitoll is a broad all-asset pool list."
+    },
+    {
+      "query": "I want to put my coins to work in a vault but sign and broadcast the transaction myself",
+      "relevant": [
+        "https://mcp.yield.xyz/x402/actions_enter",
+        "https://mcp.yield.xyz/x402/yields_get_all",
+        "https://mcp.yield.xyz/x402/actions_exit"
+      ],
+      "grades": {
+        "https://mcp.yield.xyz/x402/actions_enter": 3,
+        "https://mcp.yield.xyz/x402/yields_get_all": 2,
+        "https://mcp.yield.xyz/x402/actions_exit": 1
+      },
+      "note": "self-custodied enter-position transaction; actions_enter builds the unsigned deposit tx, yields_get_all is the prerequisite discovery step, actions_exit does the reverse."
+    },
+    {
+      "query": "help me pull my funds back out of a staking position early and claim any rewards owed",
+      "relevant": [
+        "https://mcp.yield.xyz/x402/actions_exit",
+        "https://mcp.yield.xyz/x402/actions_manage",
+        "https://mcp.yield.xyz/x402/actions_enter"
+      ],
+      "grades": {
+        "https://mcp.yield.xyz/x402/actions_exit": 3,
+        "https://mcp.yield.xyz/x402/actions_manage": 2,
+        "https://mcp.yield.xyz/x402/actions_enter": 1
+      },
+      "note": "withdrawing early and collecting rewards; actions_exit unstakes/withdraws, actions_manage claims rewards and completes withdrawals, actions_enter is the opposite direction."
+    },
+    {
+      "query": "add fifteen working days to an invoice date, skipping weekends and public holidays, to get a payment-due date",
+      "relevant": [
+        "https://2s.io/api/calendar/business-days",
+        "https://statepulse-api.hahavoid0.workers.dev/calendar/holidays",
+        "https://vibesprings.net/api/holidays"
+      ],
+      "grades": {
+        "https://2s.io/api/calendar/business-days": 3,
+        "https://statepulse-api.hahavoid0.workers.dev/calendar/holidays": 1,
+        "https://vibesprings.net/api/holidays": 1
+      },
+      "note": "business-day arithmetic that skips holidays; 2s.io's calculator shifts a date by N working days, the holiday-list endpoints only supply the holiday inputs."
+    },
+    {
+      "query": "did this event market settle yet, and which outcome got paid",
+      "relevant": [
+        "https://x402-endpoints.onrender.com/polymarket/resolution",
+        "https://x402.agentutility.ai/prediction-markets",
+        "https://blockrun.ai/api/v1/pm/markets/search"
+      ],
+      "grades": {
+        "https://x402-endpoints.onrender.com/polymarket/resolution": 3,
+        "https://x402.agentutility.ai/prediction-markets": 1,
+        "https://blockrun.ai/api/v1/pm/markets/search": 1
+      },
+      "note": "settlement/resolution lookup; the resolution endpoint says whether a market closed and who won, the other two only surface live/active market odds."
+    },
+    {
+      "query": "browse open prediction markets on elections and tech across several different platforms at once",
+      "relevant": [
+        "https://blockrun.ai/api/v1/pm/markets/search",
+        "https://api.predictionmarketdata.io/prediction-markets",
+        "https://x402.agentutility.ai/prediction-markets"
+      ],
+      "grades": {
+        "https://blockrun.ai/api/v1/pm/markets/search": 3,
+        "https://api.predictionmarketdata.io/prediction-markets": 2,
+        "https://x402.agentutility.ai/prediction-markets": 1
+      },
+      "note": "multi-venue market discovery; blockrun searches five named platforms, predictionmarketdata spans exchanges, agentutility covers only Polymarket."
+    },
+    {
+      "query": "earn the spread by holding spot and shorting the perpetual, so where's the funding actually collectable",
+      "relevant": [
+        "https://api.solenrich.com/entrypoints/perps-basis-signal/invoke",
+        "https://x402.ottoai.services/funding-rates",
+        "https://funding.lonestaroracle.xyz/rates"
+      ],
+      "grades": {
+        "https://api.solenrich.com/entrypoints/perps-basis-signal/invoke": 3,
+        "https://x402.ottoai.services/funding-rates": 2,
+        "https://funding.lonestaroracle.xyz/rates": 1
+      },
+      "note": "cash-and-carry basis where funding is earnable; perps-basis-signal computes actually-collectable funding APR, funding-rates adds cross-venue arb context, lonestar is a raw rates dump."
+    },
+    {
+      "query": "underwriting a loan on a new apartment building, what coverage ratio and loan-to-value will lenders want",
+      "relevant": [
+        "https://www.stratalize.com/api/x402/cre-debt-benchmark",
+        "https://www.stratalize.com/api/x402/development-pro-forma-benchmark",
+        "https://www.stratalize.com/api/x402/construction-cost-benchmark"
+      ],
+      "grades": {
+        "https://www.stratalize.com/api/x402/cre-debt-benchmark": 3,
+        "https://www.stratalize.com/api/x402/development-pro-forma-benchmark": 2,
+        "https://www.stratalize.com/api/x402/construction-cost-benchmark": 1
+      },
+      "note": "commercial-real-estate debt terms; cre-debt returns DSCR and LTV directly, development-pro-forma gives loan-sizing return hurdles, construction-cost is only hard cost per square foot."
+    },
+    {
+      "query": "purchase an Amazon gift voucher and settle it in USDC without signing up for an account",
+      "relevant": [
+        "https://api.bitrefill.com/x402/gift-cards/search",
+        "https://api.bitrefill.com/x402/invoice/create",
+        "https://glim.sh/api/v1/amazon/search"
+      ],
+      "grades": {
+        "https://api.bitrefill.com/x402/gift-cards/search": 3,
+        "https://api.bitrefill.com/x402/invoice/create": 2,
+        "https://glim.sh/api/v1/amazon/search": 1
+      },
+      "note": "crypto-paid gift-card purchase; bitrefill's gift-cards/search finds voucher brands and invoice/create pays with no account, glim only searches Amazon's product catalog."
+    },
+    {
+      "query": "at what price would leveraged longs get force-closed if bitcoin falls from here",
+      "relevant": [
+        "https://kronossignals.com/api/v1/liquidations/btc",
+        "https://hypernatt.com/api/m2m/liq-radar",
+        "https://liq.lonestaroracle.xyz/liquidations"
+      ],
+      "grades": {
+        "https://kronossignals.com/api/v1/liquidations/btc": 3,
+        "https://hypernatt.com/api/m2m/liq-radar": 2,
+        "https://liq.lonestaroracle.xyz/liquidations": 1
+      },
+      "note": "forward liquidation price levels; kronossignals models liq levels per leverage band, hypernatt maps clusters above and below spot, lonestar's report only notes hot zones."
+    },
+    {
+      "query": "is drought or an early frost about to hit the coffee and soybean regions that set world prices",
+      "relevant": [
+        "https://api.brazilayer.com/v1/commodities/clima",
+        "https://api.brazilayer.com/v1/commodities/briefing",
+        "https://agri.lonestaroracle.xyz/report"
+      ],
+      "grades": {
+        "https://api.brazilayer.com/v1/commodities/clima": 3,
+        "https://api.brazilayer.com/v1/commodities/briefing": 2,
+        "https://agri.lonestaroracle.xyz/report": 1
+      },
+      "note": "weather-driven crop risk for ag commodities; clima quantifies frost and dry-day stress by belt, briefing narrates it daily, lonestar's report is a broader ag summary."
+    },
+    {
+      "query": "spin up a throwaway machine to run some Python and CI jobs without signing up",
+      "relevant": [
+        "https://vps.phoneagent.xyz/catalog",
+        "https://blockrun.ai/api/v1/modal/sandbox/create",
+        "https://staging.toolkit.dev/api/tool/e2b/run-code"
+      ],
+      "grades": {
+        "https://vps.phoneagent.xyz/catalog": 3,
+        "https://blockrun.ai/api/v1/modal/sandbox/create": 2,
+        "https://staging.toolkit.dev/api/tool/e2b/run-code": 1
+      },
+      "note": "renting a disposable box for Python and CI; VpsAgent rents the machine itself no-signup, blockrun spins a managed python sandbox, e2b only executes a code snippet."
+    },
+    {
+      "query": "compare returns on liquid staking tokens so my staked ETH stays tradable",
+      "relevant": [
+        "https://stake.lonestaroracle.xyz/report",
+        "https://mcp.yield.xyz/x402/yields_get_all"
+      ],
+      "grades": {
+        "https://stake.lonestaroracle.xyz/report": 3,
+        "https://mcp.yield.xyz/x402/yields_get_all": 2
+      },
+      "note": "liquid-staking yield comparison; stake.lonestaroracle ranks liquid staking and restaking strategies for ETH/SOL, yields_get_all is a broader staking/lending yield discovery list."
     }
   ]
 }

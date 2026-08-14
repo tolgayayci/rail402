@@ -82,7 +82,7 @@ export function evaluateAll(): SetResult[] {
     // tell two rankers apart.
     runSet("held-out · dev @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_DEV),
     runSet("held-out · locked @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_LOCKED),
-    // The broad set: 107 blind judgments over the same 2000 documents. Wide enough to actually tell
+    // The broad set: 202 blind judgments over the same 2000 documents. Wide enough to actually tell
     // two rankers apart — this is the set that matters now.
     runSet("broad · dev @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_BROAD_DEV),
     runSet("broad · locked @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_BROAD_LOCKED),
