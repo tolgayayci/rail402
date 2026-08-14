@@ -41,18 +41,45 @@ function challengeFetch(accepts: ReturnType<typeof opt>[]) {
 }
 
 describe("spending safety", () => {
-  it("makes maxAmount required — an agent cannot omit it into an unbounded spend", () => {
-    // Never silently pay an unbounded amount. A default here would be a footgun.
-    const parsed = PayInputSchema.safeParse({ resource: "https://api.test/x" });
-    expect(parsed.success).toBe(false);
-    expect(JSON.stringify(parsed.error?.issues)).toContain("maxAmount");
+  it("refuses a missing maxAmount with a coded error and no payment — never an unbounded spend", async () => {
+    // Never silently pay an unbounded amount. Enforcement lives in the HANDLER,
+    // not the schema: a required `.regex()` field would make omission a raw MCP -32602 with no
+    // registry code, which §3.3 forbids. So the schema accepts the shape and the handler refuses it
+    // with a coded, actionable reason — a strictly better rejection than the SDK's prose -32602.
+    expect(PayInputSchema.safeParse({ resource: "https://api.test/x" }).success).toBe(true);
+    const { impl, calls } = challengeFetch([opt("5000000")]);
+    const result = await payAndCall(config, { resource: "https://api.test/x" }, impl);
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("mcp_invalid_input");
+    expect(result.error?.reason).toMatch(/maxAmount is required/i);
+    // Refused before any request — nothing was probed, signed, or settled.
+    expect(calls).toEqual([]);
   });
 
-  it("rejects a non-integer maxAmount rather than coercing it", () => {
+  it("refuses a malformed maxAmount with a coded error rather than coercing it or -32602-ing", async () => {
     for (const bad of ["1.5", "-1", "1e6", "abc", ""]) {
-      expect(PayInputSchema.safeParse({ resource: "https://a.test/x", maxAmount: bad }).success).toBe(false);
+      const { impl, calls } = challengeFetch([opt("1")]);
+      const result = await payAndCall(config, { resource: "https://a.test/x", maxAmount: bad }, impl);
+      expect(result.ok, `maxAmount ${JSON.stringify(bad)}`).toBe(false);
+      expect(result.error?.code, `maxAmount ${JSON.stringify(bad)}`).toBe("mcp_invalid_input");
+      expect(calls, `maxAmount ${JSON.stringify(bad)}`).toEqual([]); // refused before any request
     }
-    expect(PayInputSchema.safeParse({ resource: "https://a.test/x", maxAmount: "0" }).success).toBe(true);
+    // "0" is a valid ceiling (authorize nothing) and must pass the guard into the budget logic.
+    const { impl } = challengeFetch([opt("1")]);
+    const zero = await payAndCall(config, { resource: "https://a.test/x", maxAmount: "0" }, impl);
+    expect(zero.error?.code).not.toBe("mcp_invalid_input");
+  });
+
+  it("refuses a malformed maxPrice with a coded error instead of silently returning nothing", async () => {
+    // `withinBudget` returns false whenever the ceiling will not parse, so a bad maxPrice used to
+    // filter out EVERY result with no reason — a wrong answer §3.3 forbids. Now it is a coded
+    // rejection, decided before any search runs (so no network here — the guard short-circuits).
+    for (const bad of ["1.5", "-1", "1e6", "abc"]) {
+      const result = await searchResources(config, { query: "geocode", maxPrice: bad });
+      expect(result.ok, `maxPrice ${JSON.stringify(bad)}`).toBe(false);
+      expect(result.error?.code, `maxPrice ${JSON.stringify(bad)}`).toBe("mcp_invalid_input");
+      expect(result.error?.reason, `maxPrice ${JSON.stringify(bad)}`).toMatch(/maxPrice/);
+    }
   });
 
   it("refuses to pay when the price exceeds the budget, and makes NO payment attempt", async () => {
@@ -494,14 +521,8 @@ describe("MCP transport (§3.3 — calling a discovered TOOL)", () => {
     expect(result.error?.details?.["toolName"]).toBe("harbour_tides");
   });
 
-  it("declares toolArguments and keeps maxAmount mandatory on the MCP path too", () => {
-    expect(
-      PayInputSchema.safeParse({
-        resource: "https://api.test/mcp",
-        toolName: "t",
-        toolArguments: { harbour: "Dover" },
-      }).success,
-    ).toBe(false); // still no maxAmount
+  it("declares toolArguments and keeps maxAmount mandatory on the MCP path too", async () => {
+    // toolArguments is a real, preserved schema field.
     const parsed = PayInputSchema.safeParse({
       resource: "https://api.test/mcp",
       toolName: "t",
@@ -510,6 +531,17 @@ describe("MCP transport (§3.3 — calling a discovered TOOL)", () => {
     });
     expect(parsed.success).toBe(true);
     expect(parsed.data?.toolArguments).toEqual({ harbour: "Dover", hours: 24 });
+
+    // maxAmount is mandatory on BOTH transports — enforced in the handler, which runs before the
+    // HTTP-vs-MCP branch, so an MCP call (toolName present) with no maxAmount is refused the same way
+    // and, crucially, with a coded reason rather than a raw -32602.
+    const result = await payAndCall(config, {
+      resource: "https://api.test/mcp",
+      toolName: "t",
+      toolArguments: { harbour: "Dover" },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("mcp_invalid_input");
   });
 
   it("validates an MCP-shaped success against the declared output schema", () => {

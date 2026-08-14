@@ -137,6 +137,17 @@ export async function searchResources(
     limit?: number | undefined;
   },
 ): Promise<ToolResult<{ results: SearchHit[]; count: number; searchToken?: string }>> {
+  // M1: a malformed ceiling is refused with a reason rather than silently excluding every result.
+  // `withinBudget` returns false whenever the ceiling will not parse, so an unguarded bad `maxPrice`
+  // is indistinguishable from "nothing matched" — a wrong answer with no code, exactly what §3.3
+  // forbids on the flagship tool.
+  if (args.maxPrice !== undefined && parseAmount(args.maxPrice) === undefined) {
+    return fail("mcp_invalid_input", {
+      reason: `maxPrice must be a non-negative integer in atomic token units; got ${JSON.stringify(args.maxPrice)}. No search ran and no results were filtered.`,
+      details: { field: "maxPrice", value: args.maxPrice },
+    });
+  }
+
   const url = new URL("/discovery/search", config.bazaarUrl);
   url.searchParams.set("query", args.query);
   url.searchParams.set("limit", String(args.limit ?? 10));
@@ -242,7 +253,9 @@ export async function payAndCall(
     method?: string | undefined;
     queryParams?: Record<string, string> | undefined;
     body?: unknown;
-    maxAmount: string;
+    // Optional at the type level so a missing value reaches this handler and is refused with a coded
+    // error instead of the SDK's raw -32602. Enforced present-and-valid below before any payment.
+    maxAmount?: string | undefined;
     network?: string | undefined;
     searchToken?: string | undefined;
     /**
@@ -254,6 +267,20 @@ export async function payAndCall(
   },
   fetchImpl: typeof fetch = fetch,
 ): Promise<ToolResult<PayResult>> {
+  // M2: enforce the spend cap's presence and format HERE, with a coded error, rather than letting the
+  // MCP SDK reject a missing or malformed `maxAmount` as a raw -32602 (a rejection with no registry
+  // code). The schema keeps `maxAmount` optional precisely so this branch is reached. No valid
+  // maxAmount, no payment — the §8 spend-cap invariant holds.
+  if (args.maxAmount === undefined || parseAmount(args.maxAmount) === undefined) {
+    return fail("mcp_invalid_input", {
+      reason:
+        args.maxAmount === undefined
+          ? "maxAmount is required: this tool never pays an unbounded amount. Supply the maximum you authorize for this call, as a non-negative integer in atomic token units."
+          : `maxAmount must be a non-negative integer in atomic token units; got ${JSON.stringify(args.maxAmount)}. No payment was made.`,
+      details: { field: "maxAmount", value: args.maxAmount ?? null },
+    });
+  }
+
   if (!config.stellarSecret) {
     return fail("mcp_resource_not_payable", {
       reason: "This MCP server has no Stellar signer configured, so it cannot make paid calls.",

@@ -19,10 +19,17 @@ export const SearchInputSchema = z.object({
   query: z.string().min(1).describe("Natural-language description of the capability you need."),
   network: z.string().optional().describe('CAIP-2 network filter, e.g. "stellar:testnet".'),
   type: z.enum(["http", "mcp"]).optional().describe("Restrict to HTTP endpoints or MCP tools."),
+  // Validated in the handler, not with a `.regex()` here, for two reasons. A `.regex()` would
+  // make a malformed value a raw MCP -32602 rejection with no registry code (see `maxAmount`). And
+  // WITHOUT validation a malformed ceiling silently excluded EVERY result — `withinBudget` returns
+  // false whenever the ceiling will not parse, so a bad `maxPrice` was indistinguishable from
+  // "nothing matched", a wrong answer with no reason. The handler now refuses it with a coded error.
   maxPrice: z
     .string()
     .optional()
-    .describe("Atomic-unit ceiling. Resources priced above this are excluded before you see them."),
+    .describe(
+      "Atomic-unit ceiling (a non-negative integer). Resources priced above this are excluded before you see them. A malformed value is refused with a coded error, never silently applied.",
+    ),
   limit: z.number().int().min(1).max(50).default(10),
 });
 
@@ -53,10 +60,18 @@ export const PayInputSchema = z.object({
    * would hand an agent an unbounded spender by omission — the single most dangerous thing this
    * tool could do.
    */
+  // Deliberately OPTIONAL and unconstrained at the SDK-validation layer, then enforced in the handler
+  // Required-with-`.regex()` here would make a missing or malformed value a raw MCP -32602 —
+  // a rejection with no registry code, which §3.3 forbids — because the SDK validates `inputSchema`
+  // and throws BEFORE the handler runs. Kept a string, described as REQUIRED, and refused with
+  // `mcp_invalid_input` when absent or malformed. The spend-cap safety of §8 is preserved exactly:
+  // no valid maxAmount, no payment.
   maxAmount: z
     .string()
-    .regex(/^\d+$/, "maxAmount must be a non-negative integer in atomic units")
-    .describe("REQUIRED. Maximum you authorize for this single call, in atomic token units."),
+    .optional()
+    .describe(
+      "REQUIRED (enforced with a coded error, never silently). Maximum you authorize for this single call, as a non-negative integer in atomic token units. This tool never pays an unbounded amount.",
+    ),
   network: z.string().optional().describe("Restrict payment to this CAIP-2 network."),
   /**
    * Closes the discovery loop ("searches that never convert to a paid call",

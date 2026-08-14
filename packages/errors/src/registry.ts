@@ -562,6 +562,13 @@ export const ERROR_REGISTRY = {
     surface: "mcp",
     provenance: "local",
   },
+  mcp_invalid_input: {
+    reason:
+      "A tool argument was missing or malformed. See the reason for which argument and what it must be. No search ran and no payment was made.",
+    retryable: false,
+    surface: "mcp",
+    provenance: "local",
+  },
   mcp_resource_not_found: {
     reason: "No cataloged Stellar resource matches the requested URL or tool name.",
     retryable: false,
