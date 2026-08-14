@@ -27,6 +27,7 @@ import type {
   VerifyResponse,
 } from "@x402/core/types";
 import { ARG, SETTLE_ARG_COUNT, SETTLE_FN, uptoContractFor } from "./constants.js";
+import { createSignerLanes, type SignerLanes } from "./lane.js";
 import type { UptoStellarPayloadV2 } from "./types.js";
 
 /**
@@ -188,6 +189,8 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
   private readonly addresses: ReadonlySet<string>;
   private readonly options: UptoStellarFacilitatorOptions;
   private next = 0;
+  /** Per-signer serialization of the settle read→submit critical section (F4). */
+  private readonly lanes: SignerLanes = createSignerLanes();
 
   constructor(signers: FacilitatorStellarSigner[], options: UptoStellarFacilitatorOptions = {}) {
     if (!signers.length) throw new Error("At least one signer is required");
@@ -442,29 +445,40 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
       }
 
       const signer = this.selectSigner();
-      const source = await server.getAccount(signer.address);
-      const rebuilt = new TransactionBuilder(source, {
-        fee: BASE_FEE,
-        networkPassphrase: passphrase,
-        sorobanData: sim.transactionData.build(),
-      })
-        .setTimeout(requirements.maxTimeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS)
-        .addOperation(Operation.invokeHostFunction(withActual.operations[0] as Operation.InvokeHostFunction))
-        .build();
 
-      const { signedTxXdr, error } = await signer.signTransaction(rebuilt.toXDR(), {
-        networkPassphrase: passphrase,
+      // Serialize the read→submit critical section PER SIGNER (F4). `getAccount` reads the signer's
+      // sequence number and `sendTransaction` consumes it, so two concurrent settlements on one
+      // signer would read the same number and one would be rejected with txBadSeq. Different signers
+      // run fully in parallel (that is the throughput design); confirmation polling stays OUTSIDE the
+      // lane because the sequence is already spent once the transaction is submitted.
+      const submitted = await this.lanes.run(signer.address, async () => {
+        const source = await server.getAccount(signer.address);
+        const rebuilt = new TransactionBuilder(source, {
+          fee: BASE_FEE,
+          networkPassphrase: passphrase,
+          sorobanData: sim.transactionData.build(),
+        })
+          .setTimeout(requirements.maxTimeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS)
+          .addOperation(Operation.invokeHostFunction(withActual.operations[0] as Operation.InvokeHostFunction))
+          .build();
+
+        const { signedTxXdr, error } = await signer.signTransaction(rebuilt.toXDR(), {
+          networkPassphrase: passphrase,
+        });
+        if (error) return { ok: false as const, code: "settle_exact_stellar_transaction_signing_failed" as const };
+
+        const sent = await server.sendTransaction(
+          TransactionBuilder.fromXDR(signedTxXdr, passphrase) as Transaction,
+        );
+        if (sent.status !== "PENDING") {
+          return { ok: false as const, code: "settle_exact_stellar_transaction_submission_failed" as const };
+        }
+        return { ok: true as const, hash: sent.hash };
       });
-      if (error) return fail("settle_exact_stellar_transaction_signing_failed", d.from);
+      if (!submitted.ok) return fail(submitted.code, d.from);
+      const hash = submitted.hash;
 
-      const sent = await server.sendTransaction(
-        TransactionBuilder.fromXDR(signedTxXdr, passphrase) as Transaction,
-      );
-      if (sent.status !== "PENDING") {
-        return fail("settle_exact_stellar_transaction_submission_failed", d.from);
-      }
-
-      const confirmed = await this.poll(server, sent.hash, requirements.maxTimeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS);
+      const confirmed = await this.poll(server, hash, requirements.maxTimeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS);
       if (!confirmed) {
         // This path previously returned a bare code with no reason at all — the one shape the error contract
         // forbids outright. It also keeps the transaction hash, which `fail()` cannot express: the
@@ -474,7 +488,7 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
         return {
           success: false,
           network,
-          transaction: sent.hash,
+          transaction: hash,
           errorReason: e.code,
           errorMessage: e.reason,
           payer: d.from,
@@ -484,7 +498,7 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
 
       return {
         success: true,
-        transaction: sent.hash,
+        transaction: hash,
         network,
         payer: d.from,
         amount: actual.toString(),
