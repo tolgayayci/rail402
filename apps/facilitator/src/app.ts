@@ -148,6 +148,10 @@ export function createApp({ config, startedAt, persistence }: AppDeps) {
   if (config.rateLimit.enabled) {
     app.use("/verify", rateLimit);
     app.use("/settle", rateLimit);
+    // /discovery/search runs an embedding pass plus BM25 retrieval — the most expensive
+    // unauthenticated path, and the one costly endpoint that was left unmetered (F8). It shares the
+    // same fixed window as verify/settle.
+    app.use("/discovery/search", rateLimit);
   }
 
   /**
