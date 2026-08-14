@@ -81,7 +81,27 @@ export interface SellerMeta {
   readonly serviceName?: string;
   readonly resource?: string;
   readonly description?: string;
+  /** True when this seller is registered in the Bazaar catalog (vs. only seen on-chain). */
+  readonly registered?: boolean;
   readonly fetchedAt: string;
+}
+
+/** One row of the seller/API directory: on-chain activity ∪ Bazaar registration. */
+export interface SellerDirectoryRow {
+  readonly network: string;
+  readonly payTo: string;
+  /** Registered in our Bazaar catalog. */
+  readonly registered: boolean;
+  /** On-chain payments observed to this seller (0 for registered-but-unpaid). */
+  readonly payments: number;
+  readonly uniqueBuyers: number;
+  readonly firstSeenAt?: string;
+  readonly lastSeenAt?: string;
+  /** Per-asset settled volume, BigInt-safe integer strings. */
+  readonly volume: readonly { assetContract: string; asset?: string; total: string }[];
+  readonly serviceName?: string;
+  readonly resource?: string;
+  readonly description?: string;
 }
 
 export interface CursorState {

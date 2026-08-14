@@ -167,6 +167,43 @@ describe("seller / facilitator / stats surfaces", () => {
     expect(body["payments"]).toHaveLength(1);
   });
 
+  it("GET /sellers is the union of on-chain sellers and Bazaar-registered ones", async () => {
+    const { app, store } = build();
+    // A paid seller (on-chain).
+    store.insertPayment(payment({ txHash: "a".repeat(64), seller: "GPAID", amount: "10000" }));
+    // A registered-but-unpaid seller (Bazaar only).
+    store.markRegisteredSeller({
+      network: "stellar:testnet",
+      payTo: "GREGISTERED",
+      serviceName: "Registered API",
+      fetchedAt: "2026-08-14T18:00:00Z",
+    });
+    const body = (await (await app.request("/sellers")).json()) as {
+      items: Record<string, unknown>[];
+      pagination: { total: number };
+    };
+    expect(body.pagination.total).toBe(2);
+    const paid = body.items.find(s => s["payTo"] === "GPAID")!;
+    expect(paid["payments"]).toBe(1);
+    expect((paid["volume"] as unknown[]).length).toBe(1);
+    const registered = body.items.find(s => s["payTo"] === "GREGISTERED")!;
+    expect(registered["registered"]).toBe(true);
+    expect(registered["payments"]).toBe(0);
+    expect(registered["serviceName"]).toBe("Registered API");
+
+    // Filter to registered only.
+    const reg = (await (await app.request("/sellers?registered=true")).json()) as {
+      items: Record<string, unknown>[];
+    };
+    expect(reg.items).toHaveLength(1);
+    expect(reg.items[0]!["payTo"]).toBe("GREGISTERED");
+
+    // Coded rejection for a bad filter.
+    const bad = await app.request("/sellers?registered=maybe");
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as { code: string }).code).toBe("explorer_invalid_query");
+  });
+
   it("GET /facilitators lists registry rows with per-facilitator stats", async () => {
     const { app, store } = build();
     store.upsertFacilitator({

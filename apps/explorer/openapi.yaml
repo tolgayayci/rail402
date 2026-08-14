@@ -139,6 +139,55 @@ paths:
                 retryable: true
                 details: { hash: "0000000000000000000000000000000000000000000000000000000000000000" }
 
+  /sellers:
+    get:
+      tags: [entities]
+      operationId: listSellers
+      summary: The seller / API directory (on-chain sellers ∪ Bazaar-registered)
+      description: |
+        A directory of sellers, ranked by on-chain activity. It is the UNION of two sources, so it
+        is complete in both directions:
+          - every address that has been PAID on-chain (any facilitator, registered or not), with
+            payment count, unique buyers and settled volume; and
+          - every seller REGISTERED in the Bazaar catalog, which appears automatically even before
+            its first settled payment (with zero on-chain stats until then).
+        A seller that is both carries stats AND its Bazaar name/description. Use it to build an
+        ecosystem / leaderboard page.
+      parameters:
+        - name: network
+          in: query
+          schema: { type: string }
+        - name: registered
+          in: query
+          schema: { type: boolean }
+          description: Filter to only Bazaar-registered (`true`) or only unregistered (`false`) sellers
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: One page of the directory
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, pagination]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/DirectorySeller" }
+                  pagination:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      limit: { type: integer }
+                      offset: { type: integer }
+        "400":
+          $ref: "#/components/responses/InvalidQuery"
+
   /seller/{payTo}:
     get:
       tags: [entities]
@@ -512,6 +561,38 @@ components:
                 classification was made from — every claim is independently checkable.
               type: object
               additionalProperties: true
+
+    DirectorySeller:
+      type: object
+      required: [payTo, network, registered, payments, uniqueBuyers, volume]
+      properties:
+        payTo: { type: string }
+        network: { type: string }
+        registered:
+          type: boolean
+          description: Listed in the Bazaar catalog (vs. only observed on-chain)
+        payments:
+          type: integer
+          description: On-chain payments observed to this seller (0 for registered-but-unpaid)
+        uniqueBuyers: { type: integer }
+        firstSeenAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        volume:
+          type: array
+          description: Settled volume per asset, largest first
+          items:
+            type: object
+            properties:
+              assetContract: { type: string }
+              asset: { type: string }
+              assetCode: { type: string }
+              total: { type: string, description: "Integer string, smallest units" }
+              totalDecimal: { type: string, description: "Human amount" }
+        serviceName:
+          type: string
+          description: Bazaar service name, when registered/known
+        resource: { type: string }
+        description: { type: string }
 
     Facilitator:
       type: object

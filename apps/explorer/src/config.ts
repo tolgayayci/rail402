@@ -56,6 +56,11 @@ export interface ExplorerConfig {
   readonly ingestEnabled: boolean;
   /** Facilitator base URLs seeded into the registry at startup. */
   readonly facilitatorSeeds: readonly string[];
+  /**
+   * Bearer tokens for facilitators whose /supported requires auth, keyed by base URL. A base URL
+   * here is ALSO seeded automatically. Tokens are secrets — provided by env, never committed.
+   */
+  readonly facilitatorAuth: ReadonlyMap<string, string>;
   /** How often /supported is re-polled for every registered facilitator. */
   readonly supportedPollIntervalMs: number;
   /**
@@ -107,6 +112,12 @@ const EnvSchema = z.object({
   EXPLORER_FACILITATOR_SEEDS: z
     .string()
     .default("https://facilitator.rail402.dev,https://x402.org/facilitator"),
+  /**
+   * Bearer tokens for facilitators whose /supported needs auth, as JSON `{ "<baseUrl>": "<token>" }`.
+   * Each base URL is also seeded. SECRET — set via env/secret manager, never commit a real token.
+   * Example: {"https://channels.openzeppelin.com/x402/testnet":"<key>"}
+   */
+  EXPLORER_FACILITATOR_AUTH: z.string().optional(),
   EXPLORER_SUPPORTED_POLL_INTERVAL_MS: z.coerce.number().int().min(10_000).default(300_000),
 
   /** The canonical shared upto contract (packages/scheme-upto-stellar/src/constants.ts). */
@@ -242,6 +253,49 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ExplorerConfig
     }
   }
 
+  // Facilitator auth tokens (secrets). Each key is a base URL that gets an Authorization: Bearer
+  // header on its /supported probe, and is also added to the seed set.
+  const facilitatorAuth = new Map<string, string>();
+  if (e.EXPLORER_FACILITATOR_AUTH && e.EXPLORER_FACILITATOR_AUTH.trim()) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(e.EXPLORER_FACILITATOR_AUTH);
+    } catch {
+      throw new X402Error("config_invalid_value", {
+        reason: 'EXPLORER_FACILITATOR_AUTH is not valid JSON. Expected {"<baseUrl>":"<token>"}.',
+      });
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      throw new X402Error("config_invalid_value", {
+        reason: 'EXPLORER_FACILITATOR_AUTH must be a JSON object of base URL → bearer token.',
+      });
+    }
+    for (const [baseUrl, token] of Object.entries(parsed)) {
+      let url: URL;
+      try {
+        url = new URL(baseUrl);
+      } catch {
+        throw new X402Error("config_invalid_value", {
+          reason: `EXPLORER_FACILITATOR_AUTH key "${baseUrl}" is not a valid URL.`,
+        });
+      }
+      if (url.protocol !== "https:" && url.protocol !== "http:") {
+        throw new X402Error("config_invalid_value", {
+          reason: `EXPLORER_FACILITATOR_AUTH key "${baseUrl}" must be http(s).`,
+        });
+      }
+      if (typeof token !== "string" || token.trim() === "") {
+        throw new X402Error("config_invalid_value", {
+          reason: `EXPLORER_FACILITATOR_AUTH["${baseUrl}"] must be a non-empty bearer token.`,
+        });
+      }
+      const normalized = baseUrl.replace(/\/+$/, "");
+      facilitatorAuth.set(normalized, token);
+      // An authed facilitator is also a seed, so configuring its key registers it.
+      if (!facilitatorSeeds.includes(normalized)) facilitatorSeeds.push(normalized);
+    }
+  }
+
   return {
     port: e.PORT,
     host: e.HOST,
@@ -251,6 +305,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ExplorerConfig
     pollIntervalMs: e.EXPLORER_POLL_INTERVAL_MS,
     ingestEnabled: e.EXPLORER_INGEST_ENABLED,
     facilitatorSeeds,
+    facilitatorAuth,
     supportedPollIntervalMs: e.EXPLORER_SUPPORTED_POLL_INTERVAL_MS,
     knownUptoContracts,
     bazaarUrl: e.EXPLORER_BAZAAR_URL,
@@ -272,6 +327,8 @@ export function describeConfig(config: ExplorerConfig): Record<string, unknown> 
     ingestEnabled: config.ingestEnabled,
     pollIntervalMs: config.pollIntervalMs,
     facilitatorSeeds: config.facilitatorSeeds,
+    // Count only — never log the tokens themselves.
+    facilitatorAuth: config.facilitatorAuth.size,
     knownUptoContracts: config.knownUptoContracts,
     bazaarUrl: config.bazaarUrl,
   };

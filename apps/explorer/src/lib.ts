@@ -14,6 +14,7 @@ export { IngestWorker } from "./ingest.js";
 export type { IngestCounters, NetworkIngestHealth } from "./ingest.js";
 export { createBazaarEnricher } from "./enrich.js";
 export type { Enricher } from "./enrich.js";
+export { CatalogSync } from "./catalog-sync.js";
 export { FacilitatorRegistry, parseSupported, slugForUrl } from "./registry.js";
 export { HorizonBackfill } from "./horizon.js";
 export { adaptHorizonRecord } from "./xdr-adapter.js";

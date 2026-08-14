@@ -92,6 +92,43 @@ describe("loadConfig", () => {
     }
   });
 
+  it("parses facilitator auth tokens and seeds their base URLs", () => {
+    const config = loadConfig({
+      ...base,
+      EXPLORER_FACILITATOR_AUTH: JSON.stringify({
+        "https://channels.openzeppelin.com/x402/testnet": "secret-token",
+      }),
+    });
+    expect(config.facilitatorAuth.get("https://channels.openzeppelin.com/x402/testnet")).toBe(
+      "secret-token",
+    );
+    // Configuring auth for a facilitator also registers it as a seed.
+    expect(config.facilitatorSeeds).toContain("https://channels.openzeppelin.com/x402/testnet");
+  });
+
+  it("refuses malformed or empty facilitator auth with a coded reason", () => {
+    for (const bad of [
+      "{not json",
+      JSON.stringify(["not-an-object"]),
+      JSON.stringify({ "https://x.example": "" }),
+      JSON.stringify({ "not a url": "tok" }),
+    ]) {
+      try {
+        loadConfig({ ...base, EXPLORER_FACILITATOR_AUTH: bad });
+        throw new Error(`expected rejection for ${bad}`);
+      } catch (error) {
+        expect(error).toBeInstanceOf(X402Error);
+        expect((error as X402Error).payload.code).toBe("config_invalid_value");
+      }
+    }
+  });
+
+  it("has empty auth and no OZ seed by default", () => {
+    const config = loadConfig(base);
+    expect(config.facilitatorAuth.size).toBe(0);
+    expect(config.facilitatorSeeds).not.toContain("https://channels.openzeppelin.com/x402/testnet");
+  });
+
   it("refuses a malformed known upto contract with a coded reason", () => {
     expect.assertions(2);
     try {

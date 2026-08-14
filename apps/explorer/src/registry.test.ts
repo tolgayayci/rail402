@@ -132,6 +132,38 @@ describe("FacilitatorRegistry", () => {
     );
   });
 
+  it("retroactively attributes stored x402-shaped rows when a facilitator becomes known", async () => {
+    const store = new ExplorerStore();
+    // A payment ingested BEFORE the facilitator was known: unattributed, tx source = its signer.
+    const SIGNER = "GBRVXNCL55KOEB7WU3BPSEL34PSUH63UCIFPZDUBIVJBRRG5ZB7V4YR7";
+    store.insertPayment({
+      network: "stellar:testnet",
+      epoch: "E1",
+      ledger: 1,
+      txHash: "f".repeat(64),
+      opIndex: 0,
+      scheme: "exact",
+      buyer: "GBUYER",
+      seller: "GSELLER",
+      amount: "10000",
+      assetContract: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      txSource: SIGNER,
+      confidence: "x402-shaped",
+      closedAt: "2026-08-14T18:00:00Z",
+      rawEnvelope: "{}",
+      ingestedAt: "2026-08-14T18:00:01Z",
+    });
+    expect(store.getPaymentByHash("f".repeat(64))!.confidence).toBe("x402-shaped");
+
+    const r = registry(store, serving({ "facilitator.rail402.dev": RAIL402_SUPPORTED }));
+    r.seed();
+    await r.refreshAll();
+
+    const row = store.getPaymentByHash("f".repeat(64))!;
+    expect(row.confidence).toBe("rail402");
+    expect(row.facilitatorId).toBe("rail402");
+  });
+
   it("caps signers/contracts a single /supported can contribute (review M7)", () => {
     const many = Array.from({ length: 500 }, () => "GBRVXNCL55KOEB7WU3BPSEL34PSUH63UCIFPZDUBIVJBRRG5ZB7V4YR7");
     const probe = parseSupported({ signers: { "stellar:*": many } });

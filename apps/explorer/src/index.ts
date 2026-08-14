@@ -3,6 +3,7 @@ import pino from "pino";
 import { createExplorerApp } from "./app.js";
 import { describeConfig, loadConfig } from "./config.js";
 import { ExplorerStore } from "./db.js";
+import { CatalogSync } from "./catalog-sync.js";
 import { createBazaarEnricher } from "./enrich.js";
 import { HorizonBackfill } from "./horizon.js";
 import { IngestWorker } from "./ingest.js";
@@ -19,6 +20,7 @@ const registry = new FacilitatorRegistry({
   seeds: config.facilitatorSeeds,
   pollIntervalMs: config.supportedPollIntervalMs,
   logger,
+  auth: config.facilitatorAuth,
 });
 registry.seed();
 
@@ -33,6 +35,9 @@ if (config.ingestEnabled) {
   });
   horizon = new HorizonBackfill({ store, config, worker: ingest, logger });
 }
+// Bazaar catalog sync populates the "registered" half of the seller directory (runs regardless of
+// ingest, since it only reads the Bazaar and writes the sellers table).
+const catalogSync = new CatalogSync({ store, bazaarUrl: config.bazaarUrl, logger });
 
 const app = createExplorerApp({
   store,
@@ -63,6 +68,7 @@ void (async () => {
   registry.start();
   ingest?.start();
   horizon?.start();
+  catalogSync.start();
 })();
 
 let shuttingDown = false;
@@ -70,6 +76,7 @@ const shutdown = (): void => {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info("explorer shutting down");
+  catalogSync.stop();
   horizon?.stop();
   ingest?.stop();
   registry.stop();

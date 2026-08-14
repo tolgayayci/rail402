@@ -307,6 +307,75 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     });
   });
 
+  // The seller / API directory: on-chain sellers (with activity) ∪ Bazaar-registered sellers.
+  // Any seller registered in our Bazaar appears here automatically, even before their first
+  // settled payment; on-chain-only sellers appear with stats and no name. Ranked by activity.
+  const directoryCache = new Map<string, { value: unknown; at: number }>();
+  app.get("/sellers", c => {
+    const q = c.req.query();
+    const opts: { network?: string; registered?: boolean; limit?: number; offset?: number } = {};
+    if (q["network"] !== undefined) opts.network = q["network"];
+    if (q["registered"] !== undefined) {
+      if (q["registered"] !== "true" && q["registered"] !== "false") {
+        throw new X402Error("explorer_invalid_query", {
+          reason: 'Query parameter "registered" must be "true" or "false".',
+          details: { parameter: "registered", value: q["registered"] },
+        });
+      }
+      opts.registered = q["registered"] === "true";
+    }
+    if (q["limit"] !== undefined) {
+      const limit = Number(q["limit"]);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+        throw new X402Error("explorer_invalid_query", {
+          reason: 'Query parameter "limit" must be an integer between 1 and 100.',
+          details: { parameter: "limit", value: q["limit"] },
+        });
+      }
+      opts.limit = limit;
+    }
+    if (q["offset"] !== undefined) {
+      const offset = Number(q["offset"]);
+      if (!Number.isInteger(offset) || offset < 0) {
+        throw new X402Error("explorer_invalid_query", {
+          reason: 'Query parameter "offset" must be a non-negative integer.',
+          details: { parameter: "offset", value: q["offset"] },
+        });
+      }
+      opts.offset = offset;
+    }
+    // Cached (the query folds every amount, like /stats).
+    const cacheKey = JSON.stringify(opts);
+    const hit = directoryCache.get(cacheKey);
+    const now = Date.now();
+    if (hit && now - hit.at < 5_000) return c.json(hit.value);
+    if (directoryCache.size > 500) directoryCache.clear();
+    const { items, total } = store.sellersDirectory(opts);
+    const value = {
+      items: items.map(r => ({
+        payTo: r.payTo,
+        network: r.network,
+        registered: r.registered,
+        payments: r.payments,
+        uniqueBuyers: r.uniqueBuyers,
+        ...(r.firstSeenAt !== undefined ? { firstSeenAt: r.firstSeenAt } : {}),
+        ...(r.lastSeenAt !== undefined ? { lastSeenAt: r.lastSeenAt } : {}),
+        volume: r.volume.map(v => ({
+          assetContract: v.assetContract,
+          ...(v.asset !== undefined ? { asset: v.asset, assetCode: assetCode(v.asset) } : {}),
+          total: v.total,
+          totalDecimal: toDecimal(v.total),
+        })),
+        ...(r.serviceName !== undefined ? { serviceName: r.serviceName } : {}),
+        ...(r.resource !== undefined ? { resource: r.resource } : {}),
+        ...(r.description !== undefined ? { description: r.description } : {}),
+      })),
+      pagination: { total, limit: opts.limit ?? 25, offset: opts.offset ?? 0 },
+    };
+    directoryCache.set(cacheKey, { value, at: now });
+    return c.json(value);
+  });
+
   app.get("/seller/:payTo", c => {
     const payTo = c.req.param("payTo");
     const network = c.req.query("network");

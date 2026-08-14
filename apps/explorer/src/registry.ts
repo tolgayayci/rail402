@@ -20,6 +20,12 @@ import type { FacilitatorRow } from "./types.js";
 const WELL_KNOWN: Record<string, { id: string; displayName: string }> = {
   "facilitator.rail402.dev": { id: "rail402", displayName: "Rail402" },
   "x402.org": { id: "x402-org", displayName: "x402.org" },
+  // The "Built on Stellar" facilitator (https://developers.stellar.org/.../x402/built-on-stellar).
+  // Its /supported requires an API key; the token is provided via EXPLORER_FACILITATOR_AUTH.
+  "channels.openzeppelin.com": {
+    id: "built-on-stellar",
+    displayName: "Built on Stellar (OpenZeppelin)",
+  },
 };
 
 const PROBE_TIMEOUT_MS = 10_000;
@@ -102,6 +108,8 @@ export interface RegistryOptions {
   readonly now?: () => Date;
   /** Allow http/private announce targets — LOCAL DEVELOPMENT ONLY, never on a deployment. */
   readonly allowPrivateHosts?: boolean;
+  /** Bearer tokens keyed by facilitator base URL, for facilitators whose /supported needs auth. */
+  readonly auth?: ReadonlyMap<string, string>;
 }
 
 export class FacilitatorRegistry {
@@ -112,6 +120,7 @@ export class FacilitatorRegistry {
   private readonly fetchImpl: FetchLike;
   private readonly now: () => Date;
   private readonly allowPrivateHosts: boolean;
+  private readonly auth: ReadonlyMap<string, string>;
   private timer: NodeJS.Timeout | undefined;
   private refreshing = false;
 
@@ -123,6 +132,7 @@ export class FacilitatorRegistry {
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? (() => new Date());
     this.allowPrivateHosts = options.allowPrivateHosts ?? false;
+    this.auth = options.auth ?? new Map();
   }
 
   /**
@@ -204,6 +214,21 @@ export class FacilitatorRegistry {
         lastSeenAt: this.now().toISOString(),
         // lastError deliberately dropped on success.
       });
+      // When a facilitator's signer set gains addresses (e.g. it just became verified), attribute
+      // the history already stored as x402-shaped. Only run on a change so a steady poll is cheap;
+      // first-claim-wins means only signers this facilitator legitimately owns get claimed.
+      const gained = probe.signers.filter(s => !facilitator.signers.includes(s));
+      if (gained.length > 0) {
+        const owned = gained.filter(s => (this.store.signerIndex().get(s) ?? facilitator.id) === facilitator.id);
+        const confidence = facilitator.id === "rail402" ? "rail402" : "verified-facilitator";
+        const changed = this.store.reattribute(facilitator.id, confidence, owned);
+        if (changed > 0) {
+          this.logger.info(
+            { id: facilitator.id, reattributed: changed },
+            "attributed stored payments to a newly-known facilitator",
+          );
+        }
+      }
       this.logger.debug(
         { id: facilitator.id, signers: probe.signers.length },
         "facilitator refreshed",
@@ -223,8 +248,11 @@ export class FacilitatorRegistry {
   }
 
   private async probe(baseUrl: string): Promise<SupportedProbe> {
-    const response = await this.fetchImpl(`${baseUrl.replace(/\/+$/, "")}/supported`, {
+    const normalized = baseUrl.replace(/\/+$/, "");
+    const token = this.auth.get(normalized);
+    const response = await this.fetchImpl(`${normalized}/supported`, {
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      ...(token !== undefined ? { headers: { Authorization: `Bearer ${token}` } } : {}),
       ...NO_REDIRECT,
     });
     if (!response.ok) throw new Error(`/supported returned HTTP ${response.status}`);

@@ -9,6 +9,7 @@ import type {
   FacilitatorRow,
   PaymentRow,
   Scheme,
+  SellerDirectoryRow,
   SellerMeta,
 } from "./types.js";
 
@@ -88,6 +89,7 @@ CREATE TABLE IF NOT EXISTS sellers (
   service_name TEXT,
   resource     TEXT,
   description  TEXT,
+  registered   INTEGER NOT NULL DEFAULT 0,
   fetched_at   TEXT NOT NULL,
   PRIMARY KEY (network, pay_to)
 ) STRICT;
@@ -257,11 +259,18 @@ export class ExplorerStore {
    * table is dropped and recreated with the (network, epoch) key.
    */
   private migrate(): void {
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    const cols: any[] = this.db.prepare("PRAGMA table_info(backfill)").all();
-    if (cols.length > 0 && !cols.some(c => c.name === "epoch")) {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const backfillCols: any[] = this.db.prepare("PRAGMA table_info(backfill)").all();
+    if (backfillCols.length > 0 && !backfillCols.some(c => c.name === "epoch")) {
       this.db.exec("DROP TABLE backfill;");
     }
+    // The sellers table gained a `registered` flag (Bazaar-catalog membership). Add it in place on
+    // an existing DB — it holds enrichment/directory state only, so a plain ADD COLUMN is safe.
+    const sellerCols: any[] = this.db.prepare("PRAGMA table_info(sellers)").all();
+    if (sellerCols.length > 0 && !sellerCols.some(c => c.name === "registered")) {
+      this.db.exec("ALTER TABLE sellers ADD COLUMN registered INTEGER NOT NULL DEFAULT 0;");
+    }
+    /* eslint-enable @typescript-eslint/no-explicit-any */
   }
 
   /** Insert a payment; returns false when the row already exists (dedup on the epoch-keyed PK). */
@@ -573,6 +582,26 @@ export class ExplorerStore {
   }
 
   /**
+   * Retroactively attribute already-stored payments to a facilitator whose signers just became
+   * known. Rows are classified at ingest time, so traffic ingested before a facilitator was
+   * registered stays `x402-shaped` forever otherwise — this closes that gap (e.g. adding a
+   * facilitator's API key attributes its whole observed history at once). Only touches
+   * currently-unattributed rows whose tx source or fee source is one of the signers.
+   */
+  reattribute(facilitatorId: string, confidence: Confidence, signers: readonly string[]): number {
+    if (signers.length === 0) return 0;
+    const placeholders = signers.map(() => "?").join(",");
+    const result = this.db
+      .prepare(
+        `UPDATE payments SET facilitator_id = ?, confidence = ?
+         WHERE facilitator_id IS NULL
+           AND (tx_source IN (${placeholders}) OR fee_source IN (${placeholders}))`,
+      )
+      .run(facilitatorId, confidence, ...signers, ...signers);
+    return result.changes as number;
+  }
+
+  /**
    * signer address → facilitator id, for attribution. Verified facilitators only.
    *
    * FIRST-CLAIM-WINS (review C1): a signer already owned by another facilitator is NOT reassigned.
@@ -622,11 +651,13 @@ export class ExplorerStore {
       ...(r.service_name != null ? { serviceName: r.service_name } : {}),
       ...(r.resource != null ? { resource: r.resource } : {}),
       ...(r.description != null ? { description: r.description } : {}),
+      registered: r.registered === 1,
       fetchedAt: r.fetched_at,
     };
   }
 
   setSellerMeta(meta: SellerMeta): void {
+    // Enrichment write: never touches `registered` (a Bazaar-catalog fact set elsewhere).
     this.db
       .prepare(
         `INSERT INTO sellers (network, pay_to, service_name, resource, description, fetched_at)
@@ -643,6 +674,123 @@ export class ExplorerStore {
         meta.description ?? null,
         meta.fetchedAt,
       );
+  }
+
+  /** Catalog-sync write: marks a seller as Bazaar-registered and refreshes its metadata. */
+  markRegisteredSeller(meta: SellerMeta): void {
+    this.db
+      .prepare(
+        `INSERT INTO sellers (network, pay_to, service_name, resource, description, registered, fetched_at)
+         VALUES (?,?,?,?,?,1,?)
+         ON CONFLICT(network, pay_to) DO UPDATE SET
+           service_name = excluded.service_name, resource = excluded.resource,
+           description = excluded.description, registered = 1, fetched_at = excluded.fetched_at`,
+      )
+      .run(
+        meta.network,
+        meta.payTo,
+        meta.serviceName ?? null,
+        meta.resource ?? null,
+        meta.description ?? null,
+        meta.fetchedAt,
+      );
+  }
+
+  /**
+   * The seller/API directory: on-chain sellers (with activity stats) UNION Bazaar-registered
+   * sellers (guaranteed to appear even before their first settled payment). Ranked by activity,
+   * then registration, then address. This is O(rows) like stats(); callers should cache it.
+   */
+  sellersDirectory(
+    opts: { network?: string; registered?: boolean; limit?: number; offset?: number } = {},
+  ): { items: SellerDirectoryRow[]; total: number } {
+    const where = opts.network ? " WHERE network = ?" : "";
+    const params = opts.network ? [opts.network] : [];
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const aggRows: any[] = this.db
+      .prepare(
+        `SELECT network, seller, COUNT(*) AS n, COUNT(DISTINCT buyer) AS buyers,
+                MIN(closed_at) AS first_seen, MAX(closed_at) AS last_seen
+         FROM payments${where} GROUP BY network, seller`,
+      )
+      .all(...params);
+    const amountRows: any[] = this.db
+      .prepare(`SELECT network, seller, asset_contract, asset, amount FROM payments${where}`)
+      .all(...params);
+    const metaRows: any[] = this.db.prepare(`SELECT * FROM sellers${where}`).all(...params);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    const key = (network: string, payTo: string): string => `${network} ${payTo}`;
+    const rows = new Map<
+      string,
+      { -readonly [K in keyof SellerDirectoryRow]: SellerDirectoryRow[K] } & {
+        _volume: Map<string, { asset?: string; total: bigint }>;
+      }
+    >();
+    const ensure = (network: string, payTo: string) => {
+      const k = key(network, payTo);
+      let row = rows.get(k);
+      if (!row) {
+        row = {
+          network,
+          payTo,
+          registered: false,
+          payments: 0,
+          uniqueBuyers: 0,
+          volume: [],
+          _volume: new Map(),
+        };
+        rows.set(k, row);
+      }
+      return row;
+    };
+
+    for (const r of aggRows) {
+      const row = ensure(r.network, r.seller);
+      row.payments = Number(r.n);
+      row.uniqueBuyers = Number(r.buyers);
+      if (r.first_seen != null) (row as { firstSeenAt?: string }).firstSeenAt = r.first_seen;
+      if (r.last_seen != null) (row as { lastSeenAt?: string }).lastSeenAt = r.last_seen;
+    }
+    for (const r of amountRows) {
+      const row = ensure(r.network, r.seller);
+      const entry = row._volume.get(r.asset_contract) ?? {
+        ...(r.asset != null ? { asset: r.asset as string } : {}),
+        total: 0n,
+      };
+      entry.total += BigInt(r.amount as string);
+      row._volume.set(r.asset_contract, entry);
+    }
+    for (const r of metaRows) {
+      // A registered-but-unpaid seller is created here; an already-seen one is annotated.
+      const row = ensure(r.network, r.pay_to);
+      if (r.registered === 1) row.registered = true;
+      if (r.service_name != null) (row as { serviceName?: string }).serviceName = r.service_name;
+      if (r.resource != null) (row as { resource?: string }).resource = r.resource;
+      if (r.description != null) (row as { description?: string }).description = r.description;
+    }
+
+    let all = [...rows.values()].map(({ _volume, ...row }) => ({
+      ...row,
+      volume: [..._volume.entries()]
+        .map(([assetContract, v]) => ({
+          assetContract,
+          ...(v.asset !== undefined ? { asset: v.asset } : {}),
+          total: v.total.toString(),
+        }))
+        .sort((a, b) => (BigInt(a.total) < BigInt(b.total) ? 1 : -1)),
+    }));
+    if (opts.registered !== undefined) all = all.filter(r => r.registered === opts.registered);
+    all.sort(
+      (a, b) =>
+        b.payments - a.payments ||
+        Number(b.registered) - Number(a.registered) ||
+        (a.payTo < b.payTo ? -1 : a.payTo > b.payTo ? 1 : 0),
+    );
+    const total = all.length;
+    const offset = Math.max(opts.offset ?? 0, 0);
+    const limit = Math.min(Math.max(opts.limit ?? 25, 1), 100);
+    return { items: all.slice(offset, offset + limit), total };
   }
 
   close(): void {
