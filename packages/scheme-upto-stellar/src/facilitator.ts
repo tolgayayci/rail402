@@ -77,12 +77,32 @@ export function isReplayForTest(simulationError: string): boolean {
   return isReplay(simulationError);
 }
 
+/** Exposed for unit testing, like `isReplayForTest`. */
+export function isExpiredForTest(simulationError: string): boolean {
+  return isExpired(simulationError);
+}
+
 function isReplay(simulationError: string): boolean {
   return (
     /Error\(Auth, ExistingValue\)/.test(simulationError) ||
     /nonce already exists/i.test(simulationError) ||
     /Error\(Contract, #3\)/.test(simulationError)
   );
+}
+
+/**
+ * Detect an authorization whose signature has EXPIRED — the verify→settle race.
+ *
+ * `exact` classifies this (see `apps/facilitator/.../classify.ts` `isExpiredAuthorization`); `upto`
+ * is our own code and previously let an expired-at-settle auth degrade to the generic
+ * `…simulation_failed`, so the effective settle window became the contract's ~24h nonce TTL instead
+ * of verify's ~70s. The host raises the diagnostic phrase `"signature has expired"`; we match the
+ * phrase, not a bare `Error(Auth, InvalidInput)` token that also covers unrelated malformed input.
+ * Kept local and mirrored on the exact detector for the same reason `isReplay` is (the scheme
+ * package must not depend on the facilitator app).
+ */
+function isExpired(simulationError: string): boolean {
+  return /signature has expired/i.test(simulationError);
 }
 
 const SUPPORTED_X402_VERSION = 2;
@@ -253,7 +273,28 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
             "This authorization has already been settled. Each one is single-use; sign a fresh nonce.",
           );
         }
+        // The auth entry's own signatureExpirationLedger can elapse before this simulation even
+        // though the pre-RPC check on the contract's expiration_ledger passed — the two are distinct.
+        if (isExpired(text)) {
+          return invalid(
+            "invalid_upto_stellar_payload_expired",
+            d.from,
+            "The authorization signature has expired; sign a fresh authorization.",
+          );
+        }
         return invalid("invalid_upto_stellar_payload_simulation_failed", d.from);
+      }
+
+      // Archived ledger state (F5): a simulation that requires a restore is still a "success", so
+      // without this check an archived token/balance entry passes verify and fails only at
+      // submission. `exact` and upstream both miss this at verify; we catch it and return the coded
+      // restore reason instead of a confusing settle-time failure.
+      if (Api.isSimulationRestore(sim)) {
+        return invalid(
+          "invalid_upto_stellar_ledger_entry_restore_required",
+          d.from,
+          "Ledger state this payment needs has been archived and must be restored before it can settle.",
+        );
       }
 
       // Signature-presence and expiration, which need the simulated ledger. Together with the
@@ -355,10 +396,31 @@ export class UptoStellarFacilitatorScheme implements SchemeNetworkFacilitator {
         if (isReplay(text)) {
           return fail("invalid_upto_stellar_payload_authorization_used", d.from);
         }
+        // Expired between verify and settle (F6): a dedicated, non-retryable code so an agent
+        // re-signs rather than looping on a generic simulation failure — mirrors `exact`'s
+        // `settle_exact_stellar_authorization_expired`.
+        if (isExpired(text)) {
+          return fail(
+            "settle_upto_stellar_authorization_expired",
+            d.from,
+            "The authorization expired between verification and settlement; sign a fresh one.",
+          );
+        }
         if (/Error\(Contract, #1\)/.test(text)) {
           return fail("invalid_upto_stellar_payload_settlement_exceeds_amount", d.from);
         }
         return fail("invalid_upto_stellar_payload_simulation_failed", d.from);
+      }
+
+      // Archived ledger state (F5): a restore-required simulation still reads as a success, so
+      // without this the settlement would be signed and submitted only to fail on-ledger. Return
+      // the coded, retryable restore reason instead.
+      if (Api.isSimulationRestore(sim)) {
+        return fail(
+          "invalid_upto_stellar_ledger_entry_restore_required",
+          d.from,
+          "Ledger state this settlement needs has been archived and must be restored first.",
+        );
       }
 
       // The operator's fee ceiling, enforced BEFORE signing so the facilitator never submits a

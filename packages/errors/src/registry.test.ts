@@ -106,6 +106,7 @@ describe("wire-contract discipline", () => {
       "invalid_exact_stellar_",
       "invalid_upto_stellar_",
       "settle_exact_stellar_",
+      "settle_upto_stellar_",
       "bazaar_",
       "mcp_",
       "config_",

@@ -353,6 +353,24 @@ export const ERROR_REGISTRY = {
     remediation:
       "Sign a fresh authorization. Consider a larger maxTimeoutSeconds if this recurs under load.",
   },
+  invalid_upto_stellar_ledger_entry_restore_required: {
+    reason:
+      "Ledger state required by this upto payment has been archived and must be restored before it can settle.",
+    retryable: true,
+    surface: "facilitator",
+    provenance: "local",
+    refines: "invalid_upto_stellar_payload_simulation_failed",
+  },
+  settle_upto_stellar_authorization_expired: {
+    reason:
+      "The upto authorization expired between verification and settlement and is no longer valid.",
+    retryable: false,
+    surface: "settlement",
+    provenance: "local",
+    refines: "invalid_upto_stellar_payload_simulation_failed",
+    remediation:
+      "Sign a fresh authorization. Consider a larger maxTimeoutSeconds if this recurs under load.",
+  },
 
   // ───────────────────────────────────────────────────────────────────────────
   // `upto` on Stellar

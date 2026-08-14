@@ -360,6 +360,33 @@ Event log (newest first):
   });
 });
 
+describe("expiry detection (F6 — the verify→settle race)", () => {
+  // Modelled on the exact scheme's captured expiry shape: the host wraps an
+  // Error(Auth, InvalidInput) with the diagnostic phrase "signature has expired". We match the
+  // phrase, not the bare token — an expired-at-settle upto auth must get a dedicated non-retryable
+  // code, not degrade to a generic simulation failure an agent loops on.
+  const REAL_EXPIRY_ERROR = `HostError: Error(Auth, InvalidInput)
+
+Event log (newest first):
+   0: [Diagnostic Event] topics:[error, Error(Auth, InvalidInput)], data:["signature has expired", current_ledger:1234570, expiration_ledger:1234560]
+`;
+
+  it("recognizes an expired authorization signature", async () => {
+    const { isExpiredForTest } = await import("./facilitator.js");
+    expect(isExpiredForTest(REAL_EXPIRY_ERROR)).toBe(true);
+    expect(isExpiredForTest("the signature has expired at ledger 42")).toBe(true);
+  });
+
+  it("does not fire on unrelated failures or a replay", async () => {
+    const { isExpiredForTest, isReplayForTest } = await import("./facilitator.js");
+    expect(isExpiredForTest("HostError: Error(Auth, ExistingValue) nonce already exists")).toBe(false);
+    expect(isExpiredForTest("HostError: Error(Contract, #10)")).toBe(false);
+    expect(isExpiredForTest("")).toBe(false);
+    // The two detectors are disjoint: a replay is not an expiry.
+    expect(isReplayForTest(REAL_EXPIRY_ERROR)).toBe(false);
+  });
+});
+
 describe("authorization-entry validation", () => {
   // The critical defect this closes: `verify` established authorization from a successful simulation
   // alone, but a transaction with NO auth entries simulates in RECORDING mode and succeeds — so a
