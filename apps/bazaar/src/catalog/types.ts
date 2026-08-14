@@ -210,6 +210,12 @@ export interface PublicResource {
   /** Present once checked. Buyers can prefer verified sellers; nothing forces them to. */
   domainVerified?: boolean;
   /**
+   * Present and `true` only on a PROVISIONAL entry — cataloged at verify, never yet settled (ADR
+   * 0002). It carries no ranking signals and no ownership, so an agent must be able to tell it from a
+   * settled listing rather than infer it from a zero `quality` block. Absent means a payment settled.
+   */
+  provisional?: boolean;
+  /**
    * Present only on entries mirrored from another catalog. Its absence means this facilitator saw a
    * payment settle for the listing; its presence means somebody else says the listing exists.
    */
@@ -232,6 +238,9 @@ export function toPublic(entry: CatalogEntry): PublicResource {
   if (entry.iconUrl !== undefined) out.iconUrl = entry.iconUrl;
   if (entry.extensions !== undefined) out.extensions = entry.extensions;
   if (entry.domainVerified !== undefined) out.domainVerified = entry.domainVerified;
+  // A provisional (verify-time, never-settled) entry must say so, so an agent does not read it as a
+  // paid, ranked listing. Only projected when true; a settled entry omits it entirely.
+  if (entry.provisional) out.provisional = true;
   if (entry.provenance !== undefined) {
     out.provenance = entry.provenance;
     // A mirrored listing must never appear to carry earned signals. They are zeroed at import, and

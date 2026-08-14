@@ -630,6 +630,17 @@ describe("hybrid cataloging — provisional at verify", () => {
     expect(entry?.provisional).toBeFalsy();
     expect(entry?.ownerPayTo).toBe(SELLER);
   });
+
+  it("projects the provisional flag on the wire, so an agent can tell it from a settled listing (Z6)", () => {
+    const store = new CatalogStore();
+    catalogProvisionalPayment(store, payload(), requirements(), now, SERVED);
+    const provisional = store.list({}, 10, 0).items.find(i => i.resource === "https://api.example.com/weather");
+    expect(provisional?.provisional).toBe(true);
+    // Once a payment settles, the flag is gone — a settled listing never carries it.
+    catalogSettledPayment(store, payload(), requirements(), OTHER, now, SERVED);
+    const settled = store.list({}, 10, 0).items.find(i => i.resource === "https://api.example.com/weather");
+    expect(settled?.provisional).toBeUndefined();
+  });
 });
 
 describe("EXTENSION-RESPONSES reporting", () => {
