@@ -304,6 +304,12 @@ export const HELD_OUT_LARGE_THRESHOLDS = {
  * / r@5 50.2% / MRR 0.533 / nDCG 0.519; locked 41.8% / 53.2% / 0.504 / 0.505. Hybrid on the same 107
  * (the gain the 0.58/0.55 floors locked in): dev p@1 51.9% / r@5 65.7% / MRR 0.655 / nDCG 0.641;
  * locked 43.6% / 62.3% / 0.554 / 0.575; per-query sign test p ≈ 0.003 (40 better, 17 worse, 50 ties).
+ *
+ * That hybrid-vs-BM25 comparison is now REPRODUCIBLE, not just recorded: `pnpm --filter
+ * @rail402/bazaar ablation` (`ablation.ts`) re-runs it against whatever the corpus and judgment set
+ * currently are. On the 202-judgment set it reports BM25 MRR 0.554 / nDCG 0.520 -> hybrid 0.624 /
+ * 0.594, per-query 82 better / 54 worse / 66 ties, two-sided sign test p = 0.020 — still significant,
+ * and honestly weaker than the 107-set's 0.003 because the added queries are harder and noisier.
  */
 export const HELD_OUT_BROAD_THRESHOLDS = {
   precisionAt1: 0.45,
