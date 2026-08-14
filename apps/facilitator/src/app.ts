@@ -207,7 +207,10 @@ export function createApp({ config, startedAt, persistence }: AppDeps) {
 
   app.get("/health", c =>
     c.json({
-      status: "ok",
+      // Top-level status reflects real degradation (D4): an external uptime monitor reads THIS field,
+      // not the nested `catalog.storage` one below. A degraded catalog still SERVES, so the response
+      // stays 200 — but reporting "degraded" here lets a monitor alert instead of seeing a bare "ok".
+      status: catalog.persistenceDegraded ? "degraded" : "ok",
       uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
       networks: config.networks.map(n => n.network),
       signers: signerAddresses.length,

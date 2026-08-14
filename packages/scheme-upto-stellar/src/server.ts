@@ -28,7 +28,15 @@ export class UptoStellarServerScheme implements SchemeNetworkServer {
     return { amount: convertToTokenAmount(decimal), asset: getUsdcAddress(network) };
   }
 
-  getAssetDecimals(): number {
+  // The core interface hands us `(asset, network)`, and for this scheme the answer is always 7: a
+  // DECIMAL ("$0.10") price is priced in USDC (see `parsePrice`), Stellar USDC is 7-decimal, and 7 is
+  // the SEP-41 convention `exact` uses too — so it is right for every asset this scheme can price a
+  // decimal in. A token with different decimals cannot reach the decimal path (`parsePrice` forces
+  // USDC); it must arrive as an object price `{ amount, asset }` whose amount is ALREADY in atomic
+  // units, where decimals are never applied. So the asset argument is deliberately unused rather than
+  // driving an on-ledger SEP-41 `decimals()` lookup this synchronous method cannot perform — and
+  // returning 7 beats the core default of 6, which would be wrong for Stellar.
+  getAssetDecimals(_asset?: string, _network?: string): number {
     return 7;
   }
 
