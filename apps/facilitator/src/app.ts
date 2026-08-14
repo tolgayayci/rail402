@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
 import { cors } from "hono/cors";
-import { getConnInfo } from "@hono/node-server/conninfo";
 import { z } from "zod";
 import { createError, type ErrorCode } from "@rail402/errors";
+import { createRateLimiter } from "./rate-limit.js";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import type { FacilitatorConfig } from "./config/env.js";
 import { buildFacilitator } from "./facilitator/build.js";
@@ -141,85 +141,29 @@ export function createApp({ config, startedAt, persistence }: AppDeps) {
   }
 
   // ── Rate limiting ─────────────────────────────────────────────────────────
-  // Fixed-window counter, in-process. Deliberately simple: the free testnet endpoint needs
-  // basic burst protection (threat model: DoS on free endpoints), and an operator running
-  // multiple replicas should front them with a shared limiter rather than rely on this.
-  const buckets = new Map<string, { count: number; resetAt: number }>();
+  // The window logic and the caller-identification order (the F11-audited part) live in
+  // `rate-limit.ts` so other services reuse them instead of re-deriving them.
   if (config.rateLimit.enabled) {
+    const rateLimit = createRateLimiter({
+      windowSeconds: config.rateLimit.windowSeconds,
+      maxRequests: config.rateLimit.maxRequests,
+      trustProxy: config.trustProxy,
+    });
     app.use("/verify", rateLimit);
     app.use("/settle", rateLimit);
-    // /discovery/search runs an embedding pass plus BM25 retrieval — the most expensive
-    // unauthenticated path, and the one costly endpoint that was left unmetered (F8). It shares the
-    // same fixed window as verify/settle.
-    app.use("/discovery/search", rateLimit);
-  }
 
-  /**
-   * Identify a caller for rate-limiting purposes.
-   *
-   * Order matters, and the original order was backwards. `X-Forwarded-For`'s **first** element is
-   * whatever the client sent — Cloudflare and most proxies APPEND rather than replace — so
-   * preferring it handed every caller a free bypass: rotate the header, get a fresh bucket
-   * Headers a trusted proxy sets itself come first now, and when we do
-   * fall back to `X-Forwarded-For` we take the **last** hop, which is the one our own proxy wrote.
-   *
-   * With no proxy headers at all we use the socket address rather than a single shared
-   * `"anonymous"` bucket. That bucket was worse than no limiter: one noisy caller exhausted the
-   * window for the entire internet, which is a denial of service we would have inflicted on
-   * ourselves.
-   */
-  function clientKey(c: Context<AppEnv>): string {
-    // Every client-IP header (`cf-connecting-ip`, `x-real-ip`, `x-forwarded-for`) is client-settable
-    // unless a trusted proxy in front sets it and strips the incoming value. So they are believed
-    // ONLY when the operator asserts that proxy via TRUST_PROXY. Trusting them unconditionally — the
-    // earlier bug — handed every caller a free rate-limit bypass: rotate the header, get a fresh
-    // bucket (the XFF-ordering fix left these two ungated). Within the
-    // gate we take the last `x-forwarded-for` hop, which is the one our own proxy wrote.
-    if (config.trustProxy) {
-      const trusted = c.req.header("cf-connecting-ip") ?? c.req.header("x-real-ip");
-      if (trusted) return trusted.trim();
-      const hops = (c.req.header("x-forwarded-for") ?? "").split(",").map(h => h.trim()).filter(Boolean);
-      const nearest = hops[hops.length - 1];
-      if (nearest) return nearest;
-    }
-
-    // With no trusted proxy, the socket address is the only thing a caller cannot forge.
-    try {
-      const address = getConnInfo(c).remote.address;
-      if (address) return address;
-    } catch {
-      // No Node socket (Cloudflare Workers): the isolate only ever runs behind Cloudflare, which
-      // sets `cf-connecting-ip` and strips any client-supplied value, so it is authoritative HERE
-      // and only here. This branch is unreachable on the Node server, where getConnInfo succeeds.
-      const cf = c.req.header("cf-connecting-ip");
-      if (cf) return cf.trim();
-    }
-    return "unattributable";
-  }
-
-  async function rateLimit(c: Context<AppEnv>, next: Next) {
-    const key = clientKey(c);
-    const now = Date.now();
-    const windowMs = config.rateLimit.windowSeconds * 1000;
-    const bucket = buckets.get(key);
-
-    if (!bucket || now >= bucket.resetAt) {
-      buckets.set(key, { count: 1, resetAt: now + windowMs });
-      return next();
-    }
-    if (bucket.count >= config.rateLimit.maxRequests) {
-      const retryAfter = Math.ceil((bucket.resetAt - now) / 1000);
-      c.header("Retry-After", String(retryAfter));
-      return c.json(
-        createError("facilitator_rate_limited", {
-          reason: `Rate limit exceeded: at most ${config.rateLimit.maxRequests} requests per ${config.rateLimit.windowSeconds}s. Retry in ${retryAfter}s.`,
-          details: { retryAfterSeconds: retryAfter },
-        }),
-        429,
-      );
-    }
-    bucket.count += 1;
-    return next();
+    // /discovery/search runs an embedding pass plus BM25 retrieval — costly enough to protect from
+    // abuse, but it is a BROWSE operation an agent repeats many times before a single payment (F8).
+    // So it gets its OWN limiter with a more generous window, on a SEPARATE bucket, so searching
+    // never eats into a caller's verify/settle capacity and a burst of settlements never blocks
+    // discovery. `createRateLimiter` builds an independent bucket map per call.
+    const discoveryRateLimit = createRateLimiter({
+      windowSeconds: config.rateLimit.windowSeconds,
+      maxRequests: config.rateLimit.maxRequests * 5,
+      trustProxy: config.trustProxy,
+      errorCode: "facilitator_rate_limited",
+    });
+    app.use("/discovery/search", discoveryRateLimit);
   }
 
   // ── Caller authentication ─────────────────────────────────────────────────

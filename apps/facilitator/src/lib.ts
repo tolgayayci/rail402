@@ -23,3 +23,6 @@ export type { AppDeps } from "./app.js";
 
 export { loadConfig, describeConfig } from "./config/env.js";
 export type { FacilitatorConfig, NetworkConfig, StellarNetwork } from "./config/env.js";
+
+export { createRateLimiter, clientKey } from "./rate-limit.js";
+export type { RateLimiterOptions } from "./rate-limit.js";
