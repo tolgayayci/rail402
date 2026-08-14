@@ -1,0 +1,593 @@
+openapi: 3.1.0
+info:
+  title: Rail402 Explorer API
+  version: 0.1.0
+  summary: x402 payments explorer for Stellar
+  description: |
+    Read-only public API over x402 payment activity observed on Stellar. The explorer watches the
+    ledger directly (Soroban RPC + Horizon), classifies x402 settlements structurally — no
+    facilitator registration is required for a payment to appear — attributes each payment to the
+    facilitator that submitted it, and enriches sellers via the x402 Bazaar.
+
+    **Amounts** are stroop-scale integer strings (7 decimals). Every amount field has a
+    `…Decimal` companion for display; never do arithmetic on the decimal form.
+
+    **Confidence tiers** (every payment carries one; inference is never presented as fact):
+    - `rail402` — submitted by the Rail402 deployment's published signer.
+    - `verified-facilitator` — submitter matches a registered facilitator's live `/supported` signers.
+    - `x402-shaped` — structurally an x402 settlement, submitter unknown.
+
+    **History**: the full Soroban RPC retention window (~7 days) is backfilled for all
+    facilitators including unknown ones, and every registry-verified facilitator's complete
+    chain-epoch history (back to the 2025-12-17 testnet reset) is recovered from Horizon.
+    Horizon-recovered rows have no `asset`/`assetCode` (that string only exists in event data);
+    `assetContract` is always present.
+
+    **Errors** are always `{ code, reason, retryable, details? }` — branch on `code`, never parse
+    `reason`. CORS is open (`*`): browsers may call this API directly.
+# This API is deliberately unauthenticated public data; declared explicitly so tooling knows it
+# is a decision, not an omission.
+security: []
+servers:
+  - url: https://explorer-api.rail402.dev
+    description: Production
+tags:
+  - name: payments
+    description: The payment stream and per-transaction detail
+  - name: entities
+    description: Sellers and facilitators
+  - name: registry
+    description: Facilitator self-registration
+  - name: ops
+    description: Health and metrics
+
+paths:
+  /feed:
+    get:
+      tags: [payments]
+      operationId: getFeed
+      summary: Payment stream, newest first
+      description: |
+        Keyset-paginated stream of classified x402 payments. Filters combine with AND. Follow
+        `nextCursor` for the next page; its absence means the last page. A cursor is bound to its
+        ordering only — changing filters with an old cursor is safe but pages may overlap.
+      parameters:
+        - name: network
+          in: query
+          schema: { type: string }
+          description: CAIP-2 network id
+          example: stellar:testnet
+        - name: scheme
+          in: query
+          schema: { type: string, enum: [exact, upto] }
+        - name: seller
+          in: query
+          schema: { type: string }
+          description: Seller (payTo) address
+        - name: buyer
+          in: query
+          schema: { type: string }
+          description: Buyer address (G… or C…)
+        - name: facilitator
+          in: query
+          schema: { type: string }
+          description: Facilitator registry id, e.g. `rail402`, `x402-org`
+        - name: confidence
+          in: query
+          schema: { type: string, enum: [rail402, verified-facilitator, x402-shaped] }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+          description: Opaque keyset cursor from a previous page's `nextCursor`
+      responses:
+        "200":
+          description: One page of payments
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Payment" }
+                  nextCursor:
+                    type: string
+                    description: Present unless this is the last page
+        "400":
+          $ref: "#/components/responses/InvalidQuery"
+
+  /tx/{hash}:
+    get:
+      tags: [payments]
+      operationId: getTransaction
+      summary: One payment with its raw on-chain transaction
+      description: |
+        The same projection as `/feed` plus `raw` — the complete Soroban `getTransaction` JSON
+        (envelope, auth entries, events) the classification was made from, so every claim is
+        independently checkable against the ledger.
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9a-fA-F]{64}$" }
+        - name: network
+          in: query
+          schema: { type: string }
+          description: Disambiguates when the same hash exists on several observed networks
+      responses:
+        "200":
+          description: Payment detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentDetail" }
+        "400":
+          $ref: "#/components/responses/InvalidQuery"
+        "404":
+          description: |
+            Not an ingested payment. `retryable: true` — ingestion tails the ledger with a few
+            seconds of lag, so a very recent settlement may simply not be here yet.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example:
+                code: explorer_tx_not_found
+                reason: "No ingested payment matches this transaction hash. Either it is not an x402-shaped settlement, it predates ingestion, or it has not been observed yet."
+                retryable: true
+                details: { hash: "0000000000000000000000000000000000000000000000000000000000000000" }
+
+  /seller/{payTo}:
+    get:
+      tags: [entities]
+      operationId: getSeller
+      summary: A seller's identity, stats and payments
+      parameters:
+        - name: payTo
+          in: path
+          required: true
+          schema: { type: string }
+          description: The seller's payment address
+        - name: network
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Seller page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [payTo, stats, payments]
+                properties:
+                  payTo: { type: string }
+                  serviceName:
+                    type: string
+                    description: Bazaar-listed service name, when the seller is cataloged
+                  resource:
+                    type: string
+                    description: Bazaar-listed resource URL
+                  description: { type: string }
+                  stats: { $ref: "#/components/schemas/Stats" }
+                  payments:
+                    type: array
+                    items: { $ref: "#/components/schemas/Payment" }
+                  nextCursor: { type: string }
+
+  /facilitators:
+    get:
+      tags: [entities]
+      operationId: listFacilitators
+      summary: The facilitator registry with per-facilitator stats
+      responses:
+        "200":
+          description: All registered facilitators
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [facilitators]
+                properties:
+                  facilitators:
+                    type: array
+                    items: { $ref: "#/components/schemas/FacilitatorWithStats" }
+
+  /facilitator/{id}:
+    get:
+      tags: [entities]
+      operationId: getFacilitator
+      summary: One facilitator with stats and recent payments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          example: rail402
+      responses:
+        "200":
+          description: Facilitator page
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/FacilitatorWithStats"
+                  - type: object
+                    properties:
+                      payments:
+                        type: array
+                        items: { $ref: "#/components/schemas/Payment" }
+                      nextCursor: { type: string }
+        "404":
+          description: Unknown facilitator id
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example:
+                code: explorer_facilitator_not_found
+                reason: "No registered facilitator matches this identifier."
+                retryable: false
+
+  /stats:
+    get:
+      tags: [payments]
+      operationId: getStats
+      summary: Headline numbers
+      parameters:
+        - name: network
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Aggregates plus ingest health
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Stats"
+                  - type: object
+                    properties:
+                      networks:
+                        type: array
+                        items: { type: string }
+                      ingest:
+                        type: array
+                        items: { $ref: "#/components/schemas/IngestHealth" }
+
+  /announce:
+    post:
+      tags: [registry]
+      operationId: announceFacilitator
+      summary: Self-register a facilitator (no auth needed — by design)
+      description: |
+        Any x402 facilitator can announce its base URL. The explorer validates the URL (https,
+        publicly routable), probes `GET {baseUrl}/supported` ITSELF, and registers only what it
+        verified: the signer set and any advertised upto contract. From then on the facilitator's
+        settlements are attributed to it and its `/supported` is re-polled automatically. An
+        announcement is a lead, never a fact — nothing posted here can inflate a facilitator's
+        standing, which is why the endpoint needs no authentication.
+
+        Facilitators running the Rail402 codebase announce automatically when
+        `FACILITATOR_PUBLIC_URL` is set (default-on heartbeat).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseUrl]
+              properties:
+                baseUrl:
+                  type: string
+                  format: uri
+                  example: https://your-facilitator.example.com
+      responses:
+        "200":
+          description: Verified and registered
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [facilitator]
+                properties:
+                  facilitator: { $ref: "#/components/schemas/Facilitator" }
+        "400":
+          description: URL refused before any request was made
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example:
+                code: explorer_announce_invalid_url
+                reason: "The announced facilitator base URL was refused: it must be an https URL on a publicly routable host."
+                retryable: false
+        "502":
+          description: The facilitator's /supported did not answer or was invalid
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example:
+                code: explorer_announce_unreachable
+                reason: "The announced facilitator did not serve a valid /supported response, so it was not registered."
+                retryable: true
+
+  /health:
+    get:
+      tags: [ops]
+      operationId: getHealth
+      summary: Service health
+      responses:
+        "200":
+          description: Health snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, uptimeSeconds, storage, payments, facilitators]
+                properties:
+                  status: { type: string, enum: [ok, degraded] }
+                  uptimeSeconds: { type: integer }
+                  storage:
+                    type: string
+                    enum: [durable, memory]
+                    description: durable = SQLite file on a volume; memory = throwaway
+                  payments: { type: integer }
+                  facilitators: { type: integer }
+                  ingest:
+                    oneOf:
+                      - type: array
+                        items: { $ref: "#/components/schemas/IngestHealth" }
+                      - type: string
+                        const: disabled
+
+  /metrics:
+    get:
+      tags: [ops]
+      operationId: getMetrics
+      summary: Prometheus metrics (text/plain)
+      description: |
+        Series: `x402_explorer_payments_total`, `x402_explorer_facilitators`,
+        `x402_explorer_payments_by_scheme{scheme}`, `x402_explorer_payments_by_confidence{confidence}`,
+        `x402_explorer_polls_total`, `x402_explorer_events_seen_total`,
+        `x402_explorer_transactions_fetched_total`, `x402_explorer_payments_ingested_total`,
+        `x402_explorer_rpc_failures_total`, `x402_explorer_backfill_pages_total`,
+        `x402_explorer_last_ledger{network}`, `x402_explorer_horizon_pages_total`,
+        `x402_explorer_horizon_inserted_total`.
+      responses:
+        "200":
+          description: Prometheus exposition format 0.0.4
+          content:
+            text/plain: {}
+
+components:
+  responses:
+    InvalidQuery:
+      description: A parameter failed validation; details name it
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            code: explorer_invalid_query
+            reason: 'Query parameter "scheme" must be one of exact, upto.'
+            retryable: false
+            details: { parameter: scheme, value: bogus }
+
+  schemas:
+    Error:
+      type: object
+      required: [code, reason, retryable]
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable identifier — branch on this, never on `reason`
+        reason:
+          type: string
+          description: Non-null human-legible explanation
+        retryable:
+          type: boolean
+          description: Whether an identical retry could plausibly succeed
+        details:
+          type: object
+          additionalProperties: true
+
+    Payment:
+      type: object
+      required:
+        - network
+        - epoch
+        - ledger
+        - txHash
+        - scheme
+        - buyer
+        - seller
+        - amount
+        - amountDecimal
+        - assetContract
+        - txSource
+        - facilitator
+        - confidence
+        - closedAt
+      properties:
+        network:
+          type: string
+          description: CAIP-2 network id
+          example: stellar:testnet
+        epoch:
+          type: string
+          description: |
+            Chain-epoch discriminator. Testnet resets restart ledger numbering; rows never join
+            across epochs. Treat (network, epoch, txHash) as the unique key.
+        ledger: { type: integer }
+        txHash:
+          type: string
+          example: c827992c48bfe911a9b68abcef62e135b2b9555e5211f5c0ea0cdecb3aa8d558
+        scheme: { type: string, enum: [exact, upto] }
+        buyer:
+          type: string
+          description: The paying account (G… classic or C… smart contract account)
+        seller:
+          type: string
+          description: The payTo address that received the payment
+        amount:
+          type: string
+          description: Stroop-scale integer string of what actually moved. "0" is legal (upto nonce burn).
+          example: "3500000"
+        amountDecimal:
+          type: string
+          description: 7-decimal display form. Never do arithmetic on this.
+          example: "0.35"
+        ceiling:
+          type: string
+          description: upto only — the client-authorized maximum
+          example: "10000000"
+        ceilingDecimal: { type: string, example: "1" }
+        assetContract:
+          type: string
+          description: The SAC (token contract) the transfer happened on
+          example: CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA
+        asset:
+          type: string
+          description: SEP-11 asset string ("native" or "CODE:ISSUER"). Absent on Horizon-backfilled rows.
+          example: "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+        assetCode:
+          type: string
+          description: Display code derived from `asset` (native → XLM). Absent when `asset` is.
+          example: USDC
+        txSource:
+          type: string
+          description: The account that submitted the transaction (facilitator signer/channel)
+        feeSource:
+          type: string
+          description: Fee-bump fee source, when the envelope was fee-bumped
+        feeChargedStroops:
+          type: string
+          description: Net fee the submitter actually paid (charge minus refund)
+          example: "23086"
+        facilitator:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [id]
+              properties:
+                id: { type: string, example: rail402 }
+                displayName: { type: string, example: Rail402 }
+          description: The attributed facilitator, or null when unknown (confidence x402-shaped)
+        confidence:
+          type: string
+          enum: [rail402, verified-facilitator, x402-shaped]
+        sigExpirationLedger:
+          type: integer
+          description: The buyer authorization's signatureExpirationLedger
+        memo: { type: string }
+        muxedId:
+          type: string
+          description: Destination muxed id when the transfer used a muxed account
+        closedAt:
+          type: string
+          format: date-time
+          description: Ledger close time
+        serviceName:
+          type: string
+          description: Bazaar enrichment — WHAT was bought, when the seller is cataloged
+        resource:
+          type: string
+          description: Bazaar enrichment — the resource URL
+
+    PaymentDetail:
+      allOf:
+        - $ref: "#/components/schemas/Payment"
+        - type: object
+          required: [payments, raw]
+          properties:
+            payments:
+              type: array
+              description: |
+                Every payment settled in this transaction. A transaction can settle several ops;
+                the top-level fields mirror the first op (so a single-payment tx reads as one
+                Payment), and this array holds them all.
+              items: { $ref: "#/components/schemas/Payment" }
+            raw:
+              description: |
+                The complete Soroban getTransaction JSON (envelope, auth entries, events) this
+                classification was made from — every claim is independently checkable.
+              type: object
+              additionalProperties: true
+
+    Facilitator:
+      type: object
+      required: [id, baseUrl, verified, signers, uptoContracts, networks, source, createdAt]
+      properties:
+        id: { type: string, example: x402-org }
+        displayName: { type: string, example: x402.org }
+        baseUrl: { type: string, example: https://x402.org/facilitator }
+        verified:
+          type: boolean
+          description: True once the explorer itself fetched a valid /supported from baseUrl
+        signers:
+          type: array
+          items: { type: string }
+          description: Checksum-validated Stellar signer addresses from /supported (re-polled every 5 min)
+        uptoContracts:
+          type: array
+          items: { type: string }
+          description: upto settlement contracts advertised in /supported extra
+        networks:
+          type: array
+          items: { type: string }
+        source: { type: string, enum: [seed, announce] }
+        lastSeenAt: { type: string, format: date-time }
+        lastError:
+          type: string
+          description: Last probe failure; stale signers are kept over none
+        createdAt: { type: string, format: date-time }
+
+    FacilitatorWithStats:
+      allOf:
+        - $ref: "#/components/schemas/Facilitator"
+        - type: object
+          required: [stats]
+          properties:
+            stats: { $ref: "#/components/schemas/Stats" }
+
+    Stats:
+      type: object
+      required: [totalPayments, uniqueBuyers, uniqueSellers, byScheme, byConfidence, byAsset]
+      properties:
+        totalPayments: { type: integer }
+        uniqueBuyers: { type: integer }
+        uniqueSellers: { type: integer }
+        byScheme:
+          type: object
+          additionalProperties: { type: integer }
+          example: { exact: 653, upto: 22 }
+        byConfidence:
+          type: object
+          additionalProperties: { type: integer }
+          example: { rail402: 45, verified-facilitator: 565, x402-shaped: 65 }
+        byAsset:
+          type: array
+          items:
+            type: object
+            required: [assetContract, count, total]
+            properties:
+              assetContract: { type: string }
+              asset: { type: string }
+              count: { type: integer }
+              total:
+                type: string
+                description: BigInt-safe integer-string sum (never a float, never 64-bit SQL)
+        lastPaymentAt: { type: string, format: date-time }
+
+    IngestHealth:
+      type: object
+      required: [network, consecutiveFailures]
+      properties:
+        network: { type: string }
+        epoch: { type: string }
+        lastLedger: { type: integer }
+        lastPollAt: { type: string, format: date-time }
+        lastError: { type: string }
+        consecutiveFailures: { type: integer }
+        backfill:
+          type: string
+          description: '"done" or "running (target ledger N)" — the Tier-1 deep backfill'

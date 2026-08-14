@@ -113,6 +113,10 @@ describe("wire-contract discipline", () => {
       // Names the surface, like bazaar_/mcp_/config_ above. Covers access control the spec's §9
       // table has no code for — authentication and rate limiting.
       "facilitator_",
+      // The playground demo service (apps/playground) — dispenser, metered demo, share store.
+      "playground_",
+      // The explorer service (apps/explorer) — read API over ingested settlement activity.
+      "explorer_",
     ];
     for (const [code, def] of entries) {
       if (def.provenance !== "local") continue;

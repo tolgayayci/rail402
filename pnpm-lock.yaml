@@ -84,6 +84,40 @@ importers:
         specifier: ^3.0.5
         version: 3.2.7(@types/node@22.20.1)(tsx@4.23.1)
 
+  apps/explorer:
+    dependencies:
+      '@hono/node-server':
+        specifier: ^2.0.5
+        version: 2.0.12(hono@4.13.0)
+      '@rail402/agent-helpers':
+        specifier: workspace:*
+        version: link:../../packages/agent-helpers
+      '@rail402/errors':
+        specifier: workspace:*
+        version: link:../../packages/errors
+      '@stellar/stellar-sdk':
+        specifier: ^16.2.0
+        version: 16.2.0
+      hono:
+        specifier: ^4.12.34
+        version: 4.13.0
+      pino:
+        specifier: ^10.3.1
+        version: 10.3.1
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.23.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.5
+        version: 3.2.7(@types/node@22.20.1)(tsx@4.23.1)
+
   apps/facilitator:
     dependencies:
       '@hono/node-server':
@@ -159,6 +193,64 @@ importers:
       hono:
         specifier: ^4.12.34
         version: 4.13.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.23.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.5
+        version: 3.2.7(@types/node@22.20.1)(tsx@4.23.1)
+
+  apps/playground:
+    dependencies:
+      '@hono/node-server':
+        specifier: ^2.0.5
+        version: 2.0.12(hono@4.13.0)
+      '@rail402/agent-helpers':
+        specifier: workspace:*
+        version: link:../../packages/agent-helpers
+      '@rail402/errors':
+        specifier: workspace:*
+        version: link:../../packages/errors
+      '@rail402/facilitator':
+        specifier: workspace:*
+        version: link:../facilitator
+      '@rail402/scheme-upto-stellar':
+        specifier: workspace:*
+        version: link:../../packages/scheme-upto-stellar
+      '@rail402/seller-helpers':
+        specifier: workspace:*
+        version: link:../../packages/seller-helpers
+      '@stellar/stellar-sdk':
+        specifier: ^16.2.0
+        version: 16.2.0
+      '@x402/core':
+        specifier: 2.20.0
+        version: 2.20.0
+      '@x402/extensions':
+        specifier: 2.20.0
+        version: 2.20.0(typescript@5.9.3)
+      '@x402/fetch':
+        specifier: 2.20.0
+        version: 2.20.0
+      '@x402/hono':
+        specifier: 2.20.0
+        version: 2.20.0(hono@4.13.0)(typescript@5.9.3)
+      '@x402/stellar':
+        specifier: 2.20.0
+        version: 2.20.0
+      hono:
+        specifier: ^4.12.34
+        version: 4.13.0
+      pino:
+        specifier: ^10.3.1
+        version: 10.3.1
       zod:
         specifier: ^4.4.3
         version: 4.4.3

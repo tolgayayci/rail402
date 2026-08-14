@@ -652,6 +652,117 @@ export const ERROR_REGISTRY = {
   },
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Playground — the interactive demo service (apps/playground)
+  //
+  // The playground's dispenser, metered demo, and share store are product surfaces of their own:
+  // a browser session that is refused must be able to branch on the code and show the reason,
+  // exactly like an agent talking to the facilitator. Payment failures inside playground flows
+  // reuse the facilitator/scheme codes above; these codes cover only what is playground-specific.
+  // ───────────────────────────────────────────────────────────────────────────
+  playground_dispenser_account_not_found: {
+    reason:
+      "The session account does not exist on the ledger yet. Friendbot funding has not landed, so there is no account to send USDC to.",
+    retryable: true,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "Fund the account via friendbot first, wait for the transaction to land, then request the drip again. Retryable because the account genuinely may exist a few seconds from now.",
+  },
+  playground_dispenser_trustline_missing: {
+    reason:
+      "The session account has no trustline to the playground's USDC asset, so it cannot receive the drip.",
+    retryable: true,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "Establish a trustline to the asset returned by `GET /session/config`, then request the drip again.",
+  },
+  playground_dispenser_already_funded: {
+    reason:
+      "The session account already holds at least the drip amount of USDC. The dispenser funds empty sessions, not balances.",
+    retryable: false,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "Spend the existing balance in the playground, or reset the session for a fresh account. Asking again with the same balance fails identically.",
+  },
+  playground_dispenser_rate_limited: {
+    reason:
+      "Too many funding requests from this caller. The drip was refused without being processed.",
+    retryable: true,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "Back off and retry after the interval in the `Retry-After` header.",
+  },
+  playground_dispenser_failed: {
+    reason:
+      "The dispenser accepted the request but could not land the funding payment on the ledger. Testnet may be congested or Horizon unavailable.",
+    retryable: true,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "Retry after a short backoff. The session account and trustline were already checked; only the submission failed.",
+  },
+  playground_dispenser_exhausted: {
+    reason:
+      "The dispenser wallet does not hold enough USDC to fund this session. This is an operator problem, not a caller mistake.",
+    retryable: true,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "Retry later; the operator refills the dispenser from the Circle testnet faucet. Nothing the caller changes about the request will help.",
+  },
+  playground_facilitator_unreachable: {
+    reason:
+      "The playground could not reach its facilitator, so the payment step never ran. Nothing was charged.",
+    retryable: true,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "Retry after a short backoff. If it persists, the facilitator deployment is down — an operator problem, not a caller mistake.",
+  },
+  playground_meter_tab_not_found: {
+    reason:
+      "No open tab exists with this id. It may have expired with its authorization, or the id is wrong.",
+    retryable: false,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "Open a new tab. Tabs live only as long as the upto authorization that backs them.",
+  },
+  playground_meter_tab_closed: {
+    reason:
+      "This tab has already been settled. An upto authorization is single-use: once actual usage is settled, nothing further can be charged against it.",
+    retryable: false,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "Open a new tab with a fresh authorization. That the old one cannot be charged twice is the scheme working as designed.",
+  },
+  playground_meter_ceiling_reached: {
+    reason:
+      "This call would take usage past the authorized ceiling. The tab authorizes up to the ceiling and not one stroop more.",
+    retryable: false,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "Close the tab to settle what was used, then open a new one with a higher ceiling if more is needed.",
+  },
+  playground_share_not_found: {
+    reason: "No shared session exists with this id.",
+    retryable: false,
+    surface: "playground",
+    provenance: "local",
+  },
+  playground_invalid_request: {
+    reason: "The request body does not match what this playground endpoint expects.",
+    retryable: false,
+    surface: "playground",
+    provenance: "local",
+  },
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Canaries — how a monitoring check reports its own failure
   //
   // These never travel on the wire. They exist so a red nightly run says which property broke
@@ -772,8 +883,87 @@ export const ERROR_REGISTRY = {
   },
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Explorer (apps/explorer) — the read API over ingested settlement activity
+  // ───────────────────────────────────────────────────────────────────────────
+  explorer_invalid_query: {
+    reason:
+      "A query parameter is malformed: the rejection details name the parameter and the constraint it failed.",
+    retryable: false,
+    surface: "explorer",
+    provenance: "local",
+  },
+  explorer_tx_not_found: {
+    reason:
+      "No ingested payment matches this transaction hash. Either it is not an x402-shaped settlement, it predates ingestion, or it has not been observed yet.",
+    retryable: true,
+    surface: "explorer",
+    provenance: "local",
+    remediation:
+      "Ingestion tails the ledger with a few seconds of lag; retry shortly for a very recent settlement. Payments before the explorer's first ingested ledger are absent by design.",
+  },
+  explorer_facilitator_not_found: {
+    reason: "No registered facilitator matches this identifier.",
+    retryable: false,
+    surface: "explorer",
+    provenance: "local",
+  },
+  explorer_announce_invalid_url: {
+    reason:
+      "The announced facilitator base URL was refused: it must be an https URL on a publicly routable host.",
+    retryable: false,
+    surface: "explorer",
+    provenance: "local",
+    remediation:
+      "Announcements pointing at loopback, private ranges, or non-https schemes are rejected before any request is made — the intake must not become an SSRF vector.",
+  },
+  explorer_announce_unreachable: {
+    reason:
+      "The announced facilitator did not serve a valid /supported response, so it was not registered.",
+    retryable: true,
+    surface: "explorer",
+    provenance: "local",
+    remediation:
+      "The explorer probes /supported itself and only registers what it can verify. Make the endpoint publicly reachable and announce again.",
+  },
+  explorer_internal_error: {
+    reason:
+      "The explorer failed to serve the request for an unexpected reason. The failure has been logged with a request id.",
+    retryable: true,
+    surface: "explorer",
+    provenance: "local",
+    remediation:
+      "This is a server-side fault, not a bad request — retry, and report the request id if it persists.",
+  },
+  explorer_ingest_rpc_unavailable: {
+    reason:
+      "The Soroban RPC endpoint for a watched network is unreachable, so ingestion is lagging behind the ledger.",
+    retryable: true,
+    surface: "explorer",
+    provenance: "local",
+    remediation:
+      "Ingestion resumes from its persisted cursor automatically once RPC answers again; sustained failure means the feed is stale, which /health reports per network.",
+  },
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Configuration — fail fast at startup, never at first request
   // ───────────────────────────────────────────────────────────────────────────
+  config_missing_required: {
+    reason: "A required configuration variable is not set, so the service refuses to start.",
+    retryable: false,
+    surface: "config",
+    provenance: "local",
+    remediation:
+      "The thrown reason names the variable. Set it and restart; there is no in-request fallback on purpose.",
+  },
+  config_invalid_value: {
+    reason:
+      "A configuration variable holds a value that fails validation, so the service refuses to start.",
+    retryable: false,
+    surface: "config",
+    provenance: "local",
+    remediation:
+      "The thrown reason names the variable and the constraint it failed. Fix the value and restart.",
+  },
   config_network_rpc_missing: {
     reason: "No Soroban RPC URL is configured for an enabled network.",
     retryable: false,

@@ -34,6 +34,8 @@ export type ErrorSurface =
   | "bazaar"
   | "mcp"
   | "config"
+  | "playground"
+  | "explorer"
   | "canary";
 
 /**
