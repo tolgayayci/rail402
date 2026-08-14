@@ -30,10 +30,14 @@ import { checkResourceHost } from "./host-policy.js";
  *
  * ## When cataloging happens
  *
- * Only after a payment **settles successfully**. The spec is silent on the trigger (see
- * and leaves storage "an implementation detail". Settlement-gated cataloging
- * makes every listing cost a real on-chain payment, which is the strongest anti-spam property
- * available to us and the reason our ranking signals are hard to forge.
+ * Hybrid. A well-formed listing is written PROVISIONALLY at **verify** — discoverable, but
+ * carrying no ranking signals and no ownership — so a resource appears "during payment verification"
+ * the way the reference facilitators and the e2e suite expect. **Settlement** is what confirms it and
+ * is the only thing that earns ownership and ranking. The spec is silent on the trigger
+ * and leaves storage "an implementation detail". Gating ownership and ranking
+ * on settlement still makes every ranked, owned listing cost a real on-chain payment — the strongest
+ * anti-spam property available, and why the ranking signals are hard to forge — while a provisional
+ * entry owns nothing and cannot be spoofed into locking a seller out.
  */
 
 export type CatalogOutcome =

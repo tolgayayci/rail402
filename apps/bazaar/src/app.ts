@@ -40,6 +40,17 @@ function filtersFrom(url: URL): DiscoveryFilters {
   return f;
 }
 
+/**
+ * Read a numeric pagination parameter, or `undefined` for absent or non-numeric input.
+ *
+ * A malformed `limit=abc` deliberately coerces to `undefined` and the store applies its default,
+ * rather than a 400. This is NOT a hole in the fail-closed posture — that posture governs
+ * security-relevant input (payloads, schemas, resource URLs), where a bad value must be refused with
+ * a reason. `limit`/`offset` are UX knobs on a public browse endpoint: a lenient default is friendlier
+ * than an error, changes nothing an agent can exploit, and the store clamps the value to sane bounds
+ * regardless. Cursor validity, which IS load-bearing (it binds to the query and filters), is checked
+ * in the store, not here.
+ */
 function numberParam(url: URL, key: string): number | undefined {
   const raw = url.searchParams.get(key);
   if (raw === null) return undefined;
