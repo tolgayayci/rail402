@@ -30,7 +30,10 @@ info:
 security: []
 servers:
   - url: https://explorer-api.rail402.dev
-    description: Production
+    description: Production (stellar:testnet)
+  - url: https://explorer-api-mainnet.rail402.dev
+    description: Production (stellar:pubnet) — same API, separate database; each deployment
+      watches one network
 tags:
   - name: payments
     description: The payment stream and per-transaction detail
@@ -303,6 +306,76 @@ paths:
                       ingest:
                         type: array
                         items: { $ref: "#/components/schemas/IngestHealth" }
+
+  /ecosystem:
+    get:
+      tags: [payments]
+      operationId: getEcosystem
+      summary: The analytics snapshot for a live dashboard
+      description: |
+        All-time totals, trailing 24h/7d/30d activity windows (with new-participant counts),
+        facilitator market share, and the most active sellers of the last 30 days — one
+        poll-friendly response, cached ~15s server-side. `coverage` states which SAC transfers
+        this deployment's tail watches ("all" on testnet; a curated asset list on pubnet), so
+        absence of a payment is always interpretable.
+      parameters:
+        - name: network
+          in: query
+          schema: { type: string }
+          description: CAIP-2 network id
+      responses:
+        "200":
+          description: The ecosystem snapshot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EcosystemSnapshot" }
+
+  /ecosystem/timeseries:
+    get:
+      tags: [payments]
+      operationId: getEcosystemTimeseries
+      summary: Bucketed activity series for charts
+      description: |
+        UTC day- or hour-bucketed payment activity, zero-filled so a chart axis is continuous,
+        ending at the in-progress bucket (render the last point as "so far", not a drop).
+        Cached ~30s server-side.
+      parameters:
+        - name: bucket
+          in: query
+          schema: { type: string, enum: [day, hour], default: day }
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 90, default: 30 }
+          description: Span in buckets when bucket=day
+        - name: hours
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 168, default: 48 }
+          description: Span in buckets when bucket=hour
+        - name: network
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: The zero-filled series
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [bucket, from, to, generatedAt, points]
+                properties:
+                  bucket: { type: string, enum: [day, hour] }
+                  from: { type: string, format: date-time }
+                  to: { type: string, format: date-time }
+                  network: { type: string }
+                  generatedAt: { type: string, format: date-time }
+                  points:
+                    type: array
+                    items: { $ref: "#/components/schemas/TimeseriesPoint" }
+        "400":
+          description: Invalid bucket or span
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /announce:
     post:
@@ -672,3 +745,124 @@ components:
         backfill:
           type: string
           description: '"done" or "running (target ledger N)" — the Tier-1 deep backfill'
+
+    AssetVolume:
+      type: object
+      required: [assetContract, count, total, totalDecimal]
+      properties:
+        assetContract: { type: string }
+        asset: { type: string, description: 'SEP-11 asset string ("native" | "CODE:ISSUER")' }
+        assetCode: { type: string }
+        count: { type: integer }
+        total:
+          type: string
+          description: BigInt-safe integer-string sum (never a float, never 64-bit SQL)
+        totalDecimal: { type: string, description: Human amount }
+
+    EcosystemWindow:
+      type: object
+      required: [payments, uniqueBuyers, uniqueSellers, newBuyers, newSellers, volume]
+      properties:
+        payments: { type: integer }
+        uniqueBuyers: { type: integer }
+        uniqueSellers: { type: integer }
+        newBuyers:
+          type: integer
+          description: Buyers whose first-ever observed payment falls inside this window
+        newSellers: { type: integer }
+        volume:
+          type: array
+          items: { $ref: "#/components/schemas/AssetVolume" }
+
+    EcosystemSnapshot:
+      type: object
+      required: [generatedAt, networks, coverage, totals, windows, facilitators, topSellers]
+      properties:
+        generatedAt: { type: string, format: date-time }
+        networks:
+          type: array
+          items: { type: string }
+        coverage:
+          type: array
+          description: Which SAC transfers this deployment's tail watches, per network
+          items:
+            type: object
+            required: [network, watchedSacs]
+            properties:
+              network: { type: string }
+              watchedSacs:
+                description: '"all", or the list of watched SAC contract addresses'
+                oneOf:
+                  - type: string
+                    enum: [all]
+                  - type: array
+                    items: { type: string }
+        totals:
+          allOf:
+            - $ref: "#/components/schemas/Stats"
+          description: All-time aggregates; byAsset entries additionally carry totalDecimal/assetCode
+        windows:
+          type: object
+          required: ["24h", "7d", "30d"]
+          properties:
+            "24h": { $ref: "#/components/schemas/EcosystemWindow" }
+            "7d": { $ref: "#/components/schemas/EcosystemWindow" }
+            "30d": { $ref: "#/components/schemas/EcosystemWindow" }
+        facilitators:
+          type: array
+          description: All-time share per facilitator, largest first
+          items:
+            type: object
+            required: [facilitatorId, payments, share, windows]
+            properties:
+              facilitatorId:
+                type: [string, "null"]
+                description: null = structurally x402 but unattributed (the x402-shaped tier)
+              displayName: { type: string }
+              verified: { type: boolean }
+              payments: { type: integer }
+              share:
+                type: number
+                description: Ratio of payment counts (not volume), 0..1
+              windows:
+                type: object
+                description: Payment counts inside each trailing window
+                properties:
+                  "24h": { type: integer }
+                  "7d": { type: integer }
+                  "30d": { type: integer }
+              lastPaymentAt: { type: string, format: date-time }
+        topSellers:
+          type: array
+          description: Most active sellers over the trailing 30 days (max 10)
+          items:
+            type: object
+            required: [network, payTo, payments, uniqueBuyers, volume, lastPaymentAt]
+            properties:
+              network: { type: string }
+              payTo: { type: string }
+              payments: { type: integer }
+              uniqueBuyers: { type: integer }
+              volume:
+                type: array
+                items: { $ref: "#/components/schemas/AssetVolume" }
+              lastPaymentAt: { type: string, format: date-time }
+              serviceName: { type: string, description: Bazaar name, when known }
+
+    TimeseriesPoint:
+      type: object
+      required: [bucket, start, payments, uniqueBuyers, uniqueSellers, byScheme, volume]
+      properties:
+        bucket:
+          type: string
+          description: 'UTC bucket key: "2026-08-15" (day) or "2026-08-15T10" (hour)'
+        start: { type: string, format: date-time, description: Bucket start instant }
+        payments: { type: integer }
+        uniqueBuyers: { type: integer }
+        uniqueSellers: { type: integer }
+        byScheme:
+          type: object
+          additionalProperties: { type: integer }
+        volume:
+          type: array
+          items: { $ref: "#/components/schemas/AssetVolume" }
