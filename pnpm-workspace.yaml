@@ -10,6 +10,9 @@ packages:
   # or unusual-licence packages into the tree that `scripts/license-gate.mjs` enforces fail-closed
   # over — the licence gate must keep measuring exactly the service we operate.
   - "!apps/docs"
+  # The explorer frontend (Vite + React) is likewise OUTSIDE the workspace with its own lockfile:
+  # UI build tooling must not enter the tree the license gate enforces fail-closed over.
+  - "!apps/explorer/frontend"
 
 # Keep a single resolved version of the x402 SDK family and the Stellar SDK across
 # the whole workspace. Divergence here would let two packages disagree about wire
