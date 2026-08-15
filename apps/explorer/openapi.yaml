@@ -730,6 +730,14 @@ components:
               total:
                 type: string
                 description: BigInt-safe integer-string sum (never a float, never 64-bit SQL)
+        firstPaymentAt:
+          type: string
+          format: date-time
+          description: |
+            Earliest observed payment — the "data since" anchor. On mainnet this is the
+            complete-history first for every watched/verified operator (Horizon retains full
+            history); on testnet nothing older can exist (a chain reset wipes all upstream
+            sources). It is an observation floor, not a network-wide "first ever" guarantee.
         lastPaymentAt: { type: string, format: date-time }
 
     IngestHealth:

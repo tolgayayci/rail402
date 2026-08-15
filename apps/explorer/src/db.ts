@@ -146,6 +146,11 @@ export interface ExplorerStats {
   readonly byScheme: Readonly<Record<string, number>>;
   readonly byConfidence: Readonly<Record<string, number>>;
   readonly byAsset: readonly AssetTotal[];
+  /** Earliest observed payment — the "data since" anchor. What the date MEANS differs by
+   * network: on mainnet it is the complete-history first for every watched/verified operator
+   * (Horizon retains full history); on testnet nothing older can exist at all (a reset wipes
+   * the chain). It is NOT a guarantee that no unknown party paid earlier on mainnet. */
+  readonly firstPaymentAt?: string;
   readonly lastPaymentAt?: string;
 }
 
@@ -497,7 +502,7 @@ export class ExplorerStore {
     const head: any = this.db
       .prepare(
         `SELECT COUNT(*) AS n, COUNT(DISTINCT buyer) AS buyers, COUNT(DISTINCT seller) AS sellers,
-                MAX(closed_at) AS last FROM payments${where}`,
+                MIN(closed_at) AS first, MAX(closed_at) AS last FROM payments${where}`,
       )
       .get(...params);
     const bySchemeRows: any[] = this.db
@@ -539,6 +544,7 @@ export class ExplorerStore {
           total: v.total.toString(),
         }))
         .sort((a, b) => b.count - a.count),
+      ...(head.first != null ? { firstPaymentAt: head.first as string } : {}),
       ...(head.last != null ? { lastPaymentAt: head.last as string } : {}),
     };
   }

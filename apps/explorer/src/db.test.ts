@@ -484,3 +484,24 @@ describe("ExplorerStore timeseries", () => {
     expect(points.reduce((n, p) => n + p.payments, 0)).toBe(1);
   });
 });
+
+describe("ExplorerStats firstPaymentAt", () => {
+  it('exposes the "data since" anchor alongside lastPaymentAt, respecting filters', () => {
+    const store = new ExplorerStore();
+    store.insertPayment(payment({ txHash: "e".repeat(64), closedAt: "2026-03-06T16:51:25Z" }));
+    store.insertPayment(payment({ txHash: "f".repeat(64), closedAt: "2026-08-13T14:35:28Z" }));
+    store.insertPayment(
+      payment({
+        txHash: "0".repeat(63) + "1",
+        network: "stellar:pubnet",
+        closedAt: "2026-05-01T00:00:00Z",
+      }),
+    );
+    const all = store.stats();
+    expect(all.firstPaymentAt).toBe("2026-03-06T16:51:25Z");
+    expect(all.lastPaymentAt).toBe("2026-08-13T14:35:28Z");
+    const pubnet = store.stats({ network: "stellar:pubnet" });
+    expect(pubnet.firstPaymentAt).toBe("2026-05-01T00:00:00Z");
+    expect(store.stats({ network: "stellar:futurenet" }).firstPaymentAt).toBeUndefined();
+  });
+});
