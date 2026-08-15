@@ -567,3 +567,64 @@ describe("sellersDirectory windowed noise filter", () => {
     expect(store.sellersDirectory({ since: "2026-08-01T00:00:00Z" }).total).toBe(0);
   });
 });
+
+describe("windowed and asset-scoped stats", () => {
+  const USDC = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
+  const XLM = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
+
+  function seeded(): ExplorerStore {
+    const store = new ExplorerStore();
+    store.insertPayment(
+      payment({ txHash: "1".repeat(64), closedAt: "2026-08-15T11:00:00Z", amount: "100" }),
+    );
+    store.insertPayment(
+      payment({
+        txHash: "2".repeat(64),
+        closedAt: "2026-06-01T00:00:00Z",
+        amount: "200",
+        assetContract: XLM,
+        asset: "native",
+      }),
+    );
+    return store;
+  }
+
+  it("scopes every aggregate to the since cutoff", () => {
+    const s = seeded().stats({ since: "2026-08-01T00:00:00Z" });
+    expect(s.totalPayments).toBe(1);
+    expect(s.byAsset).toHaveLength(1);
+    expect(s.byAsset[0]!.assetContract).toBe(USDC);
+    expect(s.firstPaymentAt).toBe("2026-08-15T11:00:00Z");
+  });
+
+  it("scopes every aggregate to one asset contract", () => {
+    const s = seeded().stats({ assetContract: XLM });
+    expect(s.totalPayments).toBe(1);
+    expect(s.byAsset).toHaveLength(1);
+    expect(s.byAsset[0]!.total).toBe("200");
+  });
+});
+
+describe("feed asset filter", () => {
+  it("filters by assetContract and keeps the filter across cursor pages", () => {
+    const store = new ExplorerStore();
+    const XLM = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
+    for (let i = 0; i < 5; i += 1) {
+      store.insertPayment(
+        payment({
+          txHash: `${i}`.repeat(64),
+          closedAt: `2026-08-15T1${i}:00:00Z`,
+          assetContract: i % 2 === 0 ? XLM : payment().assetContract,
+        }),
+      );
+    }
+    const page1 = store.feed({ assetContract: XLM, limit: 2 });
+    expect(page1.items).toHaveLength(2);
+    expect(page1.items.every(p => p.assetContract === XLM)).toBe(true);
+    expect(page1.nextCursor).toBeDefined();
+    const page2 = store.feed({ assetContract: XLM, limit: 2, cursor: page1.nextCursor! });
+    expect(page2.items.every(p => p.assetContract === XLM)).toBe(true);
+    const all = [...page1.items, ...page2.items].map(p => p.txHash);
+    expect(new Set(all).size).toBe(all.length);
+  });
+});

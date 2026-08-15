@@ -60,6 +60,13 @@ paths:
           schema: { type: string }
           description: CAIP-2 network id
           example: stellar:testnet
+        - name: asset
+          in: query
+          schema: { type: string, pattern: "^C[A-Z2-7]{55}$" }
+          description: |
+            SAC contract address — filters to payments settled in that asset (the stable key;
+            never a code string). Combinable with every other filter; supply it on every page
+            alongside `cursor`, like seller=/buyer=.
         - name: scheme
           in: query
           schema: { type: string, enum: [exact, upto] }
@@ -288,6 +295,35 @@ paths:
                 reason: "No registered facilitator matches this identifier."
                 retryable: false
 
+  /asset/{contract}:
+    get:
+      tags: [entities]
+      operationId: getAsset
+      summary: One asset's page — stats, trailing windows, recent payments
+      description: |
+        Keyed by the SAC contract address (the stable asset key — never the code string).
+        `stats` is the /stats aggregate shape scoped to this asset plus its own volume
+        (`total`/`totalDecimal`); `windows` carries trailing 24h/7d/30d activity; `payments` is
+        a /feed-projected page with `nextCursor` (continue via `/feed?asset=<contract>`).
+      parameters:
+        - name: contract
+          in: path
+          required: true
+          schema: { type: string, pattern: "^C[A-Z2-7]{55}$" }
+        - name: network
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: The asset page
+        "400":
+          $ref: "#/components/responses/InvalidQuery"
+        "404":
+          description: No ingested payment has settled in this asset
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /stats:
     get:
       tags: [payments]
@@ -297,6 +333,13 @@ paths:
         - name: network
           in: query
           schema: { type: string }
+        - name: window
+          in: query
+          schema: { type: string, enum: [24h, 7d, 30d] }
+          description: |
+            Scope every aggregate (totalPayments, uniqueBuyers, uniqueSellers, byScheme,
+            byConfidence, byAsset, first/lastPaymentAt) to the trailing window; the response
+            echoes `window` when set. Omit for all-time.
       responses:
         "200":
           description: Aggregates plus ingest health

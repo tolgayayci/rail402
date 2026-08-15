@@ -764,6 +764,15 @@ export const ERROR_REGISTRY = {
     surface: "playground",
     provenance: "local",
   },
+  playground_explorer_unreachable: {
+    reason:
+      "The playground could not reach the Rail402 explorer API, so the transaction could not be decoded.",
+    retryable: true,
+    surface: "playground",
+    provenance: "local",
+    remediation:
+      "The explorer ingests the ledger independently of the playground; retry shortly, or open the transaction on stellar.expert directly.",
+  },
 
   // ───────────────────────────────────────────────────────────────────────────
   // Canaries — how a monitoring check reports its own failure
@@ -909,6 +918,15 @@ export const ERROR_REGISTRY = {
     retryable: false,
     surface: "explorer",
     provenance: "local",
+  },
+  explorer_asset_not_found: {
+    reason:
+      "No ingested payment has settled in this asset contract on the observed network.",
+    retryable: false,
+    surface: "explorer",
+    provenance: "local",
+    remediation:
+      "Verify the SAC contract address (C…) and the network. An asset appears here only after its first x402-shaped settlement is ingested.",
   },
   explorer_announce_invalid_url: {
     reason:

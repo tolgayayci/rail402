@@ -164,6 +164,7 @@ const HTTP_STATUS: Record<string, number> = {
   explorer_invalid_query: 400,
   explorer_tx_not_found: 404,
   explorer_facilitator_not_found: 404,
+  explorer_asset_not_found: 404,
   explorer_announce_invalid_url: 400,
   explorer_announce_unreachable: 502,
 };
@@ -221,8 +222,13 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
   // cadence, so numbers stay live enough.
   const statsCache = new Map<string, { value: ReturnType<typeof store.stats>; at: number }>();
   const STATS_TTL_MS = 5_000;
-  const cachedStats = (filter: Parameters<typeof store.stats>[0] = {}): ReturnType<typeof store.stats> => {
-    const key = JSON.stringify(filter);
+  // cacheKey overrides the derived key for filters carrying a computed cutoff timestamp — a
+  // per-request `since` in the key would never hit; the caller keys by the window LABEL instead.
+  const cachedStats = (
+    filter: Parameters<typeof store.stats>[0] = {},
+    cacheKey?: string,
+  ): ReturnType<typeof store.stats> => {
+    const key = cacheKey ?? JSON.stringify(filter);
     const hit = statsCache.get(key);
     const now = Date.now();
     if (hit && now - hit.at < STATS_TTL_MS) return hit.value;
@@ -230,6 +236,25 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     const value = store.stats(filter);
     statsCache.set(key, { value, at: now });
     return value;
+  };
+
+  // Trailing windows shared by /stats?window=, /asset/:contract and /sellers?window=.
+  const STAT_WINDOWS: Record<string, number> = {
+    "24h": 24 * 3_600_000,
+    "7d": 7 * 24 * 3_600_000,
+    "30d": 30 * 24 * 3_600_000,
+  };
+  const windowCutoff = (window: string, nowMs: number): string =>
+    new Date(nowMs - STAT_WINDOWS[window]!).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const parseWindow = (raw: string | undefined): string | undefined => {
+    if (raw === undefined) return undefined;
+    if (!(raw in STAT_WINDOWS)) {
+      throw new X402Error("explorer_invalid_query", {
+        reason: `Query parameter "window" must be one of ${Object.keys(STAT_WINDOWS).join(", ")} (omit it for all-time).`,
+        details: { parameter: "window", value: raw },
+      });
+    }
+    return raw;
   };
 
   app.get("/feed", c => {
@@ -269,6 +294,15 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
         });
       }
       assign("limit", limit);
+    }
+    if (q["asset"] !== undefined) {
+      if (!/^C[A-Z2-7]{55}$/.test(q["asset"])) {
+        throw new X402Error("explorer_invalid_query", {
+          reason: 'Query parameter "asset" must be a SAC contract address (C…) — filter by assetContract, never by code string.',
+          details: { parameter: "asset", value: q["asset"] },
+        });
+      }
+      assign("assetContract", q["asset"]);
     }
     if (q["cursor"] !== undefined) assign("cursor", q["cursor"]);
 
@@ -311,13 +345,6 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
   // Any seller registered in our Bazaar appears here automatically, even before their first
   // settled payment; on-chain-only sellers appear with stats and no name. Ranked by activity.
   const directoryCache = new Map<string, { value: unknown; at: number }>();
-  // Trailing windows for /sellers?window= — the "top sellers by recent activity" view. The
-  // cutoff is second-precision to match closed_at's format (see isoSeconds in db.ts).
-  const SELLER_WINDOWS: Record<string, number> = {
-    "24h": 24 * 3_600_000,
-    "7d": 7 * 24 * 3_600_000,
-    "30d": 30 * 24 * 3_600_000,
-  };
   app.get("/sellers", c => {
     const q = c.req.query();
     const opts: {
@@ -327,16 +354,7 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
       offset?: number;
       since?: string;
     } = {};
-    let window: string | undefined;
-    if (q["window"] !== undefined) {
-      if (!(q["window"] in SELLER_WINDOWS)) {
-        throw new X402Error("explorer_invalid_query", {
-          reason: `Query parameter "window" must be one of ${Object.keys(SELLER_WINDOWS).join(", ")} (omit it for all-time).`,
-          details: { parameter: "window", value: q["window"] },
-        });
-      }
-      window = q["window"];
-    }
+    const window = parseWindow(q["window"]);
     if (q["network"] !== undefined) opts.network = q["network"];
     if (q["registered"] !== undefined) {
       if (q["registered"] !== "true" && q["registered"] !== "false") {
@@ -374,11 +392,7 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     const now = Date.now();
     if (hit && now - hit.at < 5_000) return c.json(hit.value);
     if (directoryCache.size > 500) directoryCache.clear();
-    if (window !== undefined) {
-      opts.since = new Date(now - SELLER_WINDOWS[window]!)
-        .toISOString()
-        .replace(/\.\d{3}Z$/, "Z");
-    }
+    if (window !== undefined) opts.since = windowCutoff(window, now);
     const { items, total } = store.sellersDirectory(opts);
     const value = {
       ...(window !== undefined ? { window } : {}),
@@ -427,6 +441,72 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     });
   });
 
+  // One asset's page: aggregate stats, trailing windows, and a recent-payments feed page.
+  const assetCache = new Map<string, { value: unknown; at: number }>();
+  const ASSET_TTL_MS = 15_000;
+  app.get("/asset/:contract", c => {
+    const contract = c.req.param("contract");
+    if (!/^C[A-Z2-7]{55}$/.test(contract)) {
+      throw new X402Error("explorer_invalid_query", {
+        reason: "An asset is identified by its SAC contract address: C… (56 characters).",
+        details: { parameter: "contract", value: contract },
+      });
+    }
+    const network = c.req.query("network");
+    const cacheKey = JSON.stringify({ contract, network: network ?? null });
+    const nowMs = Date.now();
+    const hit = assetCache.get(cacheKey);
+    if (hit && nowMs - hit.at < ASSET_TTL_MS) return c.json(hit.value);
+    if (assetCache.size > 500) assetCache.clear();
+
+    const base = { assetContract: contract, ...(network !== undefined ? { network } : {}) };
+    const stats = store.stats(base);
+    if (stats.totalPayments === 0) {
+      throw new X402Error("explorer_asset_not_found", { details: { contract } });
+    }
+    // The asset-scoped byAsset has exactly one entry: this asset's own volume + SEP-11 string.
+    const own = stats.byAsset[0];
+    const scoped = {
+      totalPayments: stats.totalPayments,
+      uniqueBuyers: stats.uniqueBuyers,
+      uniqueSellers: stats.uniqueSellers,
+      byScheme: stats.byScheme,
+      byConfidence: stats.byConfidence,
+      ...(stats.firstPaymentAt !== undefined ? { firstPaymentAt: stats.firstPaymentAt } : {}),
+      ...(stats.lastPaymentAt !== undefined ? { lastPaymentAt: stats.lastPaymentAt } : {}),
+    };
+    const windows = Object.fromEntries(
+      Object.keys(STAT_WINDOWS).map(w => {
+        const s = store.stats({ ...base, since: windowCutoff(w, nowMs) });
+        const v = s.byAsset[0];
+        return [w, {
+          payments: s.totalPayments,
+          uniqueBuyers: s.uniqueBuyers,
+          uniqueSellers: s.uniqueSellers,
+          total: v?.total ?? "0",
+          totalDecimal: toDecimal(v?.total ?? "0"),
+        }];
+      }),
+    );
+    const page = store.feed(base);
+    const facilitators = facilitatorMap();
+    const value = {
+      assetContract: contract,
+      ...(own?.asset !== undefined ? { asset: own.asset } : {}),
+      ...(assetCode(own?.asset) !== undefined ? { assetCode: assetCode(own?.asset) } : {}),
+      stats: {
+        ...scoped,
+        total: own?.total ?? "0",
+        totalDecimal: toDecimal(own?.total ?? "0"),
+      },
+      windows,
+      payments: page.items.map(row => projectPayment(row, facilitators)),
+      ...(page.nextCursor !== undefined ? { nextCursor: page.nextCursor } : {}),
+    };
+    assetCache.set(cacheKey, { value, at: nowMs });
+    return c.json(value);
+  });
+
   app.get("/facilitators", c => {
     const rows = store.listFacilitators();
     return c.json({
@@ -453,8 +533,14 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
 
   app.get("/stats", c => {
     const network = c.req.query("network");
+    const window = parseWindow(c.req.query("window"));
+    const filter = {
+      ...(network !== undefined ? { network } : {}),
+      ...(window !== undefined ? { since: windowCutoff(window, Date.now()) } : {}),
+    };
     return c.json({
-      ...cachedStats(network !== undefined ? { network } : {}),
+      ...(window !== undefined ? { window } : {}),
+      ...cachedStats(filter, JSON.stringify({ network: network ?? null, window: window ?? null })),
       networks: config.networks.map(n => n.network),
       ...(ingest ? { ingest: ingest.healthReport() } : {}),
     });

@@ -407,3 +407,92 @@ describe("GET /sellers?window=", () => {
     expect(err.reason).toContain("24h");
   });
 });
+
+describe("GET /stats?window=", () => {
+  it("scopes the aggregates to the trailing window and echoes it", async () => {
+    const { app, store } = build();
+    const recent = new Date(Date.now() - 3_600_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    store.insertPayment(payment({ txHash: "1".repeat(64), closedAt: recent }));
+    store.insertPayment(
+      payment({ txHash: "2".repeat(64), closedAt: "2026-01-01T00:00:00Z" }),
+    );
+    const windowed = (await (await app.request("/stats?window=24h")).json()) as Record<string, any>;
+    expect(windowed["window"]).toBe("24h");
+    expect(windowed["totalPayments"]).toBe(1);
+    expect(windowed["byAsset"][0]["count"]).toBe(1);
+    const all = (await (await app.request("/stats")).json()) as Record<string, any>;
+    expect(all["window"]).toBeUndefined();
+    expect(all["totalPayments"]).toBe(2);
+    const bad = await app.request("/stats?window=90d");
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as { code: string }).code).toBe("explorer_invalid_query");
+  });
+});
+
+describe("GET /asset/:contract", () => {
+  const USDC = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
+
+  it("serves asset stats, windows, and a payments page with a cursor", async () => {
+    const { app, store } = build();
+    const recent = new Date(Date.now() - 3_600_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    for (let i = 0; i < 30; i += 1) {
+      store.insertPayment(
+        payment({ txHash: i.toString(16).padStart(64, "0"), closedAt: recent, amount: "100" }),
+      );
+    }
+    const res = await app.request(`/asset/${USDC}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, any>;
+    expect(body["assetContract"]).toBe(USDC);
+    expect(body["assetCode"]).toBe("USDC");
+    expect(body["stats"]["totalPayments"]).toBe(30);
+    expect(body["stats"]["total"]).toBe("3000");
+    expect(body["stats"]["totalDecimal"]).toBe("0.0003");
+    expect(body["stats"]["byAsset"]).toBeUndefined();
+    expect(body["windows"]["24h"]["payments"]).toBe(30);
+    expect(body["windows"]["24h"]["totalDecimal"]).toBe("0.0003");
+    expect(body["payments"].length).toBe(25);
+    expect(body["nextCursor"]).toBeDefined();
+    expect(body["payments"][0]["rawEnvelope"]).toBeUndefined();
+  });
+
+  it("404s an unknown asset with the coded, non-retryable reason", async () => {
+    const { app } = build();
+    const res = await app.request(`/asset/CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75`);
+    expect(res.status).toBe(404);
+    const err = (await res.json()) as { code: string; retryable: boolean };
+    expect(err.code).toBe("explorer_asset_not_found");
+    expect(err.retryable).toBe(false);
+  });
+
+  it("refuses a malformed contract with a coded 400", async () => {
+    const { app } = build();
+    const res = await app.request("/asset/not-a-contract");
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe("explorer_invalid_query");
+  });
+});
+
+describe("GET /feed?asset=", () => {
+  const XLM = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
+
+  it("filters by asset contract and combines with scheme", async () => {
+    const { app, store } = build();
+    store.insertPayment(payment({ txHash: "1".repeat(64) }));
+    store.insertPayment(
+      payment({ txHash: "2".repeat(64), assetContract: XLM, asset: "native", scheme: "upto", ceiling: "1000" }),
+    );
+    store.insertPayment(
+      payment({ txHash: "3".repeat(64), assetContract: XLM, asset: "native" }),
+    );
+    const both = (await (await app.request(`/feed?asset=${XLM}`)).json()) as { items: any[] };
+    expect(both.items).toHaveLength(2);
+    expect(both.items.every(p => p.assetContract === XLM)).toBe(true);
+    const exact = (await (await app.request(`/feed?asset=${XLM}&scheme=exact`)).json()) as { items: any[] };
+    expect(exact.items).toHaveLength(1);
+    expect(exact.items[0].scheme).toBe("exact");
+    const bad = await app.request("/feed?asset=USDC");
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as { code: string }).code).toBe("explorer_invalid_query");
+  });
+});

@@ -61,6 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_seller  ON payments (seller);
 CREATE INDEX IF NOT EXISTS idx_payments_buyer   ON payments (buyer);
 CREATE INDEX IF NOT EXISTS idx_payments_facilitator ON payments (facilitator_id);
 CREATE INDEX IF NOT EXISTS idx_payments_closed  ON payments (closed_at);
+CREATE INDEX IF NOT EXISTS idx_payments_asset   ON payments (asset_contract);
 
 CREATE TABLE IF NOT EXISTS cursors (
   network     TEXT PRIMARY KEY,
@@ -121,6 +122,8 @@ export interface FeedFilter {
   readonly buyer?: string;
   readonly facilitatorId?: string;
   readonly confidence?: Confidence;
+  /** SAC contract id — the stable asset key (never the code string). */
+  readonly assetContract?: string;
   readonly limit?: number;
   /** Opaque keyset cursor from a previous page. */
   readonly cursor?: string;
@@ -457,6 +460,7 @@ export class ExplorerStore {
       ["buyer", filter.buyer],
       ["facilitator_id", filter.facilitatorId],
       ["confidence", filter.confidence],
+      ["asset_contract", filter.assetContract],
     ] as const) {
       if (value !== undefined) {
         where.push(`${column} = ?`);
@@ -484,18 +488,33 @@ export class ExplorerStore {
       : { items };
   }
 
-  stats(filter: { network?: string; seller?: string; facilitatorId?: string } = {}): ExplorerStats {
+  stats(
+    filter: {
+      network?: string;
+      seller?: string;
+      facilitatorId?: string;
+      /** SAC contract id — scopes every aggregate to one asset. */
+      assetContract?: string;
+      /** ISO cutoff (second precision): aggregates count only payments at or after it. */
+      since?: string;
+    } = {},
+  ): ExplorerStats {
     const clauses: string[] = [];
     const params: string[] = [];
     for (const [column, value] of [
       ["network", filter.network],
       ["seller", filter.seller],
       ["facilitator_id", filter.facilitatorId],
+      ["asset_contract", filter.assetContract],
     ] as const) {
       if (value !== undefined) {
         clauses.push(`${column} = ?`);
         params.push(value);
       }
+    }
+    if (filter.since !== undefined) {
+      clauses.push("closed_at >= ?");
+      params.push(filter.since);
     }
     const where = clauses.length ? ` WHERE ${clauses.join(" AND ")}` : "";
     /* eslint-disable @typescript-eslint/no-explicit-any */
