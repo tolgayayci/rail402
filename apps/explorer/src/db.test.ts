@@ -628,3 +628,18 @@ describe("feed asset filter", () => {
     expect(new Set(all).size).toBe(all.length);
   });
 });
+
+describe("asset string backfill in folds", () => {
+  it("surfaces the SEP-11 string even when the first-scanned row lacks it", () => {
+    const store = new ExplorerStore();
+    // A Horizon-recovered row (no asset string) inserted BEFORE an event-tail row that has it.
+    const noAsset = { ...payment({ txHash: "1".repeat(64), closedAt: "2026-08-01T00:00:00Z" }) };
+    delete (noAsset as { asset?: string }).asset;
+    store.insertPayment(noAsset);
+    store.insertPayment(payment({ txHash: "2".repeat(64), closedAt: "2026-08-02T00:00:00Z" }));
+    const s = store.stats();
+    expect(s.byAsset[0]!.asset).toBe(payment().asset);
+    const dir = store.sellersDirectory();
+    expect(dir.items[0]!.volume[0]!.asset).toBe(payment().asset);
+  });
+});

@@ -229,6 +229,9 @@ function addVolume(
     count: 0,
     total: 0n,
   };
+  // Horizon-recovered rows carry no SEP-11 asset string; backfill it from ANY row that does,
+  // so an asset's code surfaces even when the first-scanned row was a Horizon one.
+  if (entry.asset === undefined && asset != null) entry.asset = asset;
   entry.count += 1;
   entry.total += BigInt(amount);
   acc.set(assetContract, entry);
@@ -545,6 +548,8 @@ export class ExplorerStore {
         count: 0,
         total: 0n,
       };
+      // Horizon-recovered rows carry no SEP-11 asset string; backfill from any row that does.
+      if (entry.asset === undefined && r.asset != null) entry.asset = r.asset as string;
       entry.count += 1;
       entry.total += BigInt(r.amount as string);
       perAsset.set(key, entry);
@@ -1111,6 +1116,8 @@ export class ExplorerStore {
         ...(r.asset != null ? { asset: r.asset as string } : {}),
         total: 0n,
       };
+      // Same backfill as the stats fold: any row that knows the SEP-11 string supplies it.
+      if (entry.asset === undefined && r.asset != null) entry.asset = r.asset as string;
       entry.total += BigInt(r.amount as string);
       row._volume.set(r.asset_contract, entry);
     }
