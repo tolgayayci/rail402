@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import type { Logger } from "pino";
 import { X402Error, createError, type X402ErrorPayload } from "@rail402/errors";
 import type { ExplorerConfig } from "./config.js";
-import type { ExplorerStore, FeedFilter } from "./db.js";
+import type { AssetTotal, ExplorerStore, FeedFilter } from "./db.js";
 import type { FacilitatorRegistry } from "./registry.js";
 import type { IngestCounters, NetworkIngestHealth } from "./ingest.js";
 import type { Confidence, FacilitatorRow, PaymentRow, Scheme } from "./types.js";
@@ -428,6 +428,125 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
       networks: config.networks.map(n => n.network),
       ...(ingest ? { ingest: ingest.healthReport() } : {}),
     });
+  });
+
+  // ── Ecosystem analytics — the dynamically-updating dashboard surface ───────
+  // Both endpoints are poll-friendly: cheap after a short TTL cache, stable shapes, and every
+  // amount is an integer string with a `…Decimal` companion (no float ever touches money).
+
+  const projectVolume = (volume: readonly AssetTotal[]): Record<string, unknown>[] =>
+    volume.map(v => ({
+      assetContract: v.assetContract,
+      ...(v.asset !== undefined ? { asset: v.asset } : {}),
+      ...(assetCode(v.asset) !== undefined ? { assetCode: assetCode(v.asset) } : {}),
+      count: v.count,
+      total: v.total,
+      totalDecimal: toDecimal(v.total),
+    }));
+
+  const ecosystemCache = new Map<string, { value: unknown; at: number }>();
+  const ECOSYSTEM_TTL_MS = 15_000;
+
+  app.get("/ecosystem", c => {
+    const network = c.req.query("network");
+    const cacheKey = network ?? "";
+    const now = Date.now();
+    const hit = ecosystemCache.get(cacheKey);
+    if (hit && now - hit.at < ECOSYSTEM_TTL_MS) return c.json(hit.value);
+    if (ecosystemCache.size > 100) ecosystemCache.clear();
+
+    const snapshot = store.ecosystem(network !== undefined ? { network } : {});
+    const facilitators = facilitatorMap();
+    const total = snapshot.totals.totalPayments;
+    const value = {
+      generatedAt: new Date(now).toISOString(),
+      networks: config.networks.map(n => n.network),
+      // Honest-coverage note for the page: which SAC transfers this deployment's tail watches.
+      // "all" on testnet; a curated list on pubnet, where an unfiltered tail is infeasible.
+      coverage: config.networks.map(n => ({
+        network: n.network,
+        watchedSacs: n.watchedSacs.length === 0 ? "all" : n.watchedSacs,
+      })),
+      totals: { ...snapshot.totals, byAsset: projectVolume(snapshot.totals.byAsset) },
+      windows: Object.fromEntries(
+        Object.entries(snapshot.windows).map(([key, w]) => [
+          key,
+          { ...w, volume: projectVolume(w.volume) },
+        ]),
+      ),
+      facilitators: snapshot.facilitators.map(f => {
+        const row = f.facilitatorId !== null ? facilitators.get(f.facilitatorId) : undefined;
+        return {
+          facilitatorId: f.facilitatorId,
+          ...(row?.displayName !== undefined ? { displayName: row.displayName } : {}),
+          ...(row !== undefined ? { verified: row.verified } : {}),
+          payments: f.payments,
+          // Share of counts, not money — a plain ratio is safe here.
+          share: total > 0 ? Number((f.payments / total).toFixed(4)) : 0,
+          windows: f.windows,
+          ...(f.lastPaymentAt !== undefined ? { lastPaymentAt: f.lastPaymentAt } : {}),
+        };
+      }),
+      topSellers: snapshot.topSellers.map(s => ({ ...s, volume: projectVolume(s.volume) })),
+    };
+    ecosystemCache.set(cacheKey, { value, at: now });
+    return c.json(value);
+  });
+
+  const timeseriesCache = new Map<string, { value: unknown; at: number }>();
+  const TIMESERIES_TTL_MS = 30_000;
+
+  app.get("/ecosystem/timeseries", c => {
+    const q = c.req.query();
+    const bucket = q["bucket"] ?? "day";
+    if (bucket !== "day" && bucket !== "hour") {
+      throw new X402Error("explorer_invalid_query", {
+        reason: 'Query parameter "bucket" must be "day" or "hour".',
+        details: { parameter: "bucket", value: q["bucket"] },
+      });
+    }
+    // Span: how many buckets the series covers, ending at the in-progress bucket.
+    const spanParam = bucket === "day" ? "days" : "hours";
+    const spanMax = bucket === "day" ? 90 : 168;
+    let span = bucket === "day" ? 30 : 48;
+    if (q[spanParam] !== undefined) {
+      const parsed = Number(q[spanParam]);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > spanMax) {
+        throw new X402Error("explorer_invalid_query", {
+          reason: `Query parameter "${spanParam}" must be an integer between 1 and ${spanMax}.`,
+          details: { parameter: spanParam, value: q[spanParam] },
+        });
+      }
+      span = parsed;
+    }
+    const network = q["network"];
+
+    const cacheKey = JSON.stringify([bucket, span, network ?? null]);
+    const nowMs = Date.now();
+    const hit = timeseriesCache.get(cacheKey);
+    if (hit && nowMs - hit.at < TIMESERIES_TTL_MS) return c.json(hit.value);
+    if (timeseriesCache.size > 200) timeseriesCache.clear();
+
+    const stepMs = bucket === "day" ? 86_400_000 : 3_600_000;
+    // Align to a bucket boundary so the first point covers a full bucket, not a partial scan.
+    const from = new Date(Math.floor(nowMs / stepMs) * stepMs - (span - 1) * stepMs);
+    const to = new Date(nowMs);
+    const points = store.timeseries({
+      bucket,
+      from,
+      to,
+      ...(network !== undefined ? { network } : {}),
+    });
+    const value = {
+      bucket,
+      from: from.toISOString(),
+      to: to.toISOString(),
+      ...(network !== undefined ? { network } : {}),
+      generatedAt: to.toISOString(),
+      points: points.map(p => ({ ...p, volume: projectVolume(p.volume) })),
+    };
+    timeseriesCache.set(cacheKey, { value, at: nowMs });
+    return c.json(value);
   });
 
   app.post("/announce", async c => {

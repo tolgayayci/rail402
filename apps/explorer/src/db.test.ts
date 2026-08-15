@@ -315,3 +315,172 @@ describe("ExplorerStore durability", () => {
     second.close();
   });
 });
+
+describe("ExplorerStore ecosystem", () => {
+  // Fixed "now" so the trailing windows are deterministic: 24h ⊃ p1, 7d ⊃ p1+p2, 30d ⊃ p1+p2+p3,
+  // all-time additionally holds p4. Buyer A pays twice (first inside 30d), C only outside 30d.
+  const NOW = new Date("2026-08-15T12:00:00Z");
+  const A = "GA5ENMD2YIO5EPPB44OUH2ICEQBZCLW5SXNIFZHIP6763KYPW5MR6POE";
+  const B = "GAAREO2YVOE3AQ72QYDWU252YVCDXJ236G5JUGPPT7UI3T5YHWT6P4F6";
+  const C = "GA6THKUY2XJZOBRFMEQMMEADSCQLCZ2QMQWAWMMDXBTE7SARKAXVH7TL";
+  const S1 = "GD72QAP3ZKAKQZVFTQGVKMQXNVKUWXR5P2VL7ZGN5UGQ7ZCFP7XKQXHK";
+  const S2 = "GBQXGC5CDGYITXTJ5ZKH66WMAMBMGL345WYV4EKPUH23NTRZVUKK6747";
+  const S3 = "GAIH3ULLFQ4DGSECF2AR555KZ4KNDGEKN4AFI4SU2M7B43MGK3QJZNSR";
+  // 2^63 × 10 — proves totals fold in BigInt, where a 64-bit SQL SUM would overflow.
+  const HUGE = "92233720368547758080";
+
+  function seeded(): ExplorerStore {
+    const store = new ExplorerStore();
+    store.insertPayment(
+      payment({
+        txHash: "1".repeat(64),
+        closedAt: "2026-08-15T11:00:00Z",
+        buyer: A,
+        seller: S1,
+        amount: "100",
+        facilitatorId: "rail402",
+        confidence: "rail402",
+      }),
+    );
+    store.insertPayment(
+      payment({
+        txHash: "2".repeat(64),
+        closedAt: "2026-08-10T12:00:00Z",
+        buyer: B,
+        seller: S1,
+        amount: "200",
+        scheme: "upto",
+        ceiling: "1000",
+      }),
+    );
+    store.insertPayment(
+      payment({ txHash: "3".repeat(64), closedAt: "2026-07-20T12:00:00Z", buyer: A, seller: S2, amount: HUGE }),
+    );
+    store.insertPayment(
+      payment({ txHash: "4".repeat(64), closedAt: "2026-06-01T12:00:00Z", buyer: C, seller: S3, amount: "400" }),
+    );
+    return store;
+  }
+
+  it("computes trailing windows, new-participant counts and BigInt-safe volume", () => {
+    const store = seeded();
+    const snap = store.ecosystem({}, NOW);
+    expect(snap.totals.totalPayments).toBe(4);
+    expect(snap.windows["24h"]).toMatchObject({
+      payments: 1,
+      uniqueBuyers: 1,
+      uniqueSellers: 1,
+      newBuyers: 0, // A was first seen 2026-07-20, outside 24h
+      newSellers: 0,
+    });
+    expect(snap.windows["7d"]).toMatchObject({
+      payments: 2,
+      uniqueBuyers: 2,
+      uniqueSellers: 1,
+      newBuyers: 1, // B
+      newSellers: 1, // S1
+    });
+    expect(snap.windows["30d"]).toMatchObject({ payments: 3, newBuyers: 2, newSellers: 2 });
+    const total = BigInt(snap.windows["30d"].volume[0]!.total);
+    expect(total).toBe(BigInt(HUGE) + 300n);
+  });
+
+  it("reports facilitator share with null for unattributed rows, largest first", () => {
+    const snap = seeded().ecosystem({}, NOW);
+    expect(snap.facilitators.map(f => [f.facilitatorId, f.payments])).toEqual([
+      [null, 3],
+      ["rail402", 1],
+    ]);
+    const unattributed = snap.facilitators[0]!;
+    expect(unattributed.windows).toEqual({ "24h": 0, "7d": 1, "30d": 2 });
+  });
+
+  it("ranks top sellers over the trailing 30 days and names them from seller metadata", () => {
+    const store = seeded();
+    store.setSellerMeta({
+      network: "stellar:testnet",
+      payTo: S1,
+      serviceName: "Weather API",
+      fetchedAt: NOW.toISOString(),
+    });
+    const snap = store.ecosystem({}, NOW);
+    expect(snap.topSellers.map(s => [s.payTo, s.payments])).toEqual([
+      [S1, 2],
+      [S2, 1],
+    ]);
+    expect(snap.topSellers[0]!.serviceName).toBe("Weather API");
+    expect(snap.topSellers[0]!.uniqueBuyers).toBe(2);
+    expect(snap.topSellers[0]!.lastPaymentAt).toBe("2026-08-15T11:00:00Z");
+  });
+
+  it("filters the whole snapshot by network", () => {
+    const store = seeded();
+    store.insertPayment(
+      payment({
+        txHash: "5".repeat(64),
+        network: "stellar:pubnet",
+        closedAt: "2026-08-15T11:30:00Z",
+        buyer: B,
+        seller: S2,
+        amount: "700",
+      }),
+    );
+    const snap = store.ecosystem({ network: "stellar:pubnet" }, NOW);
+    expect(snap.totals.totalPayments).toBe(1);
+    expect(snap.windows["24h"].payments).toBe(1);
+    expect(snap.windows["24h"].newBuyers).toBe(1);
+    expect(snap.topSellers).toHaveLength(1);
+  });
+});
+
+describe("ExplorerStore timeseries", () => {
+  it("buckets by day with zero-fill, per-scheme counts and BigInt volume", () => {
+    const store = new ExplorerStore();
+    store.insertPayment(
+      payment({ txHash: "a".repeat(64), closedAt: "2026-08-15T11:00:00Z", amount: "100" }),
+    );
+    store.insertPayment(
+      payment({
+        txHash: "b".repeat(64),
+        closedAt: "2026-08-15T09:30:00Z",
+        amount: "50",
+        scheme: "upto",
+        ceiling: "500",
+      }),
+    );
+    const points = store.timeseries({
+      bucket: "day",
+      from: new Date("2026-08-13T00:00:00Z"),
+      to: new Date("2026-08-15T12:00:00Z"),
+    });
+    expect(points.map(p => p.bucket)).toEqual(["2026-08-13", "2026-08-14", "2026-08-15"]);
+    expect(points[0]!).toMatchObject({ payments: 0, uniqueBuyers: 0, volume: [] });
+    const last = points[2]!;
+    expect(last.payments).toBe(2);
+    expect(last.byScheme).toEqual({ exact: 1, upto: 1 });
+    expect(last.volume[0]!.total).toBe("150");
+    expect(last.start).toBe("2026-08-15T00:00:00.000Z");
+  });
+
+  it("buckets by hour and excludes rows outside [from, to)", () => {
+    const store = new ExplorerStore();
+    store.insertPayment(
+      payment({ txHash: "c".repeat(64), closedAt: "2026-08-15T11:00:00Z", amount: "100" }),
+    );
+    store.insertPayment(
+      payment({ txHash: "d".repeat(64), closedAt: "2026-08-15T08:59:59Z", amount: "999" }),
+    );
+    const points = store.timeseries({
+      bucket: "hour",
+      from: new Date("2026-08-15T09:00:00Z"),
+      to: new Date("2026-08-15T12:00:00Z"),
+    });
+    expect(points.map(p => p.bucket)).toEqual([
+      "2026-08-15T09",
+      "2026-08-15T10",
+      "2026-08-15T11",
+    ]);
+    expect(points[2]!.payments).toBe(1);
+    expect(points.reduce((n, p) => n + p.payments, 0)).toBe(1);
+  });
+});

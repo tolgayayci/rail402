@@ -30,14 +30,20 @@ if (config.ingestEnabled) {
   ingest = new IngestWorker({
     store,
     config,
-    enricher: createBazaarEnricher(store, config.bazaarUrl),
+    // EXPLORER_BAZAAR_URL="" disables enrichment — a pubnet deployment must not name mainnet
+    // sellers from a testnet catalog.
+    enricher: config.bazaarUrl
+      ? createBazaarEnricher(store, config.bazaarUrl)
+      : { lookup: async () => undefined },
     logger,
   });
   horizon = new HorizonBackfill({ store, config, worker: ingest, logger });
 }
 // Bazaar catalog sync populates the "registered" half of the seller directory (runs regardless of
 // ingest, since it only reads the Bazaar and writes the sellers table).
-const catalogSync = new CatalogSync({ store, bazaarUrl: config.bazaarUrl, logger });
+const catalogSync = config.bazaarUrl
+  ? new CatalogSync({ store, bazaarUrl: config.bazaarUrl, logger })
+  : undefined;
 
 const app = createExplorerApp({
   store,
@@ -68,7 +74,7 @@ void (async () => {
   registry.start();
   ingest?.start();
   horizon?.start();
-  catalogSync.start();
+  catalogSync?.start();
 })();
 
 let shuttingDown = false;
@@ -76,7 +82,7 @@ const shutdown = (): void => {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info("explorer shutting down");
-  catalogSync.stop();
+  catalogSync?.stop();
   horizon?.stop();
   ingest?.stop();
   registry.stop();

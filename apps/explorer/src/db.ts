@@ -60,6 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_feed    ON payments (network, closed_at,
 CREATE INDEX IF NOT EXISTS idx_payments_seller  ON payments (seller);
 CREATE INDEX IF NOT EXISTS idx_payments_buyer   ON payments (buyer);
 CREATE INDEX IF NOT EXISTS idx_payments_facilitator ON payments (facilitator_id);
+CREATE INDEX IF NOT EXISTS idx_payments_closed  ON payments (closed_at);
 
 CREATE TABLE IF NOT EXISTS cursors (
   network     TEXT PRIMARY KEY,
@@ -148,7 +149,99 @@ export interface ExplorerStats {
   readonly lastPaymentAt?: string;
 }
 
+// ── Ecosystem analytics (the /ecosystem surface) ─────────────────────────────
+
+export type EcosystemWindowKey = "24h" | "7d" | "30d";
+
+export interface EcosystemWindow {
+  readonly payments: number;
+  readonly uniqueBuyers: number;
+  readonly uniqueSellers: number;
+  /** Buyers whose first-ever observed payment falls inside this window. */
+  readonly newBuyers: number;
+  /** Sellers first paid inside this window. */
+  readonly newSellers: number;
+  readonly volume: readonly AssetTotal[];
+}
+
+export interface FacilitatorShareRow {
+  /** null = structurally x402 but unattributed (the x402-shaped tier). */
+  readonly facilitatorId: string | null;
+  /** All-time payment count. */
+  readonly payments: number;
+  /** Per-window payment counts, for a market-share-over-time widget. */
+  readonly windows: Readonly<Record<EcosystemWindowKey, number>>;
+  readonly lastPaymentAt?: string;
+}
+
+export interface TopSellerRow {
+  readonly network: string;
+  readonly payTo: string;
+  readonly payments: number;
+  readonly uniqueBuyers: number;
+  readonly volume: readonly AssetTotal[];
+  readonly lastPaymentAt: string;
+  readonly serviceName?: string;
+}
+
+export interface EcosystemSnapshot {
+  readonly totals: ExplorerStats;
+  readonly windows: Readonly<Record<EcosystemWindowKey, EcosystemWindow>>;
+  /** All-time share per facilitator (null id = unattributed), largest first. */
+  readonly facilitators: readonly FacilitatorShareRow[];
+  /** Most-active sellers over the trailing 30 days. */
+  readonly topSellers: readonly TopSellerRow[];
+}
+
+export interface TimeseriesPoint {
+  /** Bucket key: "2026-08-15" (day) or "2026-08-15T10" (hour), UTC. */
+  readonly bucket: string;
+  /** Bucket start as a full ISO instant, for chart axes. */
+  readonly start: string;
+  readonly payments: number;
+  readonly uniqueBuyers: number;
+  readonly uniqueSellers: number;
+  readonly byScheme: Readonly<Record<string, number>>;
+  readonly volume: readonly AssetTotal[];
+}
+
 const FEED_MAX_LIMIT = 100;
+
+/** Per-asset BigInt fold used by every analytics query — SQL must never sum an i128 amount. */
+type VolumeAcc = Map<string, { asset?: string; count: number; total: bigint }>;
+
+function addVolume(
+  acc: VolumeAcc,
+  assetContract: string,
+  asset: string | null | undefined,
+  amount: string,
+): void {
+  const entry = acc.get(assetContract) ?? {
+    ...(asset != null ? { asset } : {}),
+    count: 0,
+    total: 0n,
+  };
+  entry.count += 1;
+  entry.total += BigInt(amount);
+  acc.set(assetContract, entry);
+}
+
+function finalizeVolume(acc: VolumeAcc): AssetTotal[] {
+  return [...acc.entries()]
+    .map(([assetContract, v]) => ({
+      assetContract,
+      ...(v.asset !== undefined ? { asset: v.asset } : {}),
+      count: v.count,
+      total: v.total.toString(),
+    }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/** ISO instant at second precision, matching the ledger `closed_at` format ("…T10:24:17Z") so
+ * string comparisons are boundary-exact rather than off by the milliseconds suffix. */
+function isoSeconds(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
 
 // The cursor carries op_index too: the PK is (network, epoch, tx_hash, op_index), so a tx whose
 // rows straddle a page boundary must be resumable at the exact op, or the remaining ops are
@@ -448,6 +541,218 @@ export class ExplorerStore {
         .sort((a, b) => b.count - a.count),
       ...(head.last != null ? { lastPaymentAt: head.last as string } : {}),
     };
+  }
+
+  /**
+   * The /ecosystem snapshot: all-time totals plus trailing-window activity, facilitator share and
+   * top sellers. ONE scan of the trailing 30 days feeds every window (24h ⊂ 7d ⊂ 30d), the
+   * per-facilitator window counts and the top-seller fold; amounts fold in BigInt, never SQL
+   * (i128 would overflow SQLite's 64-bit INTEGER). O(30d rows + distinct buyers/sellers) —
+   * callers cache, like /stats.
+   */
+  ecosystem(filter: { network?: string } = {}, now: Date = new Date()): EcosystemSnapshot {
+    const where = filter.network !== undefined ? " WHERE network = ?" : "";
+    const params: string[] = filter.network !== undefined ? [filter.network] : [];
+    const cutoffs: Record<EcosystemWindowKey, string> = {
+      "24h": isoSeconds(new Date(now.getTime() - 24 * 3_600_000)),
+      "7d": isoSeconds(new Date(now.getTime() - 7 * 24 * 3_600_000)),
+      "30d": isoSeconds(new Date(now.getTime() - 30 * 24 * 3_600_000)),
+    };
+    const KEYS: readonly EcosystemWindowKey[] = ["24h", "7d", "30d"];
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const scan: any[] = this.db
+      .prepare(
+        `SELECT network, closed_at, buyer, seller, facilitator_id, asset_contract, asset, amount
+         FROM payments ${filter.network !== undefined ? "WHERE network = ? AND" : "WHERE"} closed_at >= ?`,
+      )
+      .all(...params, cutoffs["30d"]);
+    const firstBuyer: any[] = this.db
+      .prepare(`SELECT MIN(closed_at) AS f FROM payments${where} GROUP BY buyer`)
+      .all(...params);
+    const firstSeller: any[] = this.db
+      .prepare(`SELECT MIN(closed_at) AS f FROM payments${where} GROUP BY seller`)
+      .all(...params);
+    const facAll: any[] = this.db
+      .prepare(
+        `SELECT facilitator_id, COUNT(*) AS n, MAX(closed_at) AS last
+         FROM payments${where} GROUP BY facilitator_id ORDER BY n DESC`,
+      )
+      .all(...params);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    interface WindowAcc {
+      payments: number;
+      buyers: Set<string>;
+      sellers: Set<string>;
+      volume: VolumeAcc;
+    }
+    const emptyWindow = (): WindowAcc => ({
+      payments: 0,
+      buyers: new Set(),
+      sellers: new Set(),
+      volume: new Map(),
+    });
+    const windowAcc: Record<EcosystemWindowKey, WindowAcc> = {
+      "24h": emptyWindow(),
+      "7d": emptyWindow(),
+      "30d": emptyWindow(),
+    };
+    const facilitatorWindows = new Map<string | null, Record<EcosystemWindowKey, number>>();
+    const sellerAcc = new Map<
+      string,
+      { network: string; payTo: string; payments: number; buyers: Set<string>; volume: VolumeAcc; last: string }
+    >();
+
+    for (const r of scan) {
+      const fid = (r.facilitator_id ?? null) as string | null;
+      for (const key of KEYS) {
+        if ((r.closed_at as string) < cutoffs[key]) continue;
+        const w = windowAcc[key];
+        w.payments += 1;
+        w.buyers.add(r.buyer as string);
+        w.sellers.add(r.seller as string);
+        addVolume(w.volume, r.asset_contract as string, r.asset as string | null, r.amount as string);
+        let fw = facilitatorWindows.get(fid);
+        if (!fw) {
+          fw = { "24h": 0, "7d": 0, "30d": 0 };
+          facilitatorWindows.set(fid, fw);
+        }
+        fw[key] += 1;
+      }
+      // Every scan row is inside 30d (the query bound), so the top-seller fold takes them all.
+      const sKey = `${r.network as string} ${r.seller as string}`;
+      let s = sellerAcc.get(sKey);
+      if (!s) {
+        s = {
+          network: r.network as string,
+          payTo: r.seller as string,
+          payments: 0,
+          buyers: new Set(),
+          volume: new Map(),
+          last: r.closed_at as string,
+        };
+        sellerAcc.set(sKey, s);
+      }
+      s.payments += 1;
+      s.buyers.add(r.buyer as string);
+      addVolume(s.volume, r.asset_contract as string, r.asset as string | null, r.amount as string);
+      if ((r.closed_at as string) > s.last) s.last = r.closed_at as string;
+    }
+
+    const countNew = (rows: { f?: unknown }[], cutoff: string): number =>
+      rows.filter(r => typeof r.f === "string" && r.f >= cutoff).length;
+
+    const projectWindow = (key: EcosystemWindowKey): EcosystemWindow => ({
+      payments: windowAcc[key].payments,
+      uniqueBuyers: windowAcc[key].buyers.size,
+      uniqueSellers: windowAcc[key].sellers.size,
+      newBuyers: countNew(firstBuyer, cutoffs[key]),
+      newSellers: countNew(firstSeller, cutoffs[key]),
+      volume: finalizeVolume(windowAcc[key].volume),
+    });
+    const windows: Record<EcosystemWindowKey, EcosystemWindow> = {
+      "24h": projectWindow("24h"),
+      "7d": projectWindow("7d"),
+      "30d": projectWindow("30d"),
+    };
+
+    const facilitators: FacilitatorShareRow[] = facAll.map(r => {
+      const fid = (r.facilitator_id ?? null) as string | null;
+      return {
+        facilitatorId: fid,
+        payments: Number(r.n),
+        windows: facilitatorWindows.get(fid) ?? { "24h": 0, "7d": 0, "30d": 0 },
+        ...(r.last != null ? { lastPaymentAt: r.last as string } : {}),
+      };
+    });
+
+    const topSellers: TopSellerRow[] = [...sellerAcc.values()]
+      .sort(
+        (a, b) =>
+          b.payments - a.payments || (a.payTo < b.payTo ? -1 : a.payTo > b.payTo ? 1 : 0),
+      )
+      .slice(0, 10)
+      .map(s => {
+        const meta = this.getSellerMeta(s.network, s.payTo);
+        return {
+          network: s.network,
+          payTo: s.payTo,
+          payments: s.payments,
+          uniqueBuyers: s.buyers.size,
+          volume: finalizeVolume(s.volume),
+          lastPaymentAt: s.last,
+          ...(meta?.serviceName !== undefined ? { serviceName: meta.serviceName } : {}),
+        };
+      });
+
+    return { totals: this.stats(filter), windows, facilitators, topSellers };
+  }
+
+  /**
+   * Bucketed activity series for charts. The scan is bounded by [from, to); buckets are
+   * zero-filled so a chart axis is continuous. Bucket keys are UTC prefixes of `closed_at`
+   * ("2026-08-15" / "2026-08-15T10"), which is exact because every stored instant is UTC ISO.
+   */
+  timeseries(opts: {
+    network?: string;
+    bucket: "day" | "hour";
+    from: Date;
+    to: Date;
+  }): TimeseriesPoint[] {
+    const keyLen = opts.bucket === "day" ? 10 : 13;
+    const stepMs = opts.bucket === "day" ? 86_400_000 : 3_600_000;
+    const fromIso = isoSeconds(opts.from);
+    const toIso = isoSeconds(opts.to);
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const rows: any[] = this.db
+      .prepare(
+        `SELECT closed_at, scheme, buyer, seller, asset_contract, asset, amount FROM payments
+         ${opts.network !== undefined ? "WHERE network = ? AND" : "WHERE"} closed_at >= ? AND closed_at < ?`,
+      )
+      .all(...(opts.network !== undefined ? [opts.network] : []), fromIso, toIso);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    interface BucketAcc {
+      payments: number;
+      buyers: Set<string>;
+      sellers: Set<string>;
+      byScheme: Record<string, number>;
+      volume: VolumeAcc;
+    }
+    const acc = new Map<string, BucketAcc>();
+    for (const r of rows) {
+      const key = (r.closed_at as string).slice(0, keyLen);
+      let b = acc.get(key);
+      if (!b) {
+        b = { payments: 0, buyers: new Set(), sellers: new Set(), byScheme: {}, volume: new Map() };
+        acc.set(key, b);
+      }
+      b.payments += 1;
+      b.buyers.add(r.buyer as string);
+      b.sellers.add(r.seller as string);
+      b.byScheme[r.scheme as string] = (b.byScheme[r.scheme as string] ?? 0) + 1;
+      addVolume(b.volume, r.asset_contract as string, r.asset as string | null, r.amount as string);
+    }
+
+    const points: TimeseriesPoint[] = [];
+    const start = Math.floor(opts.from.getTime() / stepMs) * stepMs;
+    // 2000-iteration backstop: the app layer bounds spans, this keeps a bad caller from spinning.
+    for (let t = start, i = 0; t < opts.to.getTime() && i < 2_000; t += stepMs, i += 1) {
+      const startIso = new Date(t).toISOString();
+      const key = startIso.slice(0, keyLen);
+      const b = acc.get(key);
+      points.push({
+        bucket: key,
+        start: startIso,
+        payments: b?.payments ?? 0,
+        uniqueBuyers: b?.buyers.size ?? 0,
+        uniqueSellers: b?.sellers.size ?? 0,
+        byScheme: b?.byScheme ?? {},
+        volume: b ? finalizeVolume(b.volume) : [],
+      });
+    }
+    return points;
   }
 
   // ── Cursors ────────────────────────────────────────────────────────────────

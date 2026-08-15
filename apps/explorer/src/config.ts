@@ -16,15 +16,39 @@ import { X402Error } from "@rail402/errors";
  *    nothing is indistinguishable from a quiet ledger, and nobody would notice for weeks.
  */
 
+/**
+ * Circle's USDC and EURC on pubnet (issuer domain circle.com, verified via stellar.expert
+ * 2026-08-15), as SAC addresses derived with `Asset.contractId(PUBNET_PASSPHRASE)`. SAC derivation
+ * is deterministic, and config.test.ts re-derives both so these constants cannot rot.
+ */
+export const PUBNET_USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+export const PUBNET_EURC_ISSUER = "GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2";
+export const PUBNET_USDC_SAC = "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75";
+export const PUBNET_EURC_SAC = "CDTKPWPLOURQA2SGTKTUQOWRCBZEORB4BWBOMJ3D3ZTQQSGE5F6JBQLV";
+
 /** Networks with built-in defaults. Anything else needs an EXPLORER_NETWORK_CONFIG entry. */
 const BUILTIN_NETWORKS: Record<
   string,
-  { passphrase: string; rpcUrl: string; horizonUrl: string }
+  { passphrase: string; rpcUrl: string; horizonUrl: string; watchedSacs?: readonly string[] }
 > = {
   "stellar:testnet": {
     passphrase: "Test SDF Network ; September 2015",
     rpcUrl: "https://soroban-testnet.stellar.org",
     horizonUrl: "https://horizon-testnet.stellar.org",
+  },
+  // Pubnet endpoints chosen by measurement, 2026-08-15: of the keyless public RPCs on
+  // developers.stellar.org/docs/data/apis/rpc/providers, gateway.fm sustained a 20-fetch burst
+  // with zero 429s at ~114ms (mainnet.sorobanrpc.com throttled the same burst to 0/20), with the
+  // full ~7-day retention window. Unlike testnet, the default tail is FILTERED: pubnet carries
+  // ~250 transfer events/ledger (measured; since protocol 23 classic payments emit them too), so
+  // an unfiltered watch saturates every getEvents page. The default watches the assets x402
+  // actually pays in — USDC (the spec default) and EURC. Override watchedSacs via
+  // EXPLORER_NETWORK_CONFIG to widen it, or set [] to watch every transfer on the network.
+  "stellar:pubnet": {
+    passphrase: "Public Global Stellar Network ; September 2015",
+    rpcUrl: "https://soroban-rpc.mainnet.stellar.gateway.fm",
+    horizonUrl: "https://horizon.stellar.org",
+    watchedSacs: [PUBNET_USDC_SAC, PUBNET_EURC_SAC],
   },
 };
 
@@ -68,8 +92,27 @@ export interface ExplorerConfig {
    * learns others dynamically from /supported `extra.uptoContract`.
    */
   readonly knownUptoContracts: readonly string[];
-  /** Bazaar base URL used to enrich payTo addresses into named resources. */
-  readonly bazaarUrl: string;
+  /**
+   * Bazaar base URL used to enrich payTo addresses into named resources and to mark registered
+   * sellers. Absent = enrichment and catalog sync are disabled (EXPLORER_BAZAAR_URL="") — the
+   * right setting for a pubnet deployment, where a testnet catalog must not name mainnet sellers.
+   */
+  readonly bazaarUrl?: string;
+  /**
+   * Cap on how many ledgers the Tier-1 deep backfill replays behind the head. 0 = the full RPC
+   * retention window. On pubnet the full window is millions of events against a public RPC —
+   * cap it there.
+   */
+  readonly backfillMaxLedgers: number;
+  /** Pause between deep-backfill pages — the politeness knob for shared public RPCs. */
+  readonly backfillPageDelayMs: number;
+  /**
+   * Ceiling on RPC requests/second per host, evenly paced across the live tail and the backfill
+   * pool together. Public keyless RPCs tolerate steady sequential traffic but 429 concurrent
+   * bursts (measured against gateway.fm 2026-08-15) — pacing at the choke point is what lets the
+   * backfill's concurrency coexist with a shared endpoint. 0 disables the throttle.
+   */
+  readonly rpcMaxRps: number;
   /** CORS origins for the read API. "*" is the default — this is public data. */
   readonly corsOrigins: readonly string[];
 }
@@ -125,7 +168,17 @@ const EnvSchema = z.object({
     .string()
     .default("CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X"),
 
-  EXPLORER_BAZAAR_URL: z.string().url().default("https://facilitator.rail402.dev"),
+  /** "" disables Bazaar enrichment and catalog sync entirely (validated below, not by zod). */
+  EXPLORER_BAZAAR_URL: z.string().default("https://facilitator.rail402.dev"),
+
+  /** 0 = replay the full RPC retention window (the testnet default). */
+  EXPLORER_BACKFILL_MAX_LEDGERS: z.coerce.number().int().min(0).default(0),
+
+  /** Pause between deep-backfill pages. Raise it on a shared public RPC that rate-limits. */
+  EXPLORER_BACKFILL_PAGE_DELAY_MS: z.coerce.number().int().min(0).default(250),
+
+  /** Ceiling on RPC requests/second per host, evenly paced. 0 = unthrottled. */
+  EXPLORER_RPC_MAX_RPS: z.coerce.number().min(0).default(10),
 
   CORS_ORIGINS: z.string().default("*"),
 });
@@ -223,7 +276,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ExplorerConfig
       passphrase,
       rpcUrl,
       horizonUrl,
-      watchedSacs: override.watchedSacs ?? [],
+      // An explicit override wins even when empty: [] means "watch every transfer".
+      watchedSacs: override.watchedSacs ?? builtin?.watchedSacs ?? [],
     };
   });
 
@@ -296,6 +350,24 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ExplorerConfig
     }
   }
 
+  // Empty string = enrichment and catalog sync off; anything else must be a real http(s) URL.
+  const bazaarUrl = e.EXPLORER_BAZAAR_URL.trim();
+  if (bazaarUrl !== "") {
+    let url: URL;
+    try {
+      url = new URL(bazaarUrl);
+    } catch {
+      throw new X402Error("config_invalid_value", {
+        reason: `EXPLORER_BAZAAR_URL "${bazaarUrl}" is not a valid URL. Set "" to disable Bazaar enrichment.`,
+      });
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      throw new X402Error("config_invalid_value", {
+        reason: `EXPLORER_BAZAAR_URL "${bazaarUrl}" must be http(s). Set "" to disable Bazaar enrichment.`,
+      });
+    }
+  }
+
   return {
     port: e.PORT,
     host: e.HOST,
@@ -308,7 +380,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ExplorerConfig
     facilitatorAuth,
     supportedPollIntervalMs: e.EXPLORER_SUPPORTED_POLL_INTERVAL_MS,
     knownUptoContracts,
-    bazaarUrl: e.EXPLORER_BAZAAR_URL,
+    ...(bazaarUrl !== "" ? { bazaarUrl } : {}),
+    backfillMaxLedgers: e.EXPLORER_BACKFILL_MAX_LEDGERS,
+    backfillPageDelayMs: e.EXPLORER_BACKFILL_PAGE_DELAY_MS,
+    rpcMaxRps: e.EXPLORER_RPC_MAX_RPS,
     corsOrigins: csv(e.CORS_ORIGINS),
   };
 }
@@ -330,6 +405,7 @@ export function describeConfig(config: ExplorerConfig): Record<string, unknown> 
     // Count only — never log the tokens themselves.
     facilitatorAuth: config.facilitatorAuth.size,
     knownUptoContracts: config.knownUptoContracts,
-    bazaarUrl: config.bazaarUrl,
+    bazaarUrl: config.bazaarUrl ?? "disabled",
+    backfillMaxLedgers: config.backfillMaxLedgers === 0 ? "full window" : config.backfillMaxLedgers,
   };
 }

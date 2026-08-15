@@ -317,3 +317,62 @@ describe("display helpers", () => {
     expect(assetCode(undefined)).toBeUndefined();
   });
 });
+
+describe("GET /ecosystem", () => {
+  it("serves totals, trailing windows, facilitator share and honest coverage", async () => {
+    const { app, store } = build();
+    // closedAt pinned to the real clock so the trailing windows stay deterministic wherever CI runs.
+    const closedAt = new Date(Date.now() - 60_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    store.insertPayment(payment({ closedAt, facilitatorId: "rail402", confidence: "rail402" }));
+    store.insertPayment(payment({ txHash: "e".repeat(64), closedAt, buyer: "GBTORQK3ZR3RPJF4WTTSH5KVDOAZ4BJI7PD2ECLSBDNHRG4ICNC4JJZV" }));
+    const res = await app.request("/ecosystem");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, any>;
+    expect(typeof body["generatedAt"]).toBe("string");
+    expect(body["coverage"]).toEqual([{ network: "stellar:testnet", watchedSacs: "all" }]);
+    expect(body["totals"]["totalPayments"]).toBe(2);
+    expect(body["totals"]["byAsset"][0]["totalDecimal"]).toBe("0.002");
+    expect(body["windows"]["24h"]["payments"]).toBe(2);
+    expect(body["windows"]["24h"]["newBuyers"]).toBe(2);
+    const shares = body["facilitators"] as Record<string, any>[];
+    expect(shares.map(f => [f["facilitatorId"], f["payments"], f["share"]])).toEqual([
+      [null, 1, 0.5],
+      ["rail402", 1, 0.5],
+    ]);
+    expect(body["topSellers"]).toHaveLength(1);
+    expect(body["topSellers"][0]["volume"][0]["assetCode"]).toBe("USDC");
+  });
+});
+
+describe("GET /ecosystem/timeseries", () => {
+  it("serves zero-filled hourly buckets with the payment in the newest one", async () => {
+    const { app, store } = build();
+    const closedAt = new Date(Date.now() - 60_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    store.insertPayment(payment({ closedAt }));
+    const res = await app.request("/ecosystem/timeseries?bucket=hour&hours=3");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, any>;
+    expect(body["bucket"]).toBe("hour");
+    const points = body["points"] as Record<string, any>[];
+    expect(points).toHaveLength(3);
+    expect(points.reduce((n, p) => n + (p["payments"] as number), 0)).toBe(1);
+    const filled = points.find(p => p["payments"] === 1)!;
+    expect(filled["volume"][0]["totalDecimal"]).toBe("0.001");
+    expect(filled["byScheme"]).toEqual({ exact: 1 });
+  });
+
+  it("refuses a bogus bucket and an out-of-range span with coded 400s", async () => {
+    const { app } = build();
+    for (const path of [
+      "/ecosystem/timeseries?bucket=week",
+      "/ecosystem/timeseries?bucket=day&days=91",
+      "/ecosystem/timeseries?bucket=hour&hours=0",
+    ]) {
+      const res = await app.request(path);
+      expect(res.status).toBe(400);
+      const err = (await res.json()) as { code: string; reason: string };
+      expect(err.code).toBe("explorer_invalid_query");
+      expect(err.reason.length).toBeGreaterThan(10);
+    }
+  });
+});

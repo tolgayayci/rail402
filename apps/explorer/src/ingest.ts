@@ -33,9 +33,27 @@ const SEEN_CACHE_MAX = 10_000;
 
 /** Envelope fetches during deep backfill run in a small pool; the live tail stays sequential. */
 const BACKFILL_CONCURRENCY = 8;
-const BACKFILL_PAGE_DELAY_MS = 250;
 /** Once caught up, re-check this slowly so a chain reset (new epoch) restarts the walk. */
 const BACKFILL_DONE_RECHECK_MS = 60_000;
+
+/**
+ * Even-pacing throttle: each wait() reserves the next slot `minGapMs` after the previous one, so
+ * concurrent callers (the backfill pool + the live tail) collectively never exceed the configured
+ * requests/second. Public keyless RPCs tolerate steady sequential traffic but 429 concurrent
+ * bursts — measured against gateway.fm on 2026-08-15, where an 8-way pool drew sustained 429s
+ * that a paced stream did not.
+ */
+class RpcThrottle {
+  private nextAt = 0;
+  constructor(private readonly minGapMs: number) {}
+  async wait(): Promise<void> {
+    if (this.minGapMs <= 0) return;
+    const now = Date.now();
+    const at = Math.max(now, this.nextAt);
+    this.nextAt = at + this.minGapMs;
+    if (at > now) await new Promise(resolve => setTimeout(resolve, at - now));
+  }
+}
 
 /** Run `fn` over `items` with at most `limit` in flight. Rejections surface as per-item nulls. */
 async function mapPool<T, R>(
@@ -131,9 +149,29 @@ export class IngestWorker {
     this.config = options.config;
     this.enricher = options.enricher;
     this.logger = options.logger;
-    this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? (() => new Date());
     this.selfFacilitatorId = options.selfFacilitatorId ?? "rail402";
+    // Every RPC call this worker makes — live tail, backfill pool, health probes — flows through
+    // fetchImpl, so pacing here is a complete budget. One throttle per host: a multi-network
+    // process watching two RPCs gives each its own full budget.
+    const inner = options.fetchImpl ?? fetch;
+    const throttles = new Map<string, RpcThrottle>();
+    const minGapMs = this.config.rpcMaxRps > 0 ? 1000 / this.config.rpcMaxRps : 0;
+    this.fetchImpl = async (url, init) => {
+      let host: string;
+      try {
+        host = new URL(url).host;
+      } catch {
+        host = url;
+      }
+      let throttle = throttles.get(host);
+      if (!throttle) {
+        throttle = new RpcThrottle(minGapMs);
+        throttles.set(host, throttle);
+      }
+      await throttle.wait();
+      return inner(url, init);
+    };
   }
 
   start(): void {
@@ -430,10 +468,31 @@ export class IngestWorker {
   }
 
   private candidateHashes(result: GetEventsResult): string[] {
+    // A Soroban transaction carries exactly ONE operation (protocol rule), so a transfer event at
+    // operationIndex > 0 comes from a classic multi-op transaction — batch payouts, mostly — which
+    // can never be an x402 settlement. Skipping those saves the getTransaction fetch; on pubnet
+    // that is a large share of the USDC event volume. An event without the field keeps the fetch
+    // (the classifier is the authority; this is only a fetch-avoidance filter). A multi-op tx
+    // whose op-0 event landed on an earlier page costs one wasted fetch, never a false negative.
+    const multiOp = new Set<string>();
+    for (const raw of result.events) {
+      const e = raw as { txHash?: string; operationIndex?: number };
+      if (
+        typeof e.txHash === "string" &&
+        typeof e.operationIndex === "number" &&
+        e.operationIndex > 0
+      ) {
+        multiOp.add(e.txHash);
+      }
+    }
     const seen = new Set<string>();
     for (const raw of result.events) {
       const hash = (raw as { txHash?: string }).txHash;
       if (typeof hash !== "string" || this.seenHashes.has(hash)) continue;
+      if (multiOp.has(hash)) {
+        this.rememberHash(hash);
+        continue;
+      }
       seen.add(hash);
     }
     return [...seen];
@@ -545,9 +604,19 @@ export class IngestWorker {
       latestLedger: number;
       oldestLedger: number;
     };
+    // EXPLORER_BACKFILL_MAX_LEDGERS caps how deep the replay reaches. 0 = the full retention
+    // window (testnet default). On pubnet the full window is millions of transfer events against
+    // a public keyless RPC, so the deployment caps it.
+    const cap = this.config.backfillMaxLedgers;
+    const startLedger =
+      cap > 0
+        ? Math.max(health.oldestLedger, health.latestLedger - cap)
+        : health.oldestLedger;
     this.logger.info(
-      { network: network.network, from: health.oldestLedger, head: health.latestLedger },
-      "deep backfill starting from the oldest retained ledger",
+      { network: network.network, from: startLedger, head: health.latestLedger },
+      cap > 0
+        ? "deep backfill starting from the configured ledger cap"
+        : "deep backfill starting from the oldest retained ledger",
     );
     return this.asEventsResult(
       await rpcCall(
@@ -556,7 +625,7 @@ export class IngestWorker {
         {
           filters,
           xdrFormat: "json",
-          startLedger: health.oldestLedger,
+          startLedger,
           pagination: { limit: EVENTS_PAGE_LIMIT },
         },
         this.fetchImpl,
@@ -581,7 +650,7 @@ export class IngestWorker {
       if (this.stopped) return;
       void this.backfillTick(network)
         .then(({ done }) => {
-          schedule(done ? BACKFILL_DONE_RECHECK_MS : BACKFILL_PAGE_DELAY_MS);
+          schedule(done ? BACKFILL_DONE_RECHECK_MS : this.config.backfillPageDelayMs);
         })
         .catch(error => {
           this.counters.rpcFailures += 1;

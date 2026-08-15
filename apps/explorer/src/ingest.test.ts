@@ -87,7 +87,8 @@ const stubEnricher: Enricher = {
 function worker(store: ExplorerStore, fetchImpl: FetchLike): IngestWorker {
   return new IngestWorker({
     store,
-    config: loadConfig({} as NodeJS.ProcessEnv),
+    // Unthrottled: these tests exercise classification and cursor logic, not pacing.
+    config: loadConfig({ EXPLORER_RPC_MAX_RPS: "0" } as NodeJS.ProcessEnv),
     enricher: stubEnricher,
     logger: pino({ level: "silent" }),
     fetchImpl,
@@ -329,5 +330,95 @@ describe("IngestWorker.pollOnce", () => {
     const row = store.getPaymentByHash(EXACT_HASH)!;
     expect(row.facilitatorId).toBe("mystery-fac");
     expect(row.confidence).toBe("verified-facilitator");
+  });
+});
+
+describe("multi-op prefilter", () => {
+  it("never fetches a transaction whose events show operationIndex > 0 — a Soroban tx is single-op", async () => {
+    // Real capture: 2bb3f8a4… is the one multi-op tx in the 30-event window (operationIndex 1,
+    // a classic batch). With the prefilter it must not cost a getTransaction fetch; the x402
+    // candidate (op 0) still must.
+    const record: Recorded[] = [];
+    const store = new ExplorerStore();
+    const w = worker(store, cannedRpc({ record }));
+    const { inserted } = await w.pollOnce(testnet);
+    expect(inserted).toBe(1);
+    const fetched = record
+      .filter(r => r.method === "getTransaction")
+      .map(r => String(r.params?.["hash"]));
+    expect(fetched).toContain(EXACT_HASH);
+    expect(fetched.some(h => h.startsWith("2bb3f8a4"))).toBe(false);
+  });
+});
+
+describe("backfill ledger cap", () => {
+  it("starts the deep backfill at head minus the cap instead of the oldest retained ledger", async () => {
+    const record: Recorded[] = [];
+    const store = new ExplorerStore();
+    const w = new IngestWorker({
+      store,
+      config: loadConfig({
+        EXPLORER_BACKFILL_MAX_LEDGERS: "1000",
+        EXPLORER_RPC_MAX_RPS: "0",
+      } as NodeJS.ProcessEnv),
+      enricher: stubEnricher,
+      logger: pino({ level: "silent" }),
+      fetchImpl: cannedRpc({ record }),
+      now: () => new Date("2026-08-13T19:00:00.000Z"),
+    });
+    await w.backfillTick(testnet);
+    const events = record.find(r => r.method === "getEvents");
+    // Canned getHealth reports latestLedger 4125114, oldestLedger 4004150; capped at 1000 the
+    // walk must anchor at 4124114, not the window floor.
+    expect(events?.params?.["startLedger"]).toBe(4124114);
+  });
+
+  it("still starts at the oldest retained ledger when no cap is configured", async () => {
+    const record: Recorded[] = [];
+    const store = new ExplorerStore();
+    const w = worker(store, cannedRpc({ record }));
+    await w.backfillTick(testnet);
+    const events = record.find(r => r.method === "getEvents");
+    expect(events?.params?.["startLedger"]).toBe(4004150);
+  });
+});
+
+describe("RPC pacing throttle", () => {
+  it("spaces RPC calls to the configured rate even when callers are concurrent", async () => {
+    const timestamps: number[] = [];
+    const paced: FetchLike = (url, init) => {
+      timestamps.push(Date.now());
+      return cannedRpc({
+        getEvents: () =>
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            result: {
+              events: [
+                { txHash: EXACT_HASH, ledger: 4124904, operationIndex: 0 },
+                { txHash: CLAIM_YIELD_HASH, ledger: 4124905, operationIndex: 0 },
+              ],
+              latestLedger: 4125114,
+              cursor: "c1",
+            },
+          }),
+      })(url, init);
+    };
+    const store = new ExplorerStore();
+    const w = new IngestWorker({
+      store,
+      // 20 rps = one call every 50ms, shared by everything hitting the same host.
+      config: loadConfig({ EXPLORER_RPC_MAX_RPS: "20" } as NodeJS.ProcessEnv),
+      enricher: stubEnricher,
+      logger: pino({ level: "silent" }),
+      fetchImpl: paced,
+      now: () => new Date("2026-08-13T19:00:00.000Z"),
+    });
+    await w.pollOnce(testnet);
+    // getHealth (fresh anchor) + getEvents + two getTransaction fetches, each ≥ ~50ms apart.
+    expect(timestamps.length).toBe(4);
+    for (let i = 1; i < timestamps.length; i += 1) {
+      expect(timestamps[i]! - timestamps[i - 1]!).toBeGreaterThanOrEqual(45);
+    }
   });
 });

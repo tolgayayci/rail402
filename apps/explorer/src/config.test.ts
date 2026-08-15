@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { Asset } from "@stellar/stellar-sdk";
 import { X402Error } from "@rail402/errors";
-import { loadConfig } from "./config.js";
+import {
+  loadConfig,
+  PUBNET_EURC_ISSUER,
+  PUBNET_EURC_SAC,
+  PUBNET_USDC_ISSUER,
+  PUBNET_USDC_SAC,
+} from "./config.js";
 
 const base = { NODE_ENV: "test" } as NodeJS.ProcessEnv;
 
@@ -137,5 +144,67 @@ describe("loadConfig", () => {
       expect(error).toBeInstanceOf(X402Error);
       expect((error as X402Error).payload.code).toBe("config_invalid_value");
     }
+  });
+});
+
+describe("pubnet built-ins", () => {
+  it("resolves stellar:pubnet entirely from built-in defaults, with a FILTERED tail", () => {
+    const config = loadConfig({ ...base, EXPLORER_NETWORKS: "stellar:pubnet" });
+    expect(config.networks).toHaveLength(1);
+    const net = config.networks[0]!;
+    expect(net.passphrase).toBe("Public Global Stellar Network ; September 2015");
+    expect(net.rpcUrl).toBe("https://soroban-rpc.mainnet.stellar.gateway.fm");
+    expect(net.horizonUrl).toBe("https://horizon.stellar.org");
+    // Unlike testnet, pubnet defaults to a filtered watch: ~250 transfer events/ledger (measured
+    // 2026-08-15) make an unfiltered tail infeasible against a public RPC.
+    expect(net.watchedSacs).toEqual([PUBNET_USDC_SAC, PUBNET_EURC_SAC]);
+  });
+
+  it("re-derives the pubnet SAC constants from the Circle issuers — they cannot rot", () => {
+    const passphrase = "Public Global Stellar Network ; September 2015";
+    expect(new Asset("USDC", PUBNET_USDC_ISSUER).contractId(passphrase)).toBe(PUBNET_USDC_SAC);
+    expect(new Asset("EURC", PUBNET_EURC_ISSUER).contractId(passphrase)).toBe(PUBNET_EURC_SAC);
+  });
+
+  it("lets an override EMPTY the pubnet watch list — [] means watch every transfer", () => {
+    const config = loadConfig({
+      ...base,
+      EXPLORER_NETWORKS: "stellar:pubnet",
+      EXPLORER_NETWORK_CONFIG: JSON.stringify({ "stellar:pubnet": { watchedSacs: [] } }),
+    });
+    expect(config.networks[0]!.watchedSacs).toEqual([]);
+  });
+});
+
+describe("bazaar off-switch and backfill cap", () => {
+  it("enables the Bazaar join by default and disables it on EXPLORER_BAZAAR_URL=\"\"", () => {
+    expect(loadConfig(base).bazaarUrl).toBe("https://facilitator.rail402.dev");
+    expect(loadConfig({ ...base, EXPLORER_BAZAAR_URL: "" }).bazaarUrl).toBeUndefined();
+  });
+
+  it("refuses a malformed EXPLORER_BAZAAR_URL with a coded reason", () => {
+    for (const bad of ["not a url", "ftp://files.example"]) {
+      try {
+        loadConfig({ ...base, EXPLORER_BAZAAR_URL: bad });
+        throw new Error(`expected rejection for ${bad}`);
+      } catch (error) {
+        expect(error).toBeInstanceOf(X402Error);
+        expect((error as X402Error).payload.code).toBe("config_invalid_value");
+      }
+    }
+  });
+
+  it("defaults the backfill to the full retention window and accepts a ledger cap", () => {
+    expect(loadConfig(base).backfillMaxLedgers).toBe(0);
+    expect(
+      loadConfig({ ...base, EXPLORER_BACKFILL_MAX_LEDGERS: "17280" }).backfillMaxLedgers,
+    ).toBe(17280);
+  });
+
+  it("exposes the backfill page-delay politeness knob", () => {
+    expect(loadConfig(base).backfillPageDelayMs).toBe(250);
+    expect(
+      loadConfig({ ...base, EXPLORER_BACKFILL_PAGE_DELAY_MS: "1000" }).backfillPageDelayMs,
+    ).toBe(1000);
   });
 });
