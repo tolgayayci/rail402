@@ -95,15 +95,31 @@ export class HorizonBackfill {
     this.timer = undefined;
   }
 
-  /** One pass over every verified facilitator signer on every network. Returns rows inserted. */
+  /**
+   * One pass over every verified facilitator signer — plus the configured watch accounts — on
+   * every network. Watch accounts (EXPLORER_WATCH_ACCOUNTS) are the capture path for deployments
+   * that cannot be enumerated: a facilitator whose /supported is key-gated (Built on Stellar
+   * mainnet) still has a constant fee-bump fee account on-ledger, and Horizon indexes fee sources
+   * as transaction participants, so one account walk covers its whole rotating channel pool.
+   * Rows recovered this way classify structurally and stay `x402-shaped` — a watch account is an
+   * observation lead, never an attribution. Returns rows inserted.
+   */
   async walkOnce(): Promise<number> {
     const facilitators = this.store.listFacilitators().filter(f => f.verified);
     let inserted = 0;
     for (const network of this.config.networks) {
+      const walked = new Set<string>();
       for (const facilitator of facilitators) {
         for (const signer of facilitator.signers) {
+          if (walked.has(signer)) continue;
+          walked.add(signer);
           inserted += await this.walkAccount(network, signer);
         }
+      }
+      for (const account of this.config.watchAccounts.get(network.network) ?? []) {
+        if (walked.has(account)) continue;
+        walked.add(account);
+        inserted += await this.walkAccount(network, account);
       }
     }
     if (inserted > 0) {

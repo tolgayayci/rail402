@@ -108,3 +108,81 @@ describe("HorizonBackfill", () => {
     await expect(failing.backfill.walkOnce()).resolves.toBe(0);
   });
 });
+
+describe("watch accounts", () => {
+  it("walks configured accounts with ZERO verified facilitators, and rows stay x402-shaped", async () => {
+    // The Built on Stellar mainnet case: /supported is key-gated so nothing can be verified, but
+    // its constant fee account is public on-ledger. The walk must run from config alone.
+    const store = new ExplorerStore();
+    const requests: string[] = [];
+    const WATCHED = "GA5SXMFJTUPTZRIEKM6XZLCYOZRMUEE6KGAHL3GXDBG64DYOUIWYIF3M";
+    const watchConfig = loadConfig({
+      EXPLORER_WATCH_ACCOUNTS: JSON.stringify({ "stellar:testnet": [WATCHED] }),
+    } as NodeJS.ProcessEnv);
+    const worker = new IngestWorker({
+      store,
+      config: watchConfig,
+      enricher: stubEnricher,
+      logger,
+      fetchImpl: () => Promise.reject(new Error("worker must not fetch in this test")),
+      now: () => new Date("2026-08-14T13:00:00.000Z"),
+    });
+    const backfill = new HorizonBackfill({
+      store,
+      config: watchConfig,
+      worker,
+      logger,
+      fetchImpl: url => {
+        requests.push(url);
+        return Promise.resolve(page([CANDIDATE_TX]));
+      },
+      now: () => new Date("2026-08-14T13:00:00.000Z"),
+    });
+    const inserted = await backfill.walkOnce();
+    expect(inserted).toBe(1);
+    expect(requests[0]).toContain(`/accounts/${WATCHED}/transactions`);
+    // A watch account is an observation lead, never an attribution.
+    const row = store.getPaymentByHash(CANDIDATE_TX["hash"] as string)!;
+    expect(row.confidence).toBe("x402-shaped");
+    expect(row.facilitatorId).toBeUndefined();
+  });
+
+  it("does not walk the same account twice when it is both a signer and watched", async () => {
+    const store = new ExplorerStore();
+    store.upsertFacilitator({
+      id: "rail402",
+      baseUrl: "https://facilitator.rail402.dev",
+      verified: true,
+      signers: [RAIL402_SIGNER],
+      uptoContracts: [],
+      networks: ["stellar:testnet"],
+      source: "seed",
+      createdAt: "2026-08-14T00:00:00Z",
+    });
+    const requests: string[] = [];
+    const watchConfig = loadConfig({
+      EXPLORER_WATCH_ACCOUNTS: JSON.stringify({ "stellar:testnet": [RAIL402_SIGNER] }),
+    } as NodeJS.ProcessEnv);
+    const worker = new IngestWorker({
+      store,
+      config: watchConfig,
+      enricher: stubEnricher,
+      logger,
+      fetchImpl: () => Promise.reject(new Error("worker must not fetch in this test")),
+      now: () => new Date("2026-08-14T13:00:00.000Z"),
+    });
+    const backfill = new HorizonBackfill({
+      store,
+      config: watchConfig,
+      worker,
+      logger,
+      fetchImpl: url => {
+        requests.push(url);
+        return Promise.resolve(page([]));
+      },
+      now: () => new Date("2026-08-14T13:00:00.000Z"),
+    });
+    await backfill.walkOnce();
+    expect(requests).toHaveLength(1);
+  });
+});

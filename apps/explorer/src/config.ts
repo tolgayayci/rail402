@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { StrKey } from "@stellar/stellar-sdk";
 import { X402Error } from "@rail402/errors";
 
 /**
@@ -113,6 +114,16 @@ export interface ExplorerConfig {
    * backfill's concurrency coexist with a shared endpoint. 0 disables the throttle.
    */
   readonly rpcMaxRps: number;
+  /**
+   * Accounts whose complete Horizon history is walked per network, keyed by CAIP-2 id, WITHOUT
+   * needing a verified facilitator. This is the capture path for deployments that cannot be
+   * enumerated: Built on Stellar's mainnet /supported is behind an API key, so its constant fee
+   * account (Horizon indexes fee-bump fee sources as participants — one walk covers the whole
+   * rotating channel pool) and known sellers' payTo accounts go here. Recovered rows classify
+   * through the same structural classifier and stay honestly `x402-shaped` — a watch account is
+   * an observation lead, never an attribution.
+   */
+  readonly watchAccounts: ReadonlyMap<string, readonly string[]>;
   /** CORS origins for the read API. "*" is the default — this is public data. */
   readonly corsOrigins: readonly string[];
 }
@@ -179,6 +190,13 @@ const EnvSchema = z.object({
 
   /** Ceiling on RPC requests/second per host, evenly paced. 0 = unthrottled. */
   EXPLORER_RPC_MAX_RPS: z.coerce.number().min(0).default(10),
+
+  /**
+   * JSON: CAIP-2 network id → array of G… accounts whose full Horizon history is walked even
+   * with no verified facilitator. Example:
+   * `{"stellar:pubnet":["GA5SXMFJTUPTZRIEKM6XZLCYOZRMUEE6KGAHL3GXDBG64DYOUIWYIF3M"]}`
+   */
+  EXPLORER_WATCH_ACCOUNTS: z.string().optional(),
 
   CORS_ORIGINS: z.string().default("*"),
 });
@@ -350,6 +368,37 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ExplorerConfig
     }
   }
 
+  // Watch accounts: strkey CHECKSUM validation, never a shape regex — an Algorand address is
+  // uppercase base32 starting with G and passes any regex (x402.org's /supported carries one).
+  const watchAccounts = new Map<string, readonly string[]>();
+  if (e.EXPLORER_WATCH_ACCOUNTS && e.EXPLORER_WATCH_ACCOUNTS.trim()) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(e.EXPLORER_WATCH_ACCOUNTS);
+    } catch {
+      throw new X402Error("config_invalid_value", {
+        reason:
+          'EXPLORER_WATCH_ACCOUNTS is not valid JSON. Expected {"<caip2>": ["G…", …]}.',
+      });
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      throw new X402Error("config_invalid_value", {
+        reason: "EXPLORER_WATCH_ACCOUNTS must be a JSON object keyed by CAIP-2 network id.",
+      });
+    }
+    for (const [network, accounts] of Object.entries(parsed)) {
+      if (
+        !Array.isArray(accounts) ||
+        accounts.some(a => typeof a !== "string" || !StrKey.isValidEd25519PublicKey(a))
+      ) {
+        throw new X402Error("config_invalid_value", {
+          reason: `EXPLORER_WATCH_ACCOUNTS["${network}"] must be an array of checksum-valid G… account addresses.`,
+        });
+      }
+      watchAccounts.set(network, accounts as string[]);
+    }
+  }
+
   // Empty string = enrichment and catalog sync off; anything else must be a real http(s) URL.
   const bazaarUrl = e.EXPLORER_BAZAAR_URL.trim();
   if (bazaarUrl !== "") {
@@ -384,6 +433,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ExplorerConfig
     backfillMaxLedgers: e.EXPLORER_BACKFILL_MAX_LEDGERS,
     backfillPageDelayMs: e.EXPLORER_BACKFILL_PAGE_DELAY_MS,
     rpcMaxRps: e.EXPLORER_RPC_MAX_RPS,
+    watchAccounts,
     corsOrigins: csv(e.CORS_ORIGINS),
   };
 }
@@ -407,5 +457,8 @@ export function describeConfig(config: ExplorerConfig): Record<string, unknown> 
     knownUptoContracts: config.knownUptoContracts,
     bazaarUrl: config.bazaarUrl ?? "disabled",
     backfillMaxLedgers: config.backfillMaxLedgers === 0 ? "full window" : config.backfillMaxLedgers,
+    watchAccounts: Object.fromEntries(
+      [...config.watchAccounts.entries()].map(([network, accounts]) => [network, accounts.length]),
+    ),
   };
 }

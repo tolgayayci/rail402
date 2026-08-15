@@ -208,3 +208,35 @@ describe("bazaar off-switch and backfill cap", () => {
     ).toBe(1000);
   });
 });
+
+describe("watch accounts", () => {
+  it("parses network-scoped watch accounts and defaults to none", () => {
+    expect(loadConfig(base).watchAccounts.size).toBe(0);
+    const config = loadConfig({
+      ...base,
+      EXPLORER_WATCH_ACCOUNTS: JSON.stringify({
+        "stellar:pubnet": ["GA5SXMFJTUPTZRIEKM6XZLCYOZRMUEE6KGAHL3GXDBG64DYOUIWYIF3M"],
+      }),
+    });
+    expect(config.watchAccounts.get("stellar:pubnet")).toEqual([
+      "GA5SXMFJTUPTZRIEKM6XZLCYOZRMUEE6KGAHL3GXDBG64DYOUIWYIF3M",
+    ]);
+  });
+
+  it("refuses a checksum-invalid watch account — shape regexes admit Algorand addresses", () => {
+    for (const bad of [
+      "not json",
+      JSON.stringify(["GA5SXMFJTUPTZRIEKM6XZLCYOZRMUEE6KGAHL3GXDBG64DYOUIWYIF3M"]),
+      // Checksum-broken: one character edited in an otherwise valid G address.
+      JSON.stringify({ "stellar:pubnet": ["GA5SXMFJTUPTZRIEKM6XZLCYOZRMUEE6KGAHL3GXDBG64DYOUIWYIF3N"] }),
+    ]) {
+      try {
+        loadConfig({ ...base, EXPLORER_WATCH_ACCOUNTS: bad });
+        throw new Error(`expected rejection for ${bad}`);
+      } catch (error) {
+        expect(error).toBeInstanceOf(X402Error);
+        expect((error as X402Error).payload.code).toBe("config_invalid_value");
+      }
+    }
+  });
+});
