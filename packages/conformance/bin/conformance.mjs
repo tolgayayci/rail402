@@ -149,11 +149,19 @@ function base58(buffer) {
 function buildSuite() {
   const ts = join(SUITE, "typescript");
   console.log("  building upstream TypeScript packages (first run only, several minutes)");
+  // The upstream build is `turbo run build` with turbo's default concurrency (10). On a
+  // GitHub-hosted runner for a private repo (2 cores, 7 GB RAM) that parallelism OOM-kills the
+  // RUNNER ITSELF: exit 143 mid-build, "The runner has received a shutdown signal", and in the
+  // worst case a job whose logs never upload at all. Measured on nightly run 31870109927
+  // (2026-08-15) — the job died 3 minutes into this exact step. `--concurrency=1` plus a bounded
+  // heap keeps the peak far under the runner's memory; the extra wall-clock only costs the first
+  // build, since turbo's cache carries across the pinned/latest checkouts.
+  const buildEnv = { ...process.env, NODE_OPTIONS: "--max-old-space-size=4096" };
   for (const [cwd, args] of [
     [ts, ["install", "--frozen-lockfile"]],
-    [ts, ["build"]],
+    [ts, ["build", "--concurrency=1"]],
   ]) {
-    const r = quiet("pnpm", args, { cwd });
+    const r = quiet("pnpm", args, { cwd, env: buildEnv });
     if (r.status !== 0) {
       console.error(`  upstream build failed: pnpm ${args.join(" ")}\n${(r.stderr ?? "").slice(-800)}`);
       return false;
