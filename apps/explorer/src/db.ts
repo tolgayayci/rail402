@@ -1114,6 +1114,11 @@ export class ExplorerStore {
         }))
         .sort((a, b) => (BigInt(a.total) < BigInt(b.total) ? 1 : -1)),
     }));
+    // Windowed view: a seller with no activity in the window and no registration is pure noise
+    // (the metadata table caches every seller ever enriched) — drop it so `total` means
+    // "sellers active in the window ∪ registered". All-time is unaffected: every on-chain
+    // seller has ≥1 all-time payment by construction.
+    if (opts.since !== undefined) all = all.filter(r => r.payments > 0 || r.registered);
     if (opts.registered !== undefined) all = all.filter(r => r.registered === opts.registered);
     all.sort(
       (a, b) =>

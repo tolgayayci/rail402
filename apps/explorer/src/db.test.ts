@@ -555,3 +555,15 @@ describe("sellersDirectory windowed view", () => {
     expect(windowed.items[0]!.registered).toBe(true);
   });
 });
+
+describe("sellersDirectory windowed noise filter", () => {
+  it("drops unregistered sellers with zero window activity, keeps them all-time", () => {
+    const store = new ExplorerStore();
+    const S1 = "GD72QAP3ZKAKQZVFTQGVKMQXNVKUWXR5P2VL7ZGN5UGQ7ZCFP7XKQXHK";
+    store.insertPayment(payment({ seller: S1, closedAt: "2026-06-01T00:00:00Z" }));
+    // Enrichment cached this seller (miss or hit — either writes a metadata row).
+    store.setSellerMeta({ network: "stellar:testnet", payTo: S1, fetchedAt: "2026-06-01T00:00:00Z" });
+    expect(store.sellersDirectory().total).toBe(1);
+    expect(store.sellersDirectory({ since: "2026-08-01T00:00:00Z" }).total).toBe(0);
+  });
+});
