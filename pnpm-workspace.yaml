@@ -13,6 +13,8 @@ packages:
   # The explorer frontend (Vite + React) is likewise OUTSIDE the workspace with its own lockfile:
   # UI build tooling must not enter the tree the license gate enforces fail-closed over.
   - "!apps/explorer/frontend"
+  # The design-system package is likewise standalone (own lockfile) for the same reason.
+  - "!apps/explorer/design-system"
 
 # Keep a single resolved version of the x402 SDK family and the Stellar SDK across
 # the whole workspace. Divergence here would let two packages disagree about wire

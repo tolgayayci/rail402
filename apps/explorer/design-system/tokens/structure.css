@@ -1,0 +1,17 @@
+:root{
+  /* borders: square corners everywhere, no shadows */
+  --border-frame:2px solid var(--ink);    /* outer panel frame */
+  --border-divider:1.5px solid var(--ink);/* structural inner divider */
+  --border-hairline:1px solid var(--line);/* row separator */
+  --border-control:1.5px solid var(--ink);
+  --radius:0;
+  /* spacing */
+  --pad-panel:18px 22px;
+  --pad-row:11px 22px;
+  --pad-control:8px 14px;
+  --gap-grid:16px;
+}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-sans);}
+a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--acc);text-underline-offset:3px;}
+a:hover{color:var(--acc);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
