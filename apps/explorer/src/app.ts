@@ -311,9 +311,32 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
   // Any seller registered in our Bazaar appears here automatically, even before their first
   // settled payment; on-chain-only sellers appear with stats and no name. Ranked by activity.
   const directoryCache = new Map<string, { value: unknown; at: number }>();
+  // Trailing windows for /sellers?window= — the "top sellers by recent activity" view. The
+  // cutoff is second-precision to match closed_at's format (see isoSeconds in db.ts).
+  const SELLER_WINDOWS: Record<string, number> = {
+    "24h": 24 * 3_600_000,
+    "7d": 7 * 24 * 3_600_000,
+    "30d": 30 * 24 * 3_600_000,
+  };
   app.get("/sellers", c => {
     const q = c.req.query();
-    const opts: { network?: string; registered?: boolean; limit?: number; offset?: number } = {};
+    const opts: {
+      network?: string;
+      registered?: boolean;
+      limit?: number;
+      offset?: number;
+      since?: string;
+    } = {};
+    let window: string | undefined;
+    if (q["window"] !== undefined) {
+      if (!(q["window"] in SELLER_WINDOWS)) {
+        throw new X402Error("explorer_invalid_query", {
+          reason: `Query parameter "window" must be one of ${Object.keys(SELLER_WINDOWS).join(", ")} (omit it for all-time).`,
+          details: { parameter: "window", value: q["window"] },
+        });
+      }
+      window = q["window"];
+    }
     if (q["network"] !== undefined) opts.network = q["network"];
     if (q["registered"] !== undefined) {
       if (q["registered"] !== "true" && q["registered"] !== "false") {
@@ -344,14 +367,21 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
       }
       opts.offset = offset;
     }
-    // Cached (the query folds every amount, like /stats).
-    const cacheKey = JSON.stringify(opts);
+    // Cached (the query folds every amount, like /stats). The cache key carries the window
+    // LABEL, not the computed cutoff — a per-request timestamp key would never hit.
+    const cacheKey = JSON.stringify({ ...opts, window: window ?? null });
     const hit = directoryCache.get(cacheKey);
     const now = Date.now();
     if (hit && now - hit.at < 5_000) return c.json(hit.value);
     if (directoryCache.size > 500) directoryCache.clear();
+    if (window !== undefined) {
+      opts.since = new Date(now - SELLER_WINDOWS[window]!)
+        .toISOString()
+        .replace(/\.\d{3}Z$/, "Z");
+    }
     const { items, total } = store.sellersDirectory(opts);
     const value = {
+      ...(window !== undefined ? { window } : {}),
       items: items.map(r => ({
         payTo: r.payTo,
         network: r.network,

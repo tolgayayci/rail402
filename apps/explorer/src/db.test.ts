@@ -505,3 +505,53 @@ describe("ExplorerStats firstPaymentAt", () => {
     expect(store.stats({ network: "stellar:futurenet" }).firstPaymentAt).toBeUndefined();
   });
 });
+
+describe("sellersDirectory windowed view", () => {
+  it("scopes activity stats to the since cutoff and ranks by windowed activity", () => {
+    const store = new ExplorerStore();
+    const S1 = "GD72QAP3ZKAKQZVFTQGVKMQXNVKUWXR5P2VL7ZGN5UGQ7ZCFP7XKQXHK";
+    const S2 = "GBQXGC5CDGYITXTJ5ZKH66WMAMBMGL345WYV4EKPUH23NTRZVUKK6747";
+    // S1: huge all-time history, ONE recent payment. S2: two recent payments.
+    for (let i = 0; i < 5; i += 1) {
+      store.insertPayment(
+        payment({ txHash: `${i}`.repeat(64), seller: S1, closedAt: "2026-06-01T00:00:00Z", amount: "1000" }),
+      );
+    }
+    store.insertPayment(
+      payment({ txHash: "a".repeat(64), seller: S1, closedAt: "2026-08-15T10:00:00Z", amount: "7" }),
+    );
+    store.insertPayment(
+      payment({ txHash: "b".repeat(64), seller: S2, closedAt: "2026-08-15T09:00:00Z", amount: "50" }),
+    );
+    store.insertPayment(
+      payment({ txHash: "c".repeat(64), seller: S2, closedAt: "2026-08-15T11:00:00Z", amount: "50" }),
+    );
+
+    const allTime = store.sellersDirectory();
+    expect(allTime.items[0]!.payTo).toBe(S1); // 6 vs 2 all-time
+
+    const windowed = store.sellersDirectory({ since: "2026-08-15T00:00:00Z" });
+    // Ranked by WINDOWED activity: S2 (2 payments) above S1 (1).
+    expect(windowed.items.map(r => [r.payTo, r.payments])).toEqual([
+      [S2, 2],
+      [S1, 1],
+    ]);
+    const s1 = windowed.items[1]!;
+    expect(s1.volume[0]!.total).toBe("7"); // window volume, not the all-time 5007
+    expect(s1.firstSeenAt).toBe("2026-08-15T10:00:00Z"); // windowed first/last seen
+  });
+
+  it("keeps a registered-but-quiet seller visible in a windowed view, with zero stats", () => {
+    const store = new ExplorerStore();
+    store.markRegisteredSeller({
+      network: "stellar:testnet",
+      payTo: "GAIH3ULLFQ4DGSECF2AR555KZ4KNDGEKN4AFI4SU2M7B43MGK3QJZNSR",
+      serviceName: "Quiet API",
+      fetchedAt: "2026-08-01T00:00:00Z",
+    });
+    const windowed = store.sellersDirectory({ since: "2026-08-15T00:00:00Z" });
+    expect(windowed.items).toHaveLength(1);
+    expect(windowed.items[0]!.payments).toBe(0);
+    expect(windowed.items[0]!.registered).toBe(true);
+  });
+});

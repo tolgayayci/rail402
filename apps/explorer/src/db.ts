@@ -1013,22 +1013,45 @@ export class ExplorerStore {
    * then registration, then address. This is O(rows) like stats(); callers should cache it.
    */
   sellersDirectory(
-    opts: { network?: string; registered?: boolean; limit?: number; offset?: number } = {},
+    opts: {
+      network?: string;
+      registered?: boolean;
+      limit?: number;
+      offset?: number;
+      /** ISO cutoff: activity stats (payments, buyers, volume, first/last seen) count only
+       * payments at or after this instant — the windowed "top sellers by recent activity" view.
+       * Cheaper than the all-time scan (the closed_at index bounds it), not dearer. */
+      since?: string;
+    } = {},
   ): { items: SellerDirectoryRow[]; total: number } {
-    const where = opts.network ? " WHERE network = ?" : "";
-    const params = opts.network ? [opts.network] : [];
+    const payClauses: string[] = [];
+    const payParams: string[] = [];
+    if (opts.network !== undefined) {
+      payClauses.push("network = ?");
+      payParams.push(opts.network);
+    }
+    if (opts.since !== undefined) {
+      payClauses.push("closed_at >= ?");
+      payParams.push(opts.since);
+    }
+    const payWhere = payClauses.length ? ` WHERE ${payClauses.join(" AND ")}` : "";
+    // The sellers metadata table has no closed_at — only the network clause applies to it, so a
+    // registered seller still appears in a windowed view (with zero activity) rather than
+    // vanishing from the directory.
+    const metaWhere = opts.network !== undefined ? " WHERE network = ?" : "";
+    const metaParams = opts.network !== undefined ? [opts.network] : [];
     /* eslint-disable @typescript-eslint/no-explicit-any */
     const aggRows: any[] = this.db
       .prepare(
         `SELECT network, seller, COUNT(*) AS n, COUNT(DISTINCT buyer) AS buyers,
                 MIN(closed_at) AS first_seen, MAX(closed_at) AS last_seen
-         FROM payments${where} GROUP BY network, seller`,
+         FROM payments${payWhere} GROUP BY network, seller`,
       )
-      .all(...params);
+      .all(...payParams);
     const amountRows: any[] = this.db
-      .prepare(`SELECT network, seller, asset_contract, asset, amount FROM payments${where}`)
-      .all(...params);
-    const metaRows: any[] = this.db.prepare(`SELECT * FROM sellers${where}`).all(...params);
+      .prepare(`SELECT network, seller, asset_contract, asset, amount FROM payments${payWhere}`)
+      .all(...payParams);
+    const metaRows: any[] = this.db.prepare(`SELECT * FROM sellers${metaWhere}`).all(...metaParams);
     /* eslint-enable @typescript-eslint/no-explicit-any */
 
     const key = (network: string, payTo: string): string => `${network} ${payTo}`;

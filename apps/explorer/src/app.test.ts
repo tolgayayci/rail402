@@ -376,3 +376,34 @@ describe("GET /ecosystem/timeseries", () => {
     }
   });
 });
+
+describe("GET /sellers?window=", () => {
+  it("scopes the directory to the trailing window and echoes it", async () => {
+    const { app, store } = build();
+    const recent = new Date(Date.now() - 3_600_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    store.insertPayment(payment({ txHash: "1".repeat(64), closedAt: recent, amount: "500" }));
+    store.insertPayment(
+      payment({ txHash: "2".repeat(64), closedAt: "2026-01-01T00:00:00Z", amount: "9999" }),
+    );
+    const res = await app.request("/sellers?window=24h");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, any>;
+    expect(body["window"]).toBe("24h");
+    const row = (body["items"] as Record<string, any>[])[0]!;
+    expect(row["payments"]).toBe(1); // the January payment is outside the window
+    expect(row["volume"][0]["total"]).toBe("500");
+    // All-time view unchanged, no window field.
+    const all = (await (await app.request("/sellers")).json()) as Record<string, any>;
+    expect(all["window"]).toBeUndefined();
+    expect((all["items"] as Record<string, any>[])[0]!["payments"]).toBe(2);
+  });
+
+  it("refuses an unknown window with a coded 400", async () => {
+    const { app } = build();
+    const res = await app.request("/sellers?window=90d");
+    expect(res.status).toBe(400);
+    const err = (await res.json()) as { code: string; reason: string };
+    expect(err.code).toBe("explorer_invalid_query");
+    expect(err.reason).toContain("24h");
+  });
+});

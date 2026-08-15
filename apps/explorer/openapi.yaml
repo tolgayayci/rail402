@@ -160,6 +160,13 @@ paths:
         - name: network
           in: query
           schema: { type: string }
+        - name: window
+          in: query
+          schema: { type: string, enum: [24h, 7d, 30d] }
+          description: |
+            Scope every activity stat (payments, uniqueBuyers, volume, first/last seen) to the
+            trailing window and rank by windowed activity. Omit for all-time. Registered sellers
+            with no window activity stay listed with zero stats.
         - name: registered
           in: query
           schema: { type: boolean }
