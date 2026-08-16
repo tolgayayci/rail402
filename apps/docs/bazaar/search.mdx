@@ -1,0 +1,10 @@
+---
+title: "Search & ranking"
+description: "Natural-language search over the catalog: a hybrid of weighted-field BM25 and a static-embedding vector arm, fused by reciprocal rank fusion."
+---
+
+`GET /discovery/search` ranks the catalog against a natural-language query. The result array is `resources` (not `items`), paginated by an opaque cursor bound to the query and filters, and `searchMethod` names the retrieval in use.
+
+Retrieval is a **hybrid**: a weighted-field BM25 lexical arm (service name, tags, tool name, description, and per-parameter descriptions carry different weights) and a static-embedding vector arm, fused by reciprocal rank fusion. A usage boost from distinct settled payers breaks ties. When the embedding model cannot load, search degrades to BM25 and says so honestly.
+
+Search quality is treated as a product: it is measured against a versioned judgment set with precision, recall, and nDCG, and only metadata that arrived through a settled payment influences ranking, so keyword stuffing and self-boosting do not pay off.

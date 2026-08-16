@@ -1,0 +1,366 @@
+openapi: 3.1.0
+info:
+  title: Rail402 Facilitator API
+  version: "2.0"
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+  description: |
+    The Rail402 x402 facilitator and Bazaar discovery layer on `stellar:testnet`.
+    Verify and settle x402 payments, read what the facilitator supports, and browse or
+    search the discovery catalog. Speaks the x402 v2 wire format, so a stock `@x402` client
+    interoperates with no Rail402-specific code.
+
+    Amounts are integer strings in atomic units at 7 decimals: one USDC is `10000000`, so
+    `500000` is 0.05 USDC. Every rejection carries a machine `code`, a non-null `reason`, and a
+    `retryable` flag.
+servers:
+  - url: https://facilitator.rail402.dev
+    description: "stellar:testnet"
+tags:
+  - name: Payments
+    description: Verify and settle payments
+  - name: Discovery
+    description: Browse and search the Bazaar catalog
+  - name: Info
+    description: Capabilities, health, and metrics
+paths:
+  /supported:
+    get:
+      operationId: getSupported
+      summary: List supported schemes and networks
+      tags: [Info]
+      description: The ground truth for what this facilitator can do. Lists the payment kinds, the extensions it serves, and its settlement signer addresses.
+      responses:
+        "200":
+          description: The supported schemes, networks, extensions, and signers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportedResponse"
+              example:
+                kinds:
+                  - x402Version: 2
+                    scheme: exact
+                    network: "stellar:testnet"
+                    extra: { areFeesSponsored: true }
+                  - x402Version: 2
+                    scheme: upto
+                    network: "stellar:testnet"
+                    extra:
+                      uptoContract: CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X
+                      areFeesSponsored: true
+                extensions: [bazaar]
+                signers:
+                  "stellar:*": [GBRVXNCL55KOEB7WU3BPSEL34PSUH63UCIFPZDUBIVJBRRG5ZB7V4YR7]
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health and catalog storage status
+      tags: [Info]
+      responses:
+        "200":
+          description: Always returned, even when catalog persistence is degraded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+                uptimeSeconds: 169525
+                networks: ["stellar:testnet"]
+                signers: 1
+                feeBump: disabled
+                catalog: { entries: 8, storage: durable }
+  /verify:
+    post:
+      operationId: verifyPayment
+      summary: Verify a payment authorization
+      tags: [Payments]
+      description: |
+        Checks that a payment authorization is valid without submitting it. The stock
+        `@x402/stellar` client builds the `paymentPayload`; you do not assemble it by hand.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FacilitatorRequest"
+      responses:
+        "200":
+          description: |
+            The verification result. On a scheme rejection, `isValid` is `false` and the machine
+            code is in `invalidReason` with the human reason in `invalidMessage`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyResponse"
+              examples:
+                valid:
+                  value: { isValid: true, payer: GBOXS4J3... }
+                rejected:
+                  value:
+                    isValid: false
+                    invalidReason: invalid_exact_stellar_payload_wrong_amount
+                    invalidMessage: The transfer amount does not exactly match the amount in the payment requirements.
+        "400":
+          description: The request never reached the scheme (malformed body, unknown network or scheme).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/X402Error"
+  /settle:
+    post:
+      operationId: settlePayment
+      summary: Settle a payment on chain
+      tags: [Payments]
+      description: |
+        Submits the payment on chain and returns the transaction hash. On a scheme rejection,
+        `success` is `false` and the reason is in `errorMessage`, the field a stock resource
+        server reads.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FacilitatorRequest"
+      responses:
+        "200":
+          description: The settlement result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleResponse"
+              examples:
+                success:
+                  value:
+                    success: true
+                    transaction: feb9bedb674f3b39...
+                    network: "stellar:testnet"
+                    payer: GBOXS4J3...
+                rejected:
+                  value:
+                    success: false
+                    errorReason: settle_exact_stellar_authorization_expired
+                    errorMessage: The authorization entry expired between verification and settlement and is no longer valid.
+                    extra: { reason: "...", retryable: false }
+        "400":
+          description: The request never reached the scheme.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/X402Error"
+  /discovery/resources:
+    get:
+      operationId: listResources
+      summary: Browse the catalog
+      tags: [Discovery]
+      description: Paginated, filterable catalog. The result array is `items`, paginated by offset.
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string, enum: [http, mcp] }
+        - name: payTo
+          in: query
+          schema: { type: string }
+        - name: scheme
+          in: query
+          schema: { type: string, enum: [exact, upto] }
+        - name: network
+          in: query
+          schema: { type: string, example: "stellar:testnet" }
+        - name: extensions
+          in: query
+          schema: { type: string, example: bazaar }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0, minimum: 0 }
+      responses:
+        "200":
+          description: The filtered catalog page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListResponse"
+  /discovery/search:
+    get:
+      operationId: searchResources
+      summary: Search the catalog
+      tags: [Discovery]
+      description: |
+        Natural-language ranking over the catalog. The result array is `resources` (not `items`),
+        paginated by opaque cursor. A missing or empty `query` returns `400 invalid_payload`.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string }
+          example: current price of a commodity
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: The ranked results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
+          description: Missing or empty query.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/X402Error"
+  /metrics:
+    get:
+      operationId: getMetrics
+      summary: Prometheus metrics
+      tags: [Info]
+      responses:
+        "200":
+          description: Prometheus text. Aggregate counters only, with no per-caller labels.
+          content:
+            text/plain:
+              schema: { type: string }
+components:
+  schemas:
+    SupportedResponse:
+      type: object
+      properties:
+        kinds:
+          type: array
+          items: { $ref: "#/components/schemas/SupportedKind" }
+        extensions:
+          type: array
+          items: { type: string }
+        signers:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    SupportedKind:
+      type: object
+      properties:
+        x402Version: { type: integer, example: 2 }
+        scheme: { type: string, example: exact }
+        network: { type: string, example: "stellar:testnet" }
+        extra: { type: object, additionalProperties: true }
+    HealthResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        uptimeSeconds: { type: integer }
+        networks: { type: array, items: { type: string } }
+        signers: { type: integer }
+        feeBump: { type: string, enum: [enabled, disabled] }
+        catalog:
+          type: object
+          properties:
+            entries: { type: integer }
+            storage: { type: string, enum: [memory, durable, degraded] }
+    FacilitatorRequest:
+      type: object
+      required: [paymentPayload, paymentRequirements]
+      properties:
+        x402Version: { type: integer, example: 2 }
+        paymentPayload:
+          $ref: "#/components/schemas/PaymentPayload"
+        paymentRequirements:
+          $ref: "#/components/schemas/PaymentRequirements"
+    PaymentRequirements:
+      type: object
+      properties:
+        scheme: { type: string, example: exact }
+        network: { type: string, example: "stellar:testnet" }
+        asset: { type: string, example: CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA }
+        amount: { type: string, description: "Atomic units, integer string", example: "500000" }
+        payTo: { type: string, example: GBOQSB3F...QR2 }
+        maxTimeoutSeconds: { type: integer, example: 60 }
+        extra: { type: object, additionalProperties: true }
+    PaymentPayload:
+      type: object
+      description: The buyer-signed payload. For exact/stellar, `payload.transaction` is a base64 Stellar transaction XDR.
+      properties:
+        x402Version: { type: integer, example: 2 }
+        accepted: { $ref: "#/components/schemas/PaymentRequirements" }
+        payload:
+          type: object
+          properties:
+            transaction: { type: string, description: base64 Stellar transaction XDR }
+        extensions: { type: object, additionalProperties: true }
+    VerifyResponse:
+      type: object
+      properties:
+        isValid: { type: boolean }
+        invalidReason: { type: string, description: "Machine code, present when isValid is false" }
+        invalidMessage: { type: string, description: "Human reason, present when isValid is false" }
+        payer: { type: string }
+    SettleResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        transaction: { type: string, description: Settled transaction hash }
+        network: { type: string }
+        payer: { type: string }
+        amount: { type: string, description: "Actual settled amount, present for upto" }
+        errorReason: { type: string, description: "Machine code, present when success is false" }
+        errorMessage: { type: string, description: "Human reason, present when success is false" }
+        extra: { type: object, additionalProperties: true }
+    ListResponse:
+      type: object
+      properties:
+        x402Version: { type: integer, example: 2 }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DiscoveryEntry" }
+        pagination:
+          type: object
+          properties:
+            limit: { type: integer }
+            offset: { type: integer }
+            total: { type: integer }
+    SearchResponse:
+      type: object
+      properties:
+        x402Version: { type: integer, example: 2 }
+        resources:
+          type: array
+          items: { $ref: "#/components/schemas/DiscoveryEntry" }
+        pagination:
+          type: [object, "null"]
+          properties:
+            limit: { type: integer }
+            cursor: { type: [string, "null"] }
+        searchMethod: { type: string, example: "hybrid (bm25+static-embedding, rrf)" }
+        partialResults: { type: boolean }
+    DiscoveryEntry:
+      type: object
+      properties:
+        resource: { type: string, example: https://your-seller.example/quote }
+        type: { type: string, enum: [http, mcp] }
+        accepts:
+          type: array
+          items: { $ref: "#/components/schemas/PaymentRequirements" }
+        description: { type: string }
+        lastUpdated: { type: string, format: date-time }
+        domainVerified: { type: boolean }
+        quality:
+          type: object
+          properties:
+            totalSettlements: { type: integer }
+            uniquePayers: { type: integer }
+    X402Error:
+      type: object
+      required: [code, reason, retryable]
+      properties:
+        code: { type: string, example: invalid_network }
+        reason: { type: string }
+        retryable: { type: boolean }
+        details: { type: object, additionalProperties: true }

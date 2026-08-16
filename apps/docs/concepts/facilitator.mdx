@@ -1,0 +1,10 @@
+---
+title: "How the facilitator settles"
+description: "What verify and settle do, and why the facilitator is a trust boundary between the buyer, the seller, and the ledger."
+---
+
+The facilitator exposes three endpoints: `supported`, `verify`, and `settle`. It builds verify and settle on the Apache-2.0 `@x402/stellar` package rather than reimplementing them.
+
+**Verify** checks that a payment authorization is valid without submitting it: correctly signed, authorizing exactly the declared call, asset, amount, and recipient, not replayed, not expired. **Settle** submits it on chain and returns the transaction hash, re-sourcing the transaction to a facilitator account so the buyer pays no fee.
+
+The facilitator is a **trust boundary**. Clients echo the resource and payment data into the payload, so every field is treated as untrusted input, and every rejection carries a machine code and a non-null reason. See [Rejection reasons](/reference/errors) and the callable [Facilitator API](/api-reference/facilitator/info/list-supported-schemes-and-networks).

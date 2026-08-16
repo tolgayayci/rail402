@@ -1,0 +1,99 @@
+---
+title: "Pay for an API"
+description: "Pay for an x402 endpoint on Stellar per request, with a hard spend cap, using the published x402 client and the hosted Rail402 facilitator."
+---
+
+You are building something that pays for services. This page funds a testnet wallet and pays an endpoint with the stock x402 client, capped so it can never spend more than you allow. It ends with a settlement hash on chain.
+
+Every package here is on npm. Payment needs the asset only, not XLM, because the facilitator sponsors the fee.
+
+## 1. Fund a wallet
+
+You need a testnet account that holds the payment asset and has a trustline to it.
+
+1. In [Stellar Lab](https://lab.stellar.org/account/create), generate a keypair and fund it with friendbot. Keep the secret (`S...`).
+2. Add a trustline to testnet USDC (`CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`).
+3. Get testnet USDC from the [Circle faucet](https://faucet.circle.com/).
+
+Export the secret:
+
+```bash
+export CLIENT_STELLAR_PRIVATE_KEY=S...    # testnet key only; never log or commit it
+```
+
+## 2. Pay, with the cap enforced before anything is signed
+
+Enforce the budget in the payment-requirements selector. The selector runs on the request that is actually paid, immediately before signing, so it is the only reliable place to cap spend. Checking an earlier unpaid quote is not enough: a seller can quote cheap when asked and expensive when paid.
+
+```js buyer.js
+import { x402Client } from "@x402/core/client";
+import { wrapFetchWithPayment } from "@x402/fetch";
+import { createEd25519Signer, ExactStellarScheme } from "@x402/stellar";
+import { decodePaymentResponseHeader } from "@x402/core/http";
+
+const BUDGET_STROOPS = 1000000n; // 0.10 USDC. Always set one.
+
+const budgetSelector = (_x402Version, requirements) => {
+  const payable = requirements
+    .filter((r) => r.network?.startsWith("stellar:") && typeof r.amount === "string")
+    .filter((r) => /^\d+$/.test(r.amount) && BigInt(r.amount) <= BUDGET_STROOPS)
+    .sort((a, b) => (BigInt(a.amount) < BigInt(b.amount) ? -1 : 1));
+  if (payable.length === 0) {
+    const cheapest = requirements[0]?.amount ?? "?";
+    throw new Error(`budget exceeded: cheapest option ${cheapest} stroops over cap ${BUDGET_STROOPS}`);
+  }
+  return payable[0];
+};
+
+const signer = createEd25519Signer(process.env.CLIENT_STELLAR_PRIVATE_KEY, "stellar:testnet");
+const client = new x402Client(budgetSelector);
+client.register("stellar:*", new ExactStellarScheme(signer));
+const paidFetch = wrapFetchWithPayment(fetch, client);
+
+const res = await paidFetch("https://your-seller.example/quote?symbol=XLM"); // 402, sign, settle, 200
+const data = await res.json();
+
+const receipt = decodePaymentResponseHeader(res.headers.get("PAYMENT-RESPONSE"));
+console.log("paid", receipt.transaction, JSON.stringify(data));
+```
+
+Run it:
+
+```bash
+node buyer.js
+```
+
+The client handles the whole loop: it receives `402`, signs one authorization entry, retries, and returns `200`. The settlement hash arrives in the `PAYMENT-RESPONSE` header. Open it at `https://stellar.expert/explorer/testnet/tx/<hash>`.
+
+A budget refused in the selector means nothing was signed and nothing was spent.
+
+<Warning>
+`@x402/fetch` rethrows a failure as a plain `Error` with only a message, no error class and no `cause`. If you need to branch on a refusal such as a budget overrun, record it in a variable inside the selector before you throw. Only the message text survives the wrapper.
+</Warning>
+
+## 3. Run the full example
+
+The `examples/paid-api-agent` example in the Rail402 repository runs a paid API, a stock buyer, and the facilitator against testnet with no faucet:
+
+```bash
+pnpm install
+pnpm --filter @rail402.dev/errors build && pnpm --filter @rail402.dev/facilitator build
+npx tsx examples/paid-api-agent/src/setup.ts > demo.env
+set -a; . ./demo.env; set +a
+node apps/facilitator/dist/index.js &
+npx tsx examples/paid-api-agent/src/server.ts &
+npx tsx examples/paid-api-agent/src/client.ts
+```
+
+The buyer prints `HTTP 200` and a settlement object whose `transaction` field is the on-chain hash.
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Discover and pay" icon="compass" href="/buyer/discover-and-pay">
+    Search the Bazaar for a service you have never seen, then pay it. Includes the `upto` metered scheme and the Rail402 agent helpers.
+  </Card>
+  <Card title="MCP discovery server" icon="robot" href="/buyer/mcp-server">
+    Give an agent runtime two tools: search the Bazaar and make a paid call, with a mandatory spend cap.
+  </Card>
+</CardGroup>

@@ -2,16 +2,92 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Rail402",
+  "description": "x402 facilitator, Bazaar discovery, and agent tooling on Stellar.",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#4ADE80",
-    "dark": "#15803D"
+    "primary": "#E23E00",
+    "light": "#FF7A47",
+    "dark": "#C43D00"
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "https://rail402.dev"
+  },
+  "favicon": "/favicon.svg",
+  "banner": {
+    "content": "Rail402 is live on `stellar:testnet`. [Test it in the API playground →](/api-reference/facilitator/info/list-supported-schemes-and-networks)",
+    "dismissible": true
+  },
+  "appearance": {
+    "default": "light"
+  },
+  "background": {
+    "decoration": "grid",
+    "color": {
+      "light": "#FCFBF9",
+      "dark": "#0E0E10"
+    }
+  },
+  "fonts": {
+    "heading": {
+      "family": "Space Grotesk",
+      "weight": 600
+    },
+    "body": {
+      "family": "Archivo",
+      "weight": 400
+    }
+  },
+  "styling": {
+    "eyebrows": "section",
+    "codeblocks": {
+      "theme": {
+        "light": "github-light",
+        "dark": "github-dark"
+      }
+    }
+  },
+  "footer": {
+    "links": [
+      {
+        "header": "Rail402",
+        "items": [
+          { "label": "Explorer", "href": "https://explorer.rail402.dev" },
+          { "label": "rail402.dev", "href": "https://rail402.dev" }
+        ]
+      }
+    ]
   },
   "navigation": {
-    "groups": [
+    "global": {
+      "anchors": [
+        { "anchor": "GitHub", "icon": "github", "href": "https://github.com/tolgayayci/rail402" },
+        { "anchor": "Rail402 Playground", "icon": "flask", "href": "https://playground.rail402.dev" },
+        { "anchor": "Rail402 Explorer", "icon": "compass", "href": "https://explorer.rail402.dev" }
+      ]
+    },
+    "tabs": [
       {
-        "group": "Get Started",
-        "pages": ["index", "quickstart"]
+        "tab": "Documentation",
+        "groups": [
+          { "group": "Welcome", "pages": ["index", "faq"] },
+          { "group": "CLI", "pages": ["cli/overview", "cli/commands"] },
+          { "group": "Getting started", "pages": ["start/quickstart", "explorer/overview", "explorer/self-host"] },
+          { "group": "Sell", "pages": ["seller/quickstart", "seller/discovery", "sell/mcp-tool"] },
+          { "group": "Buy & agents", "pages": ["buyer/quickstart", "buyer/discover-and-pay", "buyer/mcp-server", "buy/agent-spending"] },
+          { "group": "Core concepts", "pages": ["concepts/x402-on-stellar", "concepts/auth-entries", "concepts/trustlines", "concepts/fee-sponsorship", "concepts/facilitator"] },
+          { "group": "Payment schemes", "pages": ["schemes/overview", "schemes/exact", "schemes/upto", "schemes/smart-accounts"] },
+          { "group": "Bazaar (Discovery Layer)", "pages": ["bazaar/overview", "bazaar/cataloging", "bazaar/search", "bazaar/integrity", "bazaar/seller-metadata"] },
+          { "group": "Run your own facilitator", "pages": ["operator/quickstart", "operator/configuration", "operator/operations"] },
+          { "group": "Reference", "pages": ["reference/errors"] }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "groups": [
+          { "group": "Facilitator", "openapi": { "source": "api-reference/facilitator.openapi.yaml", "directory": "api-reference/facilitator" } },
+          { "group": "Explorer", "openapi": { "source": "api-reference/explorer.openapi.yaml", "directory": "api-reference/explorer" } }
+        ]
       }
     ]
   }

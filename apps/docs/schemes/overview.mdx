@@ -1,0 +1,11 @@
+---
+title: "Payment schemes"
+description: "Rail402 supports two schemes on Stellar: exact (a fixed price) and upto (a signed ceiling, settled at actual usage)."
+---
+
+A scheme defines how a payment is authorized and settled. Rail402 supports two on `stellar:testnet`, and `/supported` advertises both.
+
+- **[Exact](/schemes/exact)** settles a fixed amount to a fixed recipient. It is the right choice for a flat per-call price.
+- **[Upto](/schemes/upto)** authorizes a ceiling and settles the actual usage, which fits metered services such as token billing. The unused difference never leaves the buyer's wallet.
+
+Both are non-custodial and fee-sponsored. `upto` additionally composes with [smart-account budgets](/schemes/smart-accounts) to keep an autonomous agent inside a limit.

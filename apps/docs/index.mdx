@@ -1,6 +1,66 @@
 ---
-title: "Introduction"
-description: "Rail402 documentation."
+title: "Rail402"
+sidebarTitle: "Introduction"
+description: "An x402 facilitator and Bazaar discovery layer for Stellar. Settle pay-per-request payments, publish services agents can find, and pay from inside an agent runtime."
 ---
 
-Placeholder home page. Documentation content goes here.
+Rail402 settles [x402](https://x402.org/) payments on Stellar, catalogs the services that get paid into a searchable Bazaar, and lets agents discover and pay for those services from inside an MCP runtime. It runs on `stellar:testnet` today at [`facilitator.rail402.dev`](https://facilitator.rail402.dev/supported), free and with no API key.
+
+x402 turns HTTP `402 Payment Required` into a payment flow software can complete on its own. A client requests a resource, the server answers `402` with payment terms, the client signs a payment authorization and retries, and a facilitator verifies and settles the payment on chain before the resource is returned. The buyer is usually an agent paying per request, with no account and no API key.
+
+Stellar makes this practical. A settlement costs a fraction of a cent, so a per-request micropayment is worth settling even when the amount is small. USDC and other stablecoins are reachable from Soroban through the Stellar Asset Contract, and the facilitator sponsors the network fee so a buyer needs only the payment asset.
+
+## What Rail402 gives you
+
+<CardGroup cols={3}>
+  <Card title="Facilitator" icon="circle-check">
+    `verify`, `settle`, and `supported` for the `exact` and `upto` schemes. Sponsored fees, non-custodial settlement, any SEP-41 asset.
+  </Card>
+  <Card title="Bazaar" icon="magnifying-glass">
+    A catalog and natural-language search over paid services. A resource is listed automatically when its first payment settles. No registration step.
+  </Card>
+  <Card title="MCP server" icon="robot">
+    Search the Bazaar and make a paid call from inside an agent runtime, behind two MCP tools with strict schemas and a required spend cap.
+  </Card>
+</CardGroup>
+
+## Choose your path
+
+<CardGroup cols={3}>
+  <Card title="Seller" icon="store" href="/seller/quickstart">
+    Put a paid, x402-protected endpoint online and make it discoverable in the Bazaar.
+  </Card>
+  <Card title="Buyer and agent" icon="wallet" href="/buyer/quickstart">
+    Discover a service and pay for it per request, on its own or from inside an agent runtime.
+  </Card>
+  <Card title="Operator" icon="server" href="/operator/quickstart">
+    Run the facilitator, hosted for others or self-hosted for your own services.
+  </Card>
+</CardGroup>
+
+Every path has a quickstart that reaches a real testnet payment, and a live example you run end to end. New to x402 on Stellar? Read [Core concepts](/concepts/x402-on-stellar) first. It covers auth entries, ledger-based expiration, trustlines, SEP-41 assets, fee sponsorship, and non-custodial settlement in one page.
+
+## Built on `@x402/stellar`
+
+Rail402 builds verify and settle on the Apache-2.0 [`@x402/stellar`](https://www.npmjs.com/package/@x402/stellar) package and speaks the x402 v2 wire format. A stock x402 client pays a Rail402 endpoint with no Rail402-specific code, and a stock client reads the Rail402 Bazaar through the same `withBazaar()` interface it uses for any other facilitator. The helper libraries (`@rail402.dev/seller-helpers`, `@rail402.dev/agent-helpers`) add convenience on top of the stock packages. You never have to use them to interoperate.
+
+## What the facilitator advertises
+
+The `/supported` endpoint is the ground truth for what a facilitator can do. This is the live response from `facilitator.rail402.dev`:
+
+```json
+{
+  "kinds": [
+    { "x402Version": 2, "scheme": "exact", "network": "stellar:testnet", "extra": { "areFeesSponsored": true } },
+    { "x402Version": 2, "scheme": "upto", "network": "stellar:testnet", "extra": { "uptoContract": "CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X", "areFeesSponsored": true } }
+  ],
+  "extensions": ["bazaar"],
+  "signers": { "stellar:*": ["GBRVXNCL55KOEB7WU3BPSEL34PSUH63UCIFPZDUBIVJBRRG5ZB7V4YR7"] }
+}
+```
+
+`areFeesSponsored: true` means the buyer needs no XLM. The `bazaar` extension means the facilitator catalogs the services it settles. The `upto` kind carries the on-chain contract that enforces the metered scheme.
+
+## See it live
+
+[Explorer](/explorer/overview) shows every x402 payment settled on Stellar, not only Rail402's, with the facilitator that settled each one. It is the fastest way to watch a payment you just made land on chain.

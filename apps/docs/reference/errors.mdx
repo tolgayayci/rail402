@@ -1,0 +1,99 @@
+---
+title: "Rejection reasons"
+description: "Every Rail402 rejection carries a machine code and a non-null reason. This page maps the codes you are most likely to hit to what to do about them."
+---
+
+Every rejection across the facilitator, the Bazaar, and the MCP server carries a machine-readable `code`, a non-null human `reason`, and a `retryable` flag. Branch on `code`. Never parse the `reason` text, which is written for a person, not a program.
+
+```ts
+{ code: "invalid_exact_stellar_payload_wrong_amount", reason: "The transfer amount does not exactly match the amount in the payment requirements.", retryable: false }
+```
+
+## Where the reason appears
+
+The reason travels in a different field depending on where the rejection happens:
+
+| Rejection | Code field | Reason field |
+| --- | --- | --- |
+| `/verify` scheme rejection | `invalidReason` | `invalidMessage` |
+| `/settle` scheme rejection | `errorReason` | `errorMessage` |
+| Malformed request, auth, rate limit | `code` (top level) | `reason` (top level) |
+| Cataloging | `code` in the `EXTENSION-RESPONSES` header | `rejectedReason` in that header |
+| MCP tools, agent helpers | `code` | `reason` |
+
+A stock resource server surfaces `errorMessage` on settle and `invalidMessage` on verify. The same reason and `retryable` are also mirrored into `extra`.
+
+## Retryable means retryable
+
+`retryable: true` is rare and reserved for genuinely transient conditions: rate limiting, a network submission failure, or an upstream service being briefly unreachable. Everything else is `false`. Respect the flag. Retrying a non-retryable failure loops forever, and one code in particular, `mcp_paid_but_resource_failed`, means the money already moved, so a retry pays twice.
+
+## Payment rejections
+
+Wrong terms in the payment. Fix the payment and sign again. None are retryable.
+
+| Code | What to do |
+| --- | --- |
+| `invalid_exact_stellar_payload_wrong_amount` | The transfer amount does not match the requirements. Match it exactly. |
+| `invalid_exact_stellar_payload_wrong_recipient` | The recipient does not match `payTo`. Pay the advertised address. |
+| `invalid_exact_stellar_payload_wrong_asset` | The transaction uses a different asset than the requirements name. |
+| `invalid_exact_stellar_payload_malformed` | The payload is not a base64 Stellar transaction. Use the stock client. |
+| `invalid_exact_stellar_payload_missing_payer_signature` | The payer did not sign the authorization entry. |
+| `invalid_exact_stellar_payload_unsupported_credential_type` | The payer is also the transaction source. Use a distinct source, which the stock client does. |
+| `invalid_exact_stellar_payload_account_policy_refused` | A smart-account payer's own policy declined, usually a spending-limit breach. Lower the amount or raise the limit. |
+
+## Trustline and balance
+
+| Code | What to do | Retryable |
+| --- | --- | --- |
+| `invalid_exact_stellar_payload_missing_trustline_recipient` | The seller cannot receive the asset. Not your fault as a buyer. Report it to the seller. | No |
+| `invalid_exact_stellar_payload_missing_trustline_payer` | You cannot hold the asset. Add a trustline. | No |
+| `invalid_exact_stellar_payload_insufficient_balance` | Your balance is too low. Fund up. | No |
+
+## Replay and expiration
+
+| Code | What to do | Retryable |
+| --- | --- | --- |
+| `invalid_exact_stellar_payload_authorization_replayed` | The authorization was already used. Sign a fresh one. | No |
+| `settle_exact_stellar_authorization_expired` | It expired between verify and settle. Sign again with a fresh window. | No |
+| `settle_exact_stellar_transaction_submission_failed` | The network did not accept the transaction. Retry. | Yes |
+
+## upto rejections
+
+| Code | What to do | Retryable |
+| --- | --- | --- |
+| `invalid_upto_stellar_payload_settlement_exceeds_amount` | The settlement exceeds the signed ceiling. The seller must settle within it. | No |
+| `invalid_upto_stellar_payload_authorization_used` | The authorization was already settled. Each is single-use. | No |
+| `invalid_upto_stellar_payload_expired` | Past its expiration ledger. Sign again. | No |
+| `invalid_upto_stellar_payload_expiration_too_far` | The authorization outlives the payment window. Match `maxTimeoutSeconds`. | No |
+| `invalid_upto_stellar_payload_wrong_contract` | The transaction targets a contract other than the network's `upto` contract. | No |
+
+## Caller access
+
+| Code | What to do | Retryable |
+| --- | --- | --- |
+| `facilitator_authentication_required` | The facilitator requires a key for this network. Supply `Authorization: Bearer <key>`. | No |
+| `facilitator_rate_limited` | Too many requests. Wait for the `Retry-After` window. | Yes |
+
+## Cataloging
+
+Reported in the `EXTENSION-RESPONSES` header on verify and settle.
+
+| Code | What to do |
+| --- | --- |
+| `bazaar_stellar_fees_not_sponsored` | Your `exact` listing must carry `extra.areFeesSponsored: true`. |
+| `bazaar_info_schema_validation_failed` | Your example `input` does not match your `inputSchema`. Align them. |
+| `bazaar_resource_url_not_public` | The resource URL is a loopback or private host. Publish it publicly. |
+| `bazaar_listing_ownership_conflict` | The key is owned by a different `payTo`. See [SEP-1 domain ownership](/seller/discovery#prove-you-own-your-domain). |
+| `bazaar_mcp_missing_tool_name` | An MCP entry must carry `input.toolName`. |
+| `bazaar_mcp_resource_url_not_addressable` | The resource URL is `mcp://`. Use the addressable HTTP endpoint. |
+
+## MCP and agent helpers
+
+| Code | What to do | Retryable |
+| --- | --- | --- |
+| `mcp_budget_required` | Supply `maxAmount`. Nothing was paid. | No |
+| `mcp_budget_exceeded` | The price is above your cap. Nothing was paid. Raise the cap or move on. | No |
+| `mcp_resource_host_refused` | The URL points at a private or IP-literal host. It was not fetched. | No |
+| `mcp_resource_not_payable` | No signer, or no payable Stellar option was offered. | No |
+| `mcp_upstream_error` | The Bazaar or resource was unreachable. No payment settled. Retry. | Yes |
+| `mcp_paid_but_resource_failed` | The payment settled, then the resource failed. The money moved. Do not retry. | No |

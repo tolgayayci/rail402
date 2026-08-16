@@ -1,0 +1,12 @@
+---
+title: "Cataloging lifecycle"
+description: "A resource is recorded provisionally at verify and confirmed at settle. Only a settled payment earns ownership and ranking."
+---
+
+Cataloging is automatic and settlement-gated, in two stages.
+
+**At verify**, a well-formed listing is recorded **provisionally**: discoverable, but with zero ranking signals, no ownership, and a short TTL. This lets a resource appear during payment verification without weakening anti-spam. The facilitator reports `processing` in the `EXTENSION-RESPONSES` header.
+
+**At settle**, the listing is **confirmed and owned** by the paying `payTo`, and it begins to accumulate ranking signals. The facilitator reports `success`, or `rejected` with a machine code and reason.
+
+Only a settled payment earns ownership and ranking, which makes every real listing cost a real payment. The header lets a seller tell whether a listing landed and, if not, why. See [Seller metadata](/bazaar/seller-metadata) for what a listing carries and [Catalog integrity](/bazaar/integrity) for the trust rules.

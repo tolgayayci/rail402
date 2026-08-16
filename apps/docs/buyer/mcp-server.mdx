@@ -1,0 +1,102 @@
+---
+title: "MCP discovery server"
+description: "Give an agent runtime two MCP tools: search the Stellar Bazaar and make a paid call, with structured schemas and a mandatory spend cap."
+---
+
+The MCP discovery server puts the discover, pay, retry loop behind two Model Context Protocol tools, so an agent in Claude Code, Cursor, or any MCP client can find and buy a Stellar service without a pre-built integration. Inputs and outputs are strict JSON, and the paid tool refuses to run without a spend cap.
+
+The server ships in the Rail402 repository as `@rail402.dev/mcp-discovery`. It is not on npm, so you run it from a checkout.
+
+## Run it
+
+Build the server from a Rail402 checkout:
+
+```bash
+pnpm install
+pnpm --filter @rail402.dev/mcp-discovery... build
+```
+
+The stdio entry point is `apps/mcp-discovery/dist/index.js`. Point your MCP client at it:
+
+```json
+{
+  "mcpServers": {
+    "rail402-stellar": {
+      "command": "node",
+      "args": ["/absolute/path/to/x402-stellar/apps/mcp-discovery/dist/index.js"],
+      "env": {
+        "BAZAAR_URL": "https://facilitator.rail402.dev",
+        "CLIENT_STELLAR_PRIVATE_KEY": "S...your-testnet-secret",
+        "STELLAR_NETWORK": "stellar:testnet",
+        "MAX_AMOUNT_CEILING": "10000000"
+      }
+    }
+  }
+}
+```
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `BAZAAR_URL` | Facilitator base URL for search and payment | `http://localhost:4022` |
+| `CLIENT_STELLAR_PRIVATE_KEY` | Buyer secret (`S...`). Omit for a search-only server that cannot pay | unset |
+| `STELLAR_NETWORK` | Network to pay on | `stellar:testnet` |
+| `MAX_AMOUNT_CEILING` | Operator hard cap that overrides any larger budget an agent requests | unset |
+| `MCP_ALLOW_PRIVATE_HOSTS` | Allow loopback and private hosts, for local development | off |
+
+Set `MAX_AMOUNT_CEILING` whenever the server runs unattended. It caps every paid call below whatever the agent asks for.
+
+## `search_stellar_resources`
+
+Natural-language search over the Bazaar. Pays nothing.
+
+**Input**
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `query` | string | Yes | What capability you need, in natural language. |
+| `network` | string | No | CAIP-2 filter, for example `stellar:testnet`. |
+| `type` | `http` or `mcp` | No | Restrict to HTTP endpoints or MCP tools. |
+| `maxPrice` | string | No | Atomic-unit ceiling. Resources priced above it are excluded before you see them. |
+| `limit` | number | No | 1 to 50, default 10. |
+
+**Output** is `{ ok, data, error }`. On success `data` is `{ results, count, searchToken }`, where each result carries `resource`, `type`, `description`, `price`, `inputSchema`, and `usage`. The `usage.uniquePayers` count is a number of distinct settled payers, which is expensive to forge because every one is a real on-chain payment.
+
+## `pay_and_call`
+
+Discover the price, pay, and return the result. Requires a spend cap.
+
+**Input**
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `resource` | string | Yes | Resource URL, exactly as search returned it. |
+| `maxAmount` | string | Yes | The most you authorize for this one call, in atomic units. The tool never pays an unbounded amount. |
+| `toolName` | string | No | For an MCP resource, the tool to call. Supplying it switches the call from HTTP to MCP. |
+| `toolArguments` | object | No | Arguments for the MCP tool. |
+| `method` | string | No | HTTP method, default `GET`. |
+| `queryParams` | object | No | Query parameters for an HTTP call. |
+| `body` | any | No | Request body for an HTTP call. |
+| `network` | string | No | Restrict payment to this network. |
+
+**Output** is `{ ok, data, error }`. On success `data` is `{ transport, status, body, paid }`, where `transport` is `http` or `mcp`, `status` is the HTTP status (absent for MCP), and `paid` is `{ amount, asset, network, transaction }` with the settlement hash.
+
+`maxAmount` is enforced twice: once against the unpaid probe, and again against the price quoted on the request that is actually paid, immediately before signing. A resource that quotes cheap and then charges more is refused with nothing signed.
+
+## Handle failure
+
+Every rejection is `{ code, reason, retryable }`. Branch on `code`, never on the message.
+
+| Code | Meaning | Retry? |
+| --- | --- | --- |
+| `mcp_budget_required` | No `maxAmount` was supplied. Nothing was paid. | No |
+| `mcp_budget_exceeded` | The price is above your cap, on the probe or the paid request. Nothing was paid. | No |
+| `mcp_resource_host_refused` | The URL points at a loopback, private, or IP-literal host. Not fetched. | No |
+| `mcp_resource_not_payable` | No signer configured, or the resource offered no payable Stellar option. | No |
+| `mcp_paid_but_resource_failed` | The payment settled, then the resource failed. The money moved. A retry pays again. | No |
+| `mcp_upstream_error` | The Bazaar or the resource was unreachable. No payment settled. | Yes |
+
+The distinction between the last two rows is the one that matters. `mcp_upstream_error` is safe to retry because no money moved. `mcp_paid_but_resource_failed` is not, because it did. The response carries the transaction hash so you can look up what you paid for.
+
+## Run the loop end to end
+
+The `examples/mcp-agent-zero-integration` example in the Rail402 repository runs an agent that discovers a seller it has never heard of, pays it through these tools, returns the result, and then refuses an over-budget retry. It settles a real testnet transaction.

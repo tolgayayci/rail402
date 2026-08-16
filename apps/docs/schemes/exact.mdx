@@ -1,0 +1,14 @@
+---
+title: "Exact"
+description: "A fixed amount to a fixed recipient, authorized by a Soroban auth entry over a SAC transfer."
+---
+
+`exact` settles a fixed amount to a fixed recipient. It is specified for Stellar in the x402 repository's `scheme_exact_stellar.md`, and Rail402 builds it on `@x402/stellar`.
+
+The buyer signs a Soroban authorization entry over a `transfer(from, to, amount)` call on the payment asset's Stellar Asset Contract. The signature binds the sender, recipient, asset, and amount, so changing any of them fails verification. The wire payload is the signed transaction as base64 XDR, accepted verbatim:
+
+```json
+"payload": { "transaction": "<base64 Stellar transaction XDR>" }
+```
+
+A buyer needs a trustline to the asset and the asset itself. It needs no XLM, because the fee is sponsored, and the transaction source must differ from the payer. See [Auth entries](/concepts/auth-entries).

@@ -1,0 +1,45 @@
+---
+title: "See it live"
+description: "A block explorer for x402 payments on Stellar. It watches the ledger, classifies every x402 settlement, and attributes each to the facilitator that settled it."
+---
+
+The [Rail402 Explorer](https://explorer.rail402.dev) shows every x402 payment settled on Stellar, not only Rail402's. It watches the ledger, recognizes an x402 settlement by its structure, and attributes each one to the facilitator that submitted it. It is the fastest way to watch a payment you just made land on chain.
+
+## What it covers
+
+The Explorer classifies payments structurally, so it sees traffic from any facilitator, including ones nobody registered. A payment is x402 when the buyer signed a detached authorization and the fee was sponsored by a different account. That shape is what the Explorer looks for, which is why it can show the whole ecosystem rather than one operator's slice.
+
+Every payment carries a confidence tier, so an inference is never presented as a fact:
+
+| Tier | Meaning |
+| --- | --- |
+| `rail402` | Submitted by a Rail402 deployment's published signer |
+| `verified-facilitator` | Submitter matches a registered facilitator's live `/supported` signers |
+| `x402-shaped` | Structurally an x402 settlement, submitter unknown |
+
+## Where it runs
+
+The Explorer has a page and a read API:
+
+- **Page:** [`explorer.rail402.dev`](https://explorer.rail402.dev).
+- **API (testnet):** `https://explorer-explorer.up.railway.app`, read-only, public, and no key. See the [Explorer API](/api-reference/explorer/payments/payment-stream-newest-first).
+
+## Watch a payment you just made
+
+After a settlement, take the transaction hash from the `PAYMENT-RESPONSE` header or the settle response, and open it:
+
+```bash
+curl "https://explorer-explorer.up.railway.app/tx/<hash>"
+```
+
+The response classifies the payment: scheme, confidence tier, buyer, seller, asset, amount, and whether the fee was sponsored, all read from the ledger. It also returns the raw Soroban transaction, so every claim the Explorer makes is independently checkable.
+
+Ingestion tails the ledger with a few seconds of lag, so a very fresh payment returns `404 explorer_tx_not_found`, marked retryable. Wait a few seconds and try again.
+
+## Run your own
+
+The Explorer is read-only and holds no keys, so you can run your own copy against testnet or mainnet with one Docker command. It sees the whole ecosystem, because it classifies payments by their on-chain shape rather than an allowlist.
+
+<Card title="Run your own Explorer" icon="server" href="/explorer/self-host">
+  Deploy the Explorer with Docker, configure the networks it watches, and point a facilitator at it.
+</Card>

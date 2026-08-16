@@ -1,0 +1,76 @@
+---
+title: "Configure"
+description: "Every facilitator environment variable, plus fee sponsorship, caller authentication, rate limiting, and the durable catalog. Everything meant to be configurable is configuration."
+---
+
+The facilitator reads configuration from environment variables, validates it before the port binds, and fails fast with a coded message on anything invalid. This page covers the variables you set most and the behavior behind them.
+
+## Environment variables
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `FACILITATOR_STELLAR_SECRET` | Settlement signing account (`S...`). Funded; pays fees | required |
+| `FACILITATOR_STELLAR_CHANNEL_SECRETS` | Extra signing accounts for burst traffic, comma-separated | unset |
+| `FACILITATOR_STELLAR_FEE_BUMP_SECRET` | Separate fee-paying account for fee-bump settlement | unset |
+| `STELLAR_NETWORKS` | CAIP-2 networks to serve, comma-separated | `stellar:testnet` |
+| `STELLAR_TESTNET_RPC_URL` | Soroban RPC endpoint for testnet | `https://soroban-testnet.stellar.org` |
+| `MAX_TRANSACTION_FEE_STROOPS` | Safety ceiling on the settlement fee | `100000` |
+| `FEES_SPONSORED` | Advertise and enable fee sponsorship | `true` |
+| `FACILITATOR_API_KEYS` | Accepted bearer keys, comma-separated. Unset means open | unset |
+| `AUTH_EXEMPT_NETWORKS` | Networks that skip auth even when keys are set | `stellar:testnet` |
+| `RATE_LIMIT_ENABLED` | Turn the fixed-window limiter on or off | `true` |
+| `RATE_LIMIT_WINDOW_SECONDS` | Limiter window length | `60` |
+| `RATE_LIMIT_MAX_REQUESTS` | Requests per window per caller on verify and settle | `120` |
+| `CATALOG_DB_PATH` | SQLite file for a durable catalog. Unset means in-memory | unset |
+| `SERVES_DISCOVERY` | Advertise `bazaar` and serve `/discovery/*` | `true` |
+| `CORS_ORIGINS` | Allowed origins, comma-separated | unset |
+| `TRUST_PROXY` | Trust proxy headers for the caller identity | `false` |
+| `FACILITATOR_PUBLIC_URL` | This deployment's public base URL. Setting it lists the deployment on the Rail402 Explorer | unset |
+| `EXPLORER_ANNOUNCE_URL` | Explorer announce endpoint. Set to `""` to opt out | `https://explorer-api.rail402.dev/announce` |
+| `PORT` | Listen port | `4022` |
+| `HOST` | Bind address | `0.0.0.0` |
+| `LOG_LEVEL` | `trace`, `debug`, `info`, `warn`, `error`, or `fatal` | `info` |
+
+Startup fails with a coded error for anything invalid: a missing signer is `config_no_signer`, and a signer that is not a valid Stellar secret is caught by key parsing. Secrets are never logged.
+
+## Fee sponsorship
+
+The facilitator sponsors the network fee on every settlement, so a buyer needs only the payment asset and no XLM. `FEES_SPONSORED` defaults to `true` and drives the `extra.areFeesSponsored` flag on `/supported`.
+
+You cannot set `FEES_SPONSORED=false`. The settlement path always rebuilds the transaction with a facilitator-funded source, which is sponsorship, so advertising `false` would be untrue. The facilitator refuses to start with `config_fee_sponsorship_mismatch` if you try.
+
+For high throughput, set `FACILITATOR_STELLAR_FEE_BUMP_SECRET`. The fee-bump account pays the fee independently, which separates fee payment from the settling account's sequence number. `/health` reports `feeBump` as `enabled` or `disabled`.
+
+## Caller authentication
+
+The facilitator is open by default: leave `FACILITATOR_API_KEYS` unset and anyone can call. This keeps free testnet frictionless.
+
+Set `FACILITATOR_API_KEYS` to a comma-separated list to require `Authorization: Bearer <key>` on `/verify` and `/settle`. `AUTH_EXEMPT_NETWORKS` stays open even when keys are set, and defaults to `stellar:testnet`, so you can gate a paid network while leaving testnet free. A caller without a valid key gets HTTP 401 with code `facilitator_authentication_required`, which is not retryable, so an agent without a key does not loop.
+
+This is authentication, not metering. It gates who can call. It does not bill how much they call. There is deliberately no per-caller usage accounting.
+
+## Rate limiting
+
+Rate limiting is on by default. It is a fixed window, per caller, in process. `/verify` and `/settle` share a bucket of `RATE_LIMIT_MAX_REQUESTS` per `RATE_LIMIT_WINDOW_SECONDS`, which defaults to 120 per 60 seconds. `/discovery/search` gets a separate bucket at five times that limit.
+
+A refused caller gets HTTP 429 with code `facilitator_rate_limited`, a `Retry-After` header, and `retryable: true`. The caller identity comes from the socket address by default. Set `TRUST_PROXY=true` when you run behind a trusted proxy, and the limiter reads the proxy-set client headers and the last forwarded hop instead. The limiter is per process, so put a shared limiter in front of multiple replicas.
+
+## The catalog database
+
+Unset, the catalog lives in memory, and a restart forgets every listing. That is fine for a test and wrong for a deployment, because nothing replays settlement history to rebuild it, so sellers vanish until each pays again.
+
+Set `CATALOG_DB_PATH=/data/catalog.db` and listings survive restarts. It uses Node's built-in SQLite, so there is no new dependency and no service to run, just one file to back up. Search ranking is identical either way. The store is storage, and retrieval stays the in-process hybrid.
+
+`/health` reports `catalog.storage` as `memory`, `durable`, or `degraded`. `degraded` means writes are failing, usually a full or read-only disk, and the catalog is still serving from memory while losing durability. Alert on it. Do not page on it.
+
+## The fee ceiling
+
+`MAX_TRANSACTION_FEE_STROOPS` is a safety circuit breaker, not a price. It caps the simulation-derived settlement fee, and a settlement that would exceed it is refused with a coded reason rather than submitted. The default of 100,000 stroops covers an ordinary settlement several times over.
+
+Raise it if legitimate payments are refused. A payment from a smart-contract account costs more than a payment from a keypair, because the account cross-calls a signature verifier and a spending policy during settlement, so serving smart-account buyers needs a higher ceiling.
+
+## Pricing and business model
+
+This deployment is free. The facilitator never charges the caller, and there is no usage-based billing to configure. No fee is hard-wired anywhere. Any pricing you add must be configuration a self-hoster can change or remove.
+
+What is configurable is access control, covered in [Caller authentication](#caller-authentication): open, or API-key gated. Aggregate usage is observable on `/metrics`, with no per-caller dimension, so operating this service never becomes surveilling its callers.

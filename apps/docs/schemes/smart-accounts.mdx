@@ -1,0 +1,10 @@
+---
+title: "Smart-account budgets"
+description: "Pay from a Soroban smart-contract account whose policy refuses an over-budget payment on chain, with upto reconciling the ceiling."
+---
+
+The facilitator settles payments from Soroban smart-contract (`C...`) accounts, not only classic keypairs. A smart account authorizes a payment through its own `__check_auth`, so it can carry a **spending policy** that refuses an over-budget payment on chain, before the facilitator ever submits it. An over-budget attempt is reported as `invalid_exact_stellar_payload_account_policy_refused`.
+
+With `upto`, the policy and the scheme compose: the policy reserves the signed ceiling when it authorizes, and the settlement calls the policy's `release` to refund the unused difference. The `oz-account` canary proves this on testnet, settling 750,000 of a 2,000,000 ceiling and reading the on-chain budget back as 750,000.
+
+Rail402 uses OpenZeppelin's audited smart-account stack plus a small x402-aware policy. The facilitator is address-agnostic; the buyer-side helper packages currently sign with a classic keypair.

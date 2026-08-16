@@ -1,0 +1,137 @@
+---
+title: "Expose a paid API"
+description: "Put a paid, x402-protected endpoint online and make it discoverable in the Bazaar, using published packages and the hosted Rail402 facilitator."
+---
+
+You have an HTTP endpoint. By the end of this page it answers unpaid requests with a priced `402`, gets paid in testnet USDC, and appears in the Bazaar catalog after its first settled payment. No registration step and no API key.
+
+Every package here is on npm. You point at the hosted facilitator at `https://facilitator.rail402.dev`.
+
+## Prerequisites
+
+- Node.js 20 or later.
+- A testnet Stellar account to receive payments (`payTo`), with a trustline to testnet USDC. Create one in [Stellar Lab](https://lab.stellar.org/account/fund): fund the account, then add a USDC trustline. See [Trustlines](/concepts/x402-on-stellar#trustlines) for why the receiver needs one.
+
+## 1. Install
+
+```bash
+npm i @x402/core@2.20.0 @x402/hono@2.20.0 @x402/stellar@2.20.0 @x402/extensions@2.20.0 hono @hono/node-server
+```
+
+Using Express instead of Hono? Swap `@x402/hono` for `@x402/express@2.20.0`. The route config object is identical.
+
+## 2. Add the paywall and the listing
+
+The middleware is stock `@x402/hono`. One `declareDiscoveryExtension` call turns the paywall into a Bazaar listing.
+
+```js server.js
+import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { paymentMiddleware } from "@x402/hono";
+import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
+import { ExactStellarScheme } from "@x402/stellar/exact/server";
+import { bazaarResourceServerExtension, declareDiscoveryExtension } from "@x402/extensions/bazaar";
+
+const FACILITATOR_URL = "https://facilitator.rail402.dev";
+const PAY_TO = process.env.SELLER_ADDRESS;                          // G..., with a USDC trustline
+const USDC = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"; // testnet USDC contract
+
+const x402 = new x402ResourceServer([new HTTPFacilitatorClient({ url: FACILITATOR_URL })]);
+x402.register("stellar:*", new ExactStellarScheme());
+x402.registerExtension(bazaarResourceServerExtension);             // automatic cataloging
+
+const app = new Hono();
+app.use(
+  "*",
+  paymentMiddleware(
+    {
+      "GET /quote": {
+        accepts: {
+          scheme: "exact",
+          network: "stellar:testnet",
+          price: { amount: "500000", asset: USDC },                // "500000" stroops = 0.05 USDC
+          payTo: PAY_TO,
+          maxTimeoutSeconds: 60,                                    // required on v2 requirements
+        },
+        description: "A price quote for a named commodity, in a chosen currency.",
+        mimeType: "application/json",
+        extensions: declareDiscoveryExtension({
+          input: { symbol: "XLM", currency: "USD" },               // an example call
+          inputSchema: {
+            type: "object",
+            properties: {
+              symbol: { type: "string", description: "Ticker symbol to price, such as XLM, BTC, or GOLD." },
+              currency: { type: "string", description: "ISO 4217 currency code to quote in. Defaults to USD." },
+            },
+            required: ["symbol"],
+          },
+          output: { example: { symbol: "XLM", price: 0.1234, currency: "USD" } },
+        }),
+      },
+    },
+    x402,
+  ),
+);
+
+// The real handler runs only after a payment settles.
+app.get("/quote", (c) => c.json({ symbol: c.req.query("symbol"), price: 0.1234, currency: c.req.query("currency") ?? "USD" }));
+
+serve({ fetch: app.fetch, port: 4030 });
+```
+
+Start it:
+
+```bash
+SELLER_ADDRESS=G...your-payto-address node server.js
+```
+
+An unpaid request now returns `402`:
+
+```bash
+curl -i http://localhost:4030/quote?symbol=XLM
+# HTTP/1.1 402 Payment Required
+```
+
+## 3. Take the first payment
+
+Cataloging is settlement-gated. Your endpoint appears in the Bazaar when someone first pays it. A free verification only writes a provisional, zero-ranked entry that expires. So make the first payment yourself.
+
+The fastest way is the bundled example, which runs a seller, a buyer, and the facilitator against testnet with self-issued assets and no faucet. From a checkout of the Rail402 repository:
+
+```bash
+pnpm install
+pnpm --filter @rail402.dev/errors build && pnpm --filter @rail402.dev/facilitator build
+```
+
+That script funds accounts, deploys an asset, and runs verify then settle. It prints `settled tx: <hash>`, a 64-character hex string. Open it at `https://stellar.expert/explorer/testnet/tx/<hash>` to see the settlement on chain: the transfer sender is the buyer, and the fee is charged to the facilitator. Each run produces a new hash, because a settlement hash is unique to its transaction.
+
+To pay your own running endpoint instead, follow the [Buyer quickstart](/buyer/quickstart) and point it at `http://localhost:4030/quote?symbol=XLM`.
+
+## 4. Confirm it is discoverable
+
+After the first payment settles, search for it in words from your description:
+
+```bash
+curl -s "https://facilitator.rail402.dev/discovery/search?query=commodity%20price" | jq '.resources[].resource'
+```
+
+Your endpoint's URL appears in the results. It is now discoverable to any agent.
+
+<Card title="Run the whole loop in one command" icon="play">
+  From a Rail402 checkout, `pnpm canary discovery-loop --facilitator https://facilitator.rail402.dev` runs the entire flow against testnet: a stock client pays, the resource is cataloged at settlement, indexed, and returned as the top hit for a natural-language query. It exits non-zero if any step fails.
+</Card>
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Make your listing rank" icon="magnifying-glass" href="/seller/discovery">
+    Write parameter descriptions an agent can act on, confirm your listing with the `EXTENSION-RESPONSES` header, sell an MCP tool, and claim your domain with SEP-1.
+  </Card>
+  <Card title="Facilitator API" icon="code" href="/api-reference/facilitator/info/list-supported-schemes-and-networks">
+    Call `verify`, `settle`, `supported`, and the discovery endpoints from the interactive API reference.
+  </Card>
+</CardGroup>
+
+<Note>
+The Rail402 repository ships `@rail402.dev/seller-helpers`, a typed wrapper over `declareDiscoveryExtension` with less boilerplate and a boot-time preflight check. It is not on npm. If you work inside the repository, prefer it. See [Make it discoverable](/seller/discovery#the-rail402-seller-helpers).
+</Note>

@@ -1,0 +1,10 @@
+---
+title: "Seller metadata"
+description: "What a listing carries, and where per-parameter descriptions live so an agent can call an endpoint it has never seen."
+---
+
+A listing is the discovery extension a seller attaches to a paywall: an `info` object of example values and a `schema` that validates it. The stock `declareDiscoveryExtension` from `@x402/extensions` builds it, and the Rail402 repository ships `@rail402.dev/seller-helpers` (`describeEndpoint`, `describeTool`, `preflight`) as a typed wrapper with less boilerplate.
+
+The load-bearing part is the **per-parameter descriptions**. They live in `inputSchema.properties.<name>.description`, which is the field the Bazaar indexes for search and the field an agent reads to build a valid call. A parameter with no description is invisible in search and unusable by an agent, so both helpers refuse an empty one at build time.
+
+For the step-by-step, see [Make it discoverable](/seller/discovery). For how a listing is recorded, see the [cataloging lifecycle](/bazaar/cataloging).

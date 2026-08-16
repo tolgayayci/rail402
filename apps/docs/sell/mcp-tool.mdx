@@ -1,0 +1,13 @@
+---
+title: "Sell an MCP tool"
+description: "Catalog a paid MCP tool in the Bazaar. MCP tools are a first-class resource type, keyed on the resource URL and tool name."
+---
+
+MCP tools are first-class in the Bazaar, keyed on the pair of `resource.url` and `toolName`, because one MCP endpoint serves many tools. You declare a tool the same way you [describe an HTTP endpoint](/seller/discovery), with a `toolName` and a description for every parameter.
+
+Two rules are specific to tools:
+
+- The resource URL is the addressable HTTP endpoint that serves the tool, never an `mcp://` URL. An `mcp://` URL has no host to key on and is rejected with `bazaar_mcp_resource_url_not_addressable`.
+- The declaration must carry `toolName`, or the entry is rejected with `bazaar_mcp_missing_tool_name`.
+
+The `examples/mcp-tool-seller` example runs a paid MCP tool that catalogs itself, gets found by search, and gets called and paid, end to end on testnet.

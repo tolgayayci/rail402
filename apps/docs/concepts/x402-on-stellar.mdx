@@ -1,0 +1,71 @@
+---
+title: "x402 on Stellar"
+description: "How x402 payments work on Stellar: auth entries, ledger-based expiration, trustlines, SEP-41 assets, fee sponsorship, and non-custodial settlement."
+---
+
+This page explains the six ideas that everything else builds on. Read it once and the seller, buyer, and operator paths will make sense on the first pass.
+
+## The payment flow
+
+<Steps>
+  <Step title="The client requests a resource">
+    An agent or app calls a paid endpoint with no payment attached.
+  </Step>
+  <Step title="The server answers 402">
+    The response is `402 Payment Required` with the payment terms: scheme, network, asset, amount, and the address to pay.
+  </Step>
+  <Step title="The client signs an authorization">
+    The client signs a Soroban authorization entry that permits exactly one payment, then retries the request with that authorization attached.
+  </Step>
+  <Step title="The facilitator verifies and settles">
+    The facilitator checks the authorization, submits it on chain, and pays the network fee.
+  </Step>
+  <Step title="The server returns the resource">
+    Settlement succeeds, and the server returns the paid response with the settlement hash in the `PAYMENT-RESPONSE` header.
+  </Step>
+</Steps>
+
+The buyer is usually software. It completes this loop per request, with no account and no API key.
+
+## Auth entries, not signed transactions
+
+On Stellar, the buyer signs a Soroban **authorization entry**, not a whole transaction. The entry permits one specific contract call: a `transfer(from, to, amount)` on the payment asset's Stellar Asset Contract. The facilitator builds the transaction around that signed entry, sets its own account as the transaction source, submits it, and pays the fee.
+
+This has two consequences you rely on throughout these docs. The buyer never submits a transaction and never spends XLM. And the buyer's wallet must support authorization-entry signing. The stock `@x402/stellar` client does this for you.
+
+## Ledger-based expiration
+
+Each authorization is valid until a specific ledger, `signatureExpirationLedger`, derived from the endpoint's `maxTimeoutSeconds`. The default of 60 seconds is about 12 ledgers at roughly 5 seconds each. After that ledger, the authorization is dead and the buyer signs a new one.
+
+`maxTimeoutSeconds` is required on every listing. If it is omitted, the listing is unconsumable. If an authorization expires between verification and settlement, settle returns `settle_exact_stellar_authorization_expired`, and the buyer signs again.
+
+## Trustlines
+
+A Stellar account needs a **trustline** to a SEP-41 asset before it can hold that asset. Both sides of a payment need one: the buyer to send the asset, the seller to receive it.
+
+The seller's trustline is the one people forget, because a seller thinks about receiving, not holding. It has its own rejection code so the cause is never a mystery:
+
+| Missing trustline | Rejection code |
+| --- | --- |
+| Seller (`payTo`) cannot receive | `invalid_exact_stellar_payload_missing_trustline_recipient` |
+| Buyer cannot send | `invalid_exact_stellar_payload_missing_trustline_payer` |
+
+Add a trustline in [Stellar Lab](https://lab.stellar.org/account/fund) (Fund Account, then Add Trustline), or with a `changeTrust` operation from any Stellar SDK. Get testnet USDC from the [Circle faucet](https://faucet.circle.com/).
+
+## SEP-41 assets and amounts
+
+Rail402 settles any SEP-41 token, with USDC as the default. SEP-41 is the Stellar token interface, and every SEP-41 asset is reachable from Soroban through its Stellar Asset Contract (SAC). The testnet USDC contract is `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`.
+
+Amounts are integers at 7 decimals. One USDC is `10000000` atomic units, so `500000` is 0.05 USDC. Always pass amounts as integer strings, never as floating-point numbers. `Number("9007199254740993")` silently loses precision, and an amount is the one value where that matters. The facilitator rejects a non-integer amount before any payment runs.
+
+## Fee sponsorship
+
+The facilitator pays the Stellar network fee, so the buyer holds only the payment asset and needs no XLM. It does this by rebuilding the transaction with its own account as the source. An operator can also configure a separate fee-bump account that pays the fee independently of sequence numbers.
+
+`/supported` advertises this with `extra.areFeesSponsored: true`. The flag reflects real runtime configuration. The facilitator refuses to start with sponsorship advertised as false, because its settlement path always sponsors, so advertising otherwise would be untrue.
+
+## Non-custodial settlement
+
+The facilitator never takes custody of funds and is never the source of funds. The only money movement any code path causes is submitting the buyer-signed authorization exactly as signed. The transfer's `from` is the buyer, and the transaction source is the facilitator. Change the amount, recipient, or asset, and signature verification fails.
+
+You can confirm this on chain for any settlement. Open the transaction on [stellar.expert](https://stellar.expert/explorer/testnet): the transfer sender is the buyer, and the fee is charged to the facilitator, not the buyer.

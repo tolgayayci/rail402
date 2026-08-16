@@ -1,0 +1,90 @@
+---
+title: "CLI reference"
+description: "Every rail402 command, the --json interface for AI agents, error codes, and how to point the CLI at your own facilitator or explorer."
+---
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `rail402 fund` | Friendbot-fund a testnet account (generates one if you pass no `--secret`) |
+| `rail402 whoami` | Show your address and balances |
+| `rail402 search "<query>"` | Search the Bazaar. Options: `--max <amt>`, `--type http\|mcp`, `--limit <n>` |
+| `rail402 buy "<query>" --max <amt>` | Discover the cheapest match **and** pay it |
+| `rail402 pay <url> --max <amt>` | Pay a known resource URL. Options: `--query k=v` (repeatable), `--method` |
+| `rail402 tx <hash>` | Look up a settlement on the explorer |
+| `rail402 feed` | Recent x402 payments. Options: `--limit`, `--seller`, `--scheme` |
+| `rail402 supported` | What the facilitator advertises |
+| `rail402 config [show\|set\|path]` | Show or change saved config |
+| `rail402 help`, `rail402 version` | |
+
+Amounts are decimals in the asset's units — `--max 0.10` is 0.10 USDC.
+
+<Warning>
+Every payment requires an explicit `--max` cap. The cap is enforced on the request that is actually
+paid, immediately before signing — a seller cannot quote cheap and charge dear.
+</Warning>
+
+## For AI agents
+
+Pass `--json` to any command for a single structured object, and store the key in an environment
+variable (agents cannot type an interactive password):
+
+```bash
+export RAIL402_SECRET=S...
+rail402 buy "convert usdc to stroops" --max 0.10 --json
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "resource": "https://api.example/convert",
+    "status": 200,
+    "paid": { "amount": "500000", "asset": "CBIELTK6…", "network": "stellar:testnet", "transaction": "6c6b…" },
+    "explorer": "https://explorer.rail402.dev/tx/6c6b…",
+    "body": { "…": "the API's response" }
+  }
+}
+```
+
+On failure, `ok` is `false` and `error` carries a machine-readable code, a non-null reason, and a
+`retryable` flag:
+
+```json
+{ "ok": false, "error": { "code": "mcp_budget_exceeded", "reason": "…", "retryable": false } }
+```
+
+Common codes: `mcp_budget_required` (you forgot `--max`), `mcp_budget_exceeded` (price above the cap),
+`config_no_signer` (no `RAIL402_SECRET`), `mcp_resource_not_found` (nothing matched within budget),
+`mcp_upstream_error` (a network/HTTP problem, retryable).
+
+<Note>
+A ready-made Claude **skill** that teaches an agent to drive this CLI ships in the package at
+`skill/SKILL.md`.
+</Note>
+
+## Configuration
+
+Every endpoint defaults to Rail402's hosted testnet infrastructure, and every one is overridable — so
+the same binary drives **your own** self-hosted facilitator or explorer. Precedence, highest first:
+command-line flag → environment variable → `~/.rail402/config.json` → built-in default.
+
+| Setting | Flag | Environment variable | Default |
+|---|---|---|---|
+| Facilitator | `--facilitator` | `RAIL402_FACILITATOR_URL` | `https://facilitator.rail402.dev` |
+| Explorer API | `--explorer` | `RAIL402_EXPLORER_URL` | `https://explorer-api.rail402.dev` |
+| Explorer web (tx links) | `--explorer-web` | `RAIL402_EXPLORER_WEB_URL` | `https://explorer.rail402.dev` |
+| Network | `--network` | `RAIL402_NETWORK` | `stellar:testnet` |
+| Secret | `--secret` | `RAIL402_SECRET` | — |
+
+```bash
+# One-off override:
+rail402 supported --facilitator https://my-facilitator.example
+
+# Persist to ~/.rail402/config.json:
+rail402 config set explorerUrl https://my-explorer.example
+rail402 config show
+```
+
+Testnet USDC comes from the [Circle faucet](https://faucet.circle.com); friendbot funds XLM.

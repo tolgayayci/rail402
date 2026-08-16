@@ -1,0 +1,64 @@
+---
+title: "Payment schemes"
+description: "The exact and upto schemes on Stellar: how each payment is authorized, what the facilitator submits, and the on-chain guarantees the upto contract enforces."
+---
+
+Rail402 supports two schemes on `stellar:testnet`. `exact` charges a fixed price. `upto` authorizes a ceiling and settles the actual usage. `/supported` advertises both.
+
+## The exact scheme
+
+`exact` settles a fixed amount to a fixed recipient. It is specified for Stellar in the x402 repository's `scheme_exact_stellar.md`, and Rail402 builds it on the `@x402/stellar` package rather than reimplementing it.
+
+The buyer signs a Soroban authorization entry over a `transfer(from, to, amount)` call on the payment asset's Stellar Asset Contract. The signed authorization binds the sender, recipient, asset, and amount. The wire payload is the signed transaction as base64 XDR:
+
+```json
+"payload": { "transaction": "<base64 Stellar transaction XDR>" }
+```
+
+The facilitator accepts this format verbatim, with no renamed fields. It rebuilds the transaction with its own account as the source, submits it, and pays the fee. Change any bound field and signature verification fails, which is what makes the facilitator non-custodial.
+
+A buyer needs three things:
+
+- A trustline to the payment asset, so it can send the asset.
+- The payment asset. It needs no XLM, because the fee is sponsored.
+- A transaction source distinct from the payer. When the payer is also the transaction source, Soroban satisfies the authorization with source-account credentials, which the scheme does not accept. The stock client handles this. A hand-rolled one that gets it wrong is rejected with `invalid_exact_stellar_payload_unsupported_credential_type`.
+
+## The upto scheme
+
+`upto` fits metered services, where the final charge is not known when the payment is authorized. The buyer signs a ceiling once, and the seller settles the actual usage, which is never more than the ceiling. It is a Stellar profile of the x402 `upto` scheme.
+
+`upto` ships a Soroban contract, because SEP-41 allowances alone cannot enforce the recipient binding and single-settlement guarantees the scheme requires. The contract is deployed on testnet at `CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X`, and `/supported` advertises it as `extra.uptoContract`. It is non-custodial by construction: no admin, no upgrade path, no withdrawal, and no balance of its own.
+
+### The settlement call
+
+The contract's settle function takes eight arguments:
+
+```
+settle(token, from, to, max_amount, expiration_ledger, nonce, actual_amount, hook)
+```
+
+The buyer's signature covers `token`, `to`, `max_amount`, `expiration_ledger`, and `nonce`, and authorizes `from` through `require_auth`. It deliberately does not cover `actual_amount`. That single choice is the whole scheme: the ceiling is signed and fixed, while the actual charge is left open for the seller to fill in at settlement.
+
+| Argument | Signed | Meaning |
+| --- | --- | --- |
+| `token` | Yes | The SEP-41 asset |
+| `from` | Yes, via `require_auth` | The payer |
+| `to` | Yes | The recipient, which cannot be redirected |
+| `max_amount` | Yes | The ceiling |
+| `expiration_ledger` | Yes | The validity bound |
+| `nonce` | Yes | The single-use value |
+| `actual_amount` | No | The metered charge, filled in at settlement |
+| `hook` | No | An optional spending-policy call |
+
+### The guarantees
+
+- **Partial settlement is safe.** The facilitator substitutes `actual_amount` into the already-signed transaction. Because that argument sits outside the signed set, the substitution cannot invalidate the signature. The contract then re-checks on chain that `actual_amount` does not exceed `max_amount`, so even a compromised facilitator cannot overcharge.
+- **Single use.** Two independent defenses stop a replay. Soroban's own authorization nonce fails a plain replay, and the contract records each `nonce` and refuses a second settlement. A zero-usage settlement still consumes the nonce and moves no money, so a dishonest seller cannot come back later and draw the full ceiling.
+- **Expiration.** `expiration_ledger` is signed. The contract rejects an expiration further out than about 24 hours, and the facilitator additionally bounds it by the endpoint's `maxTimeoutSeconds`.
+- **No contract substitution.** The client checks the facilitator's advertised `uptoContract` against the canonical contract for the network and refuses to sign on a mismatch, so a hostile facilitator cannot name its own contract and its own rules.
+
+### Composing with smart-account budgets
+
+The optional `hook` argument lets `upto` reconcile a smart-account spending budget. A spending policy reserves the ceiling when the authorization is enforced, and the settlement calls the policy's `release` to refund the unused difference. The `oz-account` canary proves this on testnet: it settles 750,000 of a 2,000,000 ceiling, and the on-ledger budget afterward reads 750,000, because `release` returned the rest.
+
+The `upto` client ships in the Rail402 repository as `@rail402.dev/scheme-upto-stellar`. Run `

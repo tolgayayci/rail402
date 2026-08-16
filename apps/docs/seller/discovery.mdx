@@ -1,0 +1,129 @@
+---
+title: "Make it discoverable"
+description: "Write parameter descriptions agents can act on, confirm your listing with the EXTENSION-RESPONSES header, sell an MCP tool, and claim your domain with SEP-1."
+---
+
+The [Seller quickstart](/seller/quickstart) gets your endpoint listed. This page makes the listing good: legible to agents, ranked in search, confirmed as landed, and protected from anyone claiming it.
+
+## Write descriptions an agent can act on
+
+An agent choosing between your endpoint and someone else's has nothing but your text. Search ranks on that same text. A parameter named `q` with no description is invisible in search and unusable by an agent.
+
+Compare:
+
+```js
+symbol: { type: "string", description: "The symbol" }                                      // useless
+symbol: { type: "string", description: "Ticker symbol to price, such as XLM, BTC, or GOLD." }  // rankable
+```
+
+The second wins a search like "what is the current price of gold", which shares no literal word with your endpoint's own description. That match comes from the parameter description, so write it for a reader who has never seen your API.
+
+## Where descriptions live
+
+Put a description on every parameter, inside `inputSchema.properties.<name>.description` in your `declareDiscoveryExtension` call. That is the field the Bazaar indexes for search and the field an agent reads to build a valid call. The top-level `input` object holds example values only, not descriptions, so a description that lives only there is dropped.
+
+Both helper functions and the stock declaration refuse an empty description at build time, so this is hard to get wrong once you know where it goes.
+
+## Confirm your listing landed
+
+The facilitator reports the cataloging outcome in the `EXTENSION-RESPONSES` header on its `/verify` and `/settle` responses. The value is base64-encoded JSON. Decode it to see the verdict:
+
+<CodeGroup>
+```json At verify (well-formed)
+{ "bazaar": { "status": "processing" } }
+```
+
+```json At settle (cataloged)
+{ "bazaar": { "status": "success" } }
+```
+
+```json Rejected (either stage)
+{ "bazaar": { "status": "rejected", "rejectedReason": "...", "code": "bazaar_stellar_fees_not_sponsored" } }
+```
+</CodeGroup>
+
+`processing` at verify means the listing is well-formed and provisionally recorded. `success` at settle means it is cataloged and owned. `rejected` carries a non-null `rejectedReason` you can read and a machine `code` you can branch on. Every rejection tells you why.
+
+The rejections you are most likely to see:
+
+| Code | What to fix |
+| --- | --- |
+| `bazaar_stellar_fees_not_sponsored` | Your `exact` listing must carry `extra.areFeesSponsored: true`. The stock client will not pay a listing without it. |
+| `bazaar_info_schema_validation_failed` | Your example `input` does not match your own `inputSchema`. Align them. |
+| `bazaar_resource_url_not_public` | The resource URL resolves to a loopback or private host. Publish it on a public hostname. |
+| `bazaar_listing_ownership_conflict` | The key is already owned by a different `payTo`. See [Prove you own your domain](#prove-you-own-your-domain). |
+
+You can also confirm from the outside. After the first payment settles, the listing appears in the catalog:
+
+```bash
+curl -s "https://facilitator.rail402.dev/discovery/resources?payTo=G...your-address" | jq '.items[].resource'
+```
+
+## Sell an MCP tool
+
+MCP tools are a first-class resource type. They are keyed on the pair of `resource.url` and `toolName`, because one MCP endpoint serves many tools. Declare the tool name and describe its parameters the same way you describe an HTTP endpoint's.
+
+Two rules specific to tools:
+
+- The resource URL is the addressable HTTP endpoint that serves the MCP tool. It cannot be an `mcp://` URL. An `mcp://` URL has no host to key on, so the facilitator rejects it with `bazaar_mcp_resource_url_not_addressable`.
+- The declaration must carry `toolName`. Without it the facilitator rejects the entry with `bazaar_mcp_missing_tool_name`.
+
+The `examples/mcp-tool-seller` example in the Rail402 repository runs a paid MCP tool that catalogs itself, gets found by natural-language search, and gets called and paid, end to end on testnet.
+
+## Prove you own your domain
+
+Your listing is owned by the `payTo` that first settles a payment for it. That stops anyone from rewriting your listing. It does not stop someone from claiming the key before you do, by paying their own endpoint while declaring your URL.
+
+Close that with one file. Publish a [SEP-1](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0001.md) `stellar.toml` at the root of the domain you list from:
+
+```toml
+# https://api.yourservice.example/.well-known/stellar.toml
+VERSION="2.7.0"
+NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
+ACCOUNTS=[
+  "G...YOUR...PAYTO...ADDRESS",
+]
+```
+
+Serve it over HTTPS with `Access-Control-Allow-Origin: *`, as SEP-1 requires. On your next settled payment the Bazaar reads it and marks your listing `domainVerified`. That gives you three things:
+
+- You can reclaim a squatted listing. A verified `payTo` displaces an unverified one holding your key, and the squatter's accumulated usage does not transfer.
+- Nobody can take yours. A verified owner is never displaced.
+- Buyers can see it. `domainVerified` appears on your entry in the discovery responses.
+
+You do not need SEP-1 to be listed. A missing or unreachable `stellar.toml` never delists you. It leaves the tie-break to whoever paid first.
+
+## How the catalog stays honest
+
+Clients echo the resource block into the payment payload, so the facilitator treats every listing as untrusted input. A few rules follow from that, and you get them for free:
+
+- Ranking grows with distinct real payers, not with self-payments. Paying your own endpoint earns no ranking signal, so there is nothing to game.
+- The asset identity on your listing is derived by the facilitator from the on-chain contract, not taken from the client. A token cannot claim to be USDC when it is not.
+- A route template is percent-decoded before it is checked for path traversal, so a crafted template cannot escape its origin.
+
+## The Rail402 seller helpers
+
+The Rail402 repository ships `@rail402.dev/seller-helpers`, a typed convenience layer over the stock declaration. It is not on npm. Use it when you work inside the repository.
+
+```ts
+import { describeEndpoint, describeTool, preflightAndReport } from "@rail402.dev/seller-helpers";
+
+// Drop straight into a route's `extensions`. Do not wrap it in { bazaar: ... }.
+extensions: describeEndpoint({
+  params: {
+    symbol: { description: "Ticker symbol to price, such as XLM or BTC.", example: "XLM" },
+    currency: { description: "ISO 4217 code to quote in.", required: false, example: "USD" },
+  },
+  outputExample: { symbol: "XLM", price: 0.1234, currency: "USD" },
+});
+```
+
+`describeEndpoint` and `describeTool` return the whole `extensions` value. Its type is branded, so wrapping it again as `{ bazaar: describeEndpoint(...) }` is a compile error. That catches the single most common cataloging mistake, where a double-wrapped extension makes the facilitator silently decline to catalog you.
+
+Run `preflightAndReport` at boot to catch a missing trustline on your own account before a stranger's payment fails on it:
+
+```ts
+await preflightAndReport({ payTo: process.env.SELLER_ADDRESS, asset: process.env.PAYMENT_ASSET });
+```
+
+Network problems produce warnings, never errors, so a Horizon blip cannot stop your server from booting.

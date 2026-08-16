@@ -1,0 +1,10 @@
+---
+title: "Upto"
+description: "Authorize a ceiling, settle the actual usage. A Soroban contract enforces recipient binding and single settlement."
+---
+
+`upto` fits metered services, where the final charge is not known when the payment is authorized. The buyer signs a ceiling once, and only the actual usage settles, never more than the ceiling.
+
+`upto` ships a Soroban contract, because SEP-41 allowances alone cannot enforce the recipient binding and single-settlement guarantees the scheme requires. On testnet it is deployed at `CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X`, advertised as `extra.uptoContract`, and non-custodial by construction (no admin, no upgrade, no balance).
+
+The buyer's signature covers the token, recipient, ceiling, expiration, and a single-use nonce, and deliberately leaves the actual amount open for the seller to fill at settlement. The contract re-checks on chain that the actual never exceeds the signed ceiling. See [Smart-account budgets](/schemes/smart-accounts) for how the unused ceiling is reconciled.
