@@ -1,6 +1,6 @@
 import { x402Client } from "@x402/core/client";
 import { wrapFetchWithPayment } from "@x402/fetch";
-import { createEd25519Signer } from "@x402/stellar";
+import { createEd25519Signer, type ClientStellarSigner } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { UptoStellarClientScheme } from "@rail402.dev/scheme-upto-stellar";
 import { createError, type ErrorCode } from "@rail402.dev/errors";
@@ -198,8 +198,19 @@ interface BudgetRefusal {
 export interface AgentConfig {
   /** Base URL of a Bazaar (our facilitator serves discovery at its own base). */
   bazaarUrl: string;
-  /** Stellar secret seed for the buying account. Omit for discovery-only use. */
+  /**
+   * Stellar secret seed for the buying account (a classic `G...` keypair). Omit for discovery-only
+   * use, or when supplying `stellarSigner` instead.
+   */
   stellarSecret?: string;
+  /**
+   * A pre-built signer, used instead of `stellarSecret`. This is how you pay from a **smart contract
+   * account** (`C...`): build a `ClientStellarSigner` whose `address` is the contract account and
+   * whose `signAuthEntry` authorizes through the account's own `__check_auth` (for example an
+   * OpenZeppelin session key). The signer interface supports both `G...` and `C...` accounts; the
+   * secret path is a convenience for the classic-keypair case.
+   */
+  stellarSigner?: ClientStellarSigner;
   network?: string;
   /** Hard ceiling the caller cannot exceed, whatever they pass per-call. */
   maxAmountCeiling?: string;
@@ -362,9 +373,11 @@ export async function payAndFetch<T = unknown>(
   options: PayOptions,
   fetchImpl: typeof fetch = fetch,
 ): Promise<Result<PaidResponse<T>>> {
-  if (!config.stellarSecret) {
+  if (!config.stellarSecret && !config.stellarSigner) {
     return fail("mcp_resource_not_payable", {
-      reason: "No Stellar signer configured, so no payment can be made. Set `stellarSecret`.",
+      reason:
+        "No Stellar signer configured, so no payment can be made. Set `stellarSecret` (a classic " +
+        "`G...` account) or `stellarSigner` (for a smart contract `C...` account).",
     });
   }
   if (!/^\d+$/.test(options.maxAmount)) {
@@ -443,7 +456,11 @@ export async function payAndFetch<T = unknown>(
   // quoted. The probe above is informational; the selector is the guarantee.
   let refusal: BudgetRefusal | undefined;
   try {
-    const signer = createEd25519Signer(config.stellarSecret, chosen.network as `${string}:${string}`);
+    // Pay from a caller-supplied signer (a smart-account `C...` signer) when given; otherwise build a
+    // classic keypair signer from the secret. The guard above guarantees one of the two is present.
+    const signer: ClientStellarSigner =
+      config.stellarSigner ??
+      createEd25519Signer(config.stellarSecret!, chosen.network as `${string}:${string}`);
     const client = new x402Client(
       budgetSelector(budget, wanted, r => {
         refusal = r;

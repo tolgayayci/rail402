@@ -28,7 +28,12 @@ const WORK = process.env.CONFORMANCE_WORKDIR ?? resolve(REPO, ".conformance");
 const SUITE = join(WORK, "x402");
 const UPSTREAM = "https://github.com/x402-foundation/x402.git";
 
-const pins = JSON.parse(readFileSync(resolve(REPO, "docs/research/spec-pins.json"), "utf8"));
+// spec-pins.json is bundled in the published package (read from PKG); in a repo checkout the source
+// of truth is docs/research/spec-pins.json, so fall back to that when the bundled copy is absent.
+const pinsPath = existsSync(resolve(PKG, "spec-pins.json"))
+  ? resolve(PKG, "spec-pins.json")
+  : resolve(REPO, "docs/research/spec-pins.json");
+const pins = JSON.parse(readFileSync(pinsPath, "utf8"));
 const PINNED = pins.repoHead;
 
 const quiet = (cmd, args, opts = {}) =>

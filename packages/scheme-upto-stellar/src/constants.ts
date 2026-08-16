@@ -37,6 +37,9 @@ import type { Network } from "@x402/core/types";
  */
 export const UPTO_CONTRACTS: Readonly<Record<string, string>> = Object.freeze({
   "stellar:testnet": "CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X",
+  // Deployed 2026-08-16 from the same source, wasm `a19f563e…` byte-identical to the testnet build
+  // (instantiate tx `d0476bae03b8ee50fc75615f1a2b6a77efb9e543d448764b69f038b48ec5d49e`).
+  "stellar:pubnet": "CCQ3LI76R3EN7MKC7NQOW744BAJPGXWJNDWNORBX6BVFYZUYXUT2WAZJ",
 });
 
 /** The contract's entry point. */

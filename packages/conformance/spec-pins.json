@@ -1,0 +1,31 @@
+{
+  "$comment": [
+    "Machine-readable record of the upstream spec files this codebase conforms to.",
+    "Each entry is the commit SHA that last touched that file at the time we conformed to it.",
+    "When drift is detected: re-read the changed file, update this pin in the",
+    "same PR, and re-run conformance. Drift, not inability, is the failure mode."
+  ],
+  "repository": "https://github.com/x402-foundation/x402",
+  "branch": "main",
+  "snapshotDate": "2026-07-30",
+  "repoHead": "183b2706953e5d730f268360ca20bddd58ba19a1",
+  "$methodologyNote": [
+    "These SHAs come from a FULL-HISTORY clone. An earlier pass used `git clone --depth 50`, where",
+    "`git log -1 -- <path>` falsely attributes files to the shallow boundary commit: five specs were",
+    "pinned to 60af28e (an examples-only commit that touches no spec at all). Always resolve per-file",
+    "SHAs against full history — never a shallow clone."
+  ],
+  "files": {
+    "specs/x402-specification-v2.md": "90688e52",
+    "specs/extensions/bazaar.md": "6b04d5e8",
+    "specs/schemes/exact/scheme_exact.md": "8e29d2e2",
+    "specs/schemes/exact/scheme_exact_stellar.md": "c4d2de65",
+    "specs/schemes/upto/scheme_upto.md": "edc7280c",
+    "specs/schemes/upto/scheme_upto_evm.md": "edc7280c",
+    "specs/schemes/upto/scheme_upto_svm.md": "bc22b7d9",
+    "specs/transports-v2/http.md": "b6d5bffd",
+    "specs/transports-v2/mcp.md": "b74dd052",
+    "typescript/packages/mechanisms/stellar": "unpinned-track-version-2.20.0",
+    "typescript/packages/extensions/src/bazaar": "unpinned-track-version-2.20.0"
+  }
+}
