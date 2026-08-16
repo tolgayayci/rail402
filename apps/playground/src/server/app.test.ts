@@ -263,6 +263,17 @@ describe("playground app", () => {
     expect(tooSmall.status).toBe(400);
     expect(((await tooSmall.json()) as { code: string }).code).toBe("playground_invalid_request");
 
+    // An uncapped budget is an uncapped drain (the scene funds 3x the budget) — reject it.
+    const tooLarge = await app.request("/agent/run", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ budget: "50" }),
+    });
+    expect(tooLarge.status).toBe(400);
+    const tooLargeBody = (await tooLarge.json()) as { code: string; reason: string };
+    expect(tooLargeBody.code).toBe("playground_invalid_request");
+    expect(tooLargeBody.reason).toContain("drain");
+
     const mcp = await app.request("/agent/mcp-config", {
       method: "POST",
       headers: { "content-type": "application/json" },

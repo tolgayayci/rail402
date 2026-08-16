@@ -74,6 +74,15 @@ export interface AppDeps {
   readonly browserBundlePath?: string;
 }
 
+/**
+ * Upper bound on the Agents-scene budget. The scene funds the smart account with 3x the budget
+ * (so the deliberately-over-budget payment is refused by the on-ledger policy rather than by an
+ * empty balance), and the surplus strands in the abandoned contract — so without a cap, a single
+ * `{ "budget": "50" }` would try to move 150 USDC out of the dispenser. Matches the Policy Lab's
+ * MAX_LIMIT_STROOPS. The frontend should still default to the minimum (0.1) to keep the demo cheap.
+ */
+const MAX_AGENT_BUDGET_STROOPS = 3_000_000n; // 0.3 USDC
+
 /** HTTP status for a coded refusal that did not carry its own status. */
 function statusFor(code: string): 400 | 402 | 404 | 409 | 429 | 502 | 503 {
   switch (code) {
@@ -164,6 +173,7 @@ export function createApp({
           pollPath: "/agent/run/:id",
           mcpConfigPath: "/agent/mcp-config",
           minBudgetStroops: "1000000",
+          maxBudgetStroops: MAX_AGENT_BUDGET_STROOPS.toString(),
         },
         publish: {
           snippetPath: "/publish/snippet",
@@ -500,6 +510,18 @@ export function createApp({
       return c.json(
         createError("playground_invalid_request", {
           reason: "The agent budget must be at least 0.1 USDC so the demo's payments divide sensibly.",
+        }),
+        400,
+      );
+    }
+    // ...and small enough that one run cannot drain the dispenser. The scene funds the smart
+    // account with 3x the budget (so the over-budget attempt is refused by the POLICY, not by an
+    // empty balance), and the surplus strands in the abandoned contract — so an uncapped budget is
+    // an uncapped drain. Same ceiling as the Policy Lab.
+    if (budgetStroops > MAX_AGENT_BUDGET_STROOPS) {
+      return c.json(
+        createError("playground_invalid_request", {
+          reason: `The agent budget is capped at ${stroopsToDisplay(MAX_AGENT_BUDGET_STROOPS)} USDC so a single run cannot drain the dispenser (the scene funds the account with 3x the budget).`,
         }),
         400,
       );

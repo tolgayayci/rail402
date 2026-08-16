@@ -22,7 +22,7 @@ describe("playground config", () => {
   it("needs nothing but the dispenser secret", () => {
     const c = loadConfig(env());
     expect(c.facilitatorUrl).toBe("https://facilitator.rail402.dev");
-    expect(c.dripStroops).toBe(5_000_000n);
+    expect(c.dripStroops).toBe(1_500_000n);
     expect(c.corsOrigins).toEqual(["*"]);
   });
 

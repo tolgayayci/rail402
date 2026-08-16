@@ -44,8 +44,16 @@ const envSchema = z.object({
 
   PLAYGROUND_USDC_ISSUER: z.string().default(USDC_ISSUER_HINT),
 
-  /** Drip size per fresh session, in stroops (7 decimals). 5_000_000 = 0.5 USDC. */
-  PLAYGROUND_DRIP_STROOPS: z.coerce.bigint().positive().default(5_000_000n),
+  /**
+   * Drip size per fresh session, in stroops (7 decimals). 1_500_000 = 0.15 USDC.
+   *
+   * Kept small on purpose: the demo payments flow BACK to the dispenser (payTo is the dispenser),
+   * so the only real cost per session is the UNSPENT drip stranded in an abandoned session wallet.
+   * 0.15 covers the full browser tour — the 0.05 exact demo plus a metered tab — with margin, while
+   * stranding a fraction of what a larger drip would. Raise it only if a scene needs the session to
+   * hold more than ~0.1 USDC at once.
+   */
+  PLAYGROUND_DRIP_STROOPS: z.coerce.bigint().positive().default(1_500_000n),
 
   /** Price of the exact-scheme demo endpoint, in stroops. 500_000 = 0.05 USDC. */
   PLAYGROUND_EXACT_PRICE_STROOPS: z.coerce.bigint().positive().default(500_000n),
