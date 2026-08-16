@@ -505,6 +505,25 @@ importers:
         specifier: ^3.0.5
         version: 3.2.7(@types/node@22.20.1)(tsx@4.23.1)
 
+  packages/sdk:
+    dependencies:
+      '@rail402.dev/agent-helpers':
+        specifier: workspace:*
+        version: link:../agent-helpers
+      '@rail402.dev/errors':
+        specifier: workspace:*
+        version: link:../errors
+      '@rail402.dev/seller-helpers':
+        specifier: workspace:*
+        version: link:../seller-helpers
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.5
+        version: 3.2.7(@types/node@22.20.1)(tsx@4.23.1)
+
   packages/seller-helpers:
     dependencies:
       '@rail402.dev/errors':

@@ -5,6 +5,9 @@
   "description": "MCP server exposing Stellar Bazaar search and a budget-capped paid-call proxy to agents.",
   "type": "module",
   "main": "./dist/index.js",
+  "bin": {
+    "rail402-mcp": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -13,6 +16,7 @@
     "dev:http": "tsx src/serve-http.ts",
     "start": "node dist/index.js",
     "start:http": "node dist/serve-http.js",
+    "cli": "node dist/cli.js",
     "lint": "eslint src"
   },
   "dependencies": {

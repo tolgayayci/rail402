@@ -1,0 +1,59 @@
+{
+  "name": "@rail402.dev/sdk",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "description": "One install for Rail402 on Stellar: discover and pay x402 services (buyer), declare discoverable paid endpoints (seller), and the shared error registry — a thin umbrella over @rail402.dev/agent-helpers, seller-helpers and errors.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./buyer": {
+      "types": "./dist/buyer.d.ts",
+      "default": "./dist/buyer.js"
+    },
+    "./seller": {
+      "types": "./dist/seller.d.ts",
+      "default": "./dist/seller.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@rail402.dev/agent-helpers": "workspace:*",
+    "@rail402.dev/seller-helpers": "workspace:*",
+    "@rail402.dev/errors": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/x402-stellar.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://rail402.dev",
+  "bugs": {
+    "url": "https://github.com/tolgayayci/x402-stellar/issues"
+  }
+}
