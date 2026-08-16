@@ -13,7 +13,7 @@ import Shell from './Shell.jsx';
  * Do not hand-edit design behavior here; change the design project and re-port.
  */
 export default class Logic extends React.Component {
-  state = { route: { name: 'feed', arg: null }, network: 'stellar:testnet',
+  state = { route: { name: 'feed', arg: null }, network: 'stellar:pubnet',
     stats: null, items: [], loading: true, tier: 'all', scheme: 'all', cursor: null, more: false,
     q: '', searchErr: false,
     facs: null, facsLoading: false, facData: null, facLoading: false, facCursor: null, facMore: false,
@@ -25,8 +25,29 @@ export default class Logic extends React.Component {
     'stellar:testnet': 'https://explorer-explorer.up.railway.app',
     'stellar:pubnet': 'https://explorer-mainnet-explorer.up.railway.app'
   };
-  get API() { return this.API_BASES[this.state.network] || this.API_BASES['stellar:testnet']; }
+  get API() { return this.API_BASES[this.state.network] || this.API_BASES['stellar:pubnet']; }
   expNet() { return (this.state.network || '').indexOf('pubnet') >= 0 ? 'public' : 'testnet'; }
+  /* Network lives in the URL, like a normal explorer: mainnet is bare (/tx/..), testnet is
+     prefixed (/testnet/tx/..). One place builds a path for a network; nav()/setNetwork() use it. */
+  _href(net, p) {
+    const prefix = net === 'stellar:testnet' ? '/testnet' : '';
+    p = String(p || '').replace(/^\/+/, '');
+    return p ? prefix + '/' + p : (prefix || '/');
+  }
+  _stripNet(pathname) {
+    let p = String(pathname || '').replace(/^\/+/, '');
+    let net = 'stellar:pubnet';
+    if (p === 'testnet' || p.indexOf('testnet/') === 0) { net = 'stellar:testnet'; p = p.slice(7).replace(/^\/+/, ''); }
+    return { net, path: p };
+  }
+  _netStateReset() {
+    return { stats: null, items: [], cursor: null, more: false, facs: null,
+      sellersData: null, sellersTotal: 0, sellersOffset: 0, facData: null, addrSeller: null, addrBuyerItems: null,
+      eco: null, ecoTs: null, ecoHealth: null, ecoAsset: null,
+      sellersKpiTotal: null, sellersKpiBazaar: null, sellersKpi7d: null, ecoSellersW: null, assetsTs: null, assetPage: 0,
+      assetsWin: 'all', assetsWinStats: null, assetD: null,
+      assetIcons: { ...(this._iconSeed || {}) } };
+  }
   facName(n) { return n ? String(n).replace(/openzeppelin/ig, 'OZ') : n; }
   _codeMap = {
     'CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA': 'USDC',
@@ -86,9 +107,16 @@ export default class Logic extends React.Component {
   }
   componentDidUpdate() { document.body.style.setProperty('--acc', this.props.accent ?? '#FF4D00'); }
   componentWillUnmount() { clearInterval(this._t); window.removeEventListener('popstate', this._onHash); }
-  nav(path) { this.setState({ menuOpen: false }); history.pushState(null, '', '/' + path); this.applyRoute(); }
+  nav(path) { this.setState({ menuOpen: false }); history.pushState(null, '', this._href(this.state.network, path)); this.applyRoute(); }
   applyRoute() {
-    const path = location.pathname.replace(/^\/+/, '');
+    const { net, path } = this._stripNet(location.pathname);
+    if (net !== this.state.network) {
+      this.setState({ network: net, ...this._netStateReset() }, () => { this._ecoAt = 0; this.ensureStats(); this._route(path); });
+      return;
+    }
+    this._route(path);
+  }
+  _route(path) {
     const query = location.search.replace(/^\?/, '');
     const [name, ...rest] = path.split('/');
     const arg = rest.join('/') || null;
@@ -130,8 +158,6 @@ export default class Logic extends React.Component {
     }
     else {
       const params = new URLSearchParams(query || '');
-      const netP = params.get('network');
-      if (netP && this.API_BASES[netP] && netP !== this.state.network) { this.setNetwork(netP); return; }
       const facParam = params.get('facilitator');
       const tier = facParam ? 'fac:' + facParam : (['rail402', 'verified-facilitator', 'x402-shaped'].indexOf(params.get('confidence')) >= 0 ? params.get('confidence') : 'all');
       const scheme = ['exact', 'upto'].indexOf(params.get('scheme')) >= 0 ? params.get('scheme') : 'all';
@@ -149,22 +175,19 @@ export default class Logic extends React.Component {
     else if (this.state.tier !== 'all') p.push('confidence=' + this.state.tier);
     if (this.state.scheme !== 'all') p.push('scheme=' + this.state.scheme);
     if (this.state.addrFilter) p.push(this.state.addrFilter.role + '=' + encodeURIComponent(this.state.addrFilter.addr));
-    history.replaceState(null, '', '/' + (p.length ? '?' + p.join('&') : ''));
+    history.replaceState(null, '', this._href(this.state.network, '') + (p.length ? '?' + p.join('&') : ''));
   }
   statsUrl() { return this.API + '/stats?network=' + encodeURIComponent(this.state.network); }
   ensureStats() { if (!this.state.stats) fetch(this.statsUrl()).then(r => r.json()).then(st => { this.learnAssets(st); this.setState({ stats: st }); }).catch(() => {}); }
   setNetwork(network) {
     if (network === this.state.network) { this.setState({ netMenuOpen: false }); return; }
-    this.setState({ network, netMenuOpen: false, stats: null, items: [], cursor: null, more: false, facs: null,
-      sellersData: null, sellersTotal: 0, sellersOffset: 0, facData: null, addrSeller: null, addrBuyerItems: null,
-      eco: null, ecoTs: null, ecoHealth: null, ecoAsset: null,
-      sellersKpiTotal: null, sellersKpiBazaar: null, sellersKpi7d: null, ecoSellersW: null, assetsTs: null, assetPage: 0,
-      assetsWin: 'all', assetsWinStats: null, assetD: null,
-      assetIcons: { ...(this._iconSeed || {}) } }, () => {
-      this._ecoAt = 0;
-      this.ensureStats();
-      this.applyRoute();
-    });
+    this.setState({ netMenuOpen: false });
+    // Switching network re-navigates to the same route under the other network's URL prefix,
+    // so the address bar always reflects the network and links stay shareable. applyRoute() then
+    // reads the new network back off the URL and resets per-network state.
+    const cur = this._stripNet(location.pathname).path;
+    history.pushState(null, '', this._href(network, cur) + location.search);
+    this.applyRoute();
   }
   setAddrFilter(role, addr) {
     this.setState({ addrFilter: { role, addr }, items: [], cursor: null, ddOpen: null }, () => { this.syncFeedHash(); this.load(); });
@@ -253,7 +276,7 @@ export default class Logic extends React.Component {
     if (!isDefault) p.push('asset=' + encodeURIComponent(this.state.ecoAsset));
     if ((this.state.ecoRange || 'all') !== 'all') p.push('range=' + this.state.ecoRange);
     if ((this.state.ecoSeries || 'payments') !== 'payments') p.push('series=' + this.state.ecoSeries);
-    history.replaceState(null, '', '/ecosystem' + (p.length ? '?' + p.join('&') : ''));
+    history.replaceState(null, '', this._href(this.state.network, 'ecosystem') + (p.length ? '?' + p.join('&') : ''));
   }
   pickEcoAsset(contract) { this.setState({ ecoAsset: contract, ecoAssetMenu: false, ecoAssetQ: '' }, () => this.syncEcoHash()); }
   sellersQuery() {
@@ -309,7 +332,7 @@ export default class Logic extends React.Component {
     const p = [];
     if ((this.state.assetsWin || 'all') !== 'all') p.push('window=' + this.state.assetsWin);
     if ((this.state.assetPage || 0) > 0) p.push('page=' + ((this.state.assetPage || 0) + 1));
-    history.replaceState(null, '', '/assets' + (p.length ? '?' + p.join('&') : ''));
+    history.replaceState(null, '', this._href(this.state.network, 'assets') + (p.length ? '?' + p.join('&') : ''));
   }
   setSellersWin(w) { if (w === (this.state.sellersWin || 'all')) return; this.setState({ sellersWin: w }, () => this.loadSellers(0)); }
   setSellersReg(r) { if (r === (this.state.sellersReg || 'all')) return; this.setState({ sellersReg: r }, () => this.loadSellers(0)); }
@@ -318,7 +341,7 @@ export default class Logic extends React.Component {
     if ((this.state.sellersWin || 'all') !== 'all') p.push('window=' + this.state.sellersWin);
     if ((this.state.sellersReg || 'all') !== 'all') p.push('registered=' + (this.state.sellersReg === 'bazaar' ? 'true' : 'false'));
     if ((this.state.sellersOffset || 0) > 0) p.push('page=' + (Math.floor(this.state.sellersOffset / 10) + 1));
-    history.replaceState(null, '', '/sellers' + (p.length ? '?' + p.join('&') : ''));
+    history.replaceState(null, '', this._href(this.state.network, 'sellers') + (p.length ? '?' + p.join('&') : ''));
   }
   loadFac(id) {
     this.setState({ facData: null, facLoading: true, facCursor: null, facMore: false });

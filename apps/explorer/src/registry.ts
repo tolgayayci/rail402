@@ -19,6 +19,10 @@ import type { FacilitatorRow } from "./types.js";
 /** Hosts with human-curated identity. Anything else gets a slug derived from its hostname. */
 const WELL_KNOWN: Record<string, { id: string; displayName: string }> = {
   "facilitator.rail402.dev": { id: "rail402", displayName: "Rail402" },
+  // Rail402's dedicated pubnet facilitator instance (separate service because a signer binds to one
+  // network). Same first-party identity as facilitator.rail402.dev so its mainnet settlements earn
+  // the rail402 tier.
+  "facilitator-mainnet-testnet.up.railway.app": { id: "rail402", displayName: "Rail402" },
   "x402.org": { id: "x402-org", displayName: "x402.org" },
   // The "Built on Stellar" facilitator (https://developers.stellar.org/.../x402/built-on-stellar).
   // Its /supported requires an API key; the token is provided via EXPLORER_FACILITATOR_AUTH.
@@ -224,7 +228,11 @@ export class FacilitatorRegistry {
       const owned = probe.signers.filter(
         s => (this.store.signerIndex().get(s) ?? facilitator.id) === facilitator.id,
       );
-      const confidence = facilitator.id === "rail402" ? "rail402" : "verified-facilitator";
+      // A "rail402-N" id is a second first-party deployment (see confidenceFor in classify.ts).
+      const confidence =
+        facilitator.id === "rail402" || facilitator.id.startsWith("rail402-")
+          ? "rail402"
+          : "verified-facilitator";
       const changed = this.store.reattribute(facilitator.id, confidence, owned);
       if (changed > 0) {
         this.logger.info(

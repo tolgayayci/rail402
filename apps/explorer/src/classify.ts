@@ -237,9 +237,13 @@ function confidenceFor(
   facilitatorId: string | undefined,
   selfId: string | undefined,
 ): Confidence {
-  if (facilitatorId !== undefined && facilitatorId === selfId) return "rail402";
-  if (facilitatorId !== undefined) return "verified-facilitator";
-  return "x402-shaped";
+  if (facilitatorId === undefined) return "x402-shaped";
+  // First-party is the self id, OR a "<selfId>-N" row id. uniqueId() only appends that suffix when
+  // a WELL_KNOWN host loses an id-dedup race, and only the operator's own hosts map to the self id,
+  // so a second-network deployment (e.g. a dedicated pubnet facilitator) is still first-party.
+  if (facilitatorId === selfId || (selfId !== undefined && facilitatorId.startsWith(`${selfId}-`)))
+    return "rail402";
+  return "verified-facilitator";
 }
 
 /** Classify one getTransaction result. Returns [] for anything that is not x402-shaped. */
