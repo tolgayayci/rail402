@@ -1,0 +1,21 @@
+{
+  "name": "@rail402.dev/example-smart-account-buyer",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Pay a Stellar x402 resource from an OpenZeppelin smart-contract (C...) account, through the direct verify/settle path.",
+  "type": "module",
+  "scripts": {
+    "pay": "tsx src/pay.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^16.2.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  }
+}
