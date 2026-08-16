@@ -1,0 +1,27 @@
+{
+  "packVersion": "1.0.0",
+  "builtFrom": {
+    "toolace": {
+      "url": "https://huggingface.co/datasets/Team-ACE/ToolACE/resolve/main/data.json",
+      "revision": "main",
+      "license": "Apache-2.0",
+      "docs": 16134
+    },
+    "mcpRegistry": {
+      "url": "https://registry.modelcontextprotocol.io/v0/servers",
+      "pages": 12,
+      "license": "CC0-1.0",
+      "docs": 316
+    }
+  },
+  "totals": {
+    "docs": 16450,
+    "silverQueries": 2000,
+    "silverQueriesAvailable": 9178
+  },
+  "sha256": {
+    "corpus": "77ba5d31b9d96c11ed454194c2e5a0954edb293dc97ac35e5daef776907ba08a",
+    "judgments": "4f929c043392988746319a533428ba1921a62655e31cf76e5967c97415148102"
+  },
+  "note": "Silver eval fixture only. Never served as the live catalog. Hosts are .invalid, quality zeroed, payTo a sentinel."
+}

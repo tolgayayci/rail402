@@ -36,5 +36,21 @@
       "types": "./dist/exports.d.ts",
       "default": "./dist/exports.js"
     }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/x402-stellar.git",
+    "directory": "apps/bazaar"
+  },
+  "homepage": "https://rail402.dev",
+  "bugs": {
+    "url": "https://github.com/tolgayayci/x402-stellar/issues"
   }
 }
