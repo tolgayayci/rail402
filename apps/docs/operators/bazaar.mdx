@@ -1,0 +1,81 @@
+---
+title: "Bazaar operations"
+description: "The catalog runs inside the facilitator. Make it durable, understand the cataloging lifecycle, and read its health."
+sidebarTitle: "Bazaar operations"
+---
+
+By the end of this page you know where the catalog lives, how a listing gets there, and how to keep it across restarts. This uses `@rail402.dev/bazaar`, the catalog and search library that ships as a dependency of `@rail402.dev/facilitator`.
+
+<Warning>
+The catalog defaults to **in-memory**, and a restart forgets every listing. Nothing replays settlement history to rebuild it, so sellers vanish until each pays again. For any deployment you keep, set `CATALOG_DB_PATH` to a file.
+</Warning>
+
+## The catalog is co-deployed
+
+The Bazaar is not a separate service. It runs in the same process as the facilitator, and there is no ingest endpoint. A listing enters the catalog only from inside the facilitator's own `/verify` and `/settle` handlers. A standalone Bazaar could only ever serve an empty catalog, which is why the facilitator and the catalog are one image.
+
+The facilitator serves the read side at `/discovery/resources` (paginated browsing with seven filters) and `/discovery/search` (natural-language ranking). Both are described in [the Bazaar concept page](/concepts/bazaar) and [search](/concepts/search).
+
+## Durability
+
+Unset `CATALOG_DB_PATH` and the catalog lives in memory. That is fine for a quick test and wrong for a deployment.
+
+Set it to a file and listings survive restarts:
+
+```bash
+CATALOG_DB_PATH=/data/catalog.db
+```
+
+It uses Node's built-in SQLite, so there is no new dependency and no database to run, just one file to back up. The store holds rows only. Search ranking is identical either way, because retrieval stays the in-process hybrid over whatever is stored.
+
+<Tip>
+With Docker, mount a volume at the catalog path (`-v rail402-catalog:/data`) so the file outlives the container. The image already points `CATALOG_DB_PATH` at `/data`.
+</Tip>
+
+## The cataloging lifecycle
+
+Cataloging is automatic and gated on payment. A seller declares discovery metadata, and a resource is listed when a payment carrying the discovery extension moves through the facilitator. It happens in two stages:
+
+<Steps>
+  <Step title="Provisional at verify">
+    When a well-formed listing arrives on `/verify`, the facilitator writes it **provisionally**. It is discoverable, but it carries no ranking signals and no ownership, and it is pruned on a TTL. This is what lets a resource appear during payment verification the way stock clients expect.
+  </Step>
+  <Step title="Confirmed at settle">
+    A successful settlement on `/settle` confirms the listing. Only settlement earns ownership and ranking signals. A provisional entry is displaceable, so a free `/verify` can never lock out or spoof a real seller.
+  </Step>
+</Steps>
+
+The outcome is reported back to the seller in the `EXTENSION-RESPONSES` header, so a seller can tell whether a listing landed and, if not, why, with a machine-readable reason.
+
+## Integrity and anti-spam
+
+Clients echo the resource block into the payment payload, so the facilitator treats every listing as untrusted input. The load-bearing property is that **ownership is bound to settlement**: a listing belongs to the `payTo` that first settles a payment for it, and a settled listing cannot be overwritten by a different owner. Only metadata that arrived through the legitimate cataloging path influences ranking, and only distinct real payers move it, so a self-payment earns no rank. The full set of controls (soft-drop validation, `routeTemplate` percent-decoding, domain proof, derived asset identity) is covered in [Security and trust boundaries](/operators/security).
+
+## Degraded mode
+
+`/health` reports the catalog storage mode so you can alert on durability loss:
+
+| `catalog.storage` | Meaning |
+| --- | --- |
+| `memory` | No `CATALOG_DB_PATH` set. Listings are lost on restart |
+| `durable` | Writing to the SQLite file. Listings survive restarts |
+| `degraded` | Writes are failing, usually a full or read-only disk. Still serving from memory while losing durability |
+
+When storage is `degraded`, the facilitator keeps verifying, settling, and serving discovery from memory. What a caller sees is unchanged until a restart, at which point the durable catalog is behind. Alert on `degraded`. Do not page on it: payments still work.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="sliders" href="/operators/configuration">
+    `CATALOG_DB_PATH` and the rest of the environment.
+  </Card>
+  <Card title="Monitoring and runbook" icon="gauge-high" href="/operators/operations">
+    `/health`, `/metrics`, and reacting to degraded storage.
+  </Card>
+  <Card title="How search works" icon="magnifying-glass" href="/concepts/search">
+    BM25 plus static-embedding ranking, in-process.
+  </Card>
+  <Card title="Catalog integrity" icon="shield" href="/operators/security">
+    Ownership, soft-drop validation, and route-template safety.
+  </Card>
+</CardGroup>

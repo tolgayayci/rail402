@@ -1,0 +1,82 @@
+---
+title: "Expiration, replay, and front-running"
+description: "How a Stellar authorization is bounded in time by signatureExpirationLedger, how Rail402 handles the race where an entry expires between verify and settle, and why a settlement resists replay and front-running by construction."
+---
+
+An x402 authorization on Stellar is short-lived and single-use by design. This page covers three related failure modes: ledger-based expiration, the verify-to-settle race, and resistance to replay and front-running. Each has a specific error code, not a crash.
+
+## Ledger-based expiration
+
+A Stellar authorization entry is valid only until a specific ledger, `signatureExpirationLedger`. There are no wall-clock timestamps in the auth. The buyer's client derives the ledger from the seller's `maxTimeoutSeconds`:
+
+```
+expirationLedger = currentSequence + ceil(maxTimeoutSeconds / 5)
+```
+
+At the default `maxTimeoutSeconds` of 60 and roughly 5-second ledgers, that is about **12 ledgers, or about a minute**. After that ledger the authorization is dead and the buyer must sign a fresh one.
+
+The facilitator enforces the bound in **both directions**:
+
+- **Lower bound.** An entry whose expiration is already in the past is rejected before submission.
+- **Upper bound.** An entry whose expiration is *too far* in the future is also rejected. `@x402/stellar` allows a small tolerance (`maxLedger + 2`) to absorb RPC skew, meaning a few seconds where the facilitator's view of the current ledger lags the network. Rail402 mirrors that tolerance for `exact` and reimplements it for `upto` (`ceil(seconds/5) + 2`), rejecting an over-far entry with `invalid_upto_stellar_payload_expiration_too_far`.
+
+<Note>
+The upper bound is not cosmetic. For [`upto`](/architecture/upto), the single-use nonce record is stored with a TTL derived from the same window. If an authorization could expire *after* its nonce record, the record that makes it single-use would vanish while the authorization was still live, so the contract refuses any expiration beyond `current + NONCE_TTL_LEDGERS`. See [the contract guarantees](/architecture/upto#the-contract-guarantees).
+</Note>
+
+## The verify-to-settle race
+
+Verify and settle are two separate calls. The 60-second window can elapse between them, for example while the seller runs the metered work or the network is briefly slow, and the authorization that was valid at verify is expired at settle. That is a normal outcome, not an error condition, and it must be reported as such.
+
+Rail402 detects it at settle by matching the Soroban host phrase `signature has expired` and returns a **non-retryable** code:
+
+| Scheme | Code at settle |
+| --- | --- |
+| `exact` | `settle_exact_stellar_authorization_expired` |
+| `upto` | `settle_upto_stellar_authorization_expired` |
+
+Non-retryable is the correct flag: retrying with the same expired authorization will fail forever. The right recovery is for the buyer to sign a fresh authorization, which the reason tells it to do. A facilitator that returned a retryable error here, or crashed, would trap an agent in a retry loop.
+
+## Replay resistance
+
+An authorization is single-use, and Rail402 enforces it at two layers.
+
+For **`exact`**, the SAC's own nonce mechanism rejects a re-submitted authorization at the Soroban auth layer: the host raises `Error(Auth, ExistingValue)` ("nonce already exists"). Rail402's classifier matches both that structured token and the human phrasing, and returns `invalid_exact_stellar_payload_authorization_replayed`, non-retryable.
+
+For **`upto`**, replay is refused twice over. The Soroban auth layer rejects the reused nonce exactly as above, and the [upto contract](/architecture/upto) independently records each nonce in `temporary()` storage and checks-then-sets it before any transfer, so even a hypothetical auth-layer bypass meets a contract that has already consumed the nonce. A [test replays a captured payload](/architecture/conformance) and confirms the second attempt fails.
+
+<Tip>
+There is a subtle correctness point here, found by decoding a real simulation: `upto`'s replay surfaces as `Error(Auth, ExistingValue)` at the auth layer, not as the contract's own error number. Matching only the contract error would miss the real-world case, so Rail402 matches both.
+</Tip>
+
+## Front-running resistance
+
+A front-runner who observes a signed authorization in flight cannot profit from it, because the authorization binds every value that matters. The auth entry commits to the exact `from`, `to`, `amount`, and asset (and, for `upto`, the ceiling, recipient, and settlement contract). A third party cannot redirect the transfer to a different recipient, inflate the amount, or change the asset, because any such change invalidates the signature. And because the authorization is single-use, a front-runner cannot resubmit the identical transfer to a different block position for gain; the second submission is a replay and is refused.
+
+The facilitator submits the authorization exactly as signed. There is no code path in which it can alter a bound value, which is the same property that makes it [non-custodial](/architecture/settlement#the-non-custodial-invariant).
+
+## Where it lives
+
+| Concern | Source |
+| --- | --- |
+| `exact` expiry and replay detection and codes | `apps/facilitator/src/facilitator/classify.ts` |
+| `upto` expiration window (both bounds) | `packages/scheme-upto-stellar/src/facilitator.ts` |
+| `upto` single-use nonce, TTL bound | `contracts/upto-stellar/src/lib.rs` |
+| Client expiration derivation | `packages/scheme-upto-stellar/src/client.ts` |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="The upto scheme" icon="gauge" href="/architecture/upto">
+    The contract that enforces single-use on chain.
+  </Card>
+  <Card title="The settlement path" icon="right-left" href="/architecture/settlement">
+    Where auth-entry validation happens.
+  </Card>
+  <Card title="Wire-level conformance" icon="clipboard-check" href="/architecture/conformance">
+    The replay and tamper negative tests.
+  </Card>
+  <Card title="Error registry" icon="triangle-exclamation" href="/reference/errors">
+    The full set of settlement rejection codes.
+  </Card>
+</CardGroup>

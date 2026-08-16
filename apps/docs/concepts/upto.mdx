@@ -1,0 +1,105 @@
+---
+title: "The upto scheme"
+description: "Metered settlement on Stellar: the buyer authorizes a ceiling, and a Soroban contract settles only the actual usage, once, never above the ceiling."
+---
+
+The `upto` scheme is a metered payment: the buyer authorizes a spending ceiling, and only the actual usage settles, never more than the ceiling.
+
+It is the fit for a service whose price is not known until after the work runs, such as token billing or per-request metering. For a fixed price known up front, use [The exact scheme](/concepts/exact).
+
+## exact versus upto
+
+| | exact | upto |
+| --- | --- | --- |
+| Buyer authorizes | one exact amount | a ceiling |
+| Amount settled | exactly the authorized amount | the actual usage, up to the ceiling |
+| Fits | a fixed-price call | a metered service |
+| On-ledger enforcer | the SEP-41 transfer | a Soroban contract |
+
+## How a payment settles
+
+<Steps>
+  <Step title="The seller states a ceiling">
+    The `402` terms carry a scheme of `upto` and a maximum amount. This is the most the call can cost.
+  </Step>
+  <Step title="The buyer authorizes up to the ceiling">
+    The buyer signs a Soroban authorization entry against the `upto` contract, permitting a settlement of any amount up to the ceiling, once.
+  </Step>
+  <Step title="The work runs and the actual cost is known">
+    The seller measures the usage. The actual charge is at most the ceiling.
+  </Step>
+  <Step title="The contract settles the actual amount">
+    The facilitator calls the contract's `settle` with the actual amount. The contract enforces that it does not exceed the ceiling, moves exactly that amount, and marks the authorization consumed so it cannot settle twice.
+  </Step>
+</Steps>
+
+## Why a Soroban contract ships
+
+The `upto` guarantees cannot be met by SEP-41 allowances alone. An `approve` / `transfer_from` allowance lets a spender move up to an approved amount, but it cannot bind the settlement to one specific recipient, and it does not enforce a single settlement. A stale allowance can be drawn more than once, and toward any recipient the spender chooses.
+
+So `upto` ships a Soroban contract that enforces the two properties the scheme requires:
+
+<CardGroup cols={2}>
+  <Card title="Ceiling binding" icon="arrows-to-dot">
+    The contract refuses any `settle` above the authorized ceiling.
+  </Card>
+  <Card title="Single settlement" icon="lock">
+    The authorization is consumed on first settlement, so it cannot be replayed.
+  </Card>
+</CardGroup>
+
+The contract is deployed on testnet at `CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X`. The facilitator advertises it, so a client can discover the address it must authorize against:
+
+```json
+// GET /supported (excerpt)
+{ "extra": { "uptoContract": "CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X" } }
+```
+
+<Note>
+Shipping a contract widens the audit scope compared to `exact`, which ships none. The single-use window is enforced on chain by ledger-bounded expiration, so an authorization cannot outlive the record that makes it single-use.
+</Note>
+
+## Composing with smart-account spending policies
+
+An agent buying from many services wants a budget it cannot exceed, checked on the ledger rather than in the client. The `upto` contract composes with an OpenZeppelin smart-account spending policy to give that, using a reserve-then-reconcile pattern.
+
+<Steps>
+  <Step title="enforce reserves the ceiling">
+    When the authorization is created, the policy's `enforce` reserves the full ceiling against the account's budget. The worst case is booked up front, so a second request cannot double-spend the same budget.
+  </Step>
+  <Step title="release reconciles to the actual charge">
+    After settlement, the contract calls the policy's `release` with the actual amount. The policy refunds the unspent difference, and the budget ends at the real charge, not the ceiling.
+  </Step>
+</Steps>
+
+Because `enforce` reserves the ceiling, a budget that ends at the actual charge is only reachable if `release` ran. See [Stellar essentials](/concepts/stellar) for what a smart account is, and [Meter usage with upto](/sellers/upto) for the wiring.
+
+## Using it
+
+`upto` lives in `@rail402.dev/scheme-upto-stellar`. The buyer registers `UptoStellarClientScheme`; the seller registers `UptoStellarServerScheme`; the facilitator registers `UptoStellarFacilitatorScheme`.
+
+```ts
+import { UptoStellarClientScheme } from "@rail402.dev/scheme-upto-stellar";
+
+// buyer authorizes a ceiling; only usage settles
+client.register("stellar:*", new UptoStellarClientScheme(signer));
+```
+
+Amounts, ceilings included, are integer strings at 7 decimals. See the [packages reference](/reference/packages) for the full API.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="The exact scheme" icon="equals" href="/concepts/exact">
+    The fixed-price counterpart.
+  </Card>
+  <Card title="Stellar essentials" icon="star" href="/concepts/stellar">
+    Smart accounts and spending policies.
+  </Card>
+  <Card title="Packages" icon="book" href="/reference/packages">
+    The upto package API and contract addresses.
+  </Card>
+  <Card title="Conformance" icon="clipboard-check" href="/reference/conformance">
+    Settled upto transactions on testnet.
+  </Card>
+</CardGroup>

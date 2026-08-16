@@ -1,0 +1,89 @@
+---
+title: "Bazaar: metadata, cataloging and trust"
+description: "What a Bazaar listing is, how it enters the catalog through settlement, the seven discovery filters, and why the facilitator treats client-supplied metadata as untrusted."
+---
+
+The Bazaar is a discovery catalog of paid resources on Stellar: an agent searches it, finds an endpoint or MCP tool it has never seen, and pays for it through the same facilitator that cataloged it.
+
+A **listing** is the discovery metadata for one paid resource: its URL, price terms, and human-legible description (including a description per input parameter, so an agent can tell what the endpoint does).
+
+<Warning>
+**The catalog is a trust boundary.** Clients echo the resource block into the payment payload, so any metadata arriving with a payment is attacker-influenceable. The facilitator treats it as untrusted: ownership is bound to settlement, not to whoever submitted the block. And a settled payment proves someone paid the endpoint, not that they own the domain it points at. Read [How search works](/concepts/search) and the integrity rules below before trusting any field.
+</Warning>
+
+## How a listing enters the catalog
+
+Cataloging is automatic and settlement-gated. There is no separate registration step and no ingest endpoint: a resource is listed only through a payment that carries the discovery extension, from inside the facilitator's own `/verify` and `/settle` handlers.
+
+It is hybrid, so a resource can appear during payment without a free request being able to spoof a seller.
+
+<Steps>
+  <Step title="Provisional, at verify">
+    When a well-formed listing arrives at `/verify`, a provisional entry is written. It is discoverable, but it carries no ranking signals and no ownership, and it is pruned on a TTL. This is why a resource can appear during payment verification.
+  </Step>
+  <Step title="Confirmed, at settle">
+    A successful settlement confirms the entry and is the only thing that earns ownership and ranking. A provisional incumbent is displaceable, so a free `/verify` can never lock out or spoof a real seller.
+  </Step>
+</Steps>
+
+Because a listing costs a real settled payment, every listing has a cost, which is the strongest anti-spam property available. HTTP endpoints and MCP tools are both first-class resource types.
+
+## Browsing: the seven filters
+
+`GET /discovery/resources` is paginated catalog browsing. It takes seven filters. Note that `scheme` is one of them.
+
+| Filter | Selects by |
+| --- | --- |
+| `type` | resource type (`http` or `mcp`) |
+| `payTo` | the paid address |
+| `scheme` | `exact` or `upto` |
+| `network` | for example `stellar:testnet` |
+| `extensions` | declared extensions |
+| `limit` | page size |
+| `offset` | page start |
+
+The response is `{ x402Version, items, pagination }`. The list key is `items`. Search uses a different key; see [How search works](/concepts/search).
+
+## Integrity rules
+
+The facilitator enforces the following so no one can spoof another seller's listing or pricing.
+
+<CardGroup cols={2}>
+  <Card title="Ownership is bound to settlement" icon="key">
+    Only a settled payment earns a claim on a listing key. A free `/verify` cannot take over an existing seller's entry.
+  </Card>
+  <Card title="Soft-drop validation" icon="filter">
+    Malformed or unpayable metadata is dropped, not accepted best-effort. A Stellar `exact` listing without sponsored fees, for example, is refused rather than published unconsumable.
+  </Card>
+  <Card title="routeTemplate is decoded first" icon="shield-halved">
+    A `routeTemplate` is percent-decoded before traversal checks, so a double-encoded `..` cannot smuggle a path past the check.
+  </Card>
+  <Card title="Ranking uses only earned metadata" icon="scale-balanced">
+    Only metadata that arrived through the legitimate cataloging path influences ranking. Forged fields do not.
+  </Card>
+</CardGroup>
+
+<Note>
+A settled payment does not prove domain ownership. Rail402 supports SEP-1 domain verification as an advisory signal off the settlement path: a `payTo` listed in a domain's `.well-known/stellar.toml` displaces an unverified squatter. It never gates cataloging.
+</Note>
+
+## Reporting a listing outcome
+
+Cataloging feedback rides back on the `EXTENSION-RESPONSES` header, so a seller can tell whether a listing landed and, if not, why, with a machine-readable reason. The facilitator emits `processing` at verify and `success` or `rejected` at settle. See the [error reference](/reference/errors) for the codes.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="How search works" icon="magnifying-glass" href="/concepts/search">
+    Natural-language ranking over the catalog.
+  </Card>
+  <Card title="Seller quickstart" icon="store" href="/sellers/quickstart">
+    Make a paid endpoint discoverable.
+  </Card>
+  <Card title="The payment loop" icon="diagram-project" href="/concepts/payment-loop">
+    Where cataloging sits in the flow.
+  </Card>
+  <Card title="SDK reference" icon="book" href="/reference/sdk">
+    Seller metadata helpers and buyer search.
+  </Card>
+</CardGroup>

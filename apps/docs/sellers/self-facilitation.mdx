@@ -1,0 +1,116 @@
+---
+title: "Self-facilitation"
+description: "Run verify and settle in-process inside your resource server, with no external facilitator and no network hop, using buildFacilitator from @rail402.dev/facilitator."
+sidebarTitle: "Self-facilitation"
+---
+
+By the end of this page your resource server verifies and settles payments itself, in the same process that serves the resource, with no call out to a hosted facilitator.
+
+This uses `@rail402.dev/facilitator` as a library.
+
+## Why self-facilitate
+
+Pointing at a hosted facilitator adds a network hop and a dependency on a service you do not run. Self-facilitation removes both: your server holds the sponsoring signer, submits the settlement itself, and serves the resource, all in one process. The non-custodial invariant is unchanged, because the only fund movement is submitting the buyer-signed authorization exactly as authorized.
+
+You still get automatic, settlement-gated cataloging, because the Bazaar runs in the same process as the facilitator.
+
+## 1. Install
+
+```bash
+npm install @rail402.dev/facilitator
+```
+
+## 2. Build the facilitator in-process
+
+`loadConfig` reads configuration from the environment, and `buildFacilitator` returns a facilitator exposing `verify`, `settle`, and `getSupported`.
+
+```ts
+import { buildFacilitator, loadConfig } from "@rail402.dev/facilitator";
+
+const { facilitator } = buildFacilitator(loadConfig(process.env));
+```
+
+Set the configuration in the environment. On testnet the facilitator account sponsors the network fee, so it needs XLM. Generate and fund one with `npx @rail402.dev/cli fund`; to fund an address you already have, friendbot tops it up with XLM.
+
+```bash
+FACILITATOR_STELLAR_SECRET=S...funded-testnet-secret
+STELLAR_NETWORKS=stellar:testnet
+MAX_TRANSACTION_FEE_STROOPS=100000   # raise toward 500000 to serve smart-account buyers
+CATALOG_DB_PATH=/data/catalog.db     # optional: a durable catalog across restarts
+```
+
+<Note>
+`MAX_TRANSACTION_FEE_STROOPS` defaults to `100000`. A smart-account buyer cross-calls a verifier and a policy, which costs several times more, so raise the ceiling toward `500000` if you serve contract accounts. See [Errors](/reference/errors) for the refusal a too-low ceiling produces.
+</Note>
+
+## 3. Wire it into your resource server
+
+Pass the in-process `facilitator` where you would otherwise pass a `HTTPFacilitatorClient`. It exposes the same `verify`, `settle`, and `getSupported` methods, so `x402ResourceServer` uses it directly and no HTTP hop happens.
+
+```ts server.js
+import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { paymentMiddleware } from "@x402/hono";
+import { x402ResourceServer } from "@x402/core/server";
+import { ExactStellarScheme } from "@x402/stellar/exact/server";
+import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
+import { buildFacilitator, loadConfig } from "@rail402.dev/facilitator";
+import { describeEndpoint } from "@rail402.dev/sdk";
+
+const USDC = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"; // testnet USDC SAC
+
+const { facilitator } = buildFacilitator(loadConfig(process.env));
+
+const x402 = new x402ResourceServer([facilitator]); // in-process, no HTTPFacilitatorClient
+x402.register("stellar:*", new ExactStellarScheme());
+x402.registerExtension(bazaarResourceServerExtension);
+
+const app = new Hono();
+app.use("*", paymentMiddleware({
+  "GET /quote": {
+    accepts: {
+      scheme: "exact",
+      network: "stellar:testnet",
+      price: { amount: "500000", asset: USDC },
+      payTo: process.env.SELLER_ADDRESS,
+      maxTimeoutSeconds: 60,
+    },
+    description: "A price quote for a named commodity.",
+    mimeType: "application/json",
+    extensions: describeEndpoint({
+      params: { symbol: { description: "Ticker such as XLM or BTC.", example: "XLM" } },
+    }),
+  },
+}, x402));
+
+app.get("/quote", (c) => c.json({ symbol: c.req.query("symbol") ?? "XLM", price: 0.1234 }));
+
+serve({ fetch: app.fetch, port: 4023 });
+```
+
+An unpaid request to `/quote` now returns a priced `402`, and your own process verifies and settles the payment.
+
+<Tip>
+Prefer to run the facilitator as its own service instead of in-process? `@rail402.dev/facilitator` also ships an HTTP server entry at `@rail402.dev/facilitator/server` and the `rail402-facilitator` bin. See [Run the facilitator](/operators/run).
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Run the facilitator" icon="server" href="/operators/run">
+    Run verify and settle as a standalone service, with a durable catalog and metrics.
+  </Card>
+  <Card title="Charge for an endpoint" icon="credit-card" href="/sellers/quickstart">
+    The full seller quickstart, from paywall to first settled payment.
+  </Card>
+  <Card title="Payment loop" icon="arrows-rotate" href="/concepts/payment-loop">
+    What verify and settle actually do, and where fee sponsorship fits.
+  </Card>
+  <Card title="Packages" icon="box" href="/reference/packages">
+    Every published package and what it is for.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+A misconfigured signer, an unfunded facilitator account, or a settlement fee above `MAX_TRANSACTION_FEE_STROOPS` each surface a machine-readable `code` and a non-null `reason`. See [Errors](/reference/errors).

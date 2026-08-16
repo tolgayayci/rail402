@@ -1,0 +1,108 @@
+---
+title: "Preflight and testing"
+description: "Check your payTo and asset with preflight before a buyer's payment fails on them, and run the whole loop locally against a facilitator you control."
+sidebarTitle: "Preflight and testing"
+---
+
+By the end of this page you can verify your seller configuration at boot with one call, and run a full pay-and-catalog loop on your own machine before you put anything on a public host.
+
+This uses `preflight` from `@rail402.dev/sdk` (also exported from `@rail402.dev/seller-helpers`).
+
+## What preflight checks
+
+A payment fails for boring reasons: the receiver has no trustline to the asset, or the `payTo` account does not exist yet. Each of those fails a stranger's first payment, not yours, so you never see it. `preflight` checks your `payTo` account and its asset trustline against live testnet state on Horizon and hands you back coded findings before you serve a single request.
+
+```ts
+import { preflight } from "@rail402.dev/sdk";
+
+const result = await preflight({
+  payTo: process.env.SELLER_ADDRESS,
+  asset: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA", // testnet USDC SAC
+  network: "stellar:testnet", // optional, defaults to stellar:testnet
+});
+
+if (!result.ok) {
+  for (const finding of result.findings) {
+    console.error(`[${finding.severity}] ${finding.code}: ${finding.reason}`);
+  }
+}
+```
+
+`preflight` returns `{ ok: boolean, findings: [{ code, reason, severity }] }`. Each finding has a machine-readable `code`, a non-null `reason` a human can read, and a `severity`. A blocking finding, like a receiver with no trustline to the asset, sets `ok` to `false`. A warning, like a transient network problem reaching Horizon, is reported but does not fail the check, so a Horizon blip never stops your server from booting.
+
+<Tip>
+Call `preflight` at boot. Catching a missing trustline on your own account when the process starts is much cheaper than discovering it when a buyer's first payment is refused.
+</Tip>
+
+## Test the whole loop locally
+
+You do not need a public host to test the full path. Run a facilitator on your own machine, point your seller at it, and pay yourself.
+
+<Steps>
+<Step title="Run a local facilitator">
+The CLI generates an ephemeral signer, friendbot-funds it, and serves on port 4022 with zero configuration. Allow loopback seller URLs so it will catalog a local endpoint.
+
+```bash
+BAZAAR_ALLOW_PRIVATE_HOSTS=1 npx @rail402.dev/facilitator
+```
+</Step>
+<Step title="Point your seller at it">
+In your resource server, set the facilitator URL to the local instance.
+
+```js
+new HTTPFacilitatorClient({ url: "http://localhost:4022" })
+```
+</Step>
+<Step title="Pay your own endpoint">
+Pay the local route with the buyer helper, opting in to private hosts so it will pay a loopback URL. `maxAmount` is an atomic-unit string (7 decimals), so `"100000"` is 0.01 USDC.
+
+```ts
+import { payAndFetch } from "@rail402.dev/sdk";
+
+const config = {
+  bazaarUrl: "http://localhost:4022",
+  stellarSecret: process.env.RAIL402_SECRET,
+  network: "stellar:testnet",
+  allowPrivateHosts: true, // pay a loopback seller, local only
+};
+
+const result = await payAndFetch(config, "http://localhost:4023/quote?symbol=XLM", { maxAmount: "600000" });
+```
+</Step>
+<Step title="Confirm it cataloged">
+Search the local facilitator for words from your description.
+
+```bash
+curl -s "http://localhost:4022/discovery/search?query=commodity%20price" | jq '.resources[].resource'
+```
+</Step>
+</Steps>
+
+<Warning>
+`BAZAAR_ALLOW_PRIVATE_HOSTS` and `allowPrivateHosts` exist for local testing only. On a real deployment, leave them off. The facilitator soft-drops private-host URLs from the catalog by design, which is what stops a hostile client from listing an internal address.
+</Warning>
+
+## Wire-level conformance
+
+To prove your deployment behaves at the wire level, run the conformance harness. `@rail402.dev/conformance` points the upstream x402 end-to-end suite at your facilitator and reports whether a stock, unmodified client settles against it. See [Conformance](/reference/conformance).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Charge for an endpoint" icon="credit-card" href="/sellers/quickstart">
+    The full seller quickstart, from paywall to first settled payment.
+  </Card>
+  <Card title="Get discovered" icon="magnifying-glass" href="/sellers/get-discovered">
+    Write metadata an agent can act on, and confirm your listing landed.
+  </Card>
+  <Card title="Conformance" icon="clipboard-check" href="/reference/conformance">
+    Wire-test your deployment against the upstream e2e suite.
+  </Card>
+  <Card title="Self-facilitation" icon="server" href="/sellers/self-facilitation">
+    Run verify and settle in-process instead of pointing at a hosted facilitator.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+Every finding and every payment rejection carries a machine-readable `code` and a non-null `reason`. The ones you will meet most often are `invalid_exact_stellar_payload_missing_trustline_recipient` (the receiver has no trustline to the asset) and `config_no_signer` (no secret was configured for a call that needs to pay). Every code and its reason is in [Errors](/reference/errors).

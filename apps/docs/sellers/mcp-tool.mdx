@@ -1,0 +1,72 @@
+---
+title: "Charge for an MCP tool"
+description: "List a paid MCP tool as a first-class Bazaar resource with describeTool, keyed on the resource URL and tool name."
+sidebarTitle: "Charge for an MCP tool"
+---
+
+By the end of this page a paid MCP tool is cataloged in the Bazaar, keyed on its resource URL and tool name, and callable by an agent that discovers it through search.
+
+This uses `describeTool` from `@rail402.dev/sdk` (also exported from `@rail402.dev/seller-helpers`).
+
+## MCP tools are first-class resources
+
+An MCP tool is a resource type in its own right, keyed on the pair of `resource.url` and `toolName`, because one MCP endpoint serves many tools. That key is what lets an agent find one specific tool, and what lets you list several tools from the same endpoint without collision.
+
+You declare a tool the same way you [describe an HTTP endpoint](/sellers/get-discovered), with a `toolName`, a description for the tool, and a description for every parameter.
+
+```ts
+import { describeTool } from "@rail402.dev/sdk";
+
+extensions: describeTool({
+  toolName: "price_quote",
+  description: "Returns a price quote for a named commodity.",
+  params: {
+    symbol: {
+      description: "Ticker to price, such as XLM, BTC, or GOLD.",
+      type: "string",
+      required: true,
+      example: "XLM",
+    },
+  },
+  outputExample: { symbol: "XLM", price: 0.1234 },
+});
+```
+
+The `description` and every parameter `description` are what search ranks and what an agent reads to build a valid call, exactly as for an HTTP endpoint. Write them for a reader who has never seen your tool.
+
+## The resource URL must be addressable
+
+<Warning>
+The resource URL is the addressable HTTP endpoint that serves the tool. It cannot be an `mcp://` URL. An `mcp://` URL (the default resource URL some MCP clients construct) has no host to key on, so the facilitator rejects the listing with `bazaar_mcp_resource_url_not_addressable`. Use the public HTTPS endpoint that serves the tool.
+</Warning>
+
+The declaration must also carry `toolName`. Without it there is no key to distinguish this tool from the others on the same endpoint, and the facilitator rejects the entry with a coded, non-null reason. See [Errors](/reference/errors).
+
+## Cataloging works the same way
+
+An MCP tool is cataloged on the same settlement-gated, hybrid path as any other resource: a provisional listing at verify, a confirmed and owned listing at settlement. Nothing about MCP changes when a listing appears or who owns it. See [Get discovered](/sellers/get-discovered) for the full flow.
+
+## Try it end to end
+
+The [`examples/mcp-tool-seller`](https://github.com/tolgayayci/rail402/tree/main/examples/mcp-tool-seller) example in the Rail402 repository runs a paid MCP tool that catalogs itself, gets found by natural-language search, and gets called and paid, end to end on testnet.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Get discovered" icon="magnifying-glass" href="/sellers/get-discovered">
+    Write parameter descriptions an agent can act on, and see what the facilitator catalogs and when.
+  </Card>
+  <Card title="Meter usage with upto" icon="gauge" href="/sellers/upto">
+    Bill a tool for actual usage against a buyer-authorized ceiling.
+  </Card>
+  <Card title="Buyer quickstart" icon="robot" href="/buyers/quickstart">
+    See the other side: an agent discovers your tool and pays to call it.
+  </Card>
+  <Card title="Bazaar trust model" icon="shield" href="/concepts/bazaar">
+    How MCP tools are keyed, owned, and protected from squatting.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+An `mcp://` resource URL is rejected with `bazaar_mcp_resource_url_not_addressable`, and a listing without a `toolName` is rejected with a coded reason. Every code and its reason is in [Errors](/reference/errors).

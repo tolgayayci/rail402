@@ -1,0 +1,87 @@
+---
+title: "Smart accounts and spending policies"
+description: "How Rail402 settles from __check_auth contract accounts as well as classic keypairs, and how the upto settlement hook composes with an OpenZeppelin smart-account spending policy to keep an agent inside an on-ledger budget through a reserve-then-reconcile pattern."
+---
+
+Rail402 settles from both classic keypairs and custom `__check_auth` contract accounts, and the `upto` scheme composes with a Stellar smart-account spending policy to keep an agent inside a budget. This page covers both: the facilitator is address-agnostic, and a spending policy reconciles an agent's budget on the ledger using the [upto settlement hook](/architecture/upto#the-contract-guarantees).
+
+## The facilitator is address-agnostic
+
+A buyer address can be a classic `G…` keypair or a `C…` contract account, and the facilitator settles from both with no special-casing. The difference is only in *who produces the signature*: a keypair signs its authorization entries directly, while a contract account's `__check_auth` decides whether to authorize according to whatever logic it holds, whether a session key, a multisig, or a spending policy.
+
+This is proven on chain for both schemes from a `C…` account: `exact` at [`168929e9…`](https://stellar.expert/explorer/testnet/tx/168929e9a4282f2ce24991f06ae394ab5fb0600e9c7548a3b0438308f0464c78) and `upto` at [`0d78d7cf…`](https://stellar.expert/explorer/testnet/tx/0d78d7cf58e4fe3c8cb5821918c88f033618b70f85c7372c3a242572fafae5e9), both through the same `/verify` and `/settle` a keypair uses.
+
+## Composition with OpenZeppelin
+
+<a id="composition-with-openzeppelin"></a>
+
+Shipping our own account cryptography was never the goal, so the smart-account path is built on OpenZeppelin's **audited** [`stellar-accounts`](https://github.com/OpenZeppelin/stellar-contracts). The division of labor is deliberate:
+
+| Component | Whose | Role |
+| --- | --- | --- |
+| Smart account | OpenZeppelin (audited) | `__check_auth`, signer management, context-rule matching |
+| ed25519 verifier `CCC4DCEZ…` | OpenZeppelin (audited) | stateless signature verification, shared singleton |
+| Spending policy [`CC3XJMYT…`](https://stellar.expert/explorer/testnet/contract/CC3XJMYTTLQNDHOQHNQPQWLRIABQDUQBNJQKED7D67A3RMLGVQHF7LEC) | **Rail402** | budget arithmetic only |
+
+Rail402's policy implements OpenZeppelin's `Policy` trait, so the audited core keeps everything cryptographic and Rail402 owns only the budget math. The verifier and the policy are shared singletons, meaning one deployment serves every account, which is what makes per-agent smart accounts affordable (about 0.002 XLM to instantiate one).
+
+<Note>
+OpenZeppelin's own `spending_limit` policy refuses `settle` and `approve` calls, because it is built for plain transfers, so an x402-aware policy is required. OpenZeppelin's docs name that as a first-class extension point, and Rail402's policy is that x402-aware budget.
+</Note>
+
+## Reserve, then reconcile
+
+A budget an agent cannot exceed must be checked on the ledger, not in the client. The policy does that with a reserve-then-reconcile pattern that pairs with the [upto contract's settlement hook](/architecture/upto):
+
+<Steps>
+  <Step title="enforce reserves the ceiling">
+    When the authorization is created, the policy's `enforce` reserves the full ceiling (`max_amount`) against a rolling per-period budget and records a `Reservation` keyed by the settlement nonce. The worst case is booked up front, so a second concurrent request cannot double-spend the same budget.
+  </Step>
+  <Step title="release reconciles to the actual charge">
+    After the transfer, the upto contract calls the policy's `release(from, nonce, actual)`. The policy refunds `reserved - actual` back to the budget and removes the reservation. The budget ends at the real charge, not the ceiling.
+  </Step>
+</Steps>
+
+Because `enforce` reserves the ceiling and only `release` can lower it, a budget that ends at the actual charge is *conclusive proof the hook ran*. The [`0d78d7cf…`](https://stellar.expert/explorer/testnet/tx/0d78d7cf58e4fe3c8cb5821918c88f033618b70f85c7372c3a242572fafae5e9) settlement authorized a 2,000,000 ceiling and settled 750,000, and the on-ledger budget afterwards reads **750,000, not 2,000,000**.
+
+Two safety details make the reconciliation trustworthy:
+
+- **Only the right contract can release.** `release` calls `reservation.settlement_contract.require_auth()`, so a budget can only be reconciled by the settlement contract the ceiling was authorized against, not by any caller.
+- **`approve` is allowed but not budgeted.** The auth tree's `approve` sub-invocation is permitted by the policy but not counted against the budget, so a ceiling is never double-charged.
+
+An over-budget payment is refused on the ledger by the policy itself, and the facilitator reports it as `invalid_exact_stellar_payload_account_policy_refused`, a coded rejection rather than a crash. The `oz-account` canary proves this end to end, including the refusal.
+
+## Integration traps worth knowing
+
+These are Stellar smart-account specifics that are not obvious from OpenZeppelin's docs, and each cost real debugging.
+
+- **Signers do not sign the raw `__check_auth` payload.** OpenZeppelin binds the chosen context rules into the digest: `auth_digest = sha256(signature_payload || context_rule_ids.to_xdr())`. Signing the raw payload fails with `Error(Auth, InvalidAction)`.
+- **The buyer signs each entry via the `{ signatureScVal, address }` callback form** of `authorizeEntry`, not by handing over a secret key. The account never exposes one.
+- **The policy must not sit on the administration rule.** It fails closed on any non-payment call, so an account whose only rule carried it could never be reconfigured. The owner's rule carries no policy; the agent's scoped `CallContract` rules do.
+- **One context-rule id per auth context.** `upto` produces two auth contexts (`settle` on the upto contract and `approve` on the token), so the account needs a two-rule layout.
+- **Re-cost after signing, and raise the fee ceiling.** Signed entries are larger than the unsigned ones the first simulation priced, and a smart-account payment cross-calls a verifier and a policy, so it costs 7 to 9 times a keypair payment and needs [`MAX_TRANSACTION_FEE_STROOPS`](/architecture/fees#the-fee-ceiling) raised. Passing the payload to the facilitator sidesteps the re-cost, because the facilitator re-sources and re-simulates the transaction itself.
+
+## Where it lives
+
+| Concern | Source |
+| --- | --- |
+| Spending policy (`enforce`, `release`, reservations) | `contracts/agent-policy/src/lib.rs` (25 Rust tests) |
+| Buyer-side smart-account signing | `packages/canary/src/oz-account.ts` |
+| Policy-refusal classification | `apps/facilitator/src/facilitator/classify.ts` |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="The upto scheme" icon="gauge" href="/architecture/upto">
+    The settlement hook the policy plugs into.
+  </Card>
+  <Card title="Fee sponsorship and ceilings" icon="hand-holding-dollar" href="/architecture/fees">
+    Why a smart-account settlement costs more.
+  </Card>
+  <Card title="Verify it yourself" icon="terminal" href="/architecture/proofs">
+    The C-account settlements on chain.
+  </Card>
+  <Card title="Buyer smart accounts" icon="wallet" href="/buyers/smart-accounts">
+    Using a smart account as a buyer.
+  </Card>
+</CardGroup>

@@ -1,0 +1,95 @@
+---
+title: "Packages"
+description: "The @rail402.dev npm packages, what each one is for, and which two or three you actually install."
+---
+
+By the end of this page you will know which `@rail402.dev` package to install for the job in front of you, and how the umbrella SDK relates to the building blocks underneath it.
+
+Every package is published to npm under the `@rail402.dev` scope (the scope has a dot, which npm allows) and every one is Apache-2.0. Install them with npm, never by cloning the repository.
+
+## Start here
+
+Most projects only need one of these three. Pick by what you are building.
+
+<CardGroup cols={3}>
+  <Card title="@rail402.dev/sdk" icon="code" href="https://www.npmjs.com/package/@rail402.dev/sdk">
+    Build a buyer or a seller into your own app. One import covers search, pay, and discovery metadata. See [SDK reference](/reference/sdk).
+  </Card>
+  <Card title="@rail402.dev/cli" icon="terminal" href="https://www.npmjs.com/package/@rail402.dev/cli">
+    Pay, search, and inspect settlements from a terminal or an AI agent. See [CLI reference](/reference/cli).
+  </Card>
+  <Card title="@rail402.dev/facilitator" icon="server" href="https://www.npmjs.com/package/@rail402.dev/facilitator">
+    Run the facilitator service, or settle in-process inside your own resource server. See [Run a facilitator](/operators/run).
+  </Card>
+</CardGroup>
+
+## Every package
+
+| Package | Role | Install |
+| --- | --- | --- |
+| [`@rail402.dev/sdk`](https://www.npmjs.com/package/@rail402.dev/sdk) | Umbrella: buyer + seller + errors. The front door for app code. | `npm install @rail402.dev/sdk` |
+| [`@rail402.dev/cli`](https://www.npmjs.com/package/@rail402.dev/cli) | Command-line wallet and agent tool. Bin `rail402`. | `npm install -g @rail402.dev/cli` |
+| [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator) | Run the service, or self-facilitate in-process. Bin `rail402-facilitator`. | `npx @rail402.dev/facilitator` |
+| [`@rail402.dev/mcp-discovery`](https://www.npmjs.com/package/@rail402.dev/mcp-discovery) | Agent-facing MCP discovery server. Bin `rail402-mcp`. | `npm install @rail402.dev/mcp-discovery` |
+| [`@rail402.dev/agent-helpers`](https://www.npmjs.com/package/@rail402.dev/agent-helpers) | Buyer side: search and pay under a cap. Re-exported by the SDK. | `npm install @rail402.dev/agent-helpers` |
+| [`@rail402.dev/seller-helpers`](https://www.npmjs.com/package/@rail402.dev/seller-helpers) | Seller side: discovery metadata and preflight. Re-exported by the SDK. | `npm install @rail402.dev/seller-helpers` |
+| [`@rail402.dev/scheme-upto-stellar`](https://www.npmjs.com/package/@rail402.dev/scheme-upto-stellar) | The `upto` scheme (client, server, facilitator). | `npm install @rail402.dev/scheme-upto-stellar` |
+| [`@rail402.dev/errors`](https://www.npmjs.com/package/@rail402.dev/errors) | Machine-readable error registry. Re-exported by the SDK. | `npm install @rail402.dev/errors` |
+| [`@rail402.dev/bazaar`](https://www.npmjs.com/package/@rail402.dev/bazaar) | Catalog and search library. A dependency of the facilitator. | `npm install @rail402.dev/bazaar` |
+| [`@rail402.dev/conformance`](https://www.npmjs.com/package/@rail402.dev/conformance) | Wire-test a deployment against the upstream e2e suite. Bin `x402-stellar-conformance`. | `npm install @rail402.dev/conformance` |
+
+## The umbrella: @rail402.dev/sdk
+
+`@rail402.dev/sdk` re-exports three packages so a buyer, a seller, and error handling all come from one install:
+
+- the buyer helpers from `@rail402.dev/agent-helpers` (`searchBazaar`, `payAndFetch`, `discoverAndPay`),
+- the seller helpers from `@rail402.dev/seller-helpers` (`describeEndpoint`, `describeTool`, `preflight`),
+- the error registry from `@rail402.dev/errors`.
+
+It also exposes subpaths so you can pull in only one side:
+
+| Import | What it gives you |
+| --- | --- |
+| `@rail402.dev/sdk` | Everything below, re-exported. |
+| `@rail402.dev/sdk/buyer` | `searchBazaar`, `payAndFetch`, `discoverAndPay`. |
+| `@rail402.dev/sdk/seller` | `describeEndpoint`, `describeTool`, `preflight`. |
+| `@rail402.dev/sdk/errors` | `X402Error`, `isErrorCode`, `ERROR_REGISTRY`, and the rest of the registry. |
+
+<Tip>
+If you install the SDK you do not need to install `@rail402.dev/agent-helpers`, `@rail402.dev/seller-helpers`, or `@rail402.dev/errors` separately. Reach for those individual packages only when you want exactly one of them and nothing else.
+</Tip>
+
+## Front door versus building blocks
+
+The front door is `@rail402.dev/sdk`, `@rail402.dev/cli`, and `@rail402.dev/facilitator`. The rest are building blocks that the SDK and the facilitator compose for you. You can still install a building block on its own when you want a single piece.
+
+| I want to | Use |
+| --- | --- |
+| Build a buyer or seller into my app | [`@rail402.dev/sdk`](/reference/sdk) |
+| Pay or search from a terminal or agent | [`@rail402.dev/cli`](/reference/cli) |
+| Run the facilitator, or settle in-process | [`@rail402.dev/facilitator`](/operators/run) |
+| Give an agent search and paid-call tools over MCP | `@rail402.dev/mcp-discovery` |
+| Add the `upto` scheme to a client, server, or facilitator | [`@rail402.dev/scheme-upto-stellar`](/concepts/upto) |
+| Branch on machine-readable error codes | [`@rail402.dev/errors`](/reference/errors) |
+| Wire-test a deployment against the upstream suite | [`@rail402.dev/conformance`](/reference/conformance) |
+
+<Note>
+The `@x402/*` packages (`@x402/core`, `@x402/stellar`, `@x402/mcp`, `@x402/extensions`) are the upstream x402 SDK, not part of Rail402. A stock `@x402` client interoperates with Rail402 with no `@rail402.dev` package installed. See the [FAQ](/support/faq).
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="SDK reference" icon="code" href="/reference/sdk">
+    Buyer and seller function signatures, the config object, and the Result type.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/reference/cli">
+    Every command, the `--json` envelope, and config precedence.
+  </Card>
+  <Card title="Buyer quickstart" icon="wallet" href="/buyers/quickstart">
+    Discover and pay a Stellar resource end to end.
+  </Card>
+  <Card title="Seller quickstart" icon="tag" href="/sellers/quickstart">
+    Expose a paid API that catalogs itself in the Bazaar.
+  </Card>
+</CardGroup>

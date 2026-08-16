@@ -1,0 +1,74 @@
+---
+title: "How search works"
+description: "Natural-language Bazaar search: a BM25 and static-embedding hybrid fused with RRF, in-process with no external engine, plus the response-key asymmetry and the honest limits."
+---
+
+Bazaar search takes a natural-language query and ranks the catalog for it, so an agent can find a paid resource by describing what it needs rather than knowing its URL.
+
+It runs in-process, inside the facilitator. There is no external search engine to operate, which keeps the whole service inside a permissive license. For what a listing is and how it gets into the catalog, read [Bazaar](/concepts/bazaar) first.
+
+## How a query is ranked
+
+<Steps>
+  <Step title="Lexical retrieval (BM25)">
+    A weighted-field BM25 scorer matches the query against each listing's text (name, description, tags, parameter descriptions, and more), with synonym expansion.
+  </Step>
+  <Step title="Semantic retrieval (static embeddings)">
+    The query and each listing are embedded with a vendored static embedding model, and ranked by cosine similarity. This catches matches that share meaning without sharing words.
+  </Step>
+  <Step title="Fusion (RRF)">
+    The two ranked lists are combined with Reciprocal Rank Fusion, so a result that ranks well on either signal surfaces without one signal drowning the other.
+  </Step>
+</Steps>
+
+The model is a small int8 static embedding vendored into the package with a hand-rolled tokenizer, so the hybrid adds zero external dependencies. The reported method is `hybrid (bm25+static-embedding, rrf)`.
+
+## The response-key asymmetry
+
+The list and search endpoints return their results under different keys. This is real and load-bearing: getting it backwards silently breaks a stock client.
+
+| Endpoint | Results key |
+| --- | --- |
+| `GET /discovery/resources` (list) | `items` |
+| `GET /discovery/search` (search) | `resources` |
+
+Search takes a required natural-language `query`, uses cursor pagination, and can set a `partialResults` flag. A search cursor is bound to both the query and the filters, so paging cannot silently change what it is paging through.
+
+<Warning>
+Search returns `resources`. List returns `items`. If you parse a search response as `items`, you get nothing back and no error.
+</Warning>
+
+## Ranking is abuse-resistant
+
+Only metadata that arrived through the legitimate cataloging path influences ranking. A forged field in a client-supplied resource block does not move rank, and advisory signals (such as a trustline pre-flight result) are kept off the ranking path on purpose.
+
+The usage signal that boosts a listing is the count of distinct real payers (`uniquePayers`), not raw settlement count. A seller cannot lift its own ranking by paying its own endpoint, because a settlement whose payer is one of the listing's own `payTo` addresses is not counted.
+
+## Honest limits
+
+Search quality is measured, not asserted, and the measurement has real bounds worth knowing.
+
+<Info>
+- The judgment sets (query to relevant-resource pairs) are still small. A small change in ranking can look decisive on a small judgment set and be noise. Ranking decisions here are made against a larger corpus and reported with that caveat, not tuned on a handful of queries.
+- Ranking over MCP tools is measured against a synthetic tool corpus, not a large real one yet.
+- Hybrid retrieval trades some recall on close sibling resources for better recall on broad queries. That tradeoff is documented, not hidden.
+</Info>
+
+Zero-result queries and searches that never convert to a paid call feed the judgment sets over time, so the ranking improves against real usage rather than a fixed benchmark.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Bazaar" icon="store" href="/concepts/bazaar">
+    What a listing is and how ownership works.
+  </Card>
+  <Card title="Buyer quickstart" icon="rocket" href="/buyers/quickstart">
+    Search and pay from an agent.
+  </Card>
+  <Card title="SDK reference" icon="book" href="/reference/sdk">
+    searchBazaar and discoverAndPay.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/reference/cli">
+    rail402 search from the command line.
+  </Card>
+</CardGroup>

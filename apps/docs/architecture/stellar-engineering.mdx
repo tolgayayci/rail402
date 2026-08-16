@@ -1,0 +1,88 @@
+---
+title: "Stellar-specific engineering"
+description: "The Stellar mechanics behind the facilitator: SEP-41 seven-decimal stroop arithmetic, provable SAC asset identity, trustline pre-flight, Soroban resource limits and simulation, and channel-account throughput under bursty agent traffic."
+---
+
+This page covers the Stellar mechanics not already handled by [the settlement path](/architecture/settlement) (auth entries) and [expiration and replay](/architecture/expiration-replay) (ledger-based validity): SEP-41 amounts, asset identity, trustlines, Soroban resource limits, and throughput.
+
+## SEP-41 and stroop math
+
+<a id="sep-41-and-stroop-math"></a>
+
+Rail402 settles any SEP-41 token, with USDC as the default. Every SEP-41 asset is reachable from Soroban through its Stellar Asset Contract (SAC), and every amount is an integer at **7 decimals**, called a "stroop." One USDC is `10000000` atomic units.
+
+The one rule that matters end to end: **no floating point ever touches an amount.** `Number("9007199254740993")` silently loses precision, and an amount is the single value where that is unacceptable. Rail402 uses integer and bigint arithmetic from the wire to the ledger:
+
+- Amounts arrive as integer strings and are validated as such before anything else. `parseAmount` guards the digits and returns `undefined` rather than throwing, so one malformed amount in one catalog row cannot crash a comparator. That path is attacker-influenceable, since amounts arrive in federated listings and seller `402` challenges.
+- Budget comparisons (`withinBudget`) and formatting (`formatAtomicAmount`) are bigint throughout.
+- The `upto` server reports 7 decimals per the Stellar SEP-41 convention, and the `upto` facilitator guards every attacker-supplied amount through the same integer parse before signing.
+
+<Warning>
+An unguarded `BigInt()` in a comparator is a crash with no error envelope: `BigInt("NaN")` and `BigInt("1e9")` throw, and `Array.prototype.sort` gives a comparator no way to recover. Rail402 routes every agent-facing amount through one `parseAmount` and soft-drops what it rejects, so a bad amount becomes a dropped row with a reason, never an uncaught throw.
+</Warning>
+
+## Provable asset identity
+
+A SAC address is a **one-way hash** of an asset's code, issuer, and the network passphrase. That is a security property worth using: a scam issuer that mints a token also called "USDC" derives a *different* SAC than the canonical one, so the SAC address itself distinguishes the real asset from a look-alike.
+
+Rail402 uses this in discovery. Client-supplied `extra.stellar` metadata is stripped and the facilitator re-derives the asset identity itself, attaching a `derived` identity only for assets on a pinned registry (testnet USDC's SAC is `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`, which is exactly `@x402/stellar`'s canonical testnet USDC address). A listing claiming to be paid in "USDC" but resolving to a different SAC cannot borrow the real asset's identity. A test re-derives every SAC in the registry so it cannot rot.
+
+## Trustline pre-flight
+
+A Stellar account needs a **trustline** to a SEP-41 asset before it can receive it, and the one people forget is the receiver's: the seller's `payTo`. Rail402 surfaces this to agents as an advisory pre-flight, and the conditions under which it runs are themselves a Stellar-correctness statement.
+
+The pre-flight runs **only** when all three hold, and is omitted (never guessed) otherwise:
+
+1. the asset has a derived identity, because a SAC hash is one-way, so without the `(code, issuer)` behind it there is nothing to look up;
+2. the issuer is non-null, since native XLM needs no trustline;
+3. the `payTo` is a `G…` classic account, because a `C…` contract account holds SAC balances in contract storage, where trustlines do not exist.
+
+When it runs, it queries Horizon and returns one of `ok`, `missing`, `unauthorized`, or `unknown`, each with a non-null reason (a 404 account, a zero limit, `is_authorized: false`). It is **advisory, cached, fire-and-forget behind settlement, and never gates cataloging**: a missing trustline is information for the buyer, not a reason to refuse a listing. At settlement, a genuinely missing recipient trustline has its own code, `invalid_exact_stellar_payload_missing_trustline_recipient`, so the cause is never a mystery.
+
+<Note>
+Asset identity and trustline pre-flight are one feature, not two: the trustline lookup is *impossible* without the derived `(code, issuer)`, which is why the derivation gates it.
+</Note>
+
+## Soroban resource limits and simulation
+
+Verify and settle must stay within Soroban's per-transaction read, write, instruction, and memory limits. Rail402 **simulates before submitting** and treats a simulation failure as a first-class, coded outcome rather than an exception. The [error-enrichment layer](/architecture/settlement#auth-entry-validation) even re-simulates a failed transaction once, off the hot path, to recover the host error the base package discarded, turning an opaque simulation failure into a specific reason (a negative amount, a balance out of range, a missing trustline, a policy refusal).
+
+This also feeds the [fee ceiling](/architecture/fees#the-fee-ceiling): the fee the facilitator will pay is the simulation-derived `minResourceFee + BASE_FEE`, checked against `MAX_TRANSACTION_FEE_STROOPS` before the facilitator signs. A settlement that would exceed the operator's resource-fee budget is refused with a reason, not signed and regretted.
+
+## Throughput
+
+<a id="throughput"></a>
+
+Agent traffic is bursty, and every sponsored settlement is signed by a facilitator account, so the sequence number of that account is the natural bottleneck. Rail402 addresses it on two axes.
+
+<CardGroup cols={2}>
+  <Card title="A channel-account pool" icon="layer-group">
+    `FACILITATOR_STELLAR_SECRET` plus a comma-separated `FACILITATOR_STELLAR_CHANNEL_SECRETS` gives N independent signers, each with its own sequence lane. Settlements round-robin across them, so N signers give N independent sequences. Duplicate secrets are rejected at startup, since two entries for one account share a sequence and buy nothing.
+  </Card>
+  <Card title="Per-signer serialization" icon="diagram-project">
+    Within a single signer, the read-then-submit critical section is serialized by a per-key promise-chain lock. Different signers run fully parallel; the same signer runs strictly serial, which is what avoids `txBadSeq`. Confirmation polling stays *outside* the lock, since the sequence is already spent at submit time.
+  </Card>
+</CardGroup>
+
+A fee-bump wrapper (optional, `FACILITATOR_STELLAR_FEE_BUMP_SECRET`) decouples *who pays the fee* from *whose sequence advances*, so fee capacity and sequencing scale independently. The `exact` scheme delegates sequence handling to `@x402/stellar`; the `upto` scheme adds the lane lock itself because it owns its submission path. Burst behavior is measured and recorded in `docs/status/burst.json`.
+
+## No persistent on-chain state on the hot path
+
+The per-request schemes hold **no** persistent on-chain state, so there is no rent or TTL to manage on the settlement path. An on-chain registry would introduce that concern, and Rail402 deliberately does not ship one (the catalog is [off-chain by default](/architecture/discovery)). Nothing in a payment adds a second transaction that would roughly double settlement cost. The one contract that does hold state, `upto`'s nonce record, uses Soroban `temporary()` storage with a bounded TTL tied to the [authorization window](/architecture/expiration-replay#ledger-based-expiration), so it self-expires and needs no rent management.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="The settlement path" icon="right-left" href="/architecture/settlement">
+    Auth entries and simulation in context.
+  </Card>
+  <Card title="Expiration and replay" icon="clock-rotate-left" href="/architecture/expiration-replay">
+    The ledger window these limits sit inside.
+  </Card>
+  <Card title="The discovery trust boundary" icon="shield-halved" href="/architecture/discovery">
+    Where asset identity and trustline pre-flight surface to agents.
+  </Card>
+  <Card title="Stellar essentials" icon="star" href="/concepts/stellar">
+    The lighter primer on the same mechanics.
+  </Card>
+</CardGroup>

@@ -1,0 +1,81 @@
+---
+title: "The agent-facing MCP interface"
+description: "An MCP server that lets an agent search the Stellar Bazaar and make a paid call from inside its runtime, with strict structured schemas in both directions, a spend cap enforced at the moment of signing, and a non-null reason on every rejection."
+---
+
+The MCP server wraps the discover, pay, retry loop behind two Model Context Protocol tools, so an agent can find a Stellar service it has never seen and pay for it without a pre-existing integration. An agent's safety here depends on getting three things right: structured input and output, an enforced spend cap, and a machine-readable reason on every failure.
+
+## Two tools
+
+<CardGroup cols={2}>
+  <Card title="search_stellar_resources" icon="magnifying-glass">
+    Natural-language search over the [Bazaar](/architecture/discovery). Returns ranked resources with price, asset identity, decimal amount, and the seller's trustline state.
+  </Card>
+  <Card title="pay_and_call" icon="credit-card">
+    Discovers the price, pays it under a required spend cap, and returns the resource. Works for both HTTP endpoints and MCP tools.
+  </Card>
+</CardGroup>
+
+## Structured, deterministic I/O
+
+Every tool declares a strict [Zod](https://zod.dev) schema for its input **and** its output. The result is always the same envelope, `{ ok, data?, error? }`, rendered to MCP as `structuredContent` with an `isError` flag, so an agent branches on structure, never on prose.
+
+<Warning>
+A budget refusal once reached the model as a **protocol-level success** with the refusal buried in text. That is exactly the failure structured, deterministic outputs exist to prevent. Both tools now set `isError` and return the rejection as `structuredContent`, so a refusal is a refusal at the protocol layer.
+</Warning>
+
+The search projection carries the Stellar facts an agent needs to decide: `price.assetIdentity` (the [derived SAC identity](/architecture/stellar-engineering#provable-asset-identity), so a look-alike asset is visible), `price.amountDecimal`, and `price.payToTrustline` (the seller's [trustline state](/architecture/stellar-engineering#trustline-pre-flight)). Those readers live in exactly one module that both the MCP server and the SDK helpers import. A second copy of a defensive parse is the copy that stops rejecting something.
+
+## The spend cap is enforced at the moment of signing
+
+`pay_and_call` requires a `maxAmount` and never pays above it. The enforcement point is what makes this real: the cap is applied by a **budget selector that runs inside the payment client, after policy selection, immediately before the payload is created and signed**, against the price on the *paid* request's own `402` challenge.
+
+This defeats the obvious attack. A hostile server can quote a cheap price on the unpaid probe and an expensive one on the paid request, and a naive implementation checks the probe quote and then pays whatever the second request asks. Rail402 re-applies the ceiling to the challenge that is actually about to be signed, so the probe price is never trusted. If the price exceeds the cap, nothing is signed and the tool returns `mcp_budget_exceeded`.
+
+<Note>
+`maxAmount` is schema-optional but handler-required: a call that omits it returns a coded `mcp_budget_required` rather than a raw MCP `-32602`. An agent can never pay an unbounded amount by forgetting a field.
+</Note>
+
+The refusal carries the numbers an agent needs to reason: the `price` it was asked to pay, the `maxAmount` it was allowed, and whether the price was quoted on the probe. Those are captured *before* the error crosses the payment-library boundary, because a stock `@x402/fetch` wrapper rethrows a bare message with no structured cause, so anything to be classified after that boundary has to be captured before it.
+
+## pay_and_call speaks MCP, not only HTTP
+
+The paid resource can itself be an MCP tool. Passing `toolName` switches `pay_and_call` from an HTTP request to an MCP tool call (over upstream `@x402/mcp`), with `toolArguments` carrying the arguments. Mixing transports is refused, not silently dropped: passing `queryParams` or `body` *alongside* `toolName` returns an error rather than paying for a request the server would ignore. The output includes a `transport` field, and `status` is deliberately optional: it is absent for an MCP call, because a synthetic `200` would be a field inviting an agent to trust something that did not happen.
+
+## Every rejection carries a reason
+
+<a id="every-rejection-carries-a-reason"></a>
+
+The MCP tools draw from the same [error registry](/reference/errors) as the facilitator and the Bazaar, so every rejection has a machine-readable `code`, a non-null `reason`, and a `retryable` flag. Two of those flags are load-bearing for an agent handling money:
+
+- `mcp_budget_exceeded` and `mcp_budget_required` are **non-retryable**, because nothing was paid, and retrying the identical call will fail identically.
+- `mcp_paid_but_resource_failed` is **non-retryable** and means the payment settled and *then* the resource failed. The money already moved, so a retryable code here would tell an agent to pay twice. The transaction hash is in the same payload as proof.
+
+## The SSRF guard is on both paid surfaces
+
+`pay_and_call` and the SDK's `discoverAndPay` both take a URL and fetch it, so both must refuse a link-local or metadata address (for example `169.254.169.254`). The host policy and the amount parser live in one shared module that both surfaces import, precisely because a control that exists on one agent surface and not the other will be the one that matters. `MCP_ALLOW_PRIVATE_HOSTS=1` opts in for local sellers and never relaxes the metadata rule.
+
+## Where it lives
+
+| Concern | Source |
+| --- | --- |
+| Tool schemas, envelope, both tools | `apps/mcp-discovery/src/tools.ts` |
+| MCP-transport paid call | `apps/mcp-discovery/src/mcp-call.ts` |
+| Shared host policy and amount parse | `packages/agent-helpers/src/outbound.ts` |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="The discovery trust boundary" icon="shield-halved" href="/architecture/discovery">
+    The catalog the search tool queries.
+  </Card>
+  <Card title="Error registry" icon="triangle-exclamation" href="/reference/errors">
+    The codes these tools return.
+  </Card>
+  <Card title="Use the MCP server" icon="robot" href="/buyers/mcp">
+    Wiring it into an agent runtime.
+  </Card>
+  <Card title="Verify it yourself" icon="terminal" href="/architecture/proofs">
+    An MCP agent's settled payment on chain.
+  </Card>
+</CardGroup>

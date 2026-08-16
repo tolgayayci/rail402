@@ -1,0 +1,129 @@
+---
+title: "The rail402 CLI"
+description: "A command-line x402 wallet and agent tool for Stellar: fund a testnet account, search the Bazaar, pay under a spend cap, and verify settlements, with a JSON mode for agents and a bundled Claude skill."
+sidebarTitle: "The CLI"
+---
+
+By the end of this page you will have funded a testnet account, discovered a paid API, paid it under a cap, and verified the settlement, all from the terminal, and you will know how to drive the same flow from an agent.
+
+This uses `@rail402.dev/cli` (bin `rail402`). It turns the whole payment loop, fund then discover then pay then verify, into a handful of commands. It defaults to Rail402's hosted testnet facilitator, which is free and needs no API key, and the buyer needs no XLM because the facilitator sponsors fees.
+
+## Install
+
+<CodeGroup>
+```bash Global install
+npm install -g @rail402.dev/cli
+```
+
+```bash Run without installing
+npx @rail402.dev/cli <command>
+```
+</CodeGroup>
+
+<Warning>
+Every payment requires an explicit `--max` cap. The CLI never spends an unbounded amount, and it is testnet-only by construction.
+</Warning>
+
+## The full flow
+
+<Steps>
+  <Step title="Fund a testnet account">
+    ```bash
+    rail402 fund
+    ```
+    Generates a testnet account and funds it with friendbot. Save the `S...` secret it prints and export it:
+    ```bash
+    export RAIL402_SECRET=S...
+    ```
+    Friendbot funds XLM. For testnet USDC, fund the printed address at the [Circle faucet](https://faucet.circle.com) (select Stellar testnet). Check the account any time with `rail402 whoami`.
+  </Step>
+  <Step title="Search the Bazaar">
+    ```bash
+    rail402 search "current price of a commodity by ticker"
+    ```
+    Ranks the catalog in natural language and prints the matches with their price and parameters. Pays nothing.
+  </Step>
+  <Step title="Discover and pay, capped">
+    ```bash
+    rail402 buy "current price of a commodity by ticker" --max 0.10
+    ```
+    Discovers the best-ranked match within your cap and pays it. The command prints the settlement hash and the resource's response. To pay a URL you already have, use `rail402 pay <url> --max 0.10`, with `--query k=v` for query parameters and `--method` for the HTTP method.
+  </Step>
+  <Step title="Verify the settlement">
+    ```bash
+    rail402 tx <hash>
+    ```
+    Looks the settlement up on the explorer and prints an openable link. `rail402 feed` shows recent settlements.
+  </Step>
+</Steps>
+
+<Warning>
+CLI amounts are decimals in the asset's units, so `--max 0.10` is 0.10 USDC. This is deliberately different from the SDK, which uses atomic-unit strings (`"1000000"` is 0.10 USDC). A person types decimals; the SDK stays on atomic strings so amount math is never a float. Keep them straight.
+</Warning>
+
+## The rest of the commands
+
+| Command | What it does |
+| --- | --- |
+| `fund` | Generate and friendbot-fund a testnet account. |
+| `whoami` | Show the configured account and its balances. |
+| `search "<q>"` | Natural-language Bazaar search. Pays nothing. |
+| `buy "<q>" --max <amt>` | Discover the best-ranked match within the cap and pay it. |
+| `pay <url> --max <amt>` | Pay a URL directly (`--query k=v`, `--method`). |
+| `tx <hash>` | Look a settlement up on the explorer. |
+| `feed` | Recent settlements. |
+| `supported` | The facilitator's `/supported` contract. |
+| `config [show\|set\|path]` | Read or write the saved config. |
+
+Global flags: `--json`, `--facilitator`, `--explorer`, `--network`, and `--secret` (the secret can also come from `RAIL402_SECRET`). Command flags: `search` and `buy` take `--max`, `--type <http|mcp>`, and `--limit <n>`; `pay` takes `--max`, `--method`, and `--query k=v`; `feed` takes `--limit`, `--seller`, and `--scheme`. The CLI defaults to `https://facilitator.rail402.dev`; point it elsewhere with `--facilitator`.
+
+## `--json` for agents
+
+Add `--json` to any command and it prints a single machine-readable envelope instead of formatted text: `{ ok, data }` on success, `{ ok, error }` on failure, where `error` is the same `{ code, reason, retryable }` used everywhere in Rail402. Branch on `ok`, read `data` or `error`, and never parse the human output.
+
+```bash
+rail402 buy "translate text to spanish" --max 0.10 --json
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "resource": "https://api.example.com/translate",
+    "status": 200,
+    "paid": { "transaction": "feb9bedb...", "amount": "100000", "asset": "CBIELTK6...", "network": "stellar:testnet" },
+    "body": { "...": "..." }
+  }
+}
+```
+
+A refusal keeps the same shape:
+
+```json
+{ "ok": false, "error": { "code": "mcp_budget_exceeded", "reason": "price 0.20 USDC exceeds cap 0.10 USDC", "retryable": false } }
+```
+
+## The bundled Claude skill
+
+The CLI ships a Claude skill at `skill/SKILL.md`. Point an agent at it and the agent can drive the fund, search, buy, and verify flow through the `--json` interface, staying inside whatever `--max` cap you give it. This is the fastest way to let an AI agent pay for Stellar services from the command line.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Pay for a resource" icon="rocket" href="/buyers/quickstart">
+    The same flow from the SDK.
+  </Card>
+  <Card title="Spend controls" icon="shield" href="/buyers/spend-controls">
+    Decimals here, atomic strings in the SDK, and the ceiling above both.
+  </Card>
+  <Card title="Pay over MCP" icon="robot" href="/buyers/mcp">
+    Give an agent runtime the same search and pay tools.
+  </Card>
+  <Card title="Discover services" icon="compass" href="/buyers/discover">
+    What a Bazaar listing tells you before you pay.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+With `--json`, every failure is `{ ok: false, error: { code, reason, retryable } }`. The full registry is in [Rejection reasons](/reference/errors).

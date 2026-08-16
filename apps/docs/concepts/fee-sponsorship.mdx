@@ -1,8 +1,0 @@
----
-title: "Fee sponsorship & non-custodial"
-description: "The facilitator pays the network fee and never takes custody of funds. The buyer needs only the payment asset."
----
-
-**Fee sponsorship.** The facilitator pays the Stellar network fee by rebuilding the transaction with its own account as the source, so the buyer holds only the payment asset and needs no XLM. `/supported` advertises this as `extra.areFeesSponsored: true`, and the flag reflects real configuration: the facilitator refuses to start with sponsorship advertised as false, because its settlement path always sponsors.
-
-**Non-custodial settlement.** The facilitator never takes custody of funds and is never the source of funds. The only movement any path causes is submitting the buyer-signed authorization exactly as signed: the transfer's `from` is the buyer, and the transaction source is the facilitator. Change the amount, recipient, or asset, and signature verification fails. You can confirm this on chain for any settlement on [stellar.expert](https://stellar.expert/explorer/testnet).

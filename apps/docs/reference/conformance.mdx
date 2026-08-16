@@ -1,0 +1,88 @@
+---
+title: "Conformance"
+description: "Wire-test a Rail402 deployment against the upstream x402 e2e suite, and read the dual-run verdict."
+---
+
+By the end of this page you will know what `@rail402.dev/conformance` proves, how to run it against a deployment, and how to read the verdict of a dual run.
+
+Acceptance for an x402 facilitator is tested at the wire level: a reviewer points stock upstream client code at your deployment rather than reading a claim. [`@rail402.dev/conformance`](https://www.npmjs.com/package/@rail402.dev/conformance) automates that. It clones the upstream x402 e2e suite, installs a proxy that points the suite at your facilitator, and runs the suite with unmodified upstream clients.
+
+```bash
+npm install @rail402.dev/conformance
+```
+
+It ships the `x402-stellar-conformance` binary.
+
+<Note>
+This measures interoperability against the real x402 suite, so it needs a reachable facilitator and, for a full settlement run, funded `stellar:testnet` accounts. Nothing here settles on mainnet.
+</Note>
+
+## What it does
+
+1. Clones the upstream x402 repository at a pinned spec commit.
+2. Installs the Rail402 proxy config, so the suite's stock clients target your facilitator instead of a remote one.
+3. Runs the upstream e2e scenarios (a stock client requesting a `402`, signing, and retrying) and records the outcome per scenario.
+
+The result is a wire-level record, including settled transaction hashes, that a reviewer can reproduce rather than trust.
+
+## Running it
+
+<Steps>
+  <Step title="Install the proxy">
+    Clone the upstream suite and wire its clients to your facilitator.
+
+    ```bash
+    x402-stellar-conformance install-proxy
+    ```
+  </Step>
+  <Step title="Run against a deployment">
+    Point the suite at a facilitator URL and run the scenarios.
+
+    ```bash
+    x402-stellar-conformance run --servers=next
+    ```
+  </Step>
+  <Step title="Run the dual comparison">
+    Run the suite twice, at the pinned spec and at the latest upstream main, and compare.
+
+    ```bash
+    x402-stellar-conformance dual --servers=next
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+The `dual` run is what turns conformance into ongoing maintenance. Running the suite at both the pinned commit and the latest upstream main catches a break introduced by an upstream spec change, not only a break in your own code.
+</Tip>
+
+## Dual-run verdicts
+
+A dual run emits one of four verdicts.
+
+| Verdict | Meaning | What to do |
+| --- | --- | --- |
+| `green` | The suite passed, and the pinned run and the latest-upstream run agree. | Nothing. Conformance holds. |
+| `regression` | Fewer scenarios pass than the pinned baseline, so conformance dropped. | Investigate the failing scenarios before releasing. |
+| `drift` | Upstream moved from the pinned spec, flagged for review even without a failure. | Re-pin to the new spec, re-run, and update the snapshot. |
+| `blocked` | The run could not execute, usually because credentials or funded accounts are missing. | Configure the testnet accounts and re-run. |
+
+<Warning>
+`blocked` is not a pass. It means the measurement did not happen. Treat a `blocked` verdict as unknown, never as green.
+</Warning>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="How it works" icon="diagram-project" href="/start/how-it-works">
+    The verify and settle loop the suite exercises.
+  </Card>
+  <Card title="Run a facilitator" icon="server" href="/operators/run">
+    Stand up the deployment you point the suite at.
+  </Card>
+  <Card title="Packages" icon="box" href="/reference/packages">
+    Where conformance sits among the packages.
+  </Card>
+  <Card title="Error registry" icon="triangle-exclamation" href="/reference/errors">
+    The codes a failing scenario reports.
+  </Card>
+</CardGroup>

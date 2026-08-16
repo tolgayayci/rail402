@@ -1,0 +1,138 @@
+---
+title: "Smart-account buyers"
+description: "Pay from an OpenZeppelin __check_auth contract account with a session key and an on-ledger spending policy, and how it composes with the upto scheme's reserve-then-reconcile."
+sidebarTitle: "Smart accounts"
+---
+
+By the end of this page you will understand how a Soroban smart-contract account pays an x402 resource, enforces a budget on chain, and reconciles a reserved ceiling down to the actual charge under `upto`.
+
+This is the advanced buyer path. Read [Sign and pay](/buyers/sign-and-pay) and [Spend controls](/buyers/spend-controls) first: everything there still applies, plus a second cap enforced by the account itself.
+
+## The facilitator is address-agnostic
+
+A buyer on Stellar can be a classic keypair (`G...`) or a Soroban smart-contract account (`C...`). The Rail402 facilitator settles from both. It does not care which kind of account authorized the payment, only that the authorization is valid, so a `C...` account pays through the same `/verify` and `/settle` path a keypair uses. The `oz-account` canary proves both `exact` and `upto` settle from a contract account on testnet.
+
+<Warning>
+Paying from a `C...` account through `payAndFetch` is not yet possible with the pinned
+`@x402/stellar` (2.20.0). Its client signs authorization entries the classic-keypair way and verifies
+an ed25519 signature, so a smart account's structured signature cannot pass through it. The upstream
+fix is [x402-foundation/x402#3018](https://github.com/x402-foundation/x402/pull/3018), which forwards
+a custom authorization path so a contract account supplies its own signature; once it merges and
+Rail402 bumps `@x402/stellar`, the SDK's `stellarSigner` seam handles a `C...` account with no extra
+code. The seam already works today for any `G...` signer. Until #3018 ships, use the helper below,
+which does the direct path the facilitator settles today.
+</Warning>
+
+## Pay from a smart account today
+
+The facilitator settles from a `C...` account through the standard `/verify` and `/settle` endpoints,
+so the smart-account path is real and proven on testnet. What differs from a keypair buyer is only
+how the payment is signed. Rail402 ships a ready-to-lift helper for exactly this in
+[`examples/smart-account-buyer`](https://github.com/tolgayayci/rail402/tree/main/examples/smart-account-buyer).
+It is a direct-path helper standing in for the client feature #3018 will bring, not a workaround for
+anything on the facilitator side.
+
+```ts
+import { deploySmartAccount, addTokenRule, payFromSmartAccount } from "./smart-account";
+
+// One-time setup: deploy an OpenZeppelin account and scope a session key to a token, under a budget.
+const account = await deploySmartAccount(funder); // funder is a funded G... keypair; it pays the deploy only
+const tokenRuleId = await addTokenRule({ funder, account, token, spendingLimit: 50_000_000n });
+
+// Pay a seller from the C... account. token, payTo and amount come from the seller's 402 challenge.
+const result = await payFromSmartAccount({
+  facilitatorUrl: "https://facilitator.rail402.dev",
+  simSource: funder, // only used to simulate and build; the facilitator re-sources and pays the fee
+  account,
+  tokenRuleId,
+  token,   // accepts.asset
+  payTo,   // accepts.payTo
+  amount: "5000000", // atomic units
+});
+
+if (result.ok) console.log(result.transaction); // settled from the C... address
+```
+
+Under the hood the helper does three things:
+
+<Steps>
+  <Step title="Build the transfer">
+    Build the token `transfer(from = C-account, to = seller, amount)` call the payment requires.
+  </Step>
+  <Step title="Sign each authorization entry with the account's __check_auth">
+    Use `authorizeEntry` with the `{ signatureScVal, address }` callback form. For an OpenZeppelin
+    account, `signatureScVal` is the session-key signature over `sha256(payload || context_rule_ids)`,
+    which binds the account's context rules into the signature.
+  </Step>
+  <Step title="Post the signed transaction to the facilitator">
+    Send the payment payload to `/verify` then `/settle`. The facilitator re-sources it, sponsors the
+    fee, and submits.
+  </Step>
+</Steps>
+
+The `oz-account` canary in the Rail402 repository is the fuller reference, including the `upto`
+scheme: it configures the session key and context rules and settles both `exact` and `upto` on
+testnet, reconciling a reserved ceiling down to the actual charge.
+
+<Note>
+The SDK exposes a `stellarSigner` field (a `ClientStellarSigner`) so this becomes a one-liner the
+moment [#3018](https://github.com/x402-foundation/x402/pull/3018) merges and Rail402 bumps
+`@x402/stellar`. Today you can already pass `stellarSigner` for a `G...` account (the same code path
+`stellarSecret` uses).
+</Note>
+
+## The pieces of a smart-account buyer
+
+A smart account authorizes a payment through its own `__check_auth`, which is where an on-ledger spending policy lives. Rail402 uses OpenZeppelin's audited smart-account stack and adds only a small x402-aware policy on top. The cryptography and authorization stay audited; only the budget arithmetic is Rail402's.
+
+<Steps>
+  <Step title="The contract account">
+    An OpenZeppelin `__check_auth` account. It holds the asset and decides, in its own code, whether to authorize a call.
+  </Step>
+  <Step title="A session key">
+    An ed25519 key scoped to payment calls, so the agent signs with a limited key rather than the account owner's key. The owner's rule carries no policy; the scoped payment rules do.
+  </Step>
+  <Step title="A spending policy">
+    An x402-aware policy attached to the payment rules. It refuses a call that exceeds the account's budget, on chain, before the facilitator ever submits the transaction.
+  </Step>
+</Steps>
+
+An over-budget payment is declined by the account's own policy and comes back as a coded rejection, not a crash. This is a second cap, on the ledger, in addition to the `maxAmount` your client sends.
+
+## How it composes with `upto`
+
+The `upto` scheme authorizes a ceiling and settles only actual usage. A smart-account policy and `upto` fit together cleanly:
+
+1. When the account authorizes an `upto` payment, the policy's `enforce` reserves the signed ceiling against the budget.
+2. After the transfer, the settlement contract calls the policy's `release`, which refunds the unused difference back to the budget.
+
+So the budget is reserved at the ceiling and then reconciled down to what was actually charged. The `oz-account` canary settles 750,000 of a 2,000,000 ceiling and reads the on-chain budget back as 750,000, not 2,000,000, which is only reachable if `release` ran. See [The upto scheme](/concepts/upto) for the scheme itself.
+
+<Tip>
+This is "composes with Stellar smart-account spending policies" made concrete: an agent stays inside a budget the ledger enforces, and a metered `upto` charge never reserves more than the real usage once it settles.
+</Tip>
+
+## A deployment note that will bite you
+
+A smart-account payment cross-calls a verifier and a policy, so its simulated fee is several times a keypair payment's. The facilitator's default fee ceiling (`MAX_TRANSACTION_FEE_STROOPS`, 100000) correctly refuses those payments with a legible reason. An operator serving smart-account buyers must raise it (around 500000). This is a deployment requirement, not a test artifact. See [Run the facilitator](/operators/run).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="The upto scheme" icon="gauge" href="/concepts/upto">
+    Reserve a ceiling, settle only usage.
+  </Card>
+  <Card title="Spend controls" icon="shield" href="/buyers/spend-controls">
+    The client-side cap that pairs with the on-ledger one.
+  </Card>
+  <Card title="Stellar essentials" icon="star" href="/concepts/stellar">
+    Auth entries, sponsorship, and trustlines.
+  </Card>
+  <Card title="Run the facilitator" icon="server" href="/operators/run">
+    Raise the fee ceiling for smart-account traffic.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+An on-ledger policy refusal is a coded rejection carrying a non-null reason, the same as any other. The registry is in [Rejection reasons](/reference/errors).

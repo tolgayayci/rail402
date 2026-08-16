@@ -1,0 +1,61 @@
+---
+title: "FAQ"
+description: "Short answers to the questions that come up first: cost, packages, XLM, trustlines, interop, schemes, custody, and network."
+---
+
+By the end of this page you will have direct answers to the questions most people ask before their first payment. For failure states, see [Troubleshooting](/support/troubleshooting).
+
+<AccordionGroup>
+  <Accordion title="Is Rail402 free to use?" icon="circle-dollar">
+    Yes on `stellar:testnet`. The hosted facilitator at `https://facilitator.rail402.dev` is free and needs no API key. `/supported` is the ground truth for what any facilitator serves.
+  </Accordion>
+
+  <Accordion title="Which package do I install?" icon="box">
+    Most projects need one of three. Install [`@rail402.dev/sdk`](/reference/sdk) to build a buyer or seller into an app, [`@rail402.dev/cli`](/reference/cli) to pay and search from a terminal or agent, or [`@rail402.dev/facilitator`](/operators/run) to run the service. See [Packages](/reference/packages) for the full map and which packages are building blocks.
+  </Accordion>
+
+  <Accordion title="Do I need XLM to pay?" icon="coins">
+    No. The facilitator sponsors the network fee, so a buyer holds only the payment asset (for example testnet USDC). This is advertised as `extra.areFeesSponsored: true` on `/supported`, and it is proven on chain by the fee being charged to the facilitator, not the buyer. See [Fee sponsorship](/concepts/stellar).
+  </Accordion>
+
+  <Accordion title="Do I need a trustline?" icon="link">
+    The receiver does. On Stellar an account needs a trustline to a SEP-41 asset before it can receive it, so the seller's `payTo` address must have a trustline to the payment asset. A buyer paying in USDC needs a USDC balance, which also implies a trustline. Testnet USDC comes from the [Circle faucet](https://faucet.circle.com); XLM comes from friendbot.
+  </Accordion>
+
+  <Accordion title="Does a stock @x402 client work with Rail402?" icon="plug">
+    Yes. The facilitator and the Bazaar speak the x402 v2 wire format, so an unmodified `@x402` client pays a Rail402 endpoint and reads the Rail402 Bazaar with no Rail402-specific code. The `@rail402.dev` helper packages add ergonomics such as spend caps and preflight, but you never need them to interoperate.
+  </Accordion>
+
+  <Accordion title="What is the difference between exact and upto?" icon="scale-balanced">
+    `exact` charges a fixed price to a fixed recipient. `upto` authorizes a ceiling and settles the actual usage, which fits metered services such as token billing. The unused difference never leaves the buyer's wallet. `upto` is enforced by a Soroban contract deployed on testnet at `CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X`. See [exact](/concepts/exact) and [upto](/concepts/upto).
+  </Accordion>
+
+  <Accordion title="Is the facilitator custodial?" icon="shield">
+    No. The facilitator never holds funds and is never the source of funds. It submits the buyer-signed Soroban authorization entry exactly as signed. On chain the transfer sender is the buyer and the fee is charged to the facilitator. Tampering with the amount, recipient, or asset fails signature verification.
+  </Accordion>
+
+  <Accordion title="Is mainnet supported?" icon="globe">
+    Not today. Rail402 targets `stellar:testnet` only. Every amount, address, and example in these docs is testnet.
+  </Accordion>
+
+  <Accordion title="How do I confirm a payment settled?" icon="magnifying-glass">
+    Take the transaction hash from the settle response (the seller returns it in the `PAYMENT-RESPONSE` header) and open it on the [Explorer](https://explorer.rail402.dev), or run `rail402 tx <hash>`. See [How it works](/start/how-it-works).
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/start/quickstart">
+    Run the whole loop in one command.
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/support/troubleshooting">
+    Fix a payment that will not go through.
+  </Card>
+  <Card title="Packages" icon="box" href="/reference/packages">
+    Pick the right package to install.
+  </Card>
+  <Card title="Error registry" icon="triangle-exclamation" href="/reference/errors">
+    Read the code behind a rejection.
+  </Card>
+</CardGroup>

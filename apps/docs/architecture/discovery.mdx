@@ -1,0 +1,105 @@
+---
+title: "The discovery trust boundary"
+description: "How the Bazaar catalogs a resource automatically through settlement, why the facilitator treats every client-supplied field as untrusted, how routeTemplate traversal and listing takeover are prevented, and how Stellar listings interoperate with the wider x402 ecosystem."
+---
+
+The Bazaar is a discovery catalog of paid resources on Stellar. This page is the design of automatic cataloging and, more importantly, the **trust boundary** around it. Because clients echo the resource block into the payment payload, every field arriving with a payment is attacker-influenceable, and the facilitator that catalogs it is the only thing standing between honest metadata and a poisoned catalog. Search ranking is covered separately in [Retrieval architecture](/architecture/retrieval); this page is everything up to the point a listing is ranked.
+
+## The Bazaar is the facilitator
+
+There is no separate Bazaar service and no ingest endpoint. A resource enters the catalog **only** from inside the facilitator's own `/verify` and `/settle` handlers, when a payment carries the discovery extension. This is a deliberate architectural choice: a listing can only exist if it corresponds to a real payment path through this facilitator, so a standalone "add my listing" API, the thing every spam vector needs, simply does not exist.
+
+## Automatic cataloging is hybrid
+
+Cataloging happens in two phases, which resolves a real tension between conformance and anti-spam.
+
+<Steps>
+  <Step title="Provisional, at verify">
+    When a well-formed listing arrives at `/verify`, a **provisional** entry is written. It is discoverable, so a resource appears during payment verification (what the upstream reference facilitators do and the upstream e2e suite checks for), but it is powerless: **zero ranking signals, no ownership, pruned on a 1-hour TTL.** The seller also gets the `processing` or `rejected` verdict here, so a typo costs no money to discover.
+  </Step>
+  <Step title="Confirmed, at settle">
+    A successful settlement **confirms** the entry, and is the only thing that earns ownership and ranking signals. It can also **claim** a provisional entry that a different `payTo` created.
+  </Step>
+</Steps>
+
+The rule that makes this safe: a provisional incumbent is **displaceable**, so settlement from any `payTo` may claim it. Without that, a free `/verify` declaring a victim's resource URL under an attacker `payTo` would plant a provisional entry that the ownership check then used to *reject the real seller's settlement*. With it, the real seller, the one who actually settles, always wins. This is stricter than the upstream reference facilitators, which gate nothing at verify.
+
+<Note>
+Anti-spam still holds where it matters: ranking and ownership are settlement-gated, and a settled payment costs real value on a fee-sponsored rail. A poisoned provisional entry can neither rank (zero signals), nor own, nor misdirect a payment: a buyer pays whatever the *live* endpoint's `402` challenges, not the catalog's declared `payTo`.
+</Note>
+
+## Ownership is bound to settlement
+
+The core integrity property is that **only a settled payment earns a claim on a listing key**, and a claim belongs to the settling `payTo`. This closes a listing-takeover class where any anonymous caller could overwrite any listing.
+
+The subtle part is the key. A catalog entry is keyed on `origin + routeTemplate`, not `origin + pathname`, and a takeover once slipped through because the ownership check *read* one key while the write *used* another. The fix is structural: `ingest` takes a **lookup resolver against the exact key it is about to write**, so the incumbent it checks ownership against is always the incumbent it would overwrite. A check attached to a different key than the write is not a check.
+
+## routeTemplate is decoded before it is checked
+
+A `routeTemplate` is a client-supplied string that can contain path parameters, so it is a classic traversal vector. The validation order is the whole game: **percent-decode first, then check.** The upstream SDK's validator decodes once, which misses a double-encoded `%252e%252e` that decodes to `..` on a second pass. Rail402 ANDs the SDK check with its own `isRouteTemplateSafe`, which decodes to a fixed point (up to 8 passes) *before* checking for traversal, absolute paths, scheme smuggling, protocol-relative URLs, control characters, and backslashes. A template that fails is **soft-dropped** to the concrete path (the listing is still cataloged, just without the unsafe template), never used as a reason to reject the listing.
+
+## Soft-drop validation
+
+The facilitator validates aggressively and drops what fails, rather than accepting best-effort. Malformed or unpayable metadata never becomes a live listing:
+
+- A Stellar `exact` listing without `extra.areFeesSponsored === true` is refused, because a stock `@x402/stellar` client cannot pay it, so publishing it would be publishing an unconsumable listing.
+- A listing missing `maxTimeoutSeconds` (required on a v2 `PaymentRequirements`) is refused rather than published unconsumable.
+- Network is validated as CAIP-2 and against the networks the facilitator actually serves.
+- A client-supplied discovery schema is bounded before compilation (serialized-size and nesting-depth caps, no `pattern` or `patternProperties`) so a hostile schema cannot become a ReDoS.
+- URL fields are checked against an SSRF host policy before any fetch.
+- `extra.stellar` is stripped from the client input and recomputed facilitator-side, so a client cannot forge [asset identity](/architecture/stellar-engineering#provable-asset-identity).
+
+## A settled payment is not domain ownership
+
+A payment proves someone paid the endpoint, not that they own the domain it points at. Rail402 adds **SEP-1 domain verification** as an advisory signal: a `payTo` listed in a domain's `/.well-known/stellar.toml` `ACCOUNTS` set is a verified owner, and it displaces an unverified squatter for that key and can never itself be displaced. This is advisory, cached, off the settlement path, and it **never gates cataloging**: it only resolves ownership conflicts. It is a SEP-native defense against listing squatting.
+
+## Browsing and search: the shape
+
+`GET /discovery/resources` is paginated browsing with **seven** filters, and `scheme` is one of them.
+
+| Filter | `type` · `payTo` · `scheme` · `network` · `extensions` · `limit` · `offset` |
+| --- | --- |
+| Response | `{ x402Version, items, pagination }`, where the list key is **`items`** |
+
+`GET /discovery/search` takes a natural-language `query` with cursor pagination and a `partialResults` flag. Its response array key is **`resources`**, not `items`. This asymmetry is real and load-bearing, because getting it backwards silently breaks every stock client using the Bazaar. Rail402 also emits `lastUpdated` as an ISO-8601 **string**, matching the SDK and every live implementation, despite the core spec saying `number`. Search cursors bind to the query *and* a canonical serialization of the filters, so a cursor cannot leak results across a filter change.
+
+## MCP tools are first-class
+
+The spec treats an MCP tool as a resource type keyed on the tuple of `resource.url` and `input.toolName`, and Rail402 catalogs them alongside HTTP endpoints. A caveat surfaced upstream: the `@x402/mcp` default resource URL `mcp://tool/<name>` is not addressable, because `mcp:` is not a WHATWG special scheme, so its origin collapses to the string `"null"` and the host is discarded, which under first-settler ownership would be a permanent global squat. Rail402 refuses it with an actionable reason, `bazaar_mcp_resource_url_not_addressable`, and a seller-side boot guard catches it before deploy.
+
+## Interoperability
+
+Stellar is not a walled garden. A stock, unmodified `@x402` client reads the Rail402 Bazaar through the same interface it uses for any facilitator, and catalog entries round-trip through the stock SDK types. Beyond serving its own catalog, Rail402 has a **federation read layer** that can mirror other facilitators' catalogs, off by default and fail-closed:
+
+- a source needs a declared license, attribution, HTTPS, and an explicit human `termsAcknowledged` (a reachable endpoint is not permission);
+- mirrored entries are labelled `provenance` on the wire, their ranking signals are **discarded not copied**, they are invisible to `store.get` so they can never lock a real seller out of a key, they are never persisted, and unpayable or identity-less ones are dropped.
+
+It has been run read-only against live catalogs (PayAI, CDP) to confirm Stellar listings represent consistently with how other facilitators represent theirs. No source is enabled by default, and there is no outbound or write direction.
+
+## Where it lives
+
+| Concern | Source |
+| --- | --- |
+| Ingest, ownership resolver, soft-drop, hybrid cataloging | `apps/bazaar/src/catalog/ingest.ts` |
+| `routeTemplate` fixed-point decode and traversal checks | `apps/bazaar/src/catalog/route-template.ts` |
+| SEP-1 domain verification | `apps/bazaar/src/catalog/domain.ts` |
+| Asset identity, trustline pre-flight | `apps/bazaar/src/catalog/stellar-assets.ts`, `trustline.ts` |
+| Federation read layer | `apps/bazaar/src/catalog/federation.ts` |
+| Durable store (SQLite / D1) | `apps/bazaar/src/catalog/persistence.ts`, `d1.ts` |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Retrieval architecture" icon="magnifying-glass" href="/architecture/retrieval">
+    How the catalog is ranked once a listing is in it.
+  </Card>
+  <Card title="The agent-facing MCP interface" icon="robot" href="/architecture/mcp">
+    Searching and paying from inside an agent runtime.
+  </Card>
+  <Card title="Stellar-specific engineering" icon="star" href="/architecture/stellar-engineering">
+    The asset-identity and trustline enrichment in depth.
+  </Card>
+  <Card title="Bazaar concepts" icon="store" href="/concepts/bazaar">
+    The lighter introduction to a listing.
+  </Card>
+</CardGroup>

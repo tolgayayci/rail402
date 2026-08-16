@@ -1,0 +1,83 @@
+---
+title: "The exact scheme"
+description: "Fixed-price settlement on Stellar: the buyer signs a Soroban authorization entry for one exact amount, valid for a bounded number of ledgers, and the facilitator sponsors the fee."
+---
+
+The `exact` scheme is a fixed-price payment: the buyer authorizes exactly the stated amount, and exactly that amount settles on chain.
+
+It is the default scheme and the one behind every fixed-price call. For the metered case, where the price is not known until after the work runs, see [The upto scheme](/concepts/upto).
+
+## How a payment settles
+
+<Steps>
+  <Step title="The seller states an exact price">
+    The `402` terms carry a scheme of `exact`, a network of `stellar:testnet`, an asset, an amount in atomic units, a `payTo` address, and a `maxTimeoutSeconds`.
+  </Step>
+  <Step title="The buyer signs an authorization entry">
+    The buyer signs a Soroban authorization entry permitting one `transfer(from, to, amount)` on the asset's Stellar Asset Contract, for exactly the stated amount to exactly the stated recipient.
+  </Step>
+  <Step title="The facilitator verifies">
+    `/verify` confirms the entry authorizes exactly the declared call, asset, amount, and recipient, is not replayed, and has not expired.
+  </Step>
+  <Step title="The facilitator settles and sponsors the fee">
+    `/settle` builds the transaction with the facilitator as the source, pays the network fee, and submits the transfer. The buyer needs only the payment asset.
+  </Step>
+</Steps>
+
+## Auth entries, not pre-signed transactions
+
+On Stellar the buyer signs a Soroban **authorization entry**, not a whole transaction. The entry permits one specific contract call and nothing else. The facilitator builds the transaction around that signed entry, sets its own account as the source, and submits it.
+
+This is what makes the scheme non-custodial and fee-sponsored at the same time. The buyer never submits a transaction and never spends XLM. The buyer's wallet must support authorization-entry signing; the stock `@x402/stellar` client does this for you. See [Stellar essentials](/concepts/stellar) for the wallet side.
+
+<Note>
+Tamper with the amount, recipient, or asset after signing and verification fails. The authorization signs the exact call, so a changed field no longer matches the signature. This is tested, not asserted.
+</Note>
+
+## Ledger-based expiration
+
+Each authorization is valid until a specific ledger, `signatureExpirationLedger`, derived from the seller's `maxTimeoutSeconds`. The default of 60 seconds is about 12 ledgers at roughly 5 seconds each. After that ledger, the authorization is dead and the buyer signs a new one.
+
+`maxTimeoutSeconds` is required on every listing. A listing without it is unconsumable and is rejected at cataloging. If an authorization expires between verify and settle, that is a coded settle rejection, not a crash, and the buyer signs again.
+
+<Warning>
+On a congested or lagging testnet, ledger timing drifts and a short window can expire before settlement. Give `maxTimeoutSeconds` enough headroom for the round trip rather than the minimum.
+</Warning>
+
+## Sponsored, non-custodial settlement
+
+The facilitator is the transaction source and pays the Stellar network fee. The buyer holds only the payment asset. `/supported` advertises this with `extra.areFeesSponsored: true`, and the flag reflects real runtime configuration.
+
+The facilitator never takes custody of funds and is never the source of funds. On any settlement the transfer's `from` is the buyer, while the transaction source and the fee payer are the facilitator. Open the transaction in the [Explorer](https://explorer.rail402.dev) and both facts are visible on chain.
+
+## Using it
+
+`exact` is what a stock `@x402/*` client uses by default. The seller registers `ExactStellarScheme` from `@x402/stellar`, and the buyer registers the matching client scheme. The [buyer](/buyers/quickstart) and [seller](/sellers/quickstart) quickstarts show the full wiring. Amounts are integer strings at 7 decimals; never use floating-point math on an amount (see [Stellar essentials](/concepts/stellar)).
+
+## When it fails
+
+Every rejection carries a machine-readable code and a non-null reason. Common `exact` codes:
+
+| Code | Cause |
+| --- | --- |
+| `invalid_exact_stellar_payload_authorization_replayed` | The authorization was already used. |
+| `invalid_exact_stellar_payload_missing_trustline_recipient` | The seller's `payTo` has no trustline to the asset. |
+
+The full list is in the [error reference](/reference/errors).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="The upto scheme" icon="arrow-up-right-dots" href="/concepts/upto">
+    Authorize a ceiling and settle actual usage.
+  </Card>
+  <Card title="Stellar essentials" icon="star" href="/concepts/stellar">
+    Trustlines, SEP-41 amounts, and smart accounts.
+  </Card>
+  <Card title="The payment loop" icon="diagram-project" href="/concepts/payment-loop">
+    Where exact sits in the full flow.
+  </Card>
+  <Card title="Buyer quickstart" icon="rocket" href="/buyers/quickstart">
+    Pay a testnet endpoint and check the hash.
+  </Card>
+</CardGroup>

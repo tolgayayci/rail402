@@ -1,0 +1,70 @@
+---
+title: "Fee sponsorship and fee ceilings"
+description: "How Rail402 pays the Stellar network fee so a buyer needs no XLM, why areFeesSponsored is computed truthfully rather than declared, and how MAX_TRANSACTION_FEE_STROOPS bounds what the facilitator will sign for both exact and upto."
+---
+
+A buyer paying per request should need only the payment asset, not XLM to cover a network fee. Rail402 sponsors the fee, advertises that truthfully, and bounds the fee it is willing to pay so an expensive settlement cannot drain the sponsor. This page is the mechanism; [Stellar essentials](/concepts/stellar#fee-sponsorship) is the lighter version.
+
+## How sponsorship works
+
+Sponsorship is not a separate feature bolted onto settlement. For the `exact` scheme it *is* the settlement mechanism. At settle time the facilitator loads its own signer account, **rebuilds the transaction with that signer as the transaction source**, and pays `BASE_FEE + minResourceFee` out of its own XLM. The buyer's contribution is only the signed authorization entry that moves the asset; the buyer is never the transaction source and holds no XLM.
+
+Because the source is the facilitator and the transfer `from` is the buyer, sponsorship and the [non-custodial invariant](/architecture/settlement#the-non-custodial-invariant) are the same on-ledger fact seen from two sides. On transaction [`3f6031ed…`](https://stellar.expert/explorer/testnet/tx/3f6031ed4d3d17100992b1e003f9bcc6da51ef684cc1ba402432ae52166a903f), `fee_charged` is `22973` stroops (about 0.0023 XLM) paid by the facilitator's source account.
+
+## areFeesSponsored is computed, never declared
+
+`/supported` advertises `extra.areFeesSponsored: true`, and the flag must reflect reality rather than be advertised falsely. Rail402 makes that impossible to get wrong: the flag is derived from the actual running configuration, and startup **refuses to boot** with `FEES_SPONSORED=false`, because the `exact` scheme's settle path *is* the sponsoring rebuild. There is no non-sponsoring code path to honestly advertise as `false`, so a facilitator that cannot sponsor cannot start and claim it can.
+
+<Note>
+The `/supported` contract is generated from the same scheme registry the facilitator settles with, so an advertised capability is always a reachable one.
+</Note>
+
+## The fee ceiling
+
+<a id="the-fee-ceiling"></a>
+
+Sponsoring the fee means the facilitator signs a transaction whose fee it pays. Left unbounded, a settlement with a large simulated resource fee could cost the sponsor far more than expected. `MAX_TRANSACTION_FEE_STROOPS` is the guard: the facilitator refuses to sign a settlement whose simulation-derived fee exceeds it, with a legible reason rather than a silent overspend.
+
+| | Value | Where |
+| --- | --- | --- |
+| Default ceiling | `100000` stroops | `apps/facilitator/src/config/env.ts` |
+| Deployed (Railway `testnet`) | `10000000` stroops | see below |
+
+The ceiling is enforced on **both** schemes, but by different code:
+
+- **`exact`** is enforced inside `@x402/stellar` during verify (`settlementFeeStroops = minResourceFee + BASE_FEE`).
+- **`upto`** is enforced by Rail402's own facilitator code before signing (`scheme-upto-stellar/src/facilitator.ts`). This was added deliberately: the `upto` path did not originally check the ceiling, so a smart-account settle at about 174k stroops would have been signed under a 100k ceiling. It now refuses with `invalid_upto_stellar_payload_fee_exceeds_maximum`.
+
+### Why the deployed ceiling is raised
+
+Two Stellar realities push the fee well above a plain keypair payment, and an operator serving those cases must raise the ceiling. This is a documented deployment requirement, not a test artifact.
+
+| Settlement | Measured fee (stroops) |
+| --- | --- |
+| `exact`, `G` keypair | ~22,973 |
+| `exact`, `C` smart account | ~215,804 |
+| `upto`, `C` smart account | ~173,699 |
+| `upto`, real USDC on congested testnet | ~3.26M (simulated) |
+
+A [smart-account](/architecture/smart-accounts) payment cross-calls a signature verifier and a spending policy, so its Soroban resource fee is 7 to 9 times a keypair's. And on a congested ledger the simulated resource fee for a metered USDC settlement rose past 3M stroops. The Railway deployment sets the ceiling to 10,000,000 so both cases settle. The 100k default correctly *refuses* them, with a reason, on a facilitator that has not opted in.
+
+## Throughput without a fee bottleneck
+
+Sponsorship means every settlement is signed by the facilitator's account, which raises a sequence-number question under bursty agent traffic. Rail402 handles it with a **channel-account pool** and, optionally, fee-bump transactions, covered in [Stellar-specific engineering](/architecture/stellar-engineering#throughput). A fee-bump wrapper additionally decouples *who pays the fee* from *whose sequence number advances*, so fee payment and sequencing can scale independently.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="The settlement path" icon="right-left" href="/architecture/settlement">
+    Where the sponsoring rebuild sits in verify and settle.
+  </Card>
+  <Card title="Throughput" icon="gauge-high" href="/architecture/stellar-engineering#throughput">
+    Channel accounts and per-signer sequence lanes.
+  </Card>
+  <Card title="Smart accounts" icon="microchip" href="/architecture/smart-accounts">
+    Why a contract account costs more to settle.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/operators/configuration">
+    Every fee and sponsorship setting an operator controls.
+  </Card>
+</CardGroup>

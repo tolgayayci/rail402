@@ -1,0 +1,69 @@
+---
+title: "Wire-level conformance"
+description: "Conformance with the x402 specification is verified at the wire with stock clients, not asserted. The properties Rail402 conforms to, the on-chain proof of each, and an honest account of the upstream e2e suite."
+---
+
+A correct settlement behind a non-conformant wire format is an unusable service, so conformance with the x402 specification is verified at the wire: stock, unmodified x402 client code settles against the deployment rather than reading a claim. This page lists the properties Rail402 conforms to, the evidence for each, and an honest account of the one area that is not fully green. All evidence here is on `stellar:testnet`.
+
+## What Rail402 conforms to
+
+| Property | Status | Proof |
+| --- | --- | --- |
+| An unmodified stock client completes a payment end to end | Verified | stock-client settlement [`3f6031ed…`](https://stellar.expert/explorer/testnet/tx/3f6031ed4d3d17100992b1e003f9bcc6da51ef684cc1ba402432ae52166a903f) |
+| `/supported` emits the Stellar `extra` contract including `areFeesSponsored` | Verified | [live `/supported`](https://facilitator.rail402.dev/supported) |
+| The `payload: { transaction }` format is accepted as the spec defines it | Verified | [Settlement](/architecture/settlement#the-payload-format-is-accepted-verbatim) |
+| The upstream x402 e2e suite | Partial (2 of 4, upstream cause) | [see below](#the-upstream-e2e-suite) |
+| A published settled transaction per scheme | Verified | [the settled-transaction table](/architecture/proofs#settled-transactions) |
+| A non-null reason on every rejection | Verified | 19 of 19 rejection paths audited |
+
+Five of these are verified and proven on chain. The sixth, the full upstream e2e suite, is partial for a diagnosed defect in the upstream harness rather than in Rail402, described in full below rather than glossed.
+
+## Tested with stock clients
+
+Conformance is not a self-report. The [`@rail402.dev/conformance`](/reference/conformance) harness clones the upstream x402 repository at a pinned spec commit, installs a proxy that points the suite's own, unmodified clients at a Rail402 deployment, and runs the upstream e2e scenarios. Two of those scenarios settle real testnet USDC through stock `axios` and stock `fetch` clients:
+
+- axios: [`52c62499…`](https://stellar.expert/explorer/testnet/tx/52c62499f22e37e4dc1186552b2f7684a874d9f85a1f38c11320cb2a194a5ca1)
+- fetch: [`5c5e2231…`](https://stellar.expert/explorer/testnet/tx/5c5e22318b070c120b15440a02c3c7365f6f23ed87157d48a024c59d9394753f)
+
+Both are settlements produced by the x402 project's own test code, in a real stablecoin, with no Rail402-specific client.
+
+## The upstream e2e suite
+
+<a id="the-upstream-e2e-suite"></a>
+
+Two of the suite's four scenarios pass and settle real USDC (above). The other two fail, and the cause is two defects in the upstream harness itself, diagnosed and documented:
+
+1. **`mockFacilitatorUrl` is never assigned.** The suite declares the field its resource servers read to find a facilitator, but never sets it, so the mock facilitator the suite starts is never wired to any resource server, and every non-Stellar route fails route validation. Wiring it by hand drops the error count from 13 to 4.
+2. **Multi-family servers fail closed on unsupported routes.** The express, fastify, and hono servers register the union of every protocol family's routes, and the resource server initializer fails closed on any route it cannot serve, so a single-chain facilitator returns an error on every route, including the Stellar one. The remaining 4 failures are `batch-settlement/evm` scenarios that no environment switch can omit.
+
+The `next` server is the exception, because its per-file routes bypass the union. Its Stellar route produced a valid `402` from the facilitator and built a stock payment payload, failing only when the test payer held no USDC, which is why the payer is now funded and `--servers=next` is wired into the harness.
+
+<Warning>
+The honest verdict is recorded as `regression` in `docs/status/`, because the run did not fully pass, not relabelled green. A `blocked` or partial run is never presented as a pass. That discipline is the point of the [dual-run verdicts](/reference/conformance#dual-run-verdicts).
+</Warning>
+
+## A non-null reason on every rejection
+
+<a id="every-rejection-carries-a-reason"></a>
+
+Every rejection carries a machine-readable reason, and this holds at the type level, not by convention. The shared [error registry](/reference/errors) makes `reason` non-optional on the rejection type and resolves it from a registered default, so a rejection cannot be constructed with an empty reason. The registry holds **122 codes** across nine surfaces (facilitator, Bazaar, MCP, settlement, explorer, config, and the protocol codes reproduced byte for byte from the spec), each with a `provenance` marking whether it is a spec code, a library code, or Rail402's own.
+
+The guarantee is audited live, not asserted. A rejection audit exercises **19 of 19** rejection paths against a deployed facilitator, including a stripped auth entry and a cleared auth-entry signature (the first coverage of the upstream `validateAuthEntries` branch), and checks that each returns a registered code, the expected code, and actionable prose. The results are in `docs/status/rejection-audit.json`.
+
+## Conformance is a moving target
+
+Conformance holds only as long as the wire format does, and the discovery conventions are still evolving under the x402 Foundation. Keeping conformance current is treated as a first-class, ongoing task: a daily spec-drift check detects an upstream change within a day and measures its impact. Drift, not inability, is the failure mode this guards against.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Run the conformance harness" icon="clipboard-check" href="/reference/conformance">
+    Point the upstream suite at any deployment yourself.
+  </Card>
+  <Card title="Verify it yourself" icon="terminal" href="/architecture/proofs">
+    Every settled hash, on chain.
+  </Card>
+  <Card title="Error registry" icon="triangle-exclamation" href="/reference/errors">
+    The 122-code registry behind the reason guarantee.
+  </Card>
+</CardGroup>

@@ -1,0 +1,88 @@
+---
+title: "Meter usage with upto"
+description: "Charge for actual usage with the upto scheme: the buyer authorizes a ceiling, and only the amount you actually use settles on chain."
+sidebarTitle: "Meter usage with upto"
+---
+
+By the end of this page your endpoint prices with `upto` instead of `exact`, so a buyer authorizes a spending ceiling once and only the actual usage settles, enforced on chain by a Soroban contract.
+
+This uses `@rail402.dev/scheme-upto-stellar`.
+
+## exact versus upto
+
+`exact` is for a price you know up front. The buyer authorizes and settles exactly that amount. It fits a fixed-price call, like one quote for one fee.
+
+`upto` is for a charge you do not know until the work is done. The buyer authorizes a ceiling, and the facilitator settles only the actual amount, up to that ceiling, in a single settlement. It fits metered services: token billing, per-unit compute, pay-for-what-you-read.
+
+| | exact | upto |
+| --- | --- | --- |
+| Buyer authorizes | the exact price | a ceiling |
+| Amount settled | the exact price | actual usage, up to the ceiling |
+| Fits | fixed-price calls | metered billing |
+| On-chain enforcement | signature over the exact call | contract enforces the ceiling and a single settlement |
+
+## Register the server scheme
+
+Register `UptoStellarServerScheme` on your resource server alongside or instead of the exact scheme, then price the route with `scheme: "upto"`. The `price.amount` is the ceiling, the most a single call can settle.
+
+```js server.js
+import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
+import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
+import { UptoStellarServerScheme } from "@rail402.dev/scheme-upto-stellar";
+import { describeEndpoint } from "@rail402.dev/sdk";
+
+const USDC = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"; // testnet USDC SAC
+
+const x402 = new x402ResourceServer([
+  new HTTPFacilitatorClient({ url: "https://facilitator.rail402.dev" }),
+]);
+x402.register("stellar:*", new UptoStellarServerScheme());
+x402.registerExtension(bazaarResourceServerExtension);
+
+// In the paywall route:
+"POST /generate": {
+  accepts: {
+    scheme: "upto",
+    network: "stellar:testnet",
+    price: { amount: "2000000", asset: USDC }, // ceiling: "2000000" atomic units = 0.20 USDC max
+    payTo: process.env.SELLER_ADDRESS,
+    maxTimeoutSeconds: 60,
+  },
+  description: "Generates text and bills for tokens actually produced.",
+  mimeType: "application/json",
+  extensions: describeEndpoint({
+    params: { prompt: { description: "The prompt to generate from.", example: "Summarize this." } },
+  }),
+}
+```
+
+The buyer signs an authorization for the ceiling. When the call completes, the facilitator submits a settlement for the actual usage, which the contract accepts once and only once, never above the ceiling.
+
+## The on-chain guarantee
+
+`upto` ships a Soroban contract, deployed on testnet at `CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X`, that enforces two properties a bare SEP-41 allowance cannot: the settled amount never exceeds the authorized ceiling, and a single authorization settles exactly once. The facilitator advertises the contract in its `/supported` response under `extra.uptoContract`, so a buyer can check which contract it is trusting before it signs.
+
+<Info>
+`upto` composes with an OpenZeppelin smart-account spending policy. The policy reserves the ceiling on `enforce`, and after settlement the contract calls the policy's `release` to reconcile the reservation down to the actual charge, so a buyer's budget is never held above what it actually spent. See [Concepts: upto](/concepts/upto).
+</Info>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="upto on chain" icon="link" href="/concepts/upto">
+    The contract, the ceiling and single-settlement guarantees, and smart-account reconciliation.
+  </Card>
+  <Card title="exact scheme" icon="equals" href="/concepts/exact">
+    The fixed-price scheme, for when you know the amount up front.
+  </Card>
+  <Card title="Get discovered" icon="magnifying-glass" href="/sellers/get-discovered">
+    An upto listing is cataloged the same way as any other resource.
+  </Card>
+  <Card title="Buyer quickstart" icon="robot" href="/buyers/quickstart">
+    See the buyer authorize a ceiling and pay only for what it used.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+An over-ceiling settlement, a replayed authorization, or an expired authorization are each refused with a machine-readable `code` and a non-null `reason`. See [Errors](/reference/errors).

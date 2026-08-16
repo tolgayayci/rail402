@@ -1,8 +1,0 @@
----
-title: "Auth entries & expiration"
-description: "On Stellar the buyer signs a Soroban authorization entry, not a transaction, valid for a bounded ledger window."
----
-
-On Stellar, the buyer signs a Soroban **authorization entry**, not a whole transaction. The entry permits exactly one call: a `transfer(from, to, amount)` on the payment asset's Stellar Asset Contract. The facilitator builds the transaction around that signed entry, sets its own account as the source, submits it, and pays the fee. The buyer never submits a transaction and never spends XLM, and its wallet must support authorization-entry signing.
-
-**Expiration is ledger-based.** Each authorization is valid until a ledger, `signatureExpirationLedger`, derived from the endpoint's `maxTimeoutSeconds`. The default of 60 seconds is about 12 ledgers. After that ledger the authorization is dead and the buyer signs a new one. If it expires between verification and settlement, settle returns `settle_exact_stellar_authorization_expired`.

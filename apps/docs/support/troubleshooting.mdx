@@ -1,0 +1,69 @@
+---
+title: "Troubleshooting"
+description: "Common failure states framed as symptom, cause, and fix, each linked to its error code."
+---
+
+By the end of this page you will be able to match a failure to its cause and its fix. Every rejection carries a machine-readable code, so start by reading the `code` on the error, then find it below. The full list is the [Error registry](/reference/errors).
+
+<AccordionGroup>
+  <Accordion title="A payment is refused with a missing-trustline error" icon="link-slash">
+    **Symptom.** A payment fails with `invalid_exact_stellar_payload_missing_trustline_recipient`, before anything settles.
+
+    **Cause.** The seller's `payTo` address has no trustline to the payment asset. On Stellar an account cannot receive a SEP-41 asset until it holds a trustline to it. This is the seller's setup, not the buyer's.
+
+    **Fix.** As a buyer, you cannot fix this. Report it to the seller. As the seller, add the trustline explicitly with a `changeTrust` operation from the `payTo` account, then request testnet USDC from the [Circle faucet](https://faucet.circle.com), then retry. See [`invalid_exact_stellar_payload_missing_trustline_recipient`](/reference/errors#notable-codes) and [Trustlines](/concepts/stellar).
+  </Accordion>
+
+  <Accordion title="The budget was exceeded and nothing was paid" icon="hand">
+    **Symptom.** A paying call returns `mcp_budget_exceeded`. The result is a rejection, not a payment.
+
+    **Cause.** The quoted price on the request that would actually be paid is above your spend cap. The cap is enforced immediately before signing, so a seller quoting cheap on a probe and dear on the paid request is still refused. Nothing moved.
+
+    **Fix.** Raise the cap if the price is acceptable (`maxAmount` in the [SDK](/reference/sdk), `--max` in the [CLI](/reference/cli)), or move on to a cheaper resource. It is not retryable at the same cap. See [`mcp_budget_exceeded`](/reference/errors#notable-codes).
+  </Accordion>
+
+  <Accordion title="No signer is configured" icon="key">
+    **Symptom.** A paying call returns `config_no_signer`. Search still works, paying does not.
+
+    **Cause.** No signing secret was provided, so no authorization entry can be signed. In the SDK, `stellarSecret` is unset on the `config`. In the CLI, `RAIL402_SECRET` is unset.
+
+    **Fix.** Set the secret. In the SDK, pass `stellarSecret` on the config object. In the CLI, export `RAIL402_SECRET` (prefer the environment variable over `--secret` so it stays out of your shell history). Generate and fund a testnet account with `rail402 fund`. See [`config_no_signer`](/reference/errors#notable-codes).
+  </Accordion>
+
+  <Accordion title="An mcp:// resource cannot be paid" icon="ban">
+    **Symptom.** A resource is rejected with `bazaar_mcp_resource_url_not_addressable`.
+
+    **Cause.** The resource URL is an `mcp://` URL, which has no addressable host to route a request to. It cannot serve as a catalog key or a payment target.
+
+    **Fix.** Use the addressable HTTP endpoint of the MCP tool instead of its `mcp://` form. A seller declaring a paid MCP tool should point the resource at the HTTP endpoint that hosts it. See [`bazaar_mcp_resource_url_not_addressable`](/reference/errors#notable-codes) and [Packages](/reference/packages).
+  </Accordion>
+
+  <Accordion title="The payment settled but the resource then failed" icon="triangle-exclamation">
+    **Symptom.** A call returns `mcp_paid_but_resource_failed`, and the payload includes a transaction hash.
+
+    **Cause.** The payment settled on chain, and then the resource itself returned an error. The money has already moved. This is the one failure where a retry would pay a second time.
+
+    **Fix.** Do not retry. The code is not retryable by design. Take the transaction hash from the payload, confirm the settlement on the [Explorer](https://explorer.rail402.dev), and take the failure up with the seller, whose service failed after being paid. See [`mcp_paid_but_resource_failed`](/reference/errors#retryable-means-retryable).
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+Branch on the `code`, never on the `reason` text. The `reason` is written for a person and may change wording; the `code` is stable. Respect `retryable`: retrying a non-retryable failure loops forever, and retrying `mcp_paid_but_resource_failed` pays twice.
+</Warning>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Error registry" icon="triangle-exclamation" href="/reference/errors">
+    The full shape and the notable codes.
+  </Card>
+  <Card title="FAQ" icon="circle-question" href="/support/faq">
+    Answers to the questions behind many failures.
+  </Card>
+  <Card title="SDK reference" icon="code" href="/reference/sdk">
+    Where these codes surface in `result.error`.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/reference/cli">
+    Where they surface in the `--json` error object.
+  </Card>
+</CardGroup>

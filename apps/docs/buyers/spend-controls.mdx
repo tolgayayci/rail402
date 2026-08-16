@@ -1,0 +1,101 @@
+---
+title: "Spend controls and budgets"
+description: "How Rail402 caps buyer spending: the mandatory per-call maxAmount, the maxAmountCeiling hard limit, atomic-unit amounts, and where enforcement actually happens."
+sidebarTitle: "Spend controls"
+---
+
+By the end of this page you will know how to bound every payment: the required per-call cap, the hard ceiling above it, and why enforcement lands on the paid quote rather than an earlier probe.
+
+This uses `@rail402.dev/sdk`. Spending safety is not optional here: a paying call with no cap does not run.
+
+## `maxAmount` is required, and has no default
+
+Every paying call (`payAndFetch`, `discoverAndPay`) takes a `maxAmount`. It is the most you authorize for that one call. There is no default: a default cap would authorize spending you never chose, so the SDK refuses to invent one.
+
+```ts
+await payAndFetch(config, url, { maxAmount: "100000" }); // 0.01 USDC. Required.
+```
+
+<Warning>
+`maxAmount` is an atomic-unit string, never a number, bigint, or float. USDC has 7 decimals, so `"10000000"` is 1.0000000 USDC and `"100000"` is 0.01 USDC. Passing a float or a number is a common way to authorize a thousand times more than you meant.
+</Warning>
+
+### Atomic units at a glance
+
+| String | USDC |
+| --- | --- |
+| `"100000"` | 0.01 |
+| `"500000"` | 0.05 |
+| `"1000000"` | 0.10 |
+| `"10000000"` | 1.00 |
+
+The CLI is the exception: it takes decimals (`--max 0.10`), because a person types it. The SDK stays on atomic strings so amount math is never a float. See [The rail402 CLI](/buyers/cli).
+
+## `maxAmountCeiling` is a hard limit above the per-call cap
+
+The per-call `maxAmount` is what you allow for a single request. `maxAmountCeiling`, set once on the config, is an absolute limit that no per-call cap can exceed. It is the operator or wrapper safety net: even if some code path asks for a larger `maxAmount`, the ceiling wins.
+
+```ts
+const config = {
+  bazaarUrl: "https://facilitator.rail402.dev",
+  stellarSecret: process.env.RAIL402_SECRET,
+  network: "stellar:testnet",
+  maxAmountCeiling: "2000000", // 0.20 USDC. No single call may authorize more, whatever it asks.
+};
+```
+
+Use it when the caps come from somewhere you do not fully control, for example an agent choosing its own per-call budget. The ceiling caps the agent below whatever it requests.
+
+## Where enforcement happens
+
+The cap is checked against the price on the request that is actually paid, not just against the unpaid probe. This matters because the probe quote is not trustworthy: a seller can quote cheap when asked for free and expensive when asked to pay. So the SDK re-applies the cap to the paid quote, immediately before signing. Both quotes must fit, or nothing is signed and no money moves.
+
+<Steps>
+  <Step title="Probe">
+    An unpaid request returns a quote. If it is already over the cap, the call is refused for one HTTP round trip and zero money.
+  </Step>
+  <Step title="Paid quote">
+    The real payment request returns its own quote. The cap is applied again here, right before signing.
+  </Step>
+  <Step title="Sign or refuse">
+    If the paid quote fits, one authorization entry is signed. If it does not, the call is refused with `mcp_budget_exceeded` and nothing is signed.
+  </Step>
+</Steps>
+
+A budget refusal is `{ code: "mcp_budget_exceeded", retryable: false }`. It is not retryable, because the price did not change: a retry re-asks at the same price and is refused again. The refusal payload carries the price you were asked and the cap you set, so you can decide whether to raise the cap deliberately.
+
+## Signer modes: keypair or smart account
+
+The cap above is the same whichever kind of account signs. What differs is the account.
+
+<CardGroup cols={2}>
+  <Card title="Classic keypair (G account)">
+    A standard Stellar `S.../G...` key. The buyer helpers sign with a keypair, so they pay from a `G...` account. This is the default and everything on this page applies directly.
+  </Card>
+  <Card title="Smart account (C account)">
+    A Soroban `__check_auth` contract account can enforce a spending policy on chain, refusing an over-budget payment before the facilitator submits it. That is a second, on-ledger cap in addition to `maxAmount`.
+  </Card>
+</CardGroup>
+
+The facilitator settles from both `G` and `C` accounts. If you want an on-ledger policy that refuses over-budget payments at the account itself, and composes with the `upto` scheme's reserve-then-reconcile, see [Smart-account buyers](/buyers/smart-accounts).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Sign and pay" icon="signature" href="/buyers/sign-and-pay">
+    The full payment loop the cap sits inside.
+  </Card>
+  <Card title="Smart-account buyers" icon="shield-halved" href="/buyers/smart-accounts">
+    Enforce a budget on chain, at the account.
+  </Card>
+  <Card title="The upto scheme" icon="gauge" href="/concepts/upto">
+    Authorize a ceiling, settle only actual usage.
+  </Card>
+  <Card title="Pay over MCP" icon="robot" href="/buyers/mcp">
+    The same mandatory cap for agent runtimes.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+A cap refusal is `mcp_budget_exceeded`, and a missing cap is `mcp_budget_required`, both non-retryable. The full list is in [Rejection reasons](/reference/errors).

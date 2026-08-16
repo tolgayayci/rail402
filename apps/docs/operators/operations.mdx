@@ -1,0 +1,61 @@
+---
+title: "Monitoring and runbook"
+description: "Watch the facilitator with /health and /metrics, hold the uptime target, and know what a caller sees when settlement or indexing is degraded."
+sidebarTitle: "Monitoring and runbook"
+---
+
+By the end of this page you know which endpoints to scrape, what to alert on, and what happens (and what a caller sees) when the facilitator runs degraded. This covers operating `@rail402.dev/facilitator`.
+
+## Health
+
+Wire `/health` to your orchestrator. It returns HTTP 200 with a JSON body reporting the networks served, the signer count, and the catalog storage mode:
+
+```json
+{ "status": "ok", "uptimeSeconds": 23139, "networks": ["stellar:testnet"], "signers": 1, "feeBump": "disabled", "catalog": { "entries": 3, "storage": "durable" } }
+```
+
+The field to watch is `catalog.storage`. It is `memory`, `durable`, or `degraded`. When catalog writes are failing while the service keeps serving from memory, `status` reads `degraded`. That is the one signal your health check should surface.
+
+## Metrics
+
+`/metrics` exposes Prometheus counters with no per-caller dimension, so operating the service never becomes surveilling its callers. You get verify and settle counts by outcome, catalog size, uptime, and discovery-search signals.
+
+The single most useful series is rejections by code. A spike in one code names the problem without reading logs, because every rejection is coded (see the [error reference](/reference/errors)). Scrape `/metrics` for trends and alert off it.
+
+## Uptime target
+
+The public endpoints target 99% or better uptime. `/health` is the liveness signal to gate a replica on, and `/metrics` is where you watch latency and rejection trends over time.
+
+## The degraded-mode story
+
+Two subsystems can degrade independently. In both, payments keep working and the failure is legible rather than silent.
+
+<Steps>
+  <Step title="Indexing is degraded (catalog writes failing)">
+    Cause: a full or read-only disk under `CATALOG_DB_PATH`. The facilitator keeps verifying, settling, and serving discovery from memory, so a caller sees no change until a restart, at which point the durable catalog is behind. `/health` reports `catalog.storage: "degraded"`. **Alert, do not page**: money still moves.
+  </Step>
+  <Step title="Settlement is degraded (chain path failing)">
+    Cause: the Soroban RPC or the network is unavailable, or an authorization expired between verify and settle. The facilitator does not crash. It returns a coded, non-null reason to the caller (for example a settle rejection when an entry expired), and `retryable` tells the caller whether a retry can succeed. A stock client shows the reason rather than a bare failure.
+  </Step>
+</Steps>
+
+<Note>
+Every rejection carries `{ code, reason, retryable }`, and `reason` is never null. A caller, human or agent, always learns why a call failed and whether retrying is worthwhile, which is the difference between a legible degraded mode and an outage.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Bazaar operations" icon="box-archive" href="/operators/bazaar">
+    The catalog storage modes behind `catalog.storage`.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/operators/configuration">
+    The fee ceiling and the durable-catalog path.
+  </Card>
+  <Card title="Error reference" icon="triangle-exclamation" href="/reference/errors">
+    Every coded rejection and whether it is retryable.
+  </Card>
+  <Card title="Conformance" icon="clipboard-check" href="/reference/conformance">
+    Prove the deployment at the wire level against the upstream suite.
+  </Card>
+</CardGroup>

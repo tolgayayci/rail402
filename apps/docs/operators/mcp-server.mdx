@@ -1,0 +1,77 @@
+---
+title: "Run the MCP discovery server"
+description: "Serve the agent-facing search and paid-call tools over Streamable HTTP, or use the hosted testnet instance."
+sidebarTitle: "MCP discovery server"
+---
+
+By the end of this page you have the Rail402 MCP discovery server running, so an agent runtime can search the Stellar Bazaar and make a paid call through MCP tools. This uses `@rail402.dev/mcp-discovery`, whose binary is `rail402-mcp`.
+
+<Warning>
+`--allow-private-hosts` (and `MCP_ALLOW_PRIVATE_HOSTS`) apply only in stdio mode, for a seller running locally during development. They let `pay_and_call` reach loopback and private-network addresses, which is an SSRF risk. An `--http` server hardwires this off and ignores both, so a public HTTP deployment is never exposed to it. Do not enable it for anything reachable from other machines.
+</Warning>
+
+## Use the hosted instance
+
+Rail402 runs a public testnet MCP server. If you only need an endpoint to point an agent at, use it:
+
+```
+https://mcp-discovery-testnet.up.railway.app/mcp
+```
+
+## Run it yourself
+
+Install it, or run it without installing through `npx`:
+
+```bash
+npm install -g @rail402.dev/mcp-discovery   # provides the rail402-mcp binary
+# or run it without installing:
+npx -p @rail402.dev/mcp-discovery rail402-mcp --http --port 8080
+```
+
+The server defaults to stdio, which is how an agent runtime spawns it as a child process. Pass `--http` to serve Streamable HTTP instead, which is what you want for a hosted deployment:
+
+```bash
+rail402-mcp --http --port 8080
+```
+
+That serves the MCP endpoint at `/mcp` and a `/health` check. By default it talks to the hosted facilitator at `https://facilitator.rail402.dev`. Point it at your own facilitator with `--bazaar`, and enable paying by giving it a funded testnet signer with `--secret`:
+
+<CodeGroup>
+```bash Hosted Bazaar, search only
+rail402-mcp --http --port 8080
+```
+
+```bash Your facilitator, paying enabled
+rail402-mcp --http --port 8080 \
+  --bazaar https://your-facilitator.example \
+  --secret S...your-funded-testnet-secret
+```
+</CodeGroup>
+
+<Note>
+Without `--secret`, the server can search but cannot pay. Give it a funded `stellar:testnet` signer to enable the paid-call tool, because paying settles a real payment on-chain.
+</Note>
+
+## The tools it exposes
+
+The server exposes two tools, both with strict JSON input and output schemas, and every rejection carries a coded, non-null reason:
+
+- `search_stellar_resources` searches the Bazaar. It returns structured results and pays nothing.
+- `pay_and_call` pays for and calls a discovered resource under a **mandatory spend cap**. It never pays an unbounded amount, and the cap is enforced against the quote actually paid, not a probe.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Buyer and agent quickstart" icon="robot" href="/start/quickstart">
+    Point an agent at the MCP server and pay for a discovered resource.
+  </Card>
+  <Card title="Security and trust boundaries" icon="shield" href="/operators/security">
+    Why the private-hosts flag is off, and the SSRF guard.
+  </Card>
+  <Card title="How search works" icon="magnifying-glass" href="/concepts/search">
+    What ranking the search tool runs on.
+  </Card>
+  <Card title="Error reference" icon="triangle-exclamation" href="/reference/errors">
+    Coded reasons an agent reads, including the spend-cap refusals.
+  </Card>
+</CardGroup>

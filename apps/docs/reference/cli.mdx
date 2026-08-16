@@ -1,0 +1,138 @@
+---
+title: "CLI reference"
+description: "Every rail402 command and flag, the --json envelope, and the config precedence order."
+---
+
+By the end of this page you will know every `rail402` command, every global flag, the machine-readable `--json` shape, and how the CLI decides which facilitator to talk to.
+
+This is the reference for [`@rail402.dev/cli`](https://www.npmjs.com/package/@rail402.dev/cli), which ships the `rail402` binary.
+
+```bash
+npm install -g @rail402.dev/cli
+# or run without installing:
+npx @rail402.dev/cli <command>
+```
+
+<Note>
+CLI amounts are decimals in the asset's units. `--max 0.10` is 0.10 USDC. This is the opposite of the [SDK](/reference/sdk), where amounts are atomic-unit strings.
+</Note>
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `rail402 fund` | Generate and friendbot-fund a testnet account. |
+| `rail402 whoami` | Show your address and balances. |
+| `rail402 search "<query>"` | Search the Bazaar. Nothing is paid. |
+| `rail402 buy "<query>" --max <amt>` | Discover the best-ranked match within the cap and pay it. |
+| `rail402 pay <url> --max <amt>` | Pay a known resource URL. Options: `--query k=v` (repeatable), `--method`. |
+| `rail402 tx <hash>` | Look up a settlement on the explorer. |
+| `rail402 feed` | Recent x402 payments. |
+| `rail402 supported` | What the facilitator advertises at `/supported`. |
+| `rail402 config [show\|set\|path]` | Show or change saved config. |
+| `rail402 help` | Print usage. |
+| `rail402 version` | Print the version. |
+
+<Warning>
+Every paying command (`buy`, `pay`) requires an explicit `--max` cap. The cap is enforced on the request that is actually paid, immediately before signing, so a seller cannot quote cheap and charge dear. The CLI never spends an unbounded amount.
+</Warning>
+
+## Global flags
+
+| Flag | What it does |
+| --- | --- |
+| `--json` | Emit a single machine-readable object (see below). |
+| `--facilitator <url>` | Point at a different facilitator. |
+| `--explorer <url>` | Point at a different explorer. |
+| `--network <id>` | The network. `stellar:testnet` today. |
+| `--secret <S...>` | The signing secret. Prefer the `RAIL402_SECRET` environment variable. |
+
+## Command options
+
+| Command | Options |
+| --- | --- |
+| `search`, `buy` | `--max <amt>`, `--type <http\|mcp>`, `--limit <n>` |
+| `pay` | `--max <amt>`, `--method <GET\|POST>`, `--query k=v` (repeatable) |
+| `feed` | `--limit <n>`, `--seller <G...>`, `--scheme <exact\|upto>` |
+
+`--max` is a decimal in the asset's units, so `--max 0.10` is 0.10 USDC. It is required on every paying command (`buy`, `pay`).
+
+<Tip>
+Supply the secret with the `RAIL402_SECRET` environment variable rather than `--secret`, so it never lands in your shell history. An agent cannot type an interactive password, so the environment variable is the path for automation.
+</Tip>
+
+```bash
+export RAIL402_SECRET=S...
+rail402 buy "convert usdc to stroops" --max 0.10
+```
+
+## The --json envelope
+
+Pass `--json` to any command for a single structured object. It is the same envelope on success and on failure, so an agent can branch on `ok`.
+
+<Tabs>
+  <Tab title="Success">
+    ```json
+    {
+      "ok": true,
+      "data": {
+        "resource": "https://api.example/convert",
+        "status": 200,
+        "paid": {
+          "amount": "500000",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "network": "stellar:testnet",
+          "transaction": "6c6b..."
+        },
+        "explorer": "https://explorer.rail402.dev/tx/6c6b...",
+        "body": { "...": "the resource response" }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Failure">
+    ```json
+    {
+      "ok": false,
+      "error": { "code": "mcp_budget_exceeded", "reason": "...", "retryable": false }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+On failure, `error` carries a machine-readable code, a non-null `reason`, and a `retryable` flag. Branch on `code`, never on the `reason` text. See [Error registry](/reference/errors). Common codes: `mcp_budget_required` (you omitted `--max`), `mcp_budget_exceeded` (price above the cap), `config_no_signer` (no `RAIL402_SECRET`).
+
+## Configuration precedence
+
+Every endpoint defaults to Rail402's hosted testnet infrastructure, and every one is overridable, so the same binary drives your own self-hosted facilitator or explorer. Precedence, highest first:
+
+1. a command-line flag (`--facilitator`, `--network`, ...),
+2. an environment variable (`RAIL402_SECRET`, and the endpoint overrides),
+3. the saved config at `~/.rail402/config.json`,
+4. the built-in default (`https://facilitator.rail402.dev`, `stellar:testnet`).
+
+```bash
+# one-off override:
+rail402 supported --facilitator https://my-facilitator.example
+
+# persist to ~/.rail402/config.json:
+rail402 config set facilitatorUrl https://my-facilitator.example
+rail402 config show
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Buyer quickstart" icon="wallet" href="/buyers/quickstart">
+    Fund, discover, and pay from the terminal.
+  </Card>
+  <Card title="SDK reference" icon="code" href="/reference/sdk">
+    The same operations as library calls.
+  </Card>
+  <Card title="Error registry" icon="triangle-exclamation" href="/reference/errors">
+    Codes that appear in the `--json` error object.
+  </Card>
+  <Card title="Packages" icon="box" href="/reference/packages">
+    Where the CLI sits among the packages.
+  </Card>
+</CardGroup>

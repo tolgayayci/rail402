@@ -1,0 +1,125 @@
+---
+title: "Retrieval architecture"
+description: "How Bazaar search ranks the catalog: a weighted-field BM25 arm fused with an in-process static-embedding arm via Reciprocal Rank Fusion, why it runs in-process, and how ranking stays abuse-resistant."
+---
+
+Bazaar search takes a natural-language query and returns a ranked list of paid resources, so an agent can find an endpoint or MCP tool by describing what it needs instead of knowing its URL. It runs **in-process, inside the facilitator**, with no external search service to operate.
+
+This page covers the ranking design in detail. [How search works](/concepts/search) is the lighter introduction; [Evaluation](/architecture/evaluation) covers how the ranking's quality is measured, and [Reproduce the numbers](/architecture/reproduce) has the commands that regenerate every figure on that page.
+
+## Why in-process, not a search engine
+
+Rail402 ships under a permissive license (Apache-2.0), and a search engine we run is part of that dependency path, so its license would have to be compatible. That rules out the obvious managed engines: **Typesense is GPL-3.0 and Elasticsearch is SSPL**, neither compatible with permissive redistribution. Rather than reach for a permissively-licensed engine and take on the operational surface, retrieval is an in-process index, which buys three properties that matter more here than raw scale:
+
+<CardGroup cols={3}>
+  <Card title="License-clean" icon="scale-balanced">
+    No engine in the dependency path, and the semantic arm adds **zero** new packages, because the model weights and tokenizer are vendored.
+  </Card>
+  <Card title="Deterministic" icon="equals">
+    The same query returns the same ranking every time, so the evaluation harness measures the ranking, not a stateful engine's warm-up or sharding.
+  </Card>
+  <Card title="Portable" icon="box">
+    No native module and no second process to keep alive. The same code runs in the Docker image and, degraded to its lexical arm, on Workers.
+  </Card>
+</CardGroup>
+
+The live catalog this must serve holds on the order of 15,000 resources; ranking that in-process is milliseconds. `Retriever` is deliberately an interface, so a managed vector backend can be fused in later without touching the endpoint or the harness.
+
+## Two arms, fused
+
+Retrieval is a **hybrid**: a lexical arm and a semantic arm rank the candidates independently, and their two ranked lists are fused. Neither can bury the other. The reported `searchMethod` is `hybrid (bm25+static-embedding, rrf)`.
+
+### Lexical arm: weighted-field BM25
+
+A BM25 scorer (`K1 = 1.5`, `B = 0.6`) matches query terms against each listing, but not every field carries equal signal. A term in a service's own name is a far stronger match than the same term buried in an example response body, and per-parameter descriptions are what make an endpoint legible to an agent, so they are weighted above generic prose:
+
+| Field | Weight |
+| --- | --- |
+| `serviceName`, `toolName` | 3.0 |
+| `tags` | 2.5 |
+| `description` | 2.0 |
+| per-parameter descriptions | 1.5 |
+| URL path | 1.0 |
+| other (enum values, example bodies) | 0.5 |
+
+Three refinements sit on top of plain BM25, each added in response to a specific failure the judgment set exposed, not a hunch:
+
+- **Tokenization splits `camelCase` and `snake_case`,** because tool names and parameters arrive as `getWeatherForecast` or `financial_analysis` and carry most of the useful signal. A conversational stop-list is applied, and stemming is deliberately light. Aggressive stemming conflates distinct API terms (`parse` / `parser`), and every conflation is invisible damage to precision.
+- **Synonym expansion at index time, at reduced weight (0.45).** Pure lexical retrieval cannot bridge vocabulary: "where is my package" shares no term with "track a shipment across major couriers." Expanding the *document* rather than the *query* pays the cost once at index time, leaves the query path untouched, and, because bridged terms are down-weighted, a real description match always outranks a bridged one.
+- **A typo rescue.** A term the corpus never contains contributes nothing to BM25, so "wether forcast" retrieves nothing. An unknown query term is mapped to the nearest term actually in the index by bounded edit distance, pruned hard on length and the first two characters (which typos rarely disturb), with ties going to the most common candidate. It can only *add* a plausible match, never rewrite a term the index already knows.
+
+A coverage bonus (`score ×= 1 + 0.35 × matched / queryTerms`) keeps a document that matches every query term ahead of one that matches a single rare term very strongly, because plain BM25 over-rewards rare-term matches on multi-word natural-language queries.
+
+### Semantic arm: a vendored static embedding
+
+The semantic arm exists for **recall**: it catches matches that share meaning without sharing words, the gap BM25 cannot cross. It is a **static embedding**: a token-to-vector table plus a mean, with no neural inference, no runtime session, and no network call:
+
+| Property | Value |
+| --- | --- |
+| Model | model2vec `potion-base-8M` |
+| Weights | int8-quantized, **256**-dimensional, **MIT** |
+| On disk | 7.56 MB, vendored into the package |
+| Tokenizer | hand-rolled WordPiece, no `@huggingface/tokenizers` dependency |
+| New dependencies | **zero** |
+
+A static model is exactly what a license-clean, deterministic, Workers-deployable Bazaar needs. The weights load **lazily** on first search, so a facilitator that only settles payments never pays for the table. The embedding pipeline matches model2vec's reference encoder (BertNormalizer, BertPreTokenizer, greedy WordPiece, mean, L2 normalize), and int8 dequantization uses a single global scale that commutes with the mean, measured identical to fp32.
+
+The semantic arm is **fused, never used alone**: static vectors are weak at telling close siblings apart (`allowance` vs `balance`), which is precisely where the lexical arm is strong.
+
+### Fusion: Reciprocal Rank Fusion
+
+The two ranked lists are combined with Reciprocal Rank Fusion over **ranks, not scores**:
+
+```text
+score(key) = 1 / (K + lexRank) + 1 / (K + vecRank)     K = 60
+```
+
+Fusing ranks is the deliberate choice. BM25 scores and cosine similarities are not on comparable scales, and rank fusion needs no calibration and no tuned blend weight, nothing new to overfit on a small judgment set. `K = 60` is the value from Cormack et al. (SIGIR '09) and is insensitive across roughly 20 to 100. Lexical precision and semantic recall each contribute half.
+
+This is not a decorative addition. On the broad judgment set the fusion lifts nDCG@10 from 0.518 (BM25 alone) to 0.594, a per-query improvement significant at `p = 0.016`, reproducible at any time with `pnpm ablation` (see [Reproduce the numbers](/architecture/reproduce)).
+
+## Graceful degradation, stated honestly
+
+The semantic arm reads its weights from disk, which some runtimes (Workers) do not allow. Rather than let a search throw, the retriever falls back to its lexical arm, and **says so**: `searchMethod` changes to `bm25 (semantic arm unavailable)` on exactly the responses where the fallback is active.
+
+<Warning>
+The `searchMethod` field never claims a hybrid it is not running. A deployment serving only BM25 always reports `bm25 (semantic arm unavailable)`, never `hybrid`, so the advertised method always matches the one actually used.
+</Warning>
+
+## Ranking is abuse-resistant
+
+The catalog must not let anyone spoof another seller's listing or pricing. Only metadata that arrived through the legitimate cataloging path influences ranking; a forged field in a client-supplied resource block does not move rank, and advisory signals (a trustline pre-flight, a SEP-1 domain check) are kept off the ranking path on purpose.
+
+The single behavioral signal is the count of **distinct real payers** (`uniquePayers`), and it is deliberately weak:
+
+- **Logarithmic and capped.** `usage = log1p(2 × payers) / log(50)`, contributing at most a 1.25× factor; the cap is reached only around 25 distinct funded payers.
+- **A tiebreaker, not a multiplier.** In the fused ranker it breaks ties and only ties, so it can never vault a worse-matching listing past a better-matching newcomer. Relevance leads.
+- **Self-payment earns nothing.** A settlement whose payer is one of the listing's own `payTo` addresses is not counted, so a seller cannot lift its own rank by paying its own endpoint. Raw settlement count was removed from the formula for the same reason: on a fee-sponsored rail it was the cheapest signal to fake.
+
+The full threat model for catalog poisoning, keyword stuffing, and spoofed pricing is covered in [Bazaar: metadata, cataloging and trust](/concepts/bazaar).
+
+## Where it lives
+
+| Concern | Source |
+| --- | --- |
+| BM25, field weights, synonyms, typo rescue, RRF fusion, usage boost | `apps/bazaar/src/search/index.ts` |
+| Static embedder and vendored WordPiece tokenizer | `apps/bazaar/src/search/embedding.ts` |
+| Metrics (precision, recall, MRR, nDCG) | `apps/bazaar/src/search/metrics.ts` |
+| Judgment sets and CI floors | `apps/bazaar/src/search/heldout.ts` |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Evaluation methodology and results" icon="ruler" href="/architecture/evaluation">
+    How the ranking is measured, and the numbers across 20, 2,000, and 18,450 documents.
+  </Card>
+  <Card title="Reproduce the numbers" icon="rotate" href="/architecture/reproduce">
+    The exact commands, the eval pack's provenance, and the drift plan.
+  </Card>
+  <Card title="How search works" icon="magnifying-glass" href="/concepts/search">
+    The lighter conceptual introduction.
+  </Card>
+  <Card title="Bazaar" icon="store" href="/concepts/bazaar">
+    What a listing is and how ownership is bound to settlement.
+  </Card>
+</CardGroup>

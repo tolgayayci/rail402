@@ -1,0 +1,113 @@
+---
+title: "Reproduce the numbers"
+description: "The exact commands that regenerate every Bazaar search figure, the provenance and license hygiene of the 18,450-document eval pack, and how the ranking stays current as the discovery spec moves."
+---
+
+Every figure in [Evaluation methodology and results](/architecture/evaluation) is produced by a command in this repository. Nothing on that page is transcribed by hand; anyone can regenerate all of it. This page has the commands, the provenance of the corpus, and how the ranking stays current as the spec moves.
+
+## Run it
+
+From a checkout, in the `apps/bazaar` package:
+
+```bash
+cd apps/bazaar
+
+# 1. Deterministic in-repo slices (seconds).
+#    Synthetic regression guard, the 20 real listings, the 2,000-doc broad set, and the MCP-tool slice.
+pnpm eval
+
+# 2. Fetch the license-clean silver corpus and build the eval pack (~1 min, one network fetch).
+#    Pulls ToolACE (Apache-2.0) and the MCP registry (CC0); writes eval-pack/derived + manifest.json.
+pnpm eval:pack
+
+# 3. Score the shipped ranker against all 18,450 documents (~1 min).
+#    Writes eval-pack/REPORT.md with the gold/silver/keyword/typo table and Wilson CIs.
+pnpm eval:scale
+
+# 4. BM25 vs hybrid, with a per-query sign test that shows the fusion earns its place.
+pnpm ablation
+```
+
+What each prints:
+
+| Command | Output |
+| --- | --- |
+| `pnpm eval` | Per-slice `precision@1`, `precision@5`, `recall@5/@10`, `MRR`, `nDCG@10`, and zero-result rate for every judgment set. Exits non-zero if any slice falls below its CI floor. |
+| `pnpm eval:pack` | Fetches the two source datasets, derives the 16,450 silver documents and 2,000 silver queries, and writes `eval-pack/manifest.json` with source revisions, licenses, and SHA-256 checksums. |
+| `pnpm eval:scale` | The 18,450-document table with Wilson 95% intervals, the robustness delta, and a freshly written `eval-pack/REPORT.md`. |
+| `pnpm ablation` | BM25-only vs hybrid on the current judgment set, with the per-query better/worse/ties split and a two-sided sign-test p-value. |
+
+<Warning>
+The `pnpm eval` slices are deterministic (same corpus, same committed judgments), so they reproduce **exactly**. The 18,450-document rows re-derive their silver distractors from a pinned upstream source, so those figures move by a point or two per rebuild. That is stated on the results page rather than hidden, because it is true.
+</Warning>
+
+The `dev` slice may be inspected and tuned against. The `locked` slice is held back: the harness reports its failures only in aggregate and refuses to name the queries that failed, so it cannot quietly become a training set.
+
+## The 18,450-document eval pack
+
+The stress test needs a large, adversarial catalog. It is built from public, license-clean sources and it is an **evaluation fixture only**, never the live catalog.
+
+<Note>
+**The silver documents can never be served, ranked into, or leaked.** They use `.invalid` hosts, their quality signals are zeroed, and their `payTo` is a sentinel. They exist only in-process during evaluation. The gold set is our 2,000 real captured listings; the silver set is 16,450 off-distribution distractors around them.
+</Note>
+
+Provenance is pinned and checksummed in `eval-pack/manifest.json`:
+
+| Source | License | Documents | Pinned as |
+| --- | --- | --- | --- |
+| ToolACE | Apache-2.0 | 16,134 | source URL + revision |
+| MCP registry | CC0-1.0 | 316 | source URL + page count |
+| Real x402 listings (gold) | our capture | 2,000 | committed in-repo |
+
+Both sources are permissively licensed, so the pack adds no license risk to a permissively-licensed project. `manifest.json` records the SHA-256 of the corpus and judgment files, so anyone can confirm the exact dataset a number was measured against, and so the dataset cannot be silently swapped to flatter a result.
+
+## Staying current as the spec moves
+
+The x402 discovery conventions keep changing upstream: filters, metadata fields, and cataloging behavior have all moved and will move again. Search and cataloging keep up in four concrete ways:
+
+<Steps>
+  <Step title="Pinned spec SHAs">
+    Every spec file the implementation conforms to is pinned by commit SHA. A snapshot records which spec text each behavior implements, so drift is a diff, not a guess.
+  </Step>
+  <Step title="A daily spec-drift watch">
+    A scheduled check diffs the pinned upstream spec files every day. When upstream moves, the change is measured against the test suite and a real testnet settlement before the pins are updated.
+  </Step>
+  <Step title="A dual conformance run">
+    The [conformance harness](/reference/conformance) runs the upstream e2e suite twice, at the pinned spec and at the latest upstream main, and compares. That is what catches a break introduced by an upstream spec change rather than by our own code.
+  </Step>
+  <Step title="CI ranking floors">
+    The search slices run in CI with regression floors. A ranking change that makes retrieval worse on realistic data fails the build, so quality upkeep is enforced mechanically, not by good intentions.
+  </Step>
+</Steps>
+
+The judgment set itself is the current bottleneck, not the corpus, so growing the blind judgment set and re-measuring is ongoing work, not a one-time pass.
+
+## Related behavior
+
+A few facilitator behaviors that search and cataloging depend on are documented in detail elsewhere:
+
+| Behavior | Where it is documented |
+| --- | --- |
+| The seven `GET /discovery/resources` filters (`type`, `payTo`, `scheme`, `network`, `extensions`, `limit`, `offset`) | [Bazaar, the seven filters](/concepts/bazaar) |
+| `routeTemplate` validation, percent-decode **before** the traversal check | [Bazaar, integrity rules](/concepts/bazaar) |
+| `areFeesSponsored`, advertised truthfully per runtime config | [The exact scheme](/concepts/exact), verified in [Conformance](/reference/conformance) |
+| Auth-entry expiration (`signatureExpirationLedger` from `maxTimeoutSeconds`) | [The exact scheme](/concepts/exact) |
+
+Interoperability is handled the same way: listings are shaped so a stock x402 SDK client round-trips them unchanged, the list-versus-search response-key asymmetry is honored exactly ([How search works](/concepts/search)), and the upstream e2e suite validates the wire shape end to end ([Conformance](/reference/conformance)).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Retrieval architecture" icon="diagram-project" href="/architecture/retrieval">
+    The ranker design in full.
+  </Card>
+  <Card title="Evaluation methodology and results" icon="ruler" href="/architecture/evaluation">
+    The numbers and the methodology behind them.
+  </Card>
+  <Card title="Conformance" icon="clipboard-check" href="/reference/conformance">
+    Wire-level conformance against the upstream e2e suite.
+  </Card>
+  <Card title="Error registry" icon="triangle-exclamation" href="/reference/errors">
+    The machine-readable codes every rejection carries.
+  </Card>
+</CardGroup>

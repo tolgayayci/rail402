@@ -1,0 +1,122 @@
+---
+title: "Sign and pay"
+description: "How an x402 payment works on Stellar step by step: the 402 challenge, signing a Soroban authorization entry, the retry, and the Result you read back."
+sidebarTitle: "Sign and pay"
+---
+
+By the end of this page you will understand every step `payAndFetch` takes, from the first unpaid request to the settled transaction, and be able to read the `Result` it returns.
+
+This uses `@rail402.dev/sdk`. The [Quickstart](/buyers/quickstart) got you a settlement; this page explains what happened between the call and the hash.
+
+## The shape of a payment
+
+x402 is a retry protocol built on HTTP `402 Payment Required`. On Stellar the payment is a signed Soroban authorization entry, not a pre-signed transaction, which is why the facilitator can submit it and pay the fee for you.
+
+<Steps>
+  <Step title="The unpaid probe">
+    The client requests the resource with no payment. The seller answers `402` and returns the payment terms: the price, the asset, the recipient (`payTo`), the scheme (`exact` or `upto`), and a `maxTimeoutSeconds` that bounds how long an authorization stays valid.
+  </Step>
+  <Step title="The cap check">
+    Before anything is signed, your `maxAmount` is compared against the price on the challenge that will actually be paid. If the price is over the cap, the client throws in the selector and nothing is signed. This is why the cap is reliable: it runs on the paid quote, not on a guess.
+  </Step>
+  <Step title="Signing the authorization entry">
+    The client builds the Soroban call the payment requires and signs one authorization entry for it. The entry authorizes exactly this call: this asset, this amount, this recipient. It is valid only until `signatureExpirationLedger`, roughly 12 ledgers or about 60 seconds, derived from `maxTimeoutSeconds`. Tampering with any field invalidates the signature.
+  </Step>
+  <Step title="The retry">
+    The client repeats the request, now carrying the signed payload. The seller hands it to the facilitator, which verifies the authorization, submits the transaction, sponsors the fee, and returns the settlement in the `PAYMENT-RESPONSE` header. The seller then returns the real `200` response and its body.
+  </Step>
+</Steps>
+
+<Note>
+The v2 settlement header is `PAYMENT-RESPONSE`, with no `X-` prefix. Bazaar cataloging outcomes come back in `EXTENSION-RESPONSES`. You rarely touch these directly: the SDK reads them for you.
+</Note>
+
+## `payAndFetch`, line by line
+
+`payAndFetch` pays a URL you already know. It is the direct path when you are not searching the Bazaar first.
+
+```ts
+import { payAndFetch } from "@rail402.dev/sdk";
+
+const config = {
+  bazaarUrl: "https://facilitator.rail402.dev",
+  stellarSecret: process.env.RAIL402_SECRET,
+  network: "stellar:testnet",
+};
+
+const result = await payAndFetch(config, "https://your-seller.example/quote", {
+  maxAmount: "100000",          // required: the most you authorize, in atomic units (0.01 USDC)
+  queryParams: { symbol: "XLM" }, // optional: query string for the paid request
+});
+```
+
+Reading the arguments:
+
+- **`config`** carries the signing secret and the facilitator URL. The secret is a testnet `S...` key. Omit it and the call cannot pay.
+- **`url`** is the endpoint to pay, exactly as you have it (or exactly as search returned it).
+- **`maxAmount`** is required and has no default. It is an atomic-unit string, so `"100000"` is 0.01 USDC at 7 decimals. Never pass a number, a bigint, or a float. A missing cap is an unbounded spender by omission, so the SDK refuses to guess one for you.
+
+## The `Result` shape
+
+Every buyer call returns a discriminated union. There is no thrown error to catch for a normal refusal: you branch on `ok`.
+
+```ts
+type Result<T> =
+  | { ok: true;  data: T }
+  | { ok: false; error: { code: string; reason: string; retryable: boolean } };
+```
+
+Handle both sides:
+
+```ts
+if (!result.ok) {
+  // A refusal. Nothing was paid unless the code says otherwise.
+  console.error(result.error.code, result.error.reason);
+  if (result.error.retryable) {
+    // Safe to try again: a transient upstream failure, no money moved.
+  }
+} else {
+  console.log("body:", result.data.body);              // the resource response
+  console.log("tx:", result.data.paid.transaction);    // the on-chain settlement hash
+}
+```
+
+On success, `data` carries:
+
+- **`body`** is the resource's actual response, the thing you paid to receive.
+- **`paid`** is the settlement: `amount`, `asset`, `network`, and `transaction`. The `transaction` hash is what you look up on [`explorer.rail402.dev`](https://explorer.rail402.dev).
+
+On failure, `error` is always `{ code, reason, retryable }`, and `reason` is never null. Branch on `code`, respect `retryable`.
+
+<Warning>
+`retryable` is not advice about convenience, it is about money. A budget refusal and a replayed authorization are never retryable. If a payment settled and then the resource itself failed, the code is `mcp_paid_but_resource_failed` and it is not retryable, because retrying pays a second time. The hash is still in the payload so you can see what you already paid for.
+</Warning>
+
+## The cap is checked on the paid quote, not the probe
+
+This is the subtle part, and getting it wrong is a real bug. The unpaid probe in step 1 returns a quote, but that quote is not authoritative: a hostile seller can quote cheap when asked for free and expensive when asked to pay. So the SDK re-applies your `maxAmount` to the price on the request that is actually signed, immediately before signing. Both the probe quote and the paid quote must fit the cap, or nothing is signed.
+
+<Info>
+If you build the payment with the stock `@x402/*` client instead of the SDK, put the cap in the client's payment-requirements selector, which runs on the paid request. Checking only an earlier probe leaves the gap the SDK closes for you. The interop client is shown in [Packages](/reference/packages).
+</Info>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Spend controls" icon="shield" href="/buyers/spend-controls">
+    The mandatory cap, atomic units, and per-account ceilings in depth.
+  </Card>
+  <Card title="Discover services" icon="compass" href="/buyers/discover">
+    Search the Bazaar and read a listing before you pay it.
+  </Card>
+  <Card title="The exact scheme" icon="equals" href="/concepts/exact">
+    The fixed-price scheme this page pays with.
+  </Card>
+  <Card title="Auth entries" icon="signature" href="/concepts/stellar">
+    Why Stellar signs authorization entries, not transactions.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+Refusals arrive as `{ code, reason, retryable }`, never as a bare status. The full registry, including which codes mean money already moved, is in [Rejection reasons](/reference/errors).

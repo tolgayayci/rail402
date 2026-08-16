@@ -1,0 +1,157 @@
+---
+title: "@rail402.dev/sdk"
+description: "The SDK surface: buyer functions, seller functions, the config object, the Result type, and the subpath exports."
+---
+
+By the end of this page you will know every function `@rail402.dev/sdk` exports, its exact signature, and the shape it returns.
+
+The SDK is the umbrella package described in [Packages](/reference/packages). It re-exports the buyer helpers, the seller helpers, and the error registry. Install it once:
+
+```bash
+npm install @rail402.dev/sdk
+```
+
+<Note>
+Amounts in the SDK are atomic units passed as a string, never a number, bigint, or float. USDC has 7 decimals, so `"100000"` is 0.01 USDC and `"10000000"` is 1.0000000. The CLI uses decimals instead: see [CLI reference](/reference/cli).
+</Note>
+
+## The config object
+
+Every buyer function takes a `config` object as its first argument.
+
+```ts
+const config = {
+  bazaarUrl: "https://facilitator.rail402.dev", // the Bazaar is served at the facilitator base URL
+  stellarSecret: process.env.RAIL402_SECRET,    // omit for search-only
+  network: "stellar:testnet",
+  // maxAmountCeiling?: string   a hard ceiling applied regardless of the per-call cap
+  // allowPrivateHosts?: boolean opt in to pay a loopback or private host (a local seller)
+};
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `bazaarUrl` | `string` | The facilitator base URL. The Bazaar is served there. |
+| `stellarSecret` | `string?` | The buyer secret (`S...`) for a classic `G...` account. Omit it to search only. |
+| `stellarSigner` | `ClientStellarSigner?` | A pre-built signer, used instead of `stellarSecret`. Works today for a `G...` account; it is the seam for `C...` smart accounts once `@x402/stellar` supports client-side `C...` signing. See [Smart-account buyers](/buyers/smart-accounts). |
+| `network` | `string` | `stellar:testnet` today. |
+| `maxAmountCeiling` | `string?` | An absolute ceiling, in atomic units, applied on top of any per-call cap. |
+| `allowPrivateHosts` | `boolean?` | Opt in to pay a loopback or private host. Off by default. |
+
+## Buyer functions
+
+Also available from `@rail402.dev/agent-helpers` and from the subpath `@rail402.dev/sdk/buyer`.
+
+```ts
+import { searchBazaar, payAndFetch, discoverAndPay } from "@rail402.dev/sdk";
+
+searchBazaar(config, query: string, options?: {
+  network?: string;
+  type?: "http" | "mcp";
+  maxPrice?: string;   // atomic units
+  limit?: number;
+})
+
+payAndFetch(config, resourceUrl: string, { maxAmount: string })   // maxAmount is REQUIRED
+
+discoverAndPay(config, query: string, { maxAmount: string /* + the searchBazaar options */ })
+```
+
+| Function | Pays? | What it does |
+| --- | --- | --- |
+| `searchBazaar` | No | Searches the Bazaar with a natural-language `query`. Returns matching listings. |
+| `payAndFetch` | Yes | Pays a known `resourceUrl` under `maxAmount` and returns the resource response. |
+| `discoverAndPay` | Yes | Searches, picks the best-ranked match within `maxAmount`, pays it, and returns the response. |
+
+<Warning>
+`maxAmount` is required on every paying call. It is the spend cap, enforced on the request that is actually paid, immediately before signing. A seller cannot quote cheap and then charge above the cap. `maxAmount` and `maxPrice` are atomic-unit strings.
+</Warning>
+
+### The Result type
+
+Every buyer function returns a `Result`. Branch on `ok` before touching `data` or `error`.
+
+```ts
+type Result<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: { code: string; reason: string; retryable: boolean } };
+```
+
+```ts
+const result = await payAndFetch(config, "https://seller.example/quote?symbol=XLM", {
+  maxAmount: "500000", // 0.05 USDC
+});
+
+if (!result.ok) {
+  console.error(result.error.code, result.error.reason);
+} else {
+  console.log(result.data.body); // the resource response
+}
+```
+
+On success, `payAndFetch` and `discoverAndPay` include the resource response as `data.body` alongside settlement information. On failure, `error` carries a machine-readable [error code](/reference/errors), a non-null `reason`, and a `retryable` flag.
+
+## Seller functions
+
+Also available from `@rail402.dev/seller-helpers` and from the subpath `@rail402.dev/sdk/seller`.
+
+```ts
+import { describeEndpoint, describeTool, preflight } from "@rail402.dev/sdk";
+
+describeEndpoint({
+  params: {
+    symbol: { description: "Ticker such as XLM or BTC.", type?, required?, example?, enum? },
+  },
+  outputExample?,
+  bodyType?,
+}) // returns { bazaar: ... }, a branded object
+
+describeTool({ toolName: string, description: string, params: { /* ... */ }, outputExample?, transport? })
+
+preflight({ payTo, asset, network?, horizonUrl? })
+// -> { ok: boolean, findings: [{ code, reason, severity }] }
+```
+
+| Function | What it does |
+| --- | --- |
+| `describeEndpoint` | Builds the Bazaar discovery metadata for an HTTP paywall route, including a description per parameter. Returns a branded `{ bazaar: ... }` object you pass as the route's `extensions`. |
+| `describeTool` | The same, for a paid MCP tool, keyed on `toolName`. |
+| `preflight` | Checks a seller's `payTo` account and its `asset` trustline on Horizon before you go live, and returns findings with a severity each. |
+
+<Warning>
+`describeEndpoint` takes `params`, not `queryParams`, and has no top-level `description`. The resource description is a separate field on the paywall route, next to `extensions`. See the [Seller quickstart](/sellers/quickstart) for the full route shape.
+</Warning>
+
+The return value of `describeEndpoint` is branded, so wrapping it in another discovery call is a compile error rather than a silent double-nesting.
+
+## Subpath exports
+
+Import only the side you need.
+
+| Import | Exports |
+| --- | --- |
+| `@rail402.dev/sdk` | Everything below. |
+| `@rail402.dev/sdk/buyer` | `searchBazaar`, `payAndFetch`, `discoverAndPay`. |
+| `@rail402.dev/sdk/seller` | `describeEndpoint`, `describeTool`, `preflight`. |
+| `@rail402.dev/sdk/errors` | `X402Error`, `isErrorCode`, `ERROR_REGISTRY`, and the rest of the error registry. |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Buyer quickstart" icon="wallet" href="/buyers/quickstart">
+    Discover and pay a resource with these functions.
+  </Card>
+  <Card title="Seller quickstart" icon="tag" href="/sellers/quickstart">
+    Add discovery metadata to a paywall route.
+  </Card>
+  <Card title="Error registry" icon="triangle-exclamation" href="/reference/errors">
+    The codes that come back in `result.error`.
+  </Card>
+  <Card title="Packages" icon="box" href="/reference/packages">
+    How the SDK relates to the building blocks.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+Every failing call returns `{ ok: false, error }` with a machine-readable code and a non-null reason. See [Error registry](/reference/errors) and [Troubleshooting](/support/troubleshooting).

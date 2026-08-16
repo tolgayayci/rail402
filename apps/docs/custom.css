@@ -43,7 +43,16 @@ code, pre, kbd, samp, tt, .font-mono {
   font-weight: 700 !important;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.6;
+  color: var(--rail-accent) !important; /* light mode: brand orange */
+  opacity: 0.95;
+}
+
+/* Dark mode: a brighter orange so the labels read on the near-black sidebar. */
+.dark .sidebar-group-header,
+html.dark .sidebar-group-header,
+[data-theme="dark"] .sidebar-group-header {
+  color: #FF7A47 !important;
+  opacity: 1;
 }
 
 /* ---- Headings: brand face with a structural hairline ----------------- */

@@ -1,0 +1,119 @@
+---
+title: "Pay over MCP"
+description: "Give an agent runtime two Model Context Protocol tools: search the Stellar Bazaar and make a paid call under a mandatory spend cap, over stdio or the hosted HTTP server."
+sidebarTitle: "Pay over MCP"
+---
+
+By the end of this page you will have connected an MCP client to the Rail402 discovery server and understand its two tools: one that searches the Bazaar and one that pays a discovered resource under a required cap.
+
+This uses `@rail402.dev/mcp-discovery` (bin `rail402-mcp`). It puts the discover, pay, retry loop behind Model Context Protocol tools, so an agent in Claude Code, Cursor, or any MCP client can find and buy a Stellar service with no pre-built integration.
+
+## The two tools
+
+<CardGroup cols={2}>
+  <Card title="search_stellar_resources" icon="magnifying-glass">
+    Natural-language search over the Bazaar. Pays nothing. Returns structured results with price, input schema, and settled-usage counts.
+  </Card>
+  <Card title="pay_and_call" icon="credit-card">
+    Discover the price, pay, and return the resource result. Refuses to run without a spend cap.
+  </Card>
+</CardGroup>
+
+Both tools declare strict JSON input and output schemas, and every rejection carries a machine-readable `code` with a non-null `reason`, so an agent can reason about failure instead of parsing prose.
+
+### search_stellar_resources
+
+Takes a `query` in natural language, plus optional filters (`network`, `type` of `http` or `mcp`, a `maxPrice` atomic-unit ceiling, and a `limit`). It returns the ranked matches with their price, asset, `payTo`, input schema, and a settled-payer usage count. Nothing is paid.
+
+### pay_and_call
+
+Takes the `resource` URL exactly as search returned it and a `maxAmount`, the most you authorize for this one call, in atomic units. `maxAmount` is mandatory: the tool never pays an unbounded amount. For an MCP-tool resource, pass its `toolName` and the call switches from HTTP to an MCP call. The cap binds in the same selector that signs, so it is checked against the price actually paid.
+
+<Warning>
+`maxAmount` is required. A `pay_and_call` with no cap is refused with `mcp_budget_required` and nothing is paid. Set an operator ceiling too when the server runs unattended, so every paid call stays below whatever an agent asks for.
+</Warning>
+
+## Run it locally over stdio
+
+An agent runtime spawns the server over stdio, which is the default transport. Add a signing secret to enable paying; omit it for a search-only server that cannot spend.
+
+<CodeGroup>
+```bash Search only
+rail402-mcp
+```
+
+```bash Enable paying
+rail402-mcp --secret S...   # testnet secret; the buyer account it pays from
+```
+
+```bash Point at a local facilitator
+rail402-mcp --bazaar http://localhost:4022 --allow-private-hosts
+```
+</CodeGroup>
+
+Point your MCP client at the binary. A typical stdio client config:
+
+```json
+{
+  "mcpServers": {
+    "rail402-stellar": {
+      "command": "rail402-mcp",
+      "args": ["--secret", "S...your-testnet-secret"]
+    }
+  }
+}
+```
+
+<Info>
+Without `--secret` the server still exposes `search_stellar_resources`, so an agent can discover services without any ability to spend. Add the secret only when you want it to pay.
+</Info>
+
+## Or use the hosted server over HTTP
+
+A hosted testnet instance runs over Streamable HTTP. Point an HTTP-capable MCP client at it:
+
+```
+https://mcp-discovery-testnet.up.railway.app/mcp
+```
+
+To run your own HTTP server instead of stdio, add `--http`:
+
+```bash
+rail402-mcp --http --port 8080 --secret S...
+```
+
+## Reading a failure
+
+Every rejection is `{ code, reason, retryable }`. Two codes matter most for an agent deciding whether to retry:
+
+| Code | Meaning | Retry? |
+| --- | --- | --- |
+| `mcp_budget_exceeded` | The price is above your cap, on the probe or the paid request. Nothing was paid. | No |
+| `mcp_paid_but_resource_failed` | The payment settled, then the resource failed. Money moved. A retry pays again. | No |
+
+The second is the one that matters: it is not retryable because money already moved, and the response still carries the transaction hash so the agent can see what it paid for. See [Rejection reasons](/reference/errors) for the full set.
+
+## Run the loop end to end
+
+The [`examples/mcp-agent-zero-integration`](https://github.com/tolgayayci/rail402/tree/main/examples/mcp-agent-zero-integration) project runs an agent that discovers a seller it has never heard of, pays it through these tools, returns the result, and then refuses an over-budget retry. It settles a real testnet transaction.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Spend controls" icon="shield" href="/buyers/spend-controls">
+    The mandatory cap and the operator ceiling above it.
+  </Card>
+  <Card title="Discover services" icon="compass" href="/buyers/discover">
+    The same search, from the SDK.
+  </Card>
+  <Card title="The rail402 CLI" icon="terminal" href="/buyers/cli">
+    The same loop from a terminal, with a bundled agent skill.
+  </Card>
+  <Card title="Bazaar" icon="store" href="/concepts/bazaar">
+    What gets catalogued and how.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+The MCP tools code every rejection with a non-null reason. The distinction between "no money moved, retry" and "money moved, do not retry" is spelled out in [Rejection reasons](/reference/errors).

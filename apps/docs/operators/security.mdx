@@ -1,0 +1,57 @@
+---
+title: "Security and trust boundaries"
+description: "The facilitator is a trust boundary and non-custodial. What it validates, and how it resists poisoning, SSRF, and replay."
+sidebarTitle: "Security"
+---
+
+By the end of this page you know what the facilitator trusts, what it does not, and the specific attacks it is built to refuse. This is operator-facing background for `@rail402.dev/facilitator` and `@rail402.dev/bazaar`.
+
+<Warning>
+The facilitator is a **trust boundary**, and it is **non-custodial**. It never holds buyer funds and is never the source of funds. The only value it moves is the buyer-signed Soroban authorization, submitted exactly as authorized. Any tampering with a payment (a changed amount, asset, or recipient) fails signature verification and is refused. This is proven by test, not asserted.
+</Warning>
+
+## What the facilitator validates
+
+Every payment is checked before anything settles. The authorization must be correctly signed, must authorize exactly the declared call, asset, amount, and recipient, must not be replayed, and must not be expired. A payment that fails any of these is refused with a coded, non-null reason rather than best-effort accepted. The facilitator fails closed.
+
+## Catalog poisoning
+
+Clients echo the resource block into the payment payload, so the facilitator treats every listing as untrusted input from a possibly hostile client. The controls that keep one seller from spoofing another:
+
+- **Ownership is bound to settlement.** A listing belongs to the `payTo` that first settles a payment for it. A settled listing cannot be overwritten by a different owner (`bazaar_listing_ownership_conflict`), and a provisional entry from a free `/verify` is displaceable, so a free verify can never lock out or spoof a real seller.
+- **Soft-drop validation.** Service metadata is validated per field. A bad field is dropped, not allowed to poison the record.
+- **Route templates are decoded before they are checked.** A `routeTemplate` is percent-decoded first, then checked for path traversal and scheme smuggling. Decoding after the check would let `..` slip through encoded, so the order is load-bearing.
+- **Asset identity is derived, not trusted.** The asset on a listing is derived by the facilitator from the on-chain contract, so a token cannot claim to be USDC when it is not.
+- **Ranking is abuse-resistant.** Only metadata from the legitimate cataloging path influences ranking, and only distinct real payers move it. A self-payment earns no rank, so keyword stuffing and spoofed pricing do not buy position.
+
+## SSRF via URL fields
+
+Listings and paid calls carry URL fields, and a hostile one could try to make the facilitator fetch an internal host. The Bazaar and the buyer-side path refuse to fetch resource URLs that resolve to loopback or private-network addresses. The `BAZAAR_ALLOW_PRIVATE_HOSTS` flag opens that guard, and exists only for a seller running on the same machine during development.
+
+<Warning>
+Do not set `BAZAAR_ALLOW_PRIVATE_HOSTS` (facilitator) or `MCP_ALLOW_PRIVATE_HOSTS` / `--allow-private-hosts` (MCP server) on a public deployment. Each disables the guard that keeps a hostile listing from reaching your internal network. See [Configuration](/operators/configuration) and [the MCP server](/operators/mcp-server).
+</Warning>
+
+## Replay and expiration
+
+A Stellar authorization is bounded by `signatureExpirationLedger`, roughly 12 ledgers (about 60 seconds), derived from `maxTimeoutSeconds`. Two defenses follow from that:
+
+- **Replay is refused.** A previously settled authorization cannot settle again. The Soroban auth nonce makes a replayed payload fail at the authorization layer, and the facilitator surfaces it as a coded reason (for example `invalid_exact_stellar_payload_authorization_replayed`) rather than a crash.
+- **Expiration is a coded outcome, not a fault.** If an authorization expires between verify and settle, settle refuses it with a specific code, not an exception. The caller reads the reason and whether a retry can help.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="The Bazaar" icon="box-archive" href="/concepts/bazaar">
+    How discovery and cataloging work end to end.
+  </Card>
+  <Card title="Error reference" icon="triangle-exclamation" href="/reference/errors">
+    Every coded rejection, including the ones on this page.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/operators/configuration">
+    The private-hosts and fee-ceiling defaults, and why.
+  </Card>
+  <Card title="Monitoring and runbook" icon="gauge-high" href="/operators/operations">
+    Alert on rejections and on degraded storage.
+  </Card>
+</CardGroup>

@@ -1,0 +1,82 @@
+---
+title: "Deployment, reliability, and licensing"
+description: "How Rail402 runs as a managed service and as a codebase anyone can fork, the durable catalog and its degraded-mode behavior, the fail-closed permissive-license gate that keeps AGPL out of the dependency path, and the audit posture."
+---
+
+Rail402 works both as a managed hosted provider and as a codebase anyone can fork and self-host, under a permissive license with no strong copyleft in the dependency path. This page covers how it is deployed, how it behaves when a dependency degrades, and how the license and audit posture are enforced rather than asserted.
+
+## Hosted, self-hosted, and self-facilitation
+
+The same code serves all three paths.
+
+<CardGroup cols={3}>
+  <Card title="Managed" icon="cloud">
+    The live deployment at [`facilitator.rail402.dev`](https://facilitator.rail402.dev/supported), free on testnet with no API key.
+  </Card>
+  <Card title="Self-hosted" icon="server">
+    A single root `Dockerfile` builds the facilitator and Bazaar as one image. Fork it and run your own.
+  </Card>
+  <Card title="Self-facilitation" icon="box">
+    A seller can run verify and settle in-process inside its own resource server, with no separate hosted facilitator.
+  </Card>
+</CardGroup>
+
+The facilitator and Bazaar are one process, so there is nothing to orchestrate between them. A listing enters the catalog only through the facilitator's own settlement path, which is why a standalone Bazaar would have nothing to serve.
+
+## Where it runs
+
+The live service runs on **Railway** (environment `testnet`), a stateful Node host with a persistent volume. The choice is deliberate and load-bearing. Two capabilities need a Node runtime that a serverless edge runtime does not provide: Ajv builds discovery-schema validators with `new Function`, and the semantic search arm loads a 7.5 MB embedding model from disk. Both work on Node, and both silently degrade on an edge runtime. The Workers and D1 adapter remains in the repo as an alternate host, verified but not the deployed one, precisely because that comparison surfaced the difference.
+
+## The durable catalog and degraded mode
+
+The catalog is durable behind one storage seam with two backends: `node:sqlite` for a Node host and D1 for a Workers host, both built in, no new dependency. `CATALOG_DB_PATH` unset means an in-memory catalog, which is the correct default for an ephemeral deployment. A catalog that would silently forget listings on restart returns a coded `501` rather than pretending to persist.
+
+The degraded-mode behavior is a specific ordering: **memory is written first, persistence second.** If the disk is full or the database is unavailable, the cost is durability only. The running process keeps serving the catalog from memory, and a restart is the only thing that loses the unpersisted tail. `/health` reports the state honestly as `catalog.storage: memory | durable | degraded`, so an operator sees a degraded backend rather than discovering it after a restart.
+
+<Warning>
+Availability targets 99% or better, and the one caveat worth stating is a cold start: an idle Railway instance can take up to about 13 seconds to wake, which reads as a dead link on the first request. Warm the endpoint before showing it. This is a hosting characteristic, not a facilitator defect.
+</Warning>
+
+## Configuration is real configuration
+
+Everything Rail402 calls configurable is a documented 12-factor environment variable, not a hard-wired value: network fees and the [fee ceiling](/architecture/fees), fee sponsorship, caller authentication and its per-network exemption, rate limiting, the served networks and their RPC endpoints, and the [channel-account pool](/architecture/stellar-engineering#throughput). Testnet is free and needs no API key. Any mainnet pricing would be an operator's configurable business decision, never hard-wired. Rate limiting keys on proxy-set headers first, then the *last* forwarded hop, then the socket address, never the spoofable first `X-Forwarded-For` hop. The full surface is in the [operator configuration reference](/operators/configuration).
+
+## Licensing is gated, not claimed
+
+<a id="licensing"></a>
+
+The project is Apache-2.0, matching `@x402/stellar`, and the permissive-license requirement is enforced in CI rather than trusted:
+
+- A **fail-closed license gate** scans the full transitive dependency tree on every PR (`pnpm licenses list`, against an allowlist of permissive licenses). AGPL, GPL, SSPL, BUSL, Elastic, Commons-Clause, and anything unknown fail the build. An `osv-scanner` pass covers vulnerabilities with the same fail-closed posture.
+- `THIRD_PARTY_NOTICES.md` is generated at build, tracked, and freshness-gated, so a clone ships with attribution, and the generator is platform-independent so a macOS and a Linux build produce identical output.
+
+This has real design consequences. A search engine the deliverable *operates* is in its dependency path, so **Typesense (GPL-3.0) and Elasticsearch (SSPL) are blocked**, which is a direct reason [search is in-process](/architecture/retrieval) rather than a managed engine. The docs site is kept deliberately *outside* the workspace, because a Next.js site pulls weak-copyleft packages (sharp under LGPL, lightningcss under MPL) that nothing shipped touches; excluding it keeps the graded gate at zero review items.
+
+The OpenZeppelin Relayer stack is AGPL-3.0, whose network clause applies to a service serving third parties, so it is out as a base and Rail402 has no part of it in the tree. The audited OpenZeppelin code Rail402 *does* use, [`stellar-accounts`](https://github.com/OpenZeppelin/stellar-contracts) for smart accounts, is a different, permissively-licensed contract library, not the relayer.
+
+## Audit readiness
+
+<a id="audit-readiness"></a>
+
+The audit posture is scoped precisely. v1 is an **off-chain service and its cryptographic validation, plus one small Soroban contract**, the [`upto` settlement contract](/architecture/upto), whose presence widens the review scope beyond a pure off-chain service and is flagged for the Audit Bank engagement. The code is kept audit-friendly by design: the auth-entry validation path is isolated and heavily unit-tested, the contracts are tiny with no custody or upgradability, and the threat model is updated in the same change as any feature that moves a trust boundary. An adversarial internal audit has already been run and its findings resolved with regression tests.
+
+## The Explorer: observing the ecosystem
+
+Beyond the facilitator, the [Explorer](https://explorer.rail402.dev) is independent operational and ecosystem visibility. It watches the Stellar ledger directly and classifies x402 settlements **across all facilitators**, not only Rail402's, distinguishing `exact` (a `transfer` with a sender-signed address-credentialed auth entry and a sponsored fee) from `upto` (an invocation of a known `upto` contract). It labels each with a confidence tier (`rail402`, `verified-facilitator`, or `x402-shaped`), so an inferred attribution is never presented as fact. It is the fastest way to watch a payment land on chain, and it confirms that the settlement shapes described here are recognizable on the public ledger.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Run a facilitator" icon="server" href="/operators/run">
+    Stand up your own, hosted or self-hosted.
+  </Card>
+  <Card title="Operator configuration" icon="sliders" href="/operators/configuration">
+    Every environment variable and its default.
+  </Card>
+  <Card title="Verify it yourself" icon="terminal" href="/architecture/proofs">
+    The live endpoints and the settled hashes.
+  </Card>
+  <Card title="Technical architecture" icon="sitemap" href="/architecture/overview">
+    Back to the overview.
+  </Card>
+</CardGroup>

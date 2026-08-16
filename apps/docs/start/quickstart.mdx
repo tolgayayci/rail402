@@ -1,12 +1,100 @@
 ---
-title: "Quickstart"
-description: "Run a paid, discoverable x402 payment on stellar:testnet end to end, in one command."
+title: "Install and first payment"
+description: "See the live facilitator respond with no setup, then make your first real testnet payment from the command line and verify it on the explorer."
 ---
 
-The fastest way to see Rail402 work is one command against a Rail402 checkout. It runs the whole loop on `stellar:testnet`: a stock client pays a seller, the facilitator settles on chain, the resource is cataloged, and a natural-language search returns it first.
+By the end of this page you will have watched the live Rail402 facilitator respond, then settled a
+real payment on `stellar:testnet` and confirmed it on the explorer. It takes about five minutes.
+
+## See it live, with no setup
+
+The `rail402` CLI talks to the hosted testnet facilitator by default. These read-only commands need
+no account and no funding.
 
 ```bash
-pnpm canary discovery-loop --facilitator https://facilitator.rail402.dev
+# What the facilitator supports
+npx @rail402.dev/cli supported
+
+# Search the live Bazaar in natural language
+npx @rail402.dev/cli search "convert a currency or asset price"
 ```
 
-It exits non-zero if any step fails and prints the settled transaction hash. From here, pick a path: [Expose a paid API](/seller/quickstart) if you sell, or [Pay for an API](/buyer/quickstart) if you buy.
+`supported` prints the schemes and networks, and `search` returns real services from the catalog with
+their price and description. Nothing is paid.
+
+## Make your first payment
+
+To pay, you need a funded testnet account that holds the payment asset.
+
+<Steps>
+  <Step title="Create and fund an account">
+    `fund` generates a testnet keypair and funds it with XLM from friendbot. Save the secret it
+    prints.
+
+    ```bash
+    npx @rail402.dev/cli fund
+    export RAIL402_SECRET=S...   # the secret it printed
+    ```
+  </Step>
+  <Step title="Add the payment asset">
+    Bazaar services are priced in testnet USDC. Add a USDC trustline to your account, then fund it
+    from the [Circle faucet](https://faucet.circle.com) (select Stellar testnet). The trustline is a
+    step you take yourself; the faucet only sends the USDC. See
+    [Trustlines](/concepts/stellar#trustlines) for how to add one and why an account needs it.
+
+    <Note>friendbot funds XLM; testnet USDC comes from the Circle faucet.</Note>
+  </Step>
+  <Step title="Discover and pay">
+    `buy` searches the Bazaar, picks the best-ranked match within your cap, and pays it. Amounts on the
+    CLI are decimals, so `--max 0.10` is 0.10 USDC.
+
+    ```bash
+    npx @rail402.dev/cli buy "convert a currency or asset price" --max 0.10
+    ```
+
+    It prints the settled transaction hash and the resource response.
+  </Step>
+  <Step title="Verify it on chain">
+    Look the settlement up on the explorer.
+
+    ```bash
+    npx @rail402.dev/cli tx <hash>
+    ```
+
+    Or open it at [explorer.rail402.dev](https://explorer.rail402.dev). The fee was charged to the
+    facilitator, not to your account, because fees are sponsored.
+  </Step>
+</Steps>
+
+<Tip>
+  Every command accepts `--json` for a machine-readable `{ ok, data | error }` result, so an agent can
+  drive this flow. See [The rail402 CLI](/buyers/cli).
+</Tip>
+
+## Build the real thing
+
+The CLI is the fastest way to see a payment. To build a buyer, a seller, or run your own facilitator,
+follow the path for what you are building.
+
+<CardGroup cols={3}>
+  <Card title="Buyers and agents" icon="wallet" href="/buyers/quickstart">
+    Pay for services from code with `@rail402.dev/sdk`.
+  </Card>
+  <Card title="Sellers" icon="store" href="/sellers/quickstart">
+    Put a paid, discoverable endpoint online.
+  </Card>
+  <Card title="Operators" icon="server" href="/operators/run">
+    Run the facilitator yourself.
+  </Card>
+</CardGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="How Rail402 works" icon="diagram-project" href="/start/how-it-works">
+    The payment loop, the four addresses, and exact versus upto.
+  </Card>
+  <Card title="Packages" icon="cube" href="/reference/packages">
+    Every published package and which to use.
+  </Card>
+</CardGroup>

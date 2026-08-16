@@ -1,0 +1,119 @@
+---
+title: "Discover services"
+description: "Search the Stellar Bazaar with searchBazaar, read a listing's price, asset identity, trustline state, and input schema, then pay the best match with discoverAndPay."
+sidebarTitle: "Discover services"
+---
+
+By the end of this page you will be able to search the Bazaar in natural language, read everything a listing tells you before spending, and pay the best match in one call.
+
+This uses `@rail402.dev/sdk`. The [Quickstart](/buyers/quickstart) paid a service; this page is about finding one you have never seen.
+
+## The Bazaar lives at the facilitator URL
+
+There is no separate discovery host. The Bazaar is served at the facilitator base URL, so `bazaarUrl` in your config is the same `https://facilitator.rail402.dev` you already use. Search is a read: it pays nothing and needs no secret.
+
+```ts
+import { searchBazaar } from "@rail402.dev/sdk";
+
+const config = {
+  bazaarUrl: "https://facilitator.rail402.dev",
+  network: "stellar:testnet",
+  // stellarSecret is optional here: search alone never pays.
+};
+```
+
+## Search in natural language
+
+`searchBazaar` ranks the catalog against a `query`. Ranking is a hybrid of weighted-field BM25 and a vendored static-embedding vector arm, fused by reciprocal rank fusion, all in-process with no external engine.
+
+```ts
+const found = await searchBazaar(config, "current price of a commodity by ticker", {
+  type: "http",        // "http" or "mcp"; omit for both
+  maxPrice: "500000",  // atomic-unit string ceiling; pricier resources are excluded
+  limit: 5,            // how many results
+});
+
+if (!found.ok) {
+  console.error(found.error.code, found.error.reason);
+}
+```
+
+The options are `network`, `type`, `maxPrice` (an atomic-unit string, like every SDK amount), and `limit`. `searchBazaar` returns a `Result`, so branch on `found.ok` before reading results.
+
+<Note>
+Only metadata that arrived through a settled, catalogued payment influences ranking. A free `/verify` cannot spoof a listing or self-boost. See [Search](/concepts/search) for how ranking resists abuse.
+</Note>
+
+## Read a result before you pay
+
+Each result carries what you need to build and price a call to an endpoint you have never touched:
+
+- **Price.** The payment options and their amounts, in atomic units, with the asset and the recipient (`payTo`). The SDK surfaces a decimal form alongside the atomic amount so you can read it at a glance.
+- **Asset identity.** The asset is the facilitator-derived SAC, marked as derived, not the client's claimed string. A scam issuer using the code "USDC" derives a different contract address, so the identity cannot be spoofed by naming.
+- **`payTo` trustline state.** Whether the recipient can actually receive the asset: `ok`, `missing`, `unauthorized`, or `unknown`. This is advisory and cached, computed off the payment path, and it never blocks a listing. It tells you up front whether a payment would bounce on a missing trustline.
+- **Input schema.** The per-parameter descriptions that make the endpoint legible: what each query parameter means, its type, and an example. Read these to construct a valid request.
+
+<Tip>
+The trustline check applies to the seller's `payTo`. On Stellar the receiver of a SEP-41 asset needs a trustline to it. A `missing` state is a strong signal the payment would fail, so pick another result or expect an `invalid_exact_stellar_payload_missing_trustline_recipient` rejection. See [Trustlines](/concepts/stellar).
+</Tip>
+
+## Discover and pay in one call
+
+`discoverAndPay` runs the search, picks the best match, and pays it, all under a required cap.
+
+```ts
+import { discoverAndPay } from "@rail402.dev/sdk";
+
+const paying = {
+  bazaarUrl: "https://facilitator.rail402.dev",
+  stellarSecret: process.env.RAIL402_SECRET, // now required: this call pays
+  network: "stellar:testnet",
+};
+
+const result = await discoverAndPay(paying, "translate text to spanish", {
+  maxAmount: "1000000", // required, 0.10 USDC; no default
+  type: "http",
+});
+
+if (!result.ok) console.error(result.error.code, result.error.reason);
+else console.log(result.data.body, result.data.paid?.transaction);
+```
+
+The search options (`type`, `maxPrice`, `limit`, `network`) still apply, and `maxAmount` is the payment cap. `maxAmount` is required and has no default, for the same reason it is on every paying call: an unbounded default is a spender you did not mean to authorize. See [Spend controls](/buyers/spend-controls).
+
+## Call the discovery API directly
+
+If you would rather not use the SDK, the two discovery endpoints are plain unauthenticated GETs you can hit from `curl` or a browser.
+
+<CodeGroup>
+```bash Browse the catalog
+curl -s "https://facilitator.rail402.dev/discovery/resources?type=http&limit=3"
+```
+
+```bash Natural-language search
+curl -s "https://facilitator.rail402.dev/discovery/search?query=price%20of%20a%20commodity"
+```
+</CodeGroup>
+
+Two response-shape facts are load-bearing: the browse endpoint returns its results under `items`, while search returns them under `resources`. Search pagination is an opaque `cursor` bound to your query and filters; browse pagination is by `offset`. The full filter set and shapes are in [Bazaar](/concepts/bazaar).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Spend controls" icon="shield" href="/buyers/spend-controls">
+    Cap every payment, in atomic units, with no default.
+  </Card>
+  <Card title="Sign and pay" icon="signature" href="/buyers/sign-and-pay">
+    What happens between picking a result and the settled hash.
+  </Card>
+  <Card title="Pay over MCP" icon="robot" href="/buyers/mcp">
+    Give an agent runtime the same search and pay tools.
+  </Card>
+  <Card title="Search" icon="magnifying-glass" href="/concepts/search">
+    How ranking works and why it resists spam.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+Search and payment refusals both arrive as `{ code, reason, retryable }`. The registry, including `invalid_exact_stellar_payload_missing_trustline_recipient`, is in [Rejection reasons](/reference/errors).

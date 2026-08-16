@@ -1,0 +1,137 @@
+---
+title: "Get discovered"
+description: "Write discovery metadata with describeEndpoint so an agent can read, choose, and correctly call your endpoint, and understand exactly what the facilitator catalogs and when."
+sidebarTitle: "Get discovered"
+---
+
+By the end of this page your listing is legible to an agent that has never seen your API, and you know precisely what the facilitator records at verify, what it records at settlement, and why a good parameter description is what wins a search.
+
+This uses `describeEndpoint` from `@rail402.dev/sdk` (also exported from `@rail402.dev/seller-helpers`).
+
+<Warning>
+`describeEndpoint` only **declares metadata**. It does not register your endpoint, it does not gate payment, and it does not itself catalog anything. Payment is gated by the `@x402` paywall middleware, and cataloging happens on the facilitator when a payment settles. `describeEndpoint` is the description the catalog reads once a payment carries it.
+</Warning>
+
+## What an agent sees
+
+An agent choosing between your endpoint and someone else's has nothing but your text, and search ranks on that same text. A parameter named `q` with no description is invisible in search and unusable by an agent, because the agent cannot tell what to put in it.
+
+So the description is the product. Compare:
+
+```js
+symbol: { description: "The symbol" }                                // useless
+symbol: { description: "Ticker such as XLM, BTC, or GOLD." }         // rankable and callable
+```
+
+The second wins a search like "what is the price of gold" even though your endpoint's own description shares no literal word with the query. That match comes from the parameter description, so write each one for a reader who has never seen your API.
+
+## describeEndpoint params
+
+Pass one entry per parameter under `params`. Each entry carries a `description` and optional hints an agent uses to build a valid call.
+
+```ts
+import { describeEndpoint } from "@rail402.dev/sdk";
+
+extensions: describeEndpoint({
+  params: {
+    symbol: {
+      description: "Ticker to price, such as XLM, BTC, or GOLD.",
+      type: "string",
+      required: true,
+      example: "XLM",
+    },
+    currency: {
+      description: "ISO 4217 code to quote in. Defaults to USD.",
+      required: false,
+      example: "USD",
+      enum: ["USD", "EUR", "GBP"],
+    },
+  },
+  outputExample: { symbol: "XLM", price: 0.1234, currency: "USD" },
+});
+```
+
+| Field | Purpose |
+| --- | --- |
+| `description` | The text an agent reads and search ranks. Write it for a stranger. |
+| `type` | The value type, so an agent builds a well-typed call. |
+| `required` | Whether the call is valid without this parameter. |
+| `example` | A concrete value that shows correct usage. |
+| `enum` | The allowed values, when the parameter is a fixed set. |
+| `outputExample` | An example of the response body, so an agent knows what it gets back. |
+
+<Note>
+The resource-level `description` is a separate field on the paywall route, not part of `describeEndpoint`. `describeEndpoint` describes the parameters; the route's own `description` describes the endpoint. Both are indexed. See the [Seller quickstart](/sellers/quickstart) for where the resource description goes.
+</Note>
+
+## What the facilitator catalogs, and when
+
+Cataloging is automatic and settlement-gated. There is no separate registration call. A resource enters the catalog because a payment carrying its discovery metadata settles. The flow is hybrid, in two stages:
+
+<Steps>
+<Step title="At verify: a provisional listing">
+When a well-formed payment reaches `/verify`, the facilitator writes a **provisional** listing. It is discoverable, but it carries no ranking signals, has no owner, and is pruned after a short time-to-live. This is why a resource can appear during payment verification, as the upstream reference facilitators expect. A free `/verify` can never lock out or spoof a real seller, because a provisional listing is always displaceable.
+</Step>
+<Step title="At settle: a confirmed, owned listing">
+When the payment settles, the listing is confirmed. Settlement is the only thing that earns **ownership** and **ranking**. The owner is the `payTo` that settled the payment, which is what stops anyone from rewriting your listing after the fact.
+</Step>
+</Steps>
+
+Because ownership and ranking cost a real settled payment, the catalog resists spam without any moderation queue. See [Bazaar](/concepts/bazaar) for the trust model and [Search](/concepts/search) for how ranking works.
+
+## Confirm your listing landed
+
+The facilitator reports the cataloging outcome in the `EXTENSION-RESPONSES` header on its `/verify` and `/settle` responses. The value is base64-encoded JSON.
+
+<CodeGroup>
+```json At verify (well-formed)
+{ "bazaar": { "status": "processing" } }
+```
+
+```json At settle (cataloged)
+{ "bazaar": { "status": "success" } }
+```
+
+```json Rejected (either stage)
+{ "bazaar": { "status": "rejected", "code": "bazaar_stellar_fees_not_sponsored", "rejectedReason": "..." } }
+```
+</CodeGroup>
+
+`processing` means the provisional listing is recorded. `success` means it is cataloged and owned. `rejected` carries a non-null `rejectedReason` you can read and a machine `code` you can branch on. You can also confirm from the outside once the payment settles:
+
+```bash
+curl -s "https://facilitator.rail402.dev/discovery/resources?payTo=G...your-address" | jq '.items[].resource'
+```
+
+## How the catalog stays honest
+
+Clients echo the resource block into the payment payload, so the facilitator treats every listing as untrusted input. You get these protections for free:
+
+- Ranking grows with distinct real payers, not with self-payments, so paying your own endpoint earns no ranking signal.
+- The asset identity on your listing is derived by the facilitator from the on-chain contract, not taken from the client, so a token cannot claim to be USDC when it is not.
+- A route template is percent-decoded before it is checked for path traversal, so a crafted template cannot escape its origin.
+
+## Check your own account first
+
+Before a stranger's payment fails on a missing trustline, run `preflight` against your `payTo` at boot. It returns coded findings for the problems that stop a payment landing. See [Preflight and testing](/sellers/preflight).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Charge for an MCP tool" icon="wrench" href="/sellers/mcp-tool">
+    List an MCP tool as a first-class Bazaar resource with describeTool.
+  </Card>
+  <Card title="Preflight and testing" icon="list-check" href="/sellers/preflight">
+    Catch a missing trustline or bad payTo before it costs a buyer a failed payment.
+  </Card>
+  <Card title="How search ranks" icon="chart-simple" href="/concepts/search">
+    See why the description is the product and how BM25 plus embeddings rank it.
+  </Card>
+  <Card title="Bazaar trust model" icon="shield" href="/concepts/bazaar">
+    Understand settlement-gated ownership and why the catalog resists spam.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+A rejected listing tells you why. The rejections you are most likely to see are `bazaar_stellar_fees_not_sponsored` (your `exact` listing must carry `extra.areFeesSponsored: true`) and `bazaar_info_schema_validation_failed` (your example values do not match your declared parameters). Every code and its reason is in [Errors](/reference/errors).

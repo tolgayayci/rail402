@@ -1,0 +1,69 @@
+---
+title: "Configuration"
+description: "Every meaningful facilitator environment variable, the fee ceiling, and the fee model, with the caveats that bite you first."
+sidebarTitle: "Configuration"
+---
+
+By the end of this page you know which environment variables the facilitator reads, what each defaults to, and the two settings that most often cause a surprise. This uses `@rail402.dev/facilitator`, which reads its configuration from environment variables and validates it before the port binds.
+
+<Warning>
+Two settings are easy to get wrong. `MAX_TRANSACTION_FEE_STROOPS` defaults to `100000`, which **refuses smart-account payments**: raise it to roughly `500000` if you serve buyers paying from OpenZeppelin contract accounts. `BAZAAR_ALLOW_PRIVATE_HOSTS` opens loopback and private-network seller URLs and is **for local development only**: leaving it on in a public deployment is an SSRF risk.
+</Warning>
+
+## Environment variables
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `FACILITATOR_STELLAR_SECRET` | Settlement signing account (`S...`). Must be funded. Pays the fee it sponsors | required |
+| `STELLAR_NETWORKS` | CAIP-2 networks to serve, comma-separated | `stellar:testnet` |
+| `PORT` | Listen port | `4022` |
+| `CATALOG_DB_PATH` | SQLite file for a durable catalog. Unset means in-memory | unset |
+| `MAX_TRANSACTION_FEE_STROOPS` | Safety ceiling on the settlement fee. Raise for smart-account buyers | `100000` |
+| `BAZAAR_ALLOW_PRIVATE_HOSTS` | Allow loopback and private-network seller URLs. Local development only | unset |
+
+<Note>
+On testnet, the signer is the only variable you need to set, and even that is optional: run with no secret and the facilitator generates an ephemeral testnet signer and funds it from friendbot. See [Run the facilitator](/operators/run).
+</Note>
+
+## The fee ceiling and smart accounts
+
+`MAX_TRANSACTION_FEE_STROOPS` is a safety circuit breaker, not a price. It caps the simulation-derived settlement fee. A settlement that would exceed the ceiling is refused with a coded reason rather than submitted, so a fee spike can never drain the signer.
+
+The default of `100000` stroops covers an ordinary keypair settlement several times over. A payment from a smart-contract account (a `__check_auth` buyer) costs more, because settlement cross-calls a signature verifier and an on-ledger spending policy. If you serve those buyers, raise the ceiling to roughly `500000`:
+
+```bash
+MAX_TRANSACTION_FEE_STROOPS=500000
+```
+
+If legitimate payments are being refused for exceeding the ceiling, this is the value to raise. See [smart accounts](/concepts/stellar) for what a contract-account buyer is.
+
+## Private seller hosts
+
+The Bazaar and the buyer-side path refuse to fetch resource URLs that resolve to loopback or private-network addresses, so a listing cannot point the facilitator at an internal host. Set `BAZAAR_ALLOW_PRIVATE_HOSTS` only when you run a seller on the same machine during development.
+
+<Warning>
+Never set `BAZAAR_ALLOW_PRIVATE_HOSTS` on a public deployment. It disables the guard that keeps a hostile listing from reaching your internal network. See [Security and trust boundaries](/operators/security).
+</Warning>
+
+## Fees and the business model
+
+This deployment is free on testnet, and no fee is hard-wired anywhere in the code. The facilitator does not charge the caller and has no usage-based billing to configure. Any pricing an operator adds must be configuration a self-hoster can change or remove, never a value baked into the build.
+
+The facilitator sponsors the network fee on every settlement. The `extra.areFeesSponsored` flag on `/supported` reflects the actual runtime configuration: it is advertised as `true` because settlement is genuinely funded by the facilitator, so a stock client that reads the flag is told the truth. The flag is never a claim the runtime cannot back.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Run the facilitator" icon="terminal" href="/operators/run">
+    Hosted, npx, or Docker, then verify the surface.
+  </Card>
+  <Card title="Bazaar operations" icon="box-archive" href="/operators/bazaar">
+    Durability with `CATALOG_DB_PATH` and the degraded-mode story.
+  </Card>
+  <Card title="Security and trust boundaries" icon="shield" href="/operators/security">
+    Why the private-hosts and fee-ceiling defaults are what they are.
+  </Card>
+  <Card title="Error reference" icon="triangle-exclamation" href="/reference/errors">
+    Every coded rejection and whether it is retryable.
+  </Card>
+</CardGroup>

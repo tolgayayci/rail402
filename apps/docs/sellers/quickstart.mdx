@@ -1,0 +1,203 @@
+---
+title: "Charge for an endpoint"
+description: "Put an x402 paywall on an HTTP route so it answers unpaid requests with a priced 402, settles a payment in testnet USDC, and appears in the Bazaar after its first settled payment."
+sidebarTitle: "Quickstart"
+---
+
+By the end of this page an unpaid request to your route returns a priced `402`, a real payment settles on testnet, and your endpoint shows up in the Bazaar catalog after that first settled payment. No registration step and no API key.
+
+This guide uses `@rail402.dev/sdk` for the discovery listing and the stock `@x402` packages for the paywall itself. Everything runs against the hosted facilitator at `https://facilitator.rail402.dev`.
+
+## Prerequisites
+
+**Node.js 20 or later** (the packages target the current Node LTS), and a testnet account to receive
+payments (`payTo`).
+
+Create and fund a `payTo` account with the Rail402 CLI:
+
+```bash
+npx @rail402.dev/cli fund
+```
+
+It prints the account address (`G...`) and secret. The receiver must trust the asset it is paid in,
+so add a trustline to testnet USDC (`CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`) to
+that account, for example in [Stellar Lab](https://lab.stellar.org). See
+[Stellar essentials](/concepts/stellar#trustlines) for why the receiver needs one. (Or create and
+fund an account by hand with [friendbot](https://friendbot.stellar.org).)
+
+<Tip>
+You do not need any XLM in the buyer's account. The facilitator is the transaction source and sponsors the network fee, so a buyer needs only the payment asset. See [Payment loop](/concepts/payment-loop).
+</Tip>
+
+## 1. Install
+
+Install the SDK for the listing and the stock `@x402` paywall packages, pinned to `2.20.0`.
+
+```bash
+npm install @rail402.dev/sdk
+npm install @x402/core@2.20.0 @x402/hono@2.20.0 @x402/stellar@2.20.0 @x402/extensions@2.20.0 hono @hono/node-server
+```
+
+For Express, swap `@x402/hono` for `@x402/express@2.20.0`. The route configuration object is identical.
+
+## 2. Add the paywall and the listing
+
+The middleware is stock `@x402`. The `describeEndpoint` call from `@rail402.dev/sdk` turns the paywalled route into a Bazaar listing by attaching discovery metadata under `extensions`.
+
+<Tabs>
+<Tab title="Hono">
+```js server.js
+import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { paymentMiddleware } from "@x402/hono";
+import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
+import { ExactStellarScheme } from "@x402/stellar/exact/server";
+import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
+import { describeEndpoint } from "@rail402.dev/sdk";
+
+const USDC = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"; // testnet USDC SAC
+
+const x402 = new x402ResourceServer([
+  new HTTPFacilitatorClient({ url: "https://facilitator.rail402.dev" }),
+]);
+x402.register("stellar:*", new ExactStellarScheme());
+x402.registerExtension(bazaarResourceServerExtension); // automatic cataloging
+
+const app = new Hono();
+app.use("*", paymentMiddleware({
+  "GET /quote": {
+    accepts: {
+      scheme: "exact",
+      network: "stellar:testnet",
+      price: { amount: "500000", asset: USDC }, // "500000" stroops = 0.05 USDC
+      payTo: process.env.SELLER_ADDRESS,        // G..., with a USDC trustline
+      maxTimeoutSeconds: 60,                     // required on v2 requirements
+    },
+    description: "A price quote for a named commodity.", // the resource description lives here
+    mimeType: "application/json",
+    extensions: describeEndpoint({
+      params: { symbol: { description: "Ticker such as XLM or BTC.", example: "XLM" } },
+    }),
+  },
+}, x402));
+
+// The real handler runs only after a payment settles.
+app.get("/quote", (c) => c.json({ symbol: c.req.query("symbol") ?? "XLM", price: 0.1234 }));
+
+serve({ fetch: app.fetch, port: 4023 });
+```
+</Tab>
+<Tab title="Express">
+```js server.js
+import express from "express";
+import { paymentMiddleware } from "@x402/express";
+import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
+import { ExactStellarScheme } from "@x402/stellar/exact/server";
+import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
+import { describeEndpoint } from "@rail402.dev/sdk";
+
+const USDC = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"; // testnet USDC SAC
+
+const x402 = new x402ResourceServer([
+  new HTTPFacilitatorClient({ url: "https://facilitator.rail402.dev" }),
+]);
+x402.register("stellar:*", new ExactStellarScheme());
+x402.registerExtension(bazaarResourceServerExtension);
+
+const app = express();
+app.use(paymentMiddleware({
+  "GET /quote": {
+    accepts: {
+      scheme: "exact",
+      network: "stellar:testnet",
+      price: { amount: "500000", asset: USDC }, // "500000" stroops = 0.05 USDC
+      payTo: process.env.SELLER_ADDRESS,
+      maxTimeoutSeconds: 60,
+    },
+    description: "A price quote for a named commodity.",
+    mimeType: "application/json",
+    extensions: describeEndpoint({
+      params: { symbol: { description: "Ticker such as XLM or BTC.", example: "XLM" } },
+    }),
+  },
+}, x402));
+
+app.get("/quote", (req, res) => res.json({ symbol: req.query.symbol ?? "XLM", price: 0.1234 }));
+
+app.listen(4023);
+```
+</Tab>
+</Tabs>
+
+<Note>
+`describeEndpoint` returns the whole `extensions` value, already shaped as `{ bazaar: ... }`. Its return type is branded, so wrapping it again as `{ bazaar: describeEndpoint(...) }` is a compile error. That catches the most common cataloging mistake. See [Get discovered](/sellers/get-discovered).
+</Note>
+
+## 3. Start the server
+
+```bash
+SELLER_ADDRESS=G...your-payto-address node server.js
+```
+
+## 4. See the 402
+
+An unpaid request now returns a priced `402` with the payment terms in the response:
+
+```bash
+curl -i "http://localhost:4023/quote?symbol=XLM"
+# HTTP/1.1 402 Payment Required
+```
+
+## 5. Pay it
+
+Cataloging is settlement-gated, so make the first payment yourself. The buyer needs a funded testnet account holding testnet USDC (get testnet USDC from the [Circle faucet](https://faucet.circle.com)). The command-line wallet is the shortest path. CLI amounts are decimals, so `--max 0.10` is 0.10 USDC.
+
+```bash
+RAIL402_SECRET=S...your-buyer-secret \
+  npx @rail402.dev/cli pay "http://localhost:4023/quote" --max 0.10 --query symbol=XLM
+```
+
+It prints a settled transaction hash, a 64-character hex string. Open it on the [explorer](https://explorer.rail402.dev) to see the settlement on chain: the transfer sender is the buyer and the fee is charged to the facilitator, which proves sponsorship. Each run produces a new hash, because a settlement hash is unique to its transaction.
+
+<Tip>
+Prefer to pay from code? Use `payAndFetch` from `@rail402.dev/sdk`, covered in the [Buyer quickstart](/buyers/quickstart).
+</Tip>
+
+## 6. Confirm it is cataloged
+
+After the payment settles, search the Bazaar for words from your description:
+
+```bash
+curl -s "https://facilitator.rail402.dev/discovery/search?query=commodity%20price" | jq '.resources[].resource'
+```
+
+Your endpoint's URL appears in the results. It is now discoverable to any agent.
+
+<Warning>
+The facilitator catalogs only endpoints reachable on a public hostname. A `localhost` or private-host URL is soft-dropped from the catalog even though its payment settles. To see your listing in the Bazaar, run your endpoint on a public host, or run the bundled example below, which handles this end to end.
+</Warning>
+
+## Try the whole loop
+
+The [`examples/paid-api-agent`](https://github.com/tolgayayci/rail402/tree/main/examples/paid-api-agent) example in the Rail402 repository runs a paid API that an agent discovers and pays, against testnet, in one command. It is the fastest way to watch verify, settle, catalog, and discover happen in sequence.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Get discovered" icon="magnifying-glass" href="/sellers/get-discovered">
+    Write parameter descriptions an agent can act on, and learn exactly what the facilitator catalogs and when.
+  </Card>
+  <Card title="Meter usage with upto" icon="gauge" href="/sellers/upto">
+    Bill for actual usage against a buyer-authorized ceiling instead of a fixed price.
+  </Card>
+  <Card title="Self-facilitation" icon="server" href="/sellers/self-facilitation">
+    Run verify and settle in-process, with no external facilitator and no network hop.
+  </Card>
+  <Card title="Preflight and testing" icon="list-check" href="/sellers/preflight">
+    Catch a missing trustline or misconfigured payTo before a stranger's payment fails on it.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+Every rejection carries a machine-readable `code` and a non-null `reason`. A `402` that never settles, a listing that never appears, or a payment that is refused all report a code you can branch on. See [Errors](/reference/errors).

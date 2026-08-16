@@ -1,0 +1,95 @@
+---
+title: "Stellar essentials"
+description: "A one-page primer on the Stellar mechanics x402 relies on: trustlines, SEP-41 tokens and stroop math, fee sponsorship, authorization entries, and smart accounts."
+---
+
+This page covers the five Stellar ideas every other page assumes: trustlines, SEP-41 amounts, fee sponsorship, authorization entries, and smart accounts. Read it once and the scheme and role pages read straight through.
+
+## Trustlines
+
+A Stellar account needs a **trustline** to a SEP-41 asset before it can hold that asset. The one people forget is the receiver's: the seller's `payTo` must trust the asset before it can be paid.
+
+<Steps>
+  <Step title="Fund the account">
+    The account needs XLM to exist and to pay for its own trustline entry. The Rail402 CLI generates
+    and funds one from friendbot:
+
+    ```bash
+    npx @rail402.dev/cli fund
+    ```
+
+    Or fund an existing address in [Stellar Lab](https://lab.stellar.org/account/fund) directly.
+  </Step>
+  <Step title="Add the trustline">
+    Add a trustline to the asset with a `changeTrust` operation from any Stellar SDK, or build one in [Stellar Lab](https://lab.stellar.org).
+  </Step>
+  <Step title="Get the asset">
+    Get testnet USDC from the [Circle faucet](https://faucet.circle.com/). XLM comes from friendbot.
+  </Step>
+</Steps>
+
+A missing trustline has its own rejection code, so the cause is never a mystery:
+
+| Missing trustline | Code |
+| --- | --- |
+| Seller (`payTo`) cannot receive | `invalid_exact_stellar_payload_missing_trustline_recipient` |
+
+See the [error reference](/reference/errors) for the full set.
+
+## SEP-41 tokens and stroop math
+
+Rail402 settles any SEP-41 token, with USDC as the default. SEP-41 is the Stellar token interface, and every SEP-41 asset is reachable from Soroban through its Stellar Asset Contract (SAC). The testnet USDC contract is `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`.
+
+Amounts are integers at 7 decimals, called stroops. One USDC is `10000000` atomic units, so `500000` is 0.05 USDC.
+
+<Warning>
+Never use floating-point math on an amount. `Number("9007199254740993")` silently loses precision, and an amount is the one value where that matters. Pass amounts as integer strings and do integer arithmetic. The SDK expects atomic-unit strings; the CLI takes decimals and converts them for you.
+</Warning>
+
+## Fee sponsorship
+
+The facilitator pays the Stellar network fee, so the buyer holds only the payment asset and needs no XLM. It does this by rebuilding the transaction with its own account as the source.
+
+`/supported` advertises this with `extra.areFeesSponsored: true`, and the flag reflects real runtime configuration. You can confirm sponsorship on chain: for any settlement, the fee is charged to the facilitator, not the buyer.
+
+## Authorization entries
+
+On Stellar the buyer signs a Soroban **authorization entry**, not a whole transaction. The entry permits one specific contract call (a `transfer(from, to, amount)` on the asset's SAC) and nothing else. The facilitator builds and submits the transaction around it.
+
+Each authorization is valid until a specific ledger, `signatureExpirationLedger`, roughly 12 ledgers (about 60 seconds) by default, derived from the seller's `maxTimeoutSeconds`. After that ledger the authorization is dead and the buyer signs a new one. This is the mechanism behind both [exact](/concepts/exact) and [upto](/concepts/upto).
+
+## Smart accounts
+
+A buyer address can be either kind of Stellar account, and the facilitator settles from both:
+
+<CardGroup cols={2}>
+  <Card title="G keypair" icon="key">
+    A classic account controlled by an ed25519 keypair. It signs its own authorizations directly.
+  </Card>
+  <Card title="C contract account" icon="microchip">
+    A `__check_auth` contract account (for example an OpenZeppelin smart account) with a session key and an on-ledger spending policy. Its policy can enforce a budget on the ledger itself.
+  </Card>
+</CardGroup>
+
+The facilitator is address-agnostic and settles from both G (keypair) and C (contract) accounts. A contract account's authorization cross-calls a verifier and a policy, so it costs more in fees than a keypair payment; an operator serving smart-account buyers raises `MAX_TRANSACTION_FEE_STROOPS` accordingly (see [Run the facilitator](/operators/run)). A C-account spending policy is what [upto](/concepts/upto) composes with to keep an agent inside a budget.
+
+## Interop
+
+None of the helpers are required to interoperate. A stock, unmodified `@x402/*` client pays a Rail402 endpoint with no Rail402-specific code, and reads the Bazaar through the same interface it uses for any facilitator. The [helpers](/reference/packages) add ergonomics on top.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="The exact scheme" icon="equals" href="/concepts/exact">
+    Auth entries and expiration in the fixed-price flow.
+  </Card>
+  <Card title="The upto scheme" icon="arrow-up-right-dots" href="/concepts/upto">
+    Ceilings and smart-account spending policies.
+  </Card>
+  <Card title="The payment loop" icon="diagram-project" href="/concepts/payment-loop">
+    The four roles and the full sequence.
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/support/troubleshooting">
+    Trustline and expiration failures, and their fixes.
+  </Card>
+</CardGroup>

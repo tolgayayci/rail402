@@ -1,0 +1,129 @@
+---
+title: "Run the facilitator"
+description: "Serve verify, settle, and the Bazaar on stellar:testnet, hosted or self-hosted, in one command."
+sidebarTitle: "Run the facilitator"
+---
+
+By the end of this page you have a Rail402 facilitator serving `stellar:testnet`, verifying and settling payments, with the Bazaar co-deployed in the same process. This uses `@rail402.dev/facilitator`.
+
+<Info>
+The facilitator is **non-custodial**. It never holds buyer funds. The only value it moves is the buyer-signed Soroban authorization, submitted exactly as authorized. It also **sponsors the network fee**, so a buyer needs only the payment asset and no XLM. On `stellar:testnet` it is free and needs no API key.
+</Info>
+
+## Pick how you run it
+
+<CardGroup cols={2}>
+  <Card title="Use the hosted facilitator" icon="cloud">
+    Point clients at `https://facilitator.rail402.dev`. Nothing to install or operate.
+  </Card>
+  <Card title="Run it yourself" icon="terminal">
+    `npx @rail402.dev/facilitator` on testnet with zero config, a real signer, or Docker.
+  </Card>
+</CardGroup>
+
+## Option 1: use the hosted facilitator
+
+Rail402 runs a public testnet facilitator. If you only need something to point clients at, use it and skip the rest of this page:
+
+```
+https://facilitator.rail402.dev
+```
+
+It exposes `/verify`, `/settle`, `/supported`, `/health`, and the Bazaar at `/discovery/resources` and `/discovery/search`. It is free, needs no API key, and sponsors fees.
+
+## Option 2: run it on testnet with zero config
+
+Run the facilitator with no signer of your own. On testnet it generates an ephemeral signing account and funds it from friendbot, so you get a working service in one command:
+
+```bash
+npx @rail402.dev/facilitator
+```
+
+It listens on the default port `4022`. The ephemeral signer is fine for local testing. It is regenerated on every restart, so use a real signer for anything you keep.
+
+<Warning>
+The zero-config signer is ephemeral. Its catalog and its account are thrown away when the process exits. Do not run a service anyone depends on this way.
+</Warning>
+
+## Option 3: run it with your own signer
+
+<Steps>
+  <Step title="Fund a testnet account">
+    The signer pays each settlement fee it sponsors, so it needs a funded `stellar:testnet` account.
+    Generate and fund one with the Rail402 CLI:
+
+    ```bash
+    npx @rail402.dev/cli fund
+    ```
+
+    It prints the secret (`S...`). Keep it out of source control. (Option 2: create and fund one at
+    [Stellar Lab](https://lab.stellar.org/account/create).)
+  </Step>
+  <Step title="Start the facilitator">
+    Pass the secret, a port, and a catalog file so listings survive a restart:
+
+    ```bash
+    npx @rail402.dev/facilitator \
+      --secret S...your-funded-testnet-secret \
+      --port 8080 \
+      --catalog-db ./catalog.db
+    ```
+
+    Flags: `--secret`, `--network`, `--port`, `--catalog-db`, plus `--help` and `--version`. The default network is `stellar:testnet` and the default port is `4022`.
+  </Step>
+</Steps>
+
+## Option 4: run it with Docker
+
+The repository `Dockerfile` builds the facilitator and Bazaar as one image. Mount a volume so the catalog persists:
+
+<CodeGroup>
+```bash Build
+docker build -t rail402-facilitator .
+```
+
+```bash Run
+docker run -p 8080:8080 \
+  -e FACILITATOR_STELLAR_SECRET=S...your-funded-testnet-secret \
+  -v rail402-catalog:/data \
+  rail402-facilitator
+```
+</CodeGroup>
+
+The image points `CATALOG_DB_PATH` at `/data`, so the `-v rail402-catalog:/data` volume keeps the catalog across restarts.
+
+## Verify it is serving
+
+Whichever option you chose, confirm the surface before you point clients at it:
+
+```bash
+curl http://localhost:8080/supported
+curl http://localhost:8080/health
+```
+
+`/supported` lists the `exact` and `upto` schemes on `stellar:testnet` with `areFeesSponsored: true` and `bazaar` in `extensions`. `/health` returns HTTP 200 with the networks served, the signer count, and the catalog storage mode:
+
+```json
+{ "status": "ok", "networks": ["stellar:testnet"], "signers": 1, "catalog": { "storage": "memory" } }
+```
+
+`catalog.storage` reads `memory` for a zero-config run and `durable` once you give the catalog a file or volume (`CATALOG_DB_PATH`).
+
+Configuration is validated before the port binds, so a misconfigured deployment fails immediately with a coded reason instead of serving broken payments.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="sliders" href="/operators/configuration">
+    Every environment variable, the fee ceiling, and the fee model.
+  </Card>
+  <Card title="Bazaar operations" icon="box-archive" href="/operators/bazaar">
+    The co-deployed catalog, durability, and the cataloging lifecycle.
+  </Card>
+  <Card title="Monitoring and runbook" icon="gauge-high" href="/operators/operations">
+    `/health`, `/metrics`, and the degraded-mode story.
+  </Card>
+  <Card title="Self-facilitation" icon="code" href="/sellers/self-facilitation">
+    Run verify and settle in-process, with no separate service.
+  </Card>
+</CardGroup>

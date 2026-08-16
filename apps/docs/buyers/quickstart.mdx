@@ -1,0 +1,156 @@
+---
+title: "Pay for a resource"
+description: "Settle one real testnet payment for an x402 resource on Stellar with the Rail402 SDK, capped so it can never spend more than you allow."
+sidebarTitle: "Quickstart"
+---
+
+By the end of this page you will have paid an x402 resource on Stellar testnet through the SDK, under a hard spend cap, and confirmed the settlement hash on the explorer.
+
+This uses `@rail402.dev/sdk`, the buyer front door. It wraps the whole x402 loop (receive `402`, sign one Soroban authorization entry, retry, read the result) behind a single call. The facilitator sponsors the network fee, so the payment costs a fraction of a cent and your account needs no XLM for fees.
+
+## Prerequisites
+
+<Info>
+Everything here is `stellar:testnet`. No mainnet, no real money.
+</Info>
+
+You need **Node 20 or newer** (the SDK is an ES module on current Node LTS) and a funded testnet
+account that holds testnet USDC.
+
+**Create and fund an account.** The Rail402 CLI generates a keypair and funds it with XLM from
+friendbot in one command:
+
+```bash
+npx @rail402.dev/cli fund
+```
+
+It prints the account secret (`S...`). Export it so the examples can read it:
+
+```bash
+export RAIL402_SECRET=S...    # testnet key only; never log or commit it
+```
+
+<Note>
+Prefer to do it by hand? Generate and fund an account at
+[Stellar Lab](https://lab.stellar.org/account/create) instead.
+</Note>
+
+**Add testnet USDC.** Bazaar services are priced in testnet USDC
+(`CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`). Add a trustline to that asset and fund
+your address at the [Circle faucet](https://faucet.circle.com) (select Stellar testnet). USDC cannot
+come from friendbot. See [Trustlines](/concepts/stellar#trustlines) for why an account needs one.
+
+## 1. Install the SDK
+
+```bash
+npm install @rail402.dev/sdk
+```
+
+## 2. Set up the config
+
+The config names the facilitator (which also serves the Bazaar), your signing secret, and the network. Reuse it for every buyer call.
+
+```ts buyer.ts
+import { discoverAndPay } from "@rail402.dev/sdk";
+
+const config = {
+  bazaarUrl: "https://facilitator.rail402.dev", // the Bazaar is served at the facilitator base URL
+  stellarSecret: process.env.RAIL402_SECRET,     // the account you funded above
+  network: "stellar:testnet",
+};
+```
+
+## 3. Discover a service and pay it, capped
+
+`discoverAndPay` searches the Bazaar for a match, picks the best one, and pays it. `maxAmount` is required: it is the most you authorize for this call, in atomic units as a string. USDC has 7 decimals, so `"100000"` is 0.01 USDC.
+
+```ts buyer.ts
+const result = await discoverAndPay(config, "current price of a commodity by ticker", {
+  maxAmount: "1000000", // 0.10 USDC. Required, no default.
+});
+```
+
+<Note>
+`discoverAndPay` requests the discovered resource exactly as it is cataloged, with no added query
+parameters. Many services need parameters. For those, pass the full URL to
+`payAndFetch(config, url, { maxAmount })`, or use `rail402 pay <url> --query k=v`.
+</Note>
+
+<Tip>
+If you already have the resource URL, pay it directly with `payAndFetch(config, url, { maxAmount: "100000" })` instead. See [Sign and pay](/buyers/sign-and-pay) for the line-by-line walkthrough.
+</Tip>
+
+## 4. Read the result
+
+Every buyer call returns a `Result`: either `{ ok: true, data }` or `{ ok: false, error }`. Branch on `ok`, then read the resource body and the settlement hash from `data`.
+
+```ts buyer.ts
+if (!result.ok) {
+  console.error(result.error.code, result.error.reason);
+} else {
+  console.log("response:", result.data.body);
+  console.log("settled:", result.data.paid?.transaction);
+}
+```
+
+Run it with `tsx`, which runs TypeScript directly (`npx` fetches it on first use):
+
+```bash
+npx tsx buyer.ts
+```
+
+<Warning>
+A budget refusal (`mcp_budget_exceeded`) means nothing was signed and no money moved. The cap is checked against the price actually quoted at payment time, not just an earlier probe, so a seller cannot quote cheap and charge more. See [Spend controls](/buyers/spend-controls).
+</Warning>
+
+## 5. Verify the settlement
+
+Copy the `transaction` hash and open it on the explorer:
+
+```
+https://explorer.rail402.dev
+```
+
+Look up the hash. You will see a successful Soroban transaction whose fee was charged to the facilitator, not to you: that is fee sponsorship. The transfer's `from` is your account, and the transaction source is the facilitator, which is what makes the facilitator non-custodial.
+
+## Prefer the command line?
+
+The CLI does the same thing in one line. It ships as `@rail402.dev/cli` and takes decimal amounts (not the SDK's atomic strings).
+
+<CodeGroup>
+```bash Discover and pay
+export RAIL402_SECRET=S...
+npx @rail402.dev/cli buy "current price of a commodity by ticker" --max 0.10
+```
+
+```bash Pay a known URL
+npx @rail402.dev/cli pay "https://your-seller.example/quote" --query symbol=XLM --max 0.10
+```
+</CodeGroup>
+
+See [The rail402 CLI](/buyers/cli) for the full flow.
+
+## Run the full example
+
+The [`examples/paid-api-agent`](https://github.com/tolgayayci/rail402/tree/main/examples/paid-api-agent) project runs a paid API, a buyer, and the facilitator against testnet end to end. The buyer prints an HTTP `200` and a settlement object whose `transaction` field is the on-chain hash.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Sign and pay" icon="signature" href="/buyers/sign-and-pay">
+    How the 402 challenge, the Soroban authorization entry, and the retry actually work.
+  </Card>
+  <Card title="Discover services" icon="compass" href="/buyers/discover">
+    Search the Bazaar, read price and trustline state, then pay a service you have never seen.
+  </Card>
+  <Card title="Spend controls" icon="shield" href="/buyers/spend-controls">
+    The mandatory cap, how it is enforced, and per-account ceilings.
+  </Card>
+  <Card title="How it works" icon="book" href="/start/how-it-works">
+    The x402 payment loop on Stellar, start to finish.
+  </Card>
+</CardGroup>
+
+## When it fails
+
+Every rejection carries a machine-readable `{ code, reason, retryable }`. Branch on `code`, never on the message text, and respect `retryable`. The full list is in [Rejection reasons](/reference/errors).
