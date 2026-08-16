@@ -12,6 +12,14 @@ export default function Ecosystem({ v }) {
       {v.ecoLoading ? (
         <div style={css(`padding:44px 22px;border:2px solid var(--ink);background:var(--panel);min-height:calc(100vh - 460px);box-sizing:border-box;display:flex;justify-content:center;align-items:center;`)}><span style={css(`background:var(--acc);color:var(--onacc);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.06em;padding:6px 11px;animation:pulse 1.3s ease-in-out infinite;`)}>RAIL402</span></div>
       ) : null}
+      {v.ecoErr ? (
+        <div style={css('border:2px solid var(--ink);background:var(--panel);padding:44px 22px;min-height:calc(100vh - 460px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;text-align:center;')}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 20h16a2 2 0 0 0 1.73-2z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+          <div style={css('font-size:16px;font-weight:600;')}>Could not load data</div>
+          <div style={css('font-size:13px;line-height:1.5;color:var(--mut);max-width:52ch;')}>The explorer API did not respond. The network may be slow or the service briefly unavailable.</div>
+          <button onClick={v.retryEco} style={css(`margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;padding:8px 16px;cursor:pointer;border:1.5px solid var(--ink);background:var(--ink);color:var(--panel);`)}>RETRY</button>
+        </div>
+      ) : null}
       {v.ecoReady ? (
         <>
           <div style={css(`border:2px solid var(--ink);background:var(--panel);`)}>

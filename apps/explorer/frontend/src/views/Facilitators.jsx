@@ -73,6 +73,14 @@ export default function Facilitators({ v }) {
           {v.facsLoading ? (
             <div style={css(`padding:44px 22px;min-height:calc(100vh - 460px);box-sizing:border-box;display:flex;justify-content:center;align-items:center;`)}><span style={css(`background:var(--acc);color:var(--onacc);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.06em;padding:6px 11px;animation:pulse 1.3s ease-in-out infinite;`)}>RAIL402</span></div>
           ) : null}
+          {v.facsErr ? (
+            <div style={css('padding:44px 22px;min-height:calc(100vh - 460px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;text-align:center;')}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 20h16a2 2 0 0 0 1.73-2z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+              <div style={css('font-size:16px;font-weight:600;')}>Could not load data</div>
+              <div style={css('font-size:13px;line-height:1.5;color:var(--mut);max-width:52ch;')}>The explorer API did not respond. The network may be slow or the service briefly unavailable.</div>
+              <button onClick={v.retryFacs} style={css(`margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;padding:8px 16px;cursor:pointer;border:1.5px solid var(--ink);background:var(--ink);color:var(--panel);`)}>RETRY</button>
+            </div>
+          ) : null}
           {v.facs.map((f, i) => (
             <Hov key={i} tag="div" onClick={f.open} style={css(`display:grid;grid-template-columns:32px minmax(190px,0.9fr) 130px 90px 64px 72px 110px 90px;gap:16px;padding:13px 22px;border-bottom:1px solid var(--line);align-items:center;cursor:${f.cursor};`)} hover={css(`background:var(--head);`)}>
               <span style={css(`font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--mut);`)}>{f.rank}</span>

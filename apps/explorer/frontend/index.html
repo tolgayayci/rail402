@@ -18,6 +18,27 @@ a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--acc);te
 [data-tip]:hover::before{content:'';position:absolute;left:10px;bottom:calc(100% + 2px);border:5px solid transparent;border-top-color:var(--ink);border-bottom:none;z-index:70;}
 @keyframes rowin{from{background-color:rgba(255,77,0,.14)}to{background-color:rgba(255,77,0,0)}}
 @keyframes pulse{0%,100%{opacity:.12}50%{opacity:1}}
+.r-menu-btn{display:none;}
+@media(max-width:760px){
+  .r-wrap{padding:10px 10px 32px!important;}
+  .r-hdr-top{flex-direction:column!important;align-items:stretch!important;}
+  .r-search{width:100%!important;flex:1 1 100%!important;}
+  .r-menu-btn{display:inline-flex!important;}
+  .r-nav{display:none!important;}
+  .r-nav.r-open{display:flex!important;flex-direction:column!important;}
+  .r-nav.r-open button{width:100%!important;flex:none!important;border-right:none!important;border-bottom:1.5px solid var(--ink)!important;justify-content:flex-start!important;padding:13px 16px!important;}
+  .r-nav.r-open button:last-child{border-bottom:none!important;}
+  /* The design targets raw inline-style substrings; React writes styles through the CSSOM, whose
+     serialization inserts spaces and px units — so each design selector needs its serialized twin. */
+  [style*="grid-template-columns:repeat(6"],[style*="grid-template-columns:repeat(5"],[style*="grid-template-columns:repeat(4"],[style*="grid-template-columns:repeat(3"],
+  [style*="grid-template-columns: repeat(6"],[style*="grid-template-columns: repeat(5"],[style*="grid-template-columns: repeat(4"],[style*="grid-template-columns: repeat(3"]{grid-template-columns:1fr 1fr!important;}
+  [style*="256px repeat(3"]{grid-template-columns:1fr 1fr!important;}
+  [style*="1fr 1fr 1fr"]{grid-template-columns:1fr!important;}
+  [style*="256px minmax(0,1fr)"],[style*="256px minmax(0px, 1fr)"]{grid-template-columns:1fr!important;}
+  [style*="minmax(0,1.4fr) minmax(0,1fr)"],[style*="minmax(0px, 1.4fr) minmax(0px, 1fr)"]{grid-template-columns:1fr!important;}
+  .r-tw{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .r-tw>*{min-width:720px;}
+}
 </style>
 </head>
 <body>

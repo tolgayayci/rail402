@@ -82,8 +82,16 @@ export default function Feed({ v }) {
         {v.hasNew ? (
           <button onClick={v.revealNew} style={css(`width:100%;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.12em;background:var(--acc);color:var(--onacc);border:none;border-bottom:1.5px solid var(--ink);padding:10px;cursor:pointer;`)}>↑ {v.newCount} NEW PAYMENTS · CLICK TO SHOW</button>
         ) : null}
+        {v.feedErr ? (
+          <div style={css('padding:44px 22px;min-height:calc(100vh - 460px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;text-align:center;')}>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 20h16a2 2 0 0 0 1.73-2z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+            <div style={css('font-size:16px;font-weight:600;')}>Could not load data</div>
+            <div style={css('font-size:13px;line-height:1.5;color:var(--mut);max-width:52ch;')}>The explorer API did not respond. The network may be slow or the service briefly unavailable.</div>
+            <button onClick={v.retryFeed} style={css(`margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;padding:8px 16px;cursor:pointer;border:1.5px solid var(--ink);background:var(--ink);color:var(--panel);`)}>RETRY</button>
+          </div>
+        ) : null}
         {v.feedEmpty ? (
-          <div style={css('padding:36px 22px;font-size:14px;color:var(--mut);')}>No payments match these filters yet. The feed is live; new settlements appear as they land.</div>
+          <div style={css('padding:44px 22px;min-height:calc(100vh - 460px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;text-align:center;')}><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--mut)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"></path><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg><div style={css('font-size:16px;font-weight:600;')}>No payments match these filters</div><div style={css('font-size:13px;line-height:1.5;color:var(--mut);max-width:52ch;')}>The feed is live. New settlements appear here as they land on the ledger.</div></div>
         ) : null}
         {v.rows.map((r, i) => (
           <Hov key={i} tag="div" onClick={r.openTx} style={css(`display:grid;grid-template-columns:64px 130px minmax(0,1fr) 100px 160px 150px;gap:16px;padding:11px 22px;border-bottom:1px solid var(--line);align-items:center;font-family:'JetBrains Mono',monospace;font-size:12px;animation:${r.anim};cursor:pointer;`)} hover={css('background:var(--head);')}>

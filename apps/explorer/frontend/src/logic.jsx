@@ -86,7 +86,7 @@ export default class Logic extends React.Component {
   }
   componentDidUpdate() { document.body.style.setProperty('--acc', this.props.accent ?? '#FF4D00'); }
   componentWillUnmount() { clearInterval(this._t); window.removeEventListener('popstate', this._onHash); }
-  nav(path) { history.pushState(null, '', '/' + path); this.applyRoute(); }
+  nav(path) { this.setState({ menuOpen: false }); history.pushState(null, '', '/' + path); this.applyRoute(); }
   applyRoute() {
     const path = location.pathname.replace(/^\/+/, '');
     const query = location.search.replace(/^\?/, '');
@@ -96,8 +96,25 @@ export default class Logic extends React.Component {
     else if (name === 'facilitator' && arg) { this.setState({ route: { name: 'fac', arg } }); this.loadFac(arg); }
     else if (name === 'facilitators') { this.setState({ route: { name: 'facs', arg: null } }); this.loadFacs(); }
     else if (name === 'address' && arg) { this.setState({ route: { name: 'addr', arg }, addrTab: 'seller' }); this.loadAddr(arg); }
-    else if (name === 'sellers') { this.setState({ route: { name: 'sellers', arg: null } }); this.loadSellers(this.state.sellersOffset || 0); }
-    else if (name === 'assets') { this.setState({ route: { name: 'assets', arg: null } }); this.ensureStats(); }
+    else if (name === 'sellers') {
+      const params = new URLSearchParams(query || '');
+      const winP = ['24h', '7d', '30d'].indexOf(params.get('window')) >= 0 ? params.get('window') : (this.state.sellersWin || 'all');
+      const regP = params.get('registered') === 'true' ? 'bazaar' : params.get('registered') === 'false' ? 'onchain' : (this.state.sellersReg || 'all');
+      const pageP = parseInt(params.get('page') || '0', 10);
+      this.setState({ route: { name: 'sellers', arg: null }, sellersWin: winP, sellersReg: regP });
+      this.loadSellers(pageP > 1 ? (pageP - 1) * 10 : (this.state.sellersOffset || 0));
+    }
+    else if (name === 'asset' && arg) { this.setState({ route: { name: 'asset', arg } }); this.loadAsset(arg); }
+    else if (name === 'assets') {
+      const params = new URLSearchParams(query || '');
+      const pageP = parseInt(params.get('page') || '0', 10);
+      const winP = ['24h', '7d', '30d'].indexOf(params.get('window')) >= 0 ? params.get('window') : (this.state.assetsWin || 'all');
+      this.setState({ route: { name: 'assets', arg: null }, assetPage: pageP > 1 ? pageP - 1 : (this.state.assetPage || 0) });
+      if (winP !== (this.state.assetsWin || 'all')) this.setAssetsWin(winP);
+      else if (winP !== 'all' && !this.state.assetsWinStats) fetch(this.API + '/stats?window=' + winP).then(r => r.json()).then(d => this.setState({ assetsWinStats: { window: winP, data: d } })).catch(() => {});
+      this.ensureStats();
+      this.loadAssetsTs();
+    }
     else if (name === 'ecosystem') {
       const params = new URLSearchParams(query || '');
       const assetP = params.get('asset');
@@ -140,7 +157,10 @@ export default class Logic extends React.Component {
     if (network === this.state.network) { this.setState({ netMenuOpen: false }); return; }
     this.setState({ network, netMenuOpen: false, stats: null, items: [], cursor: null, more: false, facs: null,
       sellersData: null, sellersTotal: 0, sellersOffset: 0, facData: null, addrSeller: null, addrBuyerItems: null,
-      eco: null, ecoTs: null, ecoHealth: null, ecoAsset: null, assetIcons: { ...(this._iconSeed || {}) } }, () => {
+      eco: null, ecoTs: null, ecoHealth: null, ecoAsset: null,
+      sellersKpiTotal: null, sellersKpiBazaar: null, sellersKpi7d: null, ecoSellersW: null, assetsTs: null, assetPage: 0,
+      assetsWin: 'all', assetsWinStats: null, assetD: null,
+      assetIcons: { ...(this._iconSeed || {}) } }, () => {
       this._ecoAt = 0;
       this.ensureStats();
       this.applyRoute();
@@ -160,12 +180,13 @@ export default class Logic extends React.Component {
     return this.API + '/feed?' + p.join('&');
   }
   async load() {
+    this.setState({ feedErr: false });
     this.setState({ loading: true });
     try {
       const f = await fetch(this.feedUrl()).then(r => r.json());
       this.learnItems(f.items);
       this.setState({ items: f.items || [], cursor: f.nextCursor || null, more: !!f.nextCursor, loading: false, pendingNew: [] });
-    } catch (e) { this.setState({ loading: false }); }
+    } catch (e) { this.setState({ loading: false, feedErr: true }); }
   }
   async refresh() {
     try {
@@ -190,10 +211,10 @@ export default class Logic extends React.Component {
   loadFacs() {
     this.ensureStats();
     if (this.state.facs) return;
-    this.setState({ facsLoading: true });
+    this.setState({ facsLoading: true, facsErr: false });
     fetch(this.API + '/facilitators').then(r => r.json())
       .then(d => this.setState({ facs: (d.facilitators || []).sort((a, b) => (b.stats?.totalPayments || 0) - (a.stats?.totalPayments || 0)), facsLoading: false }))
-      .catch(() => this.setState({ facsLoading: false }));
+      .catch(() => this.setState({ facsLoading: false, facsErr: true }));
     /* windows for the 30D column come from the cached /ecosystem call */
     if (!this.state.eco) fetch(this.API + '/ecosystem').then(r => r.json()).then(d => this.setState({ eco: d })).catch(() => {});
   }
@@ -202,10 +223,10 @@ export default class Logic extends React.Component {
     const now = Date.now();
     if (this.state.eco && now - (this._ecoAt || 0) < 30000) return;
     this._ecoAt = now;
-    if (!this.state.eco) this.setState({ ecoLoading: true });
+    if (!this.state.eco) this.setState({ ecoLoading: true, ecoErr: false });
     fetch(this.API + '/ecosystem').then(r => r.json())
       .then(d => this.setState({ eco: d, ecoLoading: false }))
-      .catch(() => this.setState({ ecoLoading: false }));
+      .catch(() => this.setState({ ecoLoading: false, ecoErr: true }));
     this.loadEcoTs();
     this.loadEcoSellers();
     fetch(this.API + '/health').then(r => r.json()).then(h => this.setState({ ecoHealth: h })).catch(() => {});
@@ -235,11 +256,69 @@ export default class Logic extends React.Component {
     history.replaceState(null, '', '/ecosystem' + (p.length ? '?' + p.join('&') : ''));
   }
   pickEcoAsset(contract) { this.setState({ ecoAsset: contract, ecoAssetMenu: false, ecoAssetQ: '' }, () => this.syncEcoHash()); }
+  sellersQuery() {
+    const w = this.state.sellersWin || 'all';
+    const reg = this.state.sellersReg || 'all';
+    let q = 'limit=10&offset=' + (this.state.sellersOffset || 0);
+    if (w !== 'all') q += '&window=' + w;
+    if (reg !== 'all') q += '&registered=' + (reg === 'bazaar' ? 'true' : 'false');
+    return q;
+  }
   loadSellers(offset) {
-    this.setState({ sellersLoading: true, sellersOffset: offset });
-    fetch(this.API + '/sellers?limit=15&offset=' + offset).then(r => r.json())
-      .then(d => this.setState({ sellersData: d.sellers || d.items || [], sellersTotal: (d.pagination && d.pagination.total) || 0, sellersLoading: false }))
-      .catch(() => this.setState({ sellersLoading: false }));
+    this.setState({ sellersLoading: true, sellersErr: false, sellersOffset: offset }, () => {
+      fetch(this.API + '/sellers?' + this.sellersQuery()).then(r => r.json())
+        .then(d => this.setState({ sellersData: d.sellers || d.items || [], sellersTotal: (d.pagination && d.pagination.total) || 0, sellersLoading: false }))
+        .catch(() => this.setState({ sellersLoading: false, sellersErr: true }));
+      this.syncSellersHash();
+    });
+    /* KPI strip: cached one-off counts */
+    if (this.state.sellersKpiTotal == null) fetch(this.API + '/sellers?limit=1&offset=0').then(r => r.json()).then(d => this.setState({ sellersKpiTotal: (d.pagination && d.pagination.total) || 0 })).catch(() => {});
+    if (this.state.sellersKpiBazaar == null) fetch(this.API + '/sellers?limit=1&offset=0&registered=true').then(r => r.json()).then(d => this.setState({ sellersKpiBazaar: (d.pagination && d.pagination.total) || 0 })).catch(() => {});
+    if (this.state.sellersKpi7d == null) fetch(this.API + '/sellers?limit=1&offset=0&window=7d').then(r => r.json()).then(d => this.setState({ sellersKpi7d: (d.pagination && d.pagination.total) || 0 })).catch(() => {});
+  }
+  setAssetsWin(w) {
+    if (w === (this.state.assetsWin || 'all')) return;
+    this.setState({ assetsWin: w, assetPage: 0, assetsWinStats: null }, () => {
+      this.syncAssetsHash();
+      if (w !== 'all') fetch(this.API + '/stats?window=' + w).then(r => r.json()).then(d => this.setState({ assetsWinStats: { window: w, data: d } })).catch(() => {});
+    });
+  }
+  loadAsset(c) {
+    this.setState({ assetD: null, assetDLoading: true, assetDErr: false, assetDCursor: null, assetDMore: false });
+    fetch(this.API + '/asset/' + c).then(async r => {
+      const d = await r.json();
+      if (!r.ok) { this.setState({ assetDErr: d, assetDLoading: false }); return; }
+      this.learnItems(d.payments);
+      this.setState({ assetD: d, assetDLoading: false, assetDCursor: d.nextCursor || null, assetDMore: !!d.nextCursor });
+    }).catch(() => this.setState({ assetDErr: { code: 'network_error', reason: 'Could not reach the explorer API.' }, assetDLoading: false }));
+  }
+  async loadMoreAsset() {
+    const { route, assetDCursor } = this.state; if (!assetDCursor) return;
+    this.setState({ assetDMore: false });
+    try {
+      const f = await fetch(this.API + '/feed?limit=20&asset=' + encodeURIComponent(route.arg) + '&cursor=' + encodeURIComponent(assetDCursor)).then(r => r.json());
+      this.learnItems(f.items);
+      this.setState(s => ({ assetD: { ...s.assetD, payments: [...(s.assetD.payments || []), ...(f.items || [])] }, assetDCursor: f.nextCursor || null, assetDMore: !!f.nextCursor }));
+    } catch (e) { this.setState({ assetDMore: true }); }
+  }
+  loadAssetsTs() {
+    if (this.state.assetsTs) return;
+    fetch(this.API + '/ecosystem/timeseries?bucket=day&days=30').then(r => r.json()).then(d => this.setState({ assetsTs: d })).catch(() => {});
+  }
+  syncAssetsHash() {
+    const p = [];
+    if ((this.state.assetsWin || 'all') !== 'all') p.push('window=' + this.state.assetsWin);
+    if ((this.state.assetPage || 0) > 0) p.push('page=' + ((this.state.assetPage || 0) + 1));
+    history.replaceState(null, '', '/assets' + (p.length ? '?' + p.join('&') : ''));
+  }
+  setSellersWin(w) { if (w === (this.state.sellersWin || 'all')) return; this.setState({ sellersWin: w }, () => this.loadSellers(0)); }
+  setSellersReg(r) { if (r === (this.state.sellersReg || 'all')) return; this.setState({ sellersReg: r }, () => this.loadSellers(0)); }
+  syncSellersHash() {
+    const p = [];
+    if ((this.state.sellersWin || 'all') !== 'all') p.push('window=' + this.state.sellersWin);
+    if ((this.state.sellersReg || 'all') !== 'all') p.push('registered=' + (this.state.sellersReg === 'bazaar' ? 'true' : 'false'));
+    if ((this.state.sellersOffset || 0) > 0) p.push('page=' + (Math.floor(this.state.sellersOffset / 10) + 1));
+    history.replaceState(null, '', '/sellers' + (p.length ? '?' + p.join('&') : ''));
   }
   loadFac(id) {
     this.setState({ facData: null, facLoading: true, facCursor: null, facMore: false });
@@ -791,23 +870,45 @@ export default class Logic extends React.Component {
     const buyerItems = addrBuyerItems || [];
     const addrRows = (addrTab === 'seller' ? sellerPayments : buyerItems).map(p => this.mapRow(p));
     const sstats = addrSeller ? addrSeller.stats : null;
-    // assets page
-    const allAssets = stats ? (stats.byAsset || []) : [];
-    const assetPages = Math.max(1, Math.ceil(allAssets.length / 15));
+    // assets page (windowed via /stats?window=)
+    const aWin = this.state.assetsWin || 'all';
+    const aWS = this.state.assetsWinStats && this.state.assetsWinStats.window === aWin ? this.state.assetsWinStats.data : null;
+    const aSrc = aWin === 'all' ? stats : aWS;
+    const aTotal = aSrc ? aSrc.totalPayments || 0 : 0;
+    const allAssets = aSrc ? (aSrc.byAsset || []) : [];
+    const aPts = this.state.assetsTs ? (this.state.assetsTs.points || []) : [];
+    const sparkOf = contract => {
+      if (!aPts.length) return { bars: [], active: false };
+      const counts = aPts.map(p => { const v = (p.volume || []).find(x => x.assetContract === contract); return v ? v.count : 0; });
+      const mx = Math.max(1, ...counts);
+      return {
+        active: counts.some(c => c > 0),
+        bars: counts.map(c => ({ h: (c > 0 ? Math.max(15, c / mx * 100) : 5) + '%', bg: c > 0 ? 'var(--acc)' : 'var(--line)' }))
+      };
+    };
+    const assetPages = Math.max(1, Math.ceil(allAssets.length / 10));
     const assetPage = Math.min(this.state.assetPage || 0, assetPages - 1);
-    const assetRows = allAssets.slice(assetPage * 15, assetPage * 15 + 15).map((a, i0) => { const i = assetPage * 15 + i0;
+    const assetRows = allAssets.slice(assetPage * 10, assetPage * 10 + 10).map((a, i0) => { const i = assetPage * 10 + i0;
       const code = a.asset ? (a.asset === 'native' ? 'XLM' : a.asset.split(':')[0]) : (this.codeFor(a.assetContract) || '?');
+      const sp = sparkOf(a.assetContract);
       return {
         rank: String(i + 1).padStart(2, '0'),
-        code: code === '?' ? 'UNKNOWN' : code,
-        iconUrl: this.iconFor(code, a.asset), hasIcon: !!this.iconFor(code, a.asset),
+        code: code === '?' ? this.short(a.assetContract) : code,
+        unnamed: code === '?',
+        iconUrl: this.iconFor(code, a.asset), hasIcon: !!this.iconFor(code, a.asset), noIcon: !this.iconFor(code, a.asset),
         contract: a.assetContract, contractShort: a.assetContract.slice(0, 8) + '…' + a.assetContract.slice(-6),
         expertUrl: 'https://stellar.expert/explorer/' + this.expNet() + '/contract/' + a.assetContract,
-        copyContract: () => this.copy(a.assetContract),
-        sharePct: total ? Math.max(0.2, a.count / total * 100).toFixed(1) + '%' : '0%',
+        stopProp: (e) => e.stopPropagation(),
+        copyContract: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.copy(a.assetContract); },
+        open: () => this.nav('asset/' + a.assetContract),
+        sharePct: aTotal ? Math.max(0.2, a.count / aTotal * 100).toFixed(1) + '%' : '0%',
+        spark: sp.bars, hasSpark: sp.bars.length > 0,
         countTxt: this.n(a.count), volTxt: this.vol(a.total)
       };
     });
+    const topA0 = allAssets[0] || null;
+    const topA0Code = topA0 ? (topA0.asset === 'native' ? 'XLM' : (topA0.asset ? topA0.asset.split(':')[0] : (this.codeFor(topA0.assetContract) || this.short(topA0.assetContract)))) : '—';
+    const activeCnt = aPts.length ? allAssets.filter(a => sparkOf(a.assetContract).active).length : null;
     return {
       routeFeed: route.name === 'feed', routeFacs: route.name === 'facs', routeFac: route.name === 'fac',
       routeTx: route.name === 'tx', routeAddr: route.name === 'addr', routeAssets: route.name === 'assets',
@@ -820,7 +921,8 @@ export default class Logic extends React.Component {
       goSellers: () => this.nav('sellers'),
       sellersLoading: !!this.state.sellersLoading,
       sellerRows: (this.state.sellersLoading ? [] : (this.state.sellersData || [])).map((s, i) => {
-        const topVol = (s.volume || []).slice().sort((a, b) => Number(b.total) - Number(a.total))[0];
+        const topVol = (s.volume || [])[0];
+        const domain = s.resource ? String(s.resource).replace(/^https?:\/\//, '').replace(/\/.*$/, '') : '';
         return {
           rank: String((this.state.sellersOffset || 0) + i + 1).padStart(2, '0'),
           name: s.serviceName || this.short(s.payTo),
@@ -829,27 +931,54 @@ export default class Logic extends React.Component {
           regBg: s.registered ? 'var(--acc)' : 'transparent',
           regFg: s.registered ? 'var(--onacc)' : 'var(--mut)',
           regBd: s.registered ? 'var(--acc)' : 'var(--line)',
-          addrShort: this.short(s.payTo),
+          sub: (domain ? domain + ' · ' : '') + (s.serviceName ? this.short(s.payTo) : '') + (s.firstSeenAt ? (domain || s.serviceName ? ' · ' : '') + 'SINCE ' + new Date(s.firstSeenAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase() : ''),
+          desc: s.description || '',
           payTxt: this.n(s.payments), buyTxt: this.n(s.uniqueBuyers),
-          volTxt: topVol ? (topVol.totalDecimal != null ? this.n(Math.round(Number(topVol.totalDecimal))) : this.vol(topVol.total)) : '—',
-          volCode: topVol ? (topVol.assetCode || '') : '',
+          volTxt: topVol ? (topVol.totalDecimal != null ? this.fmtCompact(Number(topVol.totalDecimal)) : this.vol(topVol.total)) : '—',
+          volCode: topVol ? (topVol.assetCode || this.codeFor(topVol.assetContract) || '') : '',
+          volIcon: topVol ? this.iconFor(topVol.assetCode || this.codeFor(topVol.assetContract), topVol.asset) : '',
+          volHasIcon: !!(topVol && this.iconFor(topVol.assetCode || this.codeFor(topVol.assetContract), topVol.asset)),
           lastTxt: s.lastSeenAt ? this.ago(s.lastSeenAt) + ' ago' : '—',
           open: () => this.nav('address/' + s.payTo)
         };
       }),
-      sellersPageTxt: 'PAGE ' + (Math.floor((this.state.sellersOffset || 0) / 15) + 1) + ' / ' + Math.max(1, Math.ceil((this.state.sellersTotal || 0) / 15)),
+      sellersKpiTotalTxt: this.state.sellersKpiTotal != null ? this.n(this.state.sellersKpiTotal) : '…',
+      sellersKpiBazaarTxt: this.state.sellersKpiBazaar != null ? this.n(this.state.sellersKpiBazaar) : '…',
+      sellersKpi7dTxt: this.state.sellersKpi7d != null ? this.n(this.state.sellersKpi7d) : '…',
+      sellersWinTabs: [['all', 'ALL TIME'], ['24h', '24H'], ['7d', '7D'], ['30d', '30D']].map(([id, label]) => ({
+        label, pick: () => this.setSellersWin(id),
+        bg: (this.state.sellersWin || 'all') === id ? 'var(--ink)' : 'var(--panel)',
+        fg: (this.state.sellersWin || 'all') === id ? 'var(--panel)' : 'var(--ink)'
+      })),
+      sellersRegTabs: [['all', 'ALL'], ['bazaar', 'BAZAAR'], ['onchain', 'ON-CHAIN ONLY']].map(([id, label]) => ({
+        label, pick: () => this.setSellersReg(id),
+        bg: (this.state.sellersReg || 'all') === id ? 'var(--ink)' : 'var(--panel)',
+        fg: (this.state.sellersReg || 'all') === id ? 'var(--panel)' : 'var(--ink)'
+      })),
+      sellersEmpty: !this.state.sellersLoading && (this.state.sellersData || []).length === 0 && !this.state.sellersErr,
+      sellersErr: !!this.state.sellersErr && !this.state.sellersLoading,
+      retrySellers: () => this.loadSellers(this.state.sellersOffset || 0),
+      facsErr: !!this.state.facsErr && !facsLoading,
+      retryFacs: () => this.loadFacs(),
+      ecoErr: !!this.state.ecoErr && !this.state.ecoLoading && !this.state.eco,
+      retryEco: () => { this._ecoAt = 0; this.loadEco(); },
+      addrTabWord: addrTab === 'seller' ? 'a seller' : 'a buyer',
+      sellersPageTxt: 'PAGE ' + (Math.floor((this.state.sellersOffset || 0) / 10) + 1) + ' / ' + Math.max(1, Math.ceil((this.state.sellersTotal || 0) / 10)),
       sellersPrevDisabled: (this.state.sellersOffset || 0) <= 0,
-      sellersNextDisabled: (this.state.sellersOffset || 0) + 15 >= (this.state.sellersTotal || 0),
+      sellersNextDisabled: (this.state.sellersOffset || 0) + 10 >= (this.state.sellersTotal || 0),
       sellersPrevCur: (this.state.sellersOffset || 0) > 0 ? 'pointer' : 'not-allowed',
-      sellersNextCur: (this.state.sellersOffset || 0) + 15 < (this.state.sellersTotal || 0) ? 'pointer' : 'not-allowed',
+      sellersNextCur: (this.state.sellersOffset || 0) + 10 < (this.state.sellersTotal || 0) ? 'pointer' : 'not-allowed',
       sellersPrevFg: (this.state.sellersOffset || 0) > 0 ? 'var(--ink)' : 'var(--line)',
-      sellersNextFg: (this.state.sellersOffset || 0) + 15 < (this.state.sellersTotal || 0) ? 'var(--ink)' : 'var(--line)',
-      sellersPrev: () => { const o = Math.max(0, (this.state.sellersOffset || 0) - 15); this.loadSellers(o); },
-      sellersNext: () => { const o = (this.state.sellersOffset || 0) + 15; if (o < (this.state.sellersTotal || 0)) this.loadSellers(o); },
+      sellersNextFg: (this.state.sellersOffset || 0) + 10 < (this.state.sellersTotal || 0) ? 'var(--ink)' : 'var(--line)',
+      sellersPrev: () => { const o = Math.max(0, (this.state.sellersOffset || 0) - 10); this.loadSellers(o); },
+      sellersNext: () => { const o = (this.state.sellersOffset || 0) + 10; if (o < (this.state.sellersTotal || 0)) this.loadSellers(o); },
       navFeedBg: nb(route.name === 'feed'), navFeedFg: nf(route.name === 'feed'),
       navFacBg: nb(route.name === 'facs' || route.name === 'fac'), navFacFg: nf(route.name === 'facs' || route.name === 'fac'),
-      navAssetBg: nb(route.name === 'assets'), navAssetFg: nf(route.name === 'assets'),
+      navAssetBg: nb(route.name === 'assets' || route.name === 'asset'), navAssetFg: nf(route.name === 'assets' || route.name === 'asset'),
       goFeed: () => this.nav(''), goFacs: () => this.nav('facilitators'), goAssets: () => this.nav('assets'),
+      navClass: 'r-nav' + (this.state.menuOpen ? ' r-open' : ''),
+      menuIcon: this.state.menuOpen ? '✕' : '☰',
+      toggleMenu: () => this.setState(s => ({ menuOpen: !s.menuOpen })),
       netMenuOpen: this.state.netMenuOpen || false,
       toggleNetMenu: () => this.setState(s => ({ netMenuOpen: !s.netMenuOpen })),
       networkLabel: this.state.network === 'stellar:pubnet' ? 'MAINNET' : 'TESTNET',
@@ -895,7 +1024,9 @@ export default class Logic extends React.Component {
         const cap = Math.max(10, Math.ceil(s.items.length / 10) * 10);
         return { items: [...(s.pendingNew || []), ...s.items].slice(0, cap), pendingNew: [] };
       }),
-      feedEmpty: !loading && items.length === 0,
+      feedEmpty: !loading && items.length === 0 && !this.state.feedErr,
+      feedErr: !!this.state.feedErr && !loading,
+      retryFeed: () => this.load(),
       // facilitators
       facs: facList, facsLoading, donutBg, shareLegend: legend,
       facHdrPay: facSortHdrs[0], facHdrBuy: facSortHdrs[1], facHdrSell: facSortHdrs[2], facHdrLast: facSortHdrs[3],
@@ -930,7 +1061,7 @@ export default class Logic extends React.Component {
       txLoading, txReady: !!t, txErr: !!txErr,
       txErrCode: txErr ? (txErr.code || 'error') : '', txErrReason: txErr ? (txErr.reason || '') : '',
       retryTx: () => this.loadTx(route.arg),
-      txHashShort: route.name === 'tx' && route.arg ? route.arg.slice(0, 8) + '…' + route.arg.slice(-6) : '',
+      txHashShort: route.name === 'tx' && route.arg ? route.arg : '',
       dAmt: t ? t.amountDecimal : '', dCeil: t ? t.ceilingDecimal : '', dUptoPct: uptoPct,
       dAsset: t ? (t.assetCode || (t.assetContract ? t.assetContract.slice(0, 6) + '…' : '')) : '',
       dIconUrl: t ? this.iconFor(t.assetCode, t.asset) : '',
@@ -946,11 +1077,77 @@ export default class Logic extends React.Component {
       toggleTech: () => this.setState(s => ({ techOpen: !s.techOpen })),
       techBtnLabel: this.state.techOpen ? 'TECHNICAL DETAILS ▲' : 'TECHNICAL DETAILS ▼',
       dAgo: t && t.closedAt ? this.ago(t.closedAt).toUpperCase() : '',
-      dConfNote: t ? ({
-        'rail402': 'SETTLED BY OUR OWN FACILITATOR. ATTRIBUTION IS CERTAIN.',
-        'verified-facilitator': 'SETTLED BY A FACILITATOR WE HAVE VERIFIED. ATTRIBUTION IS CERTAIN.',
-        'x402-shaped': 'STRUCTURALLY AN X402 PAYMENT, BUT THE SETTLING FACILITATOR COULD NOT BE IDENTIFIED.'
+      dConfShort: t ? ({
+        'rail402': 'ATTRIBUTION IS CERTAIN.',
+        'verified-facilitator': 'A VERIFIED FACILITATOR. ATTRIBUTION IS CERTAIN.',
+        'x402-shaped': 'STRUCTURALLY X402, BUT NO REGISTERED FACILITATOR CLAIMS IT.'
       }[t.confidence] || '') : '',
+      dGoFac: () => { if (t && t.facilitator) this.nav('facilitator/' + t.facilitator.id); },
+      dFacCursor: t && t.facilitator ? 'pointer' : 'default',
+      dGoAsset: () => { if (t && t.assetContract) this.nav('asset/' + t.assetContract); },
+      dSteps: t ? (() => {
+        const code = t.assetCode || this.codeFor(t.assetContract) || 'tokens';
+        const amt = t.amountDecimal + ' ' + code;
+        const fee = t.feeChargedStroops ? (Number(t.feeChargedStroops) / 1e7).toFixed(7).replace(/0+$/, '').replace(/\.$/, '') + ' XLM' : null;
+        const dom = t.resource ? String(t.resource).replace(/^https?:\/\//, '').replace(/\/.*$/, '') : '';
+        const facN = t.facilitator ? this.facName(t.facilitator.displayName) : null;
+        const feeSelf = t.feeSource && t.buyer && t.feeSource === t.buyer;
+        const P = v => ({ t: v, w: 400, deco: 'none', fg: 'var(--mut)' });
+        const E = v => ({ t: v, w: 700, deco: 'none', fg: 'var(--ink)' });
+        const sigParts = t.sigExpirationLedger ? [
+          P(', valid until ledger '), E(this.n(t.sigExpirationLedger)),
+          ...(t.ledger != null ? [P(' (settled at ledger '), E(this.n(t.ledger)),
+            ...(Number(t.sigExpirationLedger) > Number(t.ledger) ? [P(', ' + this.n(Number(t.sigExpirationLedger) - Number(t.ledger)) + ' ledgers before expiry')] : []), P(')')] : [])
+        ] : [];
+        const feeParts = fee
+          ? (feeSelf ? [P('The buyer paid its own network fee of '), E(fee), P('.')]
+            : t.feeSource ? [P('The network fee of '), E(fee), P(' was sponsored by '), E(this.short(t.feeSource)), P(', not the buyer, so the agent paid nothing beyond the price.')]
+            : [P('The network fee was '), E(fee), P('.')])
+          : [];
+        const EXB = 'https://stellar.expert/explorer/' + this.expNet();
+        const mk = (n, title, parts, onchain, proof) => ({
+          n, title, parts,
+          tag: onchain ? 'PROVEN ON CHAIN' : 'PROTOCOL STEP',
+          tagFg: onchain ? 'var(--acc)' : 'var(--mut)',
+          mBg: onchain ? 'var(--acc)' : 'transparent',
+          mFg: onchain ? 'var(--onacc)' : 'var(--mut)',
+          mBd: onchain ? 'var(--acc)' : 'var(--line)',
+          pShow: !!proof, pHref: proof ? proof.href : '#', pLabel: proof ? proof.label : ''
+        });
+        return [
+          mk('01', 'PRICE QUOTED · HTTP 402', [
+            P('The seller'),
+            ...(t.serviceName ? [P(' ('), E(t.serviceName), P(')')] : []),
+            ...(dom ? [P(' at '), E(dom)] : []),
+            P(' answered the agent\u2019s request with '), E('402 Payment Required'), P(' and named its price of '), E(amt), P('.')
+          ], false),
+          mk('02', 'AUTHORIZATION SIGNED', t.scheme === 'upto' && t.ceilingDecimal
+            ? [P('The buyer agent signed a '), E('metered (upto)'), P(' authorization with a ceiling of '), E(t.ceilingDecimal + ' ' + code), ...sigParts, P('. Actual usage settled: '), E(amt), P('.')]
+            : [P('The buyer agent signed an '), E('exact'), P(' authorization for '), E(amt), ...sigParts, P('.')], false),
+          mk('03', 'SUBMITTED FOR SETTLEMENT', [
+            ...(facN
+              ? [E(facN), P(' verified the authorization and submitted it on chain'), ...(t.txSource ? [P(' from '), E(this.short(t.txSource))] : []), P('. ')]
+              : [P('An '), E('unidentified operator'), P(' submitted the payment on chain'), ...(t.txSource ? [P(' from '), E(this.short(t.txSource))] : []), P('. No registered facilitator claims it. ')]),
+            ...feeParts
+          ], true, t.txHash ? { href: EXB + '/tx/' + t.txHash, label: 'SEE PROOF ↗' } : null),
+          mk('04', 'SETTLED ON CHAIN', [
+            E(amt), P(' was delivered to the seller in ledger '), E(this.n(t.ledger)),
+            ...(t.closedAt ? [P(' at '), E(new Date(t.closedAt).toISOString().replace('T', ' ').replace('.000Z', ' UTC'))] : []),
+            P('. Final and irreversible.')
+          ], true, t.txHash ? { href: EXB + '/tx/' + t.txHash, label: 'SEE DELIVERY PROOF ↗' } : null)
+        ];
+      })() : [],
+      dHasService: !!(t && (t.serviceName || t.resource)),
+      dServiceName: t && (t.serviceName || t.resource)
+        ? ((t.serviceName || '') + (t.resource ? (t.serviceName ? ' · ' : '') + String(t.resource).replace(/^https?:\/\//, '').replace(/\/.*$/, '') : '')).toUpperCase()
+        : '',
+      dPayments: t && t.payments && t.payments.length > 1 ? t.payments.map((p, i) => ({
+        idx: String(i + 1).padStart(2, '0'),
+        buyer: this.short(p.buyer), seller: this.short(p.seller),
+        scheme: (p.scheme || '').toUpperCase(),
+        amt: p.amountDecimal, code: p.assetCode || this.codeFor(p.assetContract) || (p.assetContract ? p.assetContract.slice(0, 4) + '…' : ''),
+        goBuyer: () => this.nav('address/' + p.buyer), goSeller: () => this.nav('address/' + p.seller)
+      })) : [],
       dBuyerShort: t ? this.short(t.buyer) : '', dSellerShort: t ? this.short(t.seller) : '',
       dBuyerKind: t && t.buyer && t.buyer[0] === 'C' ? '· SMART-CONTRACT' : '',
       dGoBuyer: () => { if (t) this.nav('address/' + t.buyer); },
@@ -988,12 +1185,60 @@ export default class Logic extends React.Component {
       addrSinceTxt: sstats && sstats.firstPaymentAt ? new Date(sstats.firstPaymentAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).toUpperCase() : '—',
       addrRows, addrMore, loadMoreAddr: () => this.loadMoreAddr(),
       addrEmpty: !addrLoading && addrRows.length === 0,
+      // asset detail page
+      ...(() => {
+        const ad = this.state.assetD;
+        const st = ad ? ad.stats || {} : {};
+        const adCode = ad ? (ad.assetCode || this.codeFor(ad.assetContract) || this.short(ad.assetContract)) : '';
+        const named = !!(ad && (ad.assetCode || this.codeFor(ad.assetContract)));
+        const icon = ad ? this.iconFor(adCode, ad.asset) : '';
+        const wRow = k => {
+          const w = ad && ad.windows && ad.windows[k] ? ad.windows[k] : {};
+          return { k: k.toUpperCase(), pay: this.n(w.payments || 0), buyers: this.n(w.uniqueBuyers || 0), sellers: this.n(w.uniqueSellers || 0), vol: w.totalDecimal != null ? this.fmtCompact(Number(w.totalDecimal)) + ' ' + adCode : '—' };
+        };
+        const err = this.state.assetDErr;
+        return {
+          routeAsset: route.name === 'asset',
+          adLoading: !!this.state.assetDLoading,
+          adErr: !!err && !this.state.assetDLoading,
+          adErrCode: err ? (err.code || 'error') : '', adErrReason: err ? (err.reason || '') : '',
+          retryAsset: () => this.loadAsset(route.arg),
+          adReady: !!ad,
+          adCode, adNamed: named, adUnnamed: !!ad && !named,
+          adIcon: icon, adHasIcon: !!icon, adNoIcon: !icon,
+          adContract: ad ? ad.assetContract : (route.name === 'asset' ? route.arg : ''),
+          adCopy: () => this.copy(ad ? ad.assetContract : route.arg),
+          adExpert: 'https://stellar.expert/explorer/' + this.expNet() + '/contract/' + (ad ? ad.assetContract : route.arg || ''),
+          adEco: () => this.nav('ecosystem?asset=' + encodeURIComponent(ad ? ad.assetContract : route.arg)),
+          adPayTxt: ad ? this.n(st.totalPayments) : '—',
+          adVolTxt: ad && st.totalDecimal != null ? this.fmtCompact(Number(st.totalDecimal)) : '—',
+          adVolCode: adCode ? adCode + ' SETTLED' : '',
+          adBuyTxt: ad ? this.n(st.uniqueBuyers) : '—',
+          adSellTxt: ad ? this.n(st.uniqueSellers) : '—',
+          adSinceTxt: st.firstPaymentAt ? new Date(st.firstPaymentAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase() : '—',
+          adLastTxt: st.lastPaymentAt ? this.ago(st.lastPaymentAt).toUpperCase() + ' AGO' : '—',
+          adWindows: ad ? [wRow('24h'), wRow('7d'), wRow('30d')] : [],
+          adRows: ad ? (ad.payments || []).map(p => this.mapRow(p)) : [],
+          adMore: !!this.state.assetDMore,
+          loadMoreAsset: () => this.loadMoreAsset()
+        };
+      })(),
       // assets
       assetRows,
+      assetsKpiCountTxt: aSrc ? this.n(allAssets.length) : '…',
+      assetsWinLoading: aWin !== 'all' && !aWS,
+      assetsWinTabs: [['all', 'ALL TIME'], ['24h', '24H'], ['7d', '7D'], ['30d', '30D']].map(([id, label]) => ({
+        label, pick: () => this.setAssetsWin(id),
+        bg: aWin === id ? 'var(--ink)' : 'var(--panel)',
+        fg: aWin === id ? 'var(--panel)' : 'var(--ink)'
+      })),
+      assetsKpiTopTxt: topA0Code,
+      assetsKpiTopSub: topA0 && aTotal ? this.n(topA0.count) + ' payments (' + Math.round(topA0.count / aTotal * 100) + '%)' : '',
+      assetsKpiActiveTxt: activeCnt != null ? this.n(activeCnt) : '…',
       assetPageTxt: 'PAGE ' + (assetPage + 1) + ' / ' + assetPages,
       assetHasPrev: assetPage > 0, assetHasNext: assetPage < assetPages - 1,
-      assetPrev: () => this.setState({ assetPage: Math.max(0, assetPage - 1) }),
-      assetNext: () => this.setState({ assetPage: Math.min(assetPages - 1, assetPage + 1) }),
+      assetPrev: () => this.setState({ assetPage: Math.max(0, assetPage - 1) }, () => this.syncAssetsHash()),
+      assetNext: () => this.setState({ assetPage: Math.min(assetPages - 1, assetPage + 1) }, () => this.syncAssetsHash()),
       assetPrevDisabled: !(assetPage > 0), assetNextDisabled: !(assetPage < assetPages - 1),
       assetPrevCur: assetPage > 0 ? 'pointer' : 'not-allowed', assetNextCur: assetPage < assetPages - 1 ? 'pointer' : 'not-allowed',
       assetPrevFg: assetPage > 0 ? 'var(--ink)' : 'var(--line)', assetNextFg: assetPage < assetPages - 1 ? 'var(--ink)' : 'var(--line)'

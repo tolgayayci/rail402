@@ -9,13 +9,14 @@ import Address from './views/Address.jsx';
 import Ecosystem from './views/Ecosystem.jsx';
 import Sellers from './views/Sellers.jsx';
 import Assets from './views/Assets.jsx';
+import AssetDetail from './views/AssetDetail.jsx';
 import FooterBits from './views/FooterBits.jsx';
 
 /** Page shell: the design's two wrapper divs, the header, one active route view, footer. */
 export default function Shell({ v }) {
   return (
     <div style={css("min-height:100vh;background:var(--bg);color:var(--ink);font-family:'Space Grotesk',sans-serif;")}>
-      <div style={css('max-width:1280px;margin:0 auto;padding:20px 24px 48px;')}>
+      <div className="r-wrap" style={css('max-width:1280px;margin:0 auto;padding:20px 24px 48px;')}>
         <Header v={v} />
         {v.routeFeed ? <Feed v={v} /> : null}
         {v.routeFacs ? <Facilitators v={v} /> : null}
@@ -25,6 +26,7 @@ export default function Shell({ v }) {
         {v.routeEco ? <Ecosystem v={v} /> : null}
         {v.routeSellers ? <Sellers v={v} /> : null}
         {v.routeAssets ? <Assets v={v} /> : null}
+        {v.routeAsset ? <AssetDetail v={v} /> : null}
         <FooterBits v={v} />
       </div>
     </div>

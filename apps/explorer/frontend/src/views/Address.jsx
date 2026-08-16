@@ -55,7 +55,7 @@ export default function Address({ v }) {
           <div style={css(`padding:44px 22px;min-height:calc(100vh - 460px);box-sizing:border-box;display:flex;justify-content:center;align-items:center;`)}><span style={css(`background:var(--acc);color:var(--onacc);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.06em;padding:6px 11px;animation:pulse 1.3s ease-in-out infinite;`)}>RAIL402</span></div>
         ) : null}
         {v.addrEmpty ? (
-          <div style={css(`padding:30px 22px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mut);`)}>NO PAYMENTS IN THIS ROLE</div>
+          <div style={css('padding:44px 22px;min-height:calc(100vh - 460px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;text-align:center;')}><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--mut)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"></path><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg><div style={css('font-size:16px;font-weight:600;')}>No payments in this role</div><div style={css('font-size:13px;line-height:1.5;color:var(--mut);max-width:52ch;')}>This address has no x402 payments as {v.addrTabWord} yet. Check the other tab.</div></div>
         ) : null}
         {v.addrRows.map((r, i) => (
           <div key={i} style={css(`display:grid;grid-template-columns:64px 130px minmax(0,1fr) 100px 160px 150px;gap:16px;padding:11px 22px;border-bottom:1px solid var(--line);align-items:center;font-family:'JetBrains Mono',monospace;font-size:12px;`)}>
