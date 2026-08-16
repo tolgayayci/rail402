@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import type {
   BackfillState,
   Confidence,
