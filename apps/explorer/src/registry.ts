@@ -1,7 +1,7 @@
 import type { Logger } from "pino";
 import { StrKey } from "@stellar/stellar-sdk";
-import { isPayableResourceUrl, NO_REDIRECT } from "@rail402/agent-helpers";
-import { X402Error } from "@rail402/errors";
+import { isPayableResourceUrl, NO_REDIRECT } from "@rail402.dev/agent-helpers";
+import { X402Error } from "@rail402.dev/errors";
 import type { ExplorerStore } from "./db.js";
 import type { FetchLike } from "./rpc.js";
 import type { FacilitatorRow } from "./types.js";

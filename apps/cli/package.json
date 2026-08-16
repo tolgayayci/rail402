@@ -1,0 +1,45 @@
+{
+  "name": "@rail402.dev/cli",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "description": "rail402 — a command-line x402 wallet and agent tool for Stellar: fund a testnet account, discover paid APIs in the Bazaar, pay them under a spend cap, and look up settlements on the explorer.",
+  "type": "module",
+  "bin": {
+    "rail402": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@rail402.dev/agent-helpers": "workspace:*",
+    "@rail402.dev/errors": "workspace:*",
+    "@stellar/stellar-sdk": "^16.2.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "skill",
+    "NOTICE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/x402-stellar.git",
+    "directory": "apps/cli"
+  },
+  "homepage": "https://rail402.dev",
+  "bugs": {
+    "url": "https://github.com/tolgayayci/x402-stellar/issues"
+  }
+}

@@ -1,4 +1,4 @@
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 
 /**
  * Minimal Soroban JSON-RPC client. No SDK: with `xdrFormat: "json"` the RPC returns fully decoded

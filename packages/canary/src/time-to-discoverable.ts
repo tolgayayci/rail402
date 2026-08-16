@@ -1,4 +1,4 @@
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import { CanaryRun, type CanaryReport } from "./report.js";
 import { callFacilitator, decodeExtensionResponses, reasonOf, stockBuyer } from "./payment.js";
 import { requireBazaarFacilitator } from "./supported.js";

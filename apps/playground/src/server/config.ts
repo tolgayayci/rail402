@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Asset, Keypair, Networks } from "@stellar/stellar-sdk";
 import { USDC_TESTNET_ADDRESS } from "@x402/stellar";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 
 /**
  * 12-factor configuration for the playground server, following the facilitator's two rules:
@@ -67,6 +67,16 @@ const envSchema = z.object({
    * Unset ⇒ derived from each request (fine for local runs).
    */
   PLAYGROUND_PUBLIC_URL: z.string().url().optional(),
+
+  /**
+   * The Rail402 explorer's read API — the data source for /debug/tx. The default is the
+   * explorer's documented custom domain; deployments set this to the concrete host while that
+   * domain's DNS record is pending.
+   */
+  PLAYGROUND_EXPLORER_API_URL: z.string().url().default("https://explorer-api.rail402.dev"),
+
+  /** The explorer's page base, used for outbound "view on the explorer" links. */
+  PLAYGROUND_EXPLORER_URL: z.string().url().default("https://explorer.rail402.dev"),
 });
 
 export interface PlaygroundConfig {
@@ -86,6 +96,8 @@ export interface PlaygroundConfig {
   };
   readonly corsOrigins: readonly string[];
   readonly publicUrl: string | undefined;
+  readonly explorerApiUrl: string;
+  readonly explorerUrl: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): PlaygroundConfig {
@@ -153,6 +165,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): PlaygroundConf
         .filter(Boolean),
     ),
     publicUrl: e.PLAYGROUND_PUBLIC_URL?.replace(/\/$/, ""),
+    explorerApiUrl: e.PLAYGROUND_EXPLORER_API_URL.replace(/\/$/, ""),
+    explorerUrl: e.PLAYGROUND_EXPLORER_URL.replace(/\/$/, ""),
   });
 }
 
@@ -169,5 +183,7 @@ export function describeConfig(c: PlaygroundConfig): Record<string, unknown> {
     meterUnitStroops: c.meterUnitStroops.toString(),
     rate: c.rate,
     corsOrigins: c.corsOrigins,
+    explorerApiUrl: c.explorerApiUrl,
+    explorerUrl: c.explorerUrl,
   };
 }

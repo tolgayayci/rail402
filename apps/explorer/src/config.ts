@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { StrKey } from "@stellar/stellar-sdk";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 
 /**
  * 12-factor configuration with fail-fast validation, mirroring apps/facilitator/src/config/env.ts.

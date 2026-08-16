@@ -1,7 +1,6 @@
 {
-  "name": "@rail402/conformance",
+  "name": "@rail402.dev/conformance",
   "version": "0.1.0",
-  "private": true,
   "license": "Apache-2.0",
   "description": "Wire-level conformance harness: installs this facilitator into the upstream x402 e2e suite and runs it.",
   "type": "module",
@@ -12,5 +11,23 @@
     "install-proxy": "node bin/conformance.mjs install",
     "run": "node bin/conformance.mjs run",
     "dual": "node bin/conformance.mjs dual"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin",
+    "proxy",
+    "README.md",
+    "NOTICE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/x402-stellar.git",
+    "directory": "packages/conformance"
+  },
+  "homepage": "https://rail402.dev",
+  "bugs": {
+    "url": "https://github.com/tolgayayci/x402-stellar/issues"
   }
 }

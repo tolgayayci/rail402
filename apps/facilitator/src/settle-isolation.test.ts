@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
-import type * as BazaarModule from "@rail402/bazaar";
+import type * as BazaarModule from "@rail402.dev/bazaar";
 
 /**
  * Regression guard for the highest-severity live-audit finding: a throw from the cataloging
@@ -32,7 +32,7 @@ vi.mock("./facilitator/build.js", () => ({
   }),
 }));
 
-vi.mock("@rail402/bazaar", async importOriginal => {
+vi.mock("@rail402.dev/bazaar", async importOriginal => {
   const actual = await importOriginal<typeof BazaarModule>();
   return {
     ...actual,

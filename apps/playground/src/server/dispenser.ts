@@ -1,6 +1,6 @@
 import { Asset, Keypair, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
 import { Horizon } from "@stellar/stellar-sdk";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import type { PlaygroundConfig } from "./config.js";
 import { NETWORK_PASSPHRASE } from "./config.js";
 import { decimalToStroops, stroopsToDecimal } from "../shared/amounts.js";

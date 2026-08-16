@@ -17,7 +17,7 @@ COPY scripts ./scripts
 # `--frozen-lockfile` so the image can never silently resolve a different dependency tree than the
 # one the licence gate scanned.
 RUN pnpm install --frozen-lockfile --ignore-scripts
-RUN pnpm --filter @rail402/explorer... build
+RUN pnpm --filter @rail402.dev/explorer... build
 
 FROM node:24-slim
 WORKDIR /app

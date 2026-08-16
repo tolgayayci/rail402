@@ -36,6 +36,17 @@ const CHECKS = {
     file: "discovery-loop.json",
     run: (facilitatorUrl: string, runId: string) => runDiscoveryLoop({ facilitatorUrl, runId }),
   },
+  "discovery-loop-public": {
+    file: "discovery-loop-public.json",
+    run: (facilitatorUrl: string, runId: string) =>
+      runDiscoveryLoop({ facilitatorUrl, runId, publicSeller: true }),
+    // Excluded from `all` because it must run against PRODUCTION host-policy: a hosted facilitator
+    // soft-drops loopback resource URLs (SSRF hygiene), so the CLI spawns this one WITHOUT
+    // BAZAAR_ALLOW_PRIVATE_HOSTS — which would break every other check's localhost seller. It fronts
+    // the stock seller with a local Host-rewriting proxy so the seller declares a PUBLIC identity the
+    // production-policy facilitator will catalog. Fully offline: no tunnel, no external service.
+    prodHostPolicy: true,
+  },
   "rejection-audit": {
     file: "rejection-audit.json",
     run: (facilitatorUrl: string, runId: string) => runRejectionAudit({ facilitatorUrl, runId }),
@@ -82,6 +93,7 @@ const CHECKS = {
     file: string;
     run: (facilitatorUrl: string, runId: string) => Promise<CanaryReport>;
     needsProvisionedUsdc?: boolean;
+    prodHostPolicy?: boolean;
   }
 >;
 
@@ -151,6 +163,8 @@ function defaultRunId(): string {
 const USAGE = `usage: x402-stellar-canary <command> [options]
 
   discovery-loop        settle → catalogue → search, end to end
+  discovery-loop-public same loop under PRODUCTION host-policy: the seller declares a public hostname
+                        (via a local proxy) so a loopback-refusing facilitator catalogues it
   rejection-audit       every rejection path carries a code and an actionable reason
   oz-account            an OpenZeppelin smart account pays with exact AND upto under our policy
   supported-snapshot    /supported is complete, truthful, and matches what is reachable
@@ -184,9 +198,13 @@ async function main(): Promise<number> {
 
   const selected: CheckName[] =
     args.command === "all"
-      ? (Object.keys(CHECKS) as CheckName[]).filter(
-          c => !("needsProvisionedUsdc" in CHECKS[c] && CHECKS[c].needsProvisionedUsdc),
-        )
+      ? (Object.keys(CHECKS) as CheckName[]).filter(c => {
+          const spec = CHECKS[c];
+          const needsProvisionedUsdc =
+            "needsProvisionedUsdc" in spec && spec.needsProvisionedUsdc;
+          const prodHostPolicy = "prodHostPolicy" in spec && spec.prodHostPolicy;
+          return !needsProvisionedUsdc && !prodHostPolicy;
+        })
       : isCheck(args.command)
         ? [args.command]
         : [];
@@ -230,8 +248,16 @@ async function main(): Promise<number> {
   let failures = 0;
   try {
     if (!args.facilitator) {
-      console.error("no --facilitator given; starting one with a friendbot-funded signer");
-      spawned = await spawnFacilitator(args.port);
+      // discovery-loop-public runs against production host-policy (loopback resource URLs refused), so
+      // it must NOT get BAZAAR_ALLOW_PRIVATE_HOSTS. It is excluded from `all`, so it only runs alone.
+      const only = selected.length === 1 ? selected[0] : undefined;
+      const prodHostPolicy = only
+        ? Boolean((CHECKS[only] as { prodHostPolicy?: boolean }).prodHostPolicy)
+        : false;
+      console.error(
+        `no --facilitator given; starting one with a friendbot-funded signer${prodHostPolicy ? " (production host-policy)" : ""}`,
+      );
+      spawned = await spawnFacilitator(args.port, { allowPrivateHosts: !prodHostPolicy });
       console.error(`facilitator ${spawned.url} · signer ${spawned.signerAddress}`);
     }
     const facilitatorUrl = args.facilitator ?? spawned!.url;

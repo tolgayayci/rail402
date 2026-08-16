@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import { loadConfig, type PlaygroundConfig } from "./config.js";
 import { createDispenser, type BalanceLine, type HorizonGateway } from "./dispenser.js";
 

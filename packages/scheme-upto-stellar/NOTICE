@@ -1,0 +1,53 @@
+x402 Stellar Facilitator + Bazaar Discovery Layer
+Copyright 2026 Tolga Yaycı and contributors
+
+This product implements the x402 payment protocol and its Bazaar discovery
+extension for the Stellar network.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
+file except in compliance with the License. You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under
+the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied. See the License for the specific language governing
+permissions and limitations under the License.
+
+--------------------------------------------------------------------------------
+THIRD-PARTY COMPONENTS
+--------------------------------------------------------------------------------
+
+This project builds on the following Apache-2.0 licensed components from the
+x402 Foundation (https://github.com/x402-foundation/x402):
+
+    @x402/core
+    @x402/stellar
+    @x402/extensions
+    @x402/mcp
+
+    Copyright the x402 Foundation
+    Licensed under the Apache License, Version 2.0
+
+Portions of the Bazaar discovery validation logic (routeTemplate validation and
+resource service-metadata sanitization) intentionally mirror the reference
+implementation in @x402/extensions byte-for-byte, so that Stellar listings validate
+identically to listings on every other x402 facilitator.
+
+This project also depends on:
+
+    @stellar/stellar-sdk — Apache-2.0
+    Copyright Stellar Development Foundation
+
+A complete, generated inventory of every transitive dependency and its license is
+produced at build time in THIRD_PARTY_NOTICES.md.
+
+--------------------------------------------------------------------------------
+NOT INCLUDED
+--------------------------------------------------------------------------------
+
+This project deliberately contains NO code, and NO derivative of any code, from the
+OpenZeppelin Relayer, its x402 facilitator plugin, or the relayer SDK. Those are
+AGPL-3.0-or-later, whose network clause applies to a service serving third parties.
+They are unusable here both to use and to study, and this repository
+was developed without reading them.

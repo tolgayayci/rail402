@@ -1,4 +1,4 @@
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import type { PlaygroundConfig } from "./config.js";
 import { NETWORK } from "./config.js";
 import { decimalToStroops, stroopsToDisplay } from "../shared/amounts.js";
@@ -61,7 +61,7 @@ import { paymentMiddleware } from "@x402/hono";
 import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
-import { describeEndpoint } from "@rail402/seller-helpers";
+import { describeEndpoint } from "@rail402.dev/seller-helpers";
 
 const FACILITATOR_URL = process.env.FACILITATOR_URL;
 const PAY_TO = process.env.SELLER_ADDRESS;   // your account, with a USDC trustline
@@ -116,7 +116,7 @@ import { paymentMiddleware } from "@x402/express";
 import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
-import { describeEndpoint } from "@rail402/seller-helpers";
+import { describeEndpoint } from "@rail402.dev/seller-helpers";
 
 const FACILITATOR_URL = process.env.FACILITATOR_URL;
 const PAY_TO = process.env.SELLER_ADDRESS;   // your account, with a USDC trustline

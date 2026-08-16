@@ -1,6 +1,6 @@
 /**
  * Library entry for the playground server — importing this never boots anything. The bootstrap
- * lives in `./index.ts` (the `@rail402/playground/server` export), which self-invokes `main()`.
+ * lives in `./index.ts` (the `@rail402.dev/playground/server` export), which self-invokes `main()`.
  */
 
 export { createApp } from "./app.js";

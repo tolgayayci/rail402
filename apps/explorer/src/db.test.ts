@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import { ExplorerStore } from "./db.js";
 import type { PaymentRow } from "./types.js";
 

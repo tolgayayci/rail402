@@ -1,5 +1,5 @@
 /**
- * `@rail402/playground/browser` — the browser-safe helper library the playground UI is built on.
+ * `@rail402.dev/playground/browser` — the browser-safe helper library the playground UI is built on.
  *
  * Everything exported here runs in a browser bundle: keys are generated and payments signed in the
  * tab, over `fetch` to CORS-open endpoints (friendbot, Horizon, Soroban RPC) and the playground's
@@ -61,6 +61,7 @@ export {
   stroopsToDecimal,
   stroopsToDisplay,
   txUrl,
+  explorerTxUrl,
   accountUrl,
   contractUrl,
   truncate,

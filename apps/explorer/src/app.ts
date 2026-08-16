@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Logger } from "pino";
-import { X402Error, createError, type X402ErrorPayload } from "@rail402/errors";
+import { X402Error, createError, type X402ErrorPayload } from "@rail402.dev/errors";
 import type { ExplorerConfig } from "./config.js";
 import type { AssetTotal, ExplorerStore, FeedFilter } from "./db.js";
 import type { FacilitatorRegistry } from "./registry.js";

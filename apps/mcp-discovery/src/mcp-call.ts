@@ -5,7 +5,7 @@ import { x402Client } from "@x402/core/client";
 import { wrapMCPClientWithPayment } from "@x402/mcp";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
-import { UptoStellarClientScheme } from "@rail402/scheme-upto-stellar";
+import { UptoStellarClientScheme } from "@rail402.dev/scheme-upto-stellar";
 import {
   budgetSelector,
   selectPayable,

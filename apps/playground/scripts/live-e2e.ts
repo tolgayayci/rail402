@@ -6,7 +6,7 @@
  * bootstrapSession → payExact → meter open/call/close → an attack — and asserts real on-ledger
  * settlements and coded refusals. Every tx hash it prints is verifiable on stellar.expert.
  *
- * Run:  pnpm --filter @rail402/playground exec tsx scripts/live-e2e.ts
+ * Run:  pnpm --filter @rail402.dev/playground exec tsx scripts/live-e2e.ts
  * Needs .env.testnet at the repo root with CLIENT_STELLAR_PRIVATE_KEY holding testnet USDC.
  */
 import { readFileSync } from "node:fs";

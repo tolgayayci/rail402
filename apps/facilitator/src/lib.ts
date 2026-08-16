@@ -3,7 +3,7 @@
  *
  * A resource server can run verify/settle in-process, without our hosted service, by importing from
  * here. Importing this module NEVER boots an HTTP server or binds a port: the bootstrap lives in
- * `./index.ts` (the container CMD and the `@rail402/facilitator/server` export), which
+ * `./index.ts` (the container CMD and the `@rail402.dev/facilitator/server` export), which
  * self-invokes `main()`. This file only re-exports the pieces a seller embeds.
  *
  * Two shapes are supported:

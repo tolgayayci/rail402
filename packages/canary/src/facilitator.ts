@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import { fundedSigner, sleep } from "./testnet.js";
 
 /**
@@ -40,14 +40,27 @@ export function findRepoRoot(from: string = dirname(fileURLToPath(import.meta.ur
   }
 }
 
-export async function spawnFacilitator(port: number): Promise<SpawnedFacilitator> {
+export interface SpawnFacilitatorOptions {
+  /**
+   * Permit the catalog to accept loopback / private-host resource URLs. Default true, because the
+   * synthetic sellers bind 127.0.0.1 and every other canary needs their listings cataloged. Set
+   * false to reproduce PRODUCTION host-policy — a hosted facilitator never sets it — which is what
+   * `discovery-loop-public` runs against, fronting its seller with a public hostname instead.
+   */
+  readonly allowPrivateHosts?: boolean;
+}
+
+export async function spawnFacilitator(
+  port: number,
+  options: SpawnFacilitatorOptions = {},
+): Promise<SpawnedFacilitator> {
   const root = findRepoRoot();
   const signer = await fundedSigner();
   const url = `http://127.0.0.1:${port}`;
 
   const child: ChildProcess = spawn(
     "pnpm",
-    ["--filter", "@rail402/facilitator", "exec", "tsx", "src/index.ts"],
+    ["--filter", "@rail402.dev/facilitator", "exec", "tsx", "src/index.ts"],
     {
       cwd: root,
       env: {
@@ -65,8 +78,9 @@ export async function spawnFacilitator(port: number): Promise<SpawnedFacilitator
         // The synthetic sellers bind 127.0.0.1, and the catalog refuses loopback resource URLs by
         // default (they are unreachable from the public internet and a stored SSRF target). A locally
         // spawned facilitator is the one place that opt-in is correct — a hosted deployment never
-        // sets it. Without this, cataloging every canary listing would be rejected as a private host.
-        BAZAAR_ALLOW_PRIVATE_HOSTS: "1",
+        // sets it. discovery-loop-public deliberately leaves it OFF to reproduce production host-policy
+        // and prove a PUBLIC-named seller is cataloged where a loopback one would be refused.
+        ...((options.allowPrivateHosts ?? true) ? { BAZAAR_ALLOW_PRIVATE_HOSTS: "1" } : {}),
         LOG_LEVEL: "warn",
       },
       stdio: ["ignore", "pipe", "pipe"],

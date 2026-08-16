@@ -4,7 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { createPaymentWrapper } from "@x402/mcp";
-import { describeTool, mcpToolResource } from "@rail402/seller-helpers";
+import { describeTool, mcpToolResource } from "@rail402.dev/seller-helpers";
 import { z } from "zod";
 
 /**

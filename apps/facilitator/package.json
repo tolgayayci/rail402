@@ -1,7 +1,6 @@
 {
-  "name": "@rail402/facilitator",
+  "name": "@rail402.dev/facilitator",
   "version": "0.1.0",
-  "private": true,
   "license": "Apache-2.0",
   "description": "x402 facilitator service for Stellar: verify, settle, supported.",
   "type": "module",
@@ -18,11 +17,15 @@
       "default": "./dist/rate-limit.js"
     }
   },
+  "bin": {
+    "rail402-facilitator": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "dev": "tsx watch src/index.ts",
+    "cli": "tsx src/cli.ts",
     "start": "node dist/index.js",
     "lint": "eslint src",
     "deploy:worker": "npx --yes wrangler@4 deploy",
@@ -30,7 +33,7 @@
     "build:worker": "tsc -p tsconfig.json && npx --yes wrangler@4 deploy --dry-run --outdir=.wrangler/preview"
   },
   "dependencies": {
-    "@rail402/errors": "workspace:*",
+    "@rail402.dev/errors": "workspace:*",
     "@x402/core": "2.20.0",
     "@x402/stellar": "2.20.0",
     "@stellar/stellar-sdk": "^16.2.0",
@@ -38,12 +41,28 @@
     "hono": "^4.12.0",
     "pino": "^10.3.1",
     "zod": "^4.4.3",
-    "@rail402/bazaar": "workspace:*",
-    "@rail402/scheme-upto-stellar": "workspace:*"
+    "@rail402.dev/bazaar": "workspace:*",
+    "@rail402.dev/scheme-upto-stellar": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/x402-stellar.git",
+    "directory": "apps/facilitator"
+  },
+  "homepage": "https://rail402.dev",
+  "bugs": {
+    "url": "https://github.com/tolgayayci/x402-stellar/issues"
   }
 }

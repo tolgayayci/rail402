@@ -3,7 +3,7 @@ import { x402Client } from "@x402/core/client";
 import { wrapFetchWithPayment } from "@x402/fetch";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
-import { UptoStellarClientScheme } from "@rail402/scheme-upto-stellar";
+import { UptoStellarClientScheme } from "@rail402.dev/scheme-upto-stellar";
 import {
   PayInputSchema,
   SearchInputSchema,

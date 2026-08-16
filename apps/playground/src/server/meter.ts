@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
-import { createError, isErrorCode, type X402ErrorPayload } from "@rail402/errors";
+import { createError, isErrorCode, type X402ErrorPayload } from "@rail402.dev/errors";
 import type { PaymentPayload, PaymentRequirements, PaymentRequired } from "@x402/core/types";
-import { uptoContractFor } from "@rail402/scheme-upto-stellar";
+import { uptoContractFor } from "@rail402.dev/scheme-upto-stellar";
 import type { PlaygroundConfig } from "./config.js";
 import { NETWORK } from "./config.js";
 import { stroopsToDisplay } from "../shared/amounts.js";

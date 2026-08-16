@@ -8,7 +8,7 @@ import { buildFacilitator, createApp, loadConfig } from "./lib.js";
  * Self-facilitation: a resource server embeds verify/settle in-process. This asserts the
  * library entry actually delivers that — the pieces are importable, usable, and answer requests
  * WITHOUT binding a port. Before the library entry existed, importing the package ran the server
- * bootstrap (`main()`), so the documented `import { buildFacilitator } from "@rail402/facilitator"`
+ * bootstrap (`main()`), so the documented `import { buildFacilitator } from "@rail402.dev/facilitator"`
  * could not be embedded at all. `app.request(...)` is Hono's in-memory dispatch — no socket, no
  * network — which is exactly the in-process shape a self-facilitating seller uses.
  */

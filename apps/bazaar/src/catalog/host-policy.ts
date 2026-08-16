@@ -9,12 +9,12 @@
  * The live catalog was in exactly this state: every entry was `http://127.0.0.1:*` canary residue, so
  * the public Bazaar advertised nothing a stock client could pay (CURRENT_STATUS §1, §6 P9).
  *
- * ## Why this is a mirror of `@rail402/agent-helpers`'s `isPayableResourceUrl`, not an import
+ * ## Why this is a mirror of `@rail402.dev/agent-helpers`'s `isPayableResourceUrl`, not an import
  *
  * That helper encodes the same policy for the buyer surfaces (`payAndFetch`, MCP `pay_and_call`),
  * and the house rule elsewhere in this repo is to share a security control rather than copy it —
  * duplicating one is how it comes to reject in one place and not another. The exception here is
- * deliberate: `@rail402/agent-helpers` is a *buyer-side* package, and the Bazaar is the server. Making
+ * deliberate: `@rail402.dev/agent-helpers` is a *buyer-side* package, and the Bazaar is the server. Making
  * the catalog depend on the agent helper just to reach fifteen lines of host policy would invert the
  * dependency direction and pull the whole buyer stack (and its `@x402` deps) into the facilitator.
  * So the policy is restated here, kept byte-aligned with `outbound.ts`, and pinned by tests on both

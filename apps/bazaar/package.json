@@ -1,7 +1,6 @@
 {
-  "name": "@rail402/bazaar",
+  "name": "@rail402.dev/bazaar",
   "version": "0.1.0",
-  "private": true,
   "license": "Apache-2.0",
   "description": "Stellar-native Bazaar: catalog, automatic cataloging, and natural-language discovery.",
   "type": "module",
@@ -11,13 +10,15 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "eval": "tsx src/search/evaluate.ts",
+    "eval:pack": "node eval-pack/build.mjs",
+    "eval:scale": "tsx src/search/evaluate-scale.ts",
     "ablation": "tsx src/search/ablation.ts",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "eslint src"
   },
   "dependencies": {
-    "@rail402/errors": "workspace:*",
+    "@rail402.dev/errors": "workspace:*",
     "@x402/core": "2.20.0",
     "@x402/extensions": "2.20.0",
     "@hono/node-server": "^2.0.5",

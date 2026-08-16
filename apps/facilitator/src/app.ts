@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Context, Next } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
-import { createError, type ErrorCode } from "@rail402/errors";
+import { createError, type ErrorCode } from "@rail402.dev/errors";
 import { createRateLimiter } from "./rate-limit.js";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import type { FacilitatorConfig } from "./config/env.js";
@@ -18,7 +18,7 @@ import {
   SqliteCatalogPersistence,
   FederatedCatalog,
   type CatalogPersistence,
-} from "@rail402/bazaar";
+} from "@rail402.dev/bazaar";
 
 /**
  * HTTP surface: `/verify`, `/settle`, `/supported` (the standard x402 facilitator interface),

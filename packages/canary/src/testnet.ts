@@ -7,7 +7,7 @@ import {
   TransactionBuilder,
   rpc,
 } from "@stellar/stellar-sdk";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 
 /**
  * Throwaway testnet fixtures for a canary run.

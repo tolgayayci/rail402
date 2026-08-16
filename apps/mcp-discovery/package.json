@@ -1,7 +1,6 @@
 {
-  "name": "@rail402/mcp-discovery",
+  "name": "@rail402.dev/mcp-discovery",
   "version": "0.1.0",
-  "private": true,
   "license": "Apache-2.0",
   "description": "MCP server exposing Stellar Bazaar search and a budget-capped paid-call proxy to agents.",
   "type": "module",
@@ -17,9 +16,9 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@rail402/agent-helpers": "workspace:*",
-    "@rail402/errors": "workspace:*",
-    "@rail402/scheme-upto-stellar": "workspace:*",
+    "@rail402.dev/agent-helpers": "workspace:*",
+    "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/scheme-upto-stellar": "workspace:*",
     "@hono/node-server": "^2.0.5",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "hono": "^4.12.0",
@@ -33,5 +32,21 @@
     "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/x402-stellar.git",
+    "directory": "apps/mcp-discovery"
+  },
+  "homepage": "https://rail402.dev",
+  "bugs": {
+    "url": "https://github.com/tolgayayci/x402-stellar/issues"
   }
 }

@@ -1,14 +1,21 @@
 {
-  "name": "@rail402/agent-helpers",
+  "name": "@rail402.dev/agent-helpers",
   "version": "0.1.0",
-  "private": true,
   "license": "Apache-2.0",
   "description": "Buyer/agent-side helpers: query the Stellar Bazaar and pay for what you find, with a spend cap.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -16,11 +23,26 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@rail402/errors": "workspace:*",
-    "@rail402/scheme-upto-stellar": "workspace:*",
+    "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/scheme-upto-stellar": "workspace:*",
     "@x402/core": "2.20.0",
     "@x402/fetch": "2.20.0",
     "@x402/stellar": "2.20.0"
   },
-  "devDependencies": { "typescript": "^5.7.3", "vitest": "^3.0.5" }
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/x402-stellar.git",
+    "directory": "packages/agent-helpers"
+  },
+  "homepage": "https://rail402.dev",
+  "bugs": {
+    "url": "https://github.com/tolgayayci/x402-stellar/issues"
+  }
 }

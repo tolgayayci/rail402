@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import { loadConfig, describeConfig } from "./config/env.js";
 import { createApp } from "./app.js";
 import { startExplorerAnnounce } from "./announce.js";

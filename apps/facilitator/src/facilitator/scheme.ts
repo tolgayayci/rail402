@@ -3,7 +3,7 @@ import type { Operation } from "@stellar/stellar-sdk";
 import { Api } from "@stellar/stellar-sdk/rpc";
 import { ExactStellarScheme as UpstreamExactStellarScheme } from "@x402/stellar/exact/facilitator";
 import { getNetworkPassphrase, getRpcClient } from "@x402/stellar";
-import { createError, enrichUpstreamCode, type ErrorCode } from "@rail402/errors";
+import { createError, enrichUpstreamCode, type ErrorCode } from "@rail402.dev/errors";
 import type {
   Network,
   PaymentPayload,

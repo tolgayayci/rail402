@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Asset } from "@stellar/stellar-sdk";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import {
   loadConfig,
   PUBNET_EURC_ISSUER,

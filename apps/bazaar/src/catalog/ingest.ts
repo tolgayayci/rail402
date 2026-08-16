@@ -5,7 +5,7 @@ import {
   validateDiscoveryExtension,
   validateDiscoveryExtensionSpec,
 } from "@x402/extensions/bazaar";
-import { createError, type ErrorCode, type X402ErrorPayload } from "@rail402/errors";
+import { createError, type ErrorCode, type X402ErrorPayload } from "@rail402.dev/errors";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import type { DomainVerdict } from "./domain.js";
 import { identifyStellarAsset } from "./stellar-assets.js";
@@ -176,7 +176,7 @@ export function ingest(input: IngestInput): CatalogOutcome {
     // The host must be reachable from the public internet. A loopback / private-range / internal-only
     // URL is not payable by any agent but the one on the cataloging machine, and — because the agent
     // surfaces fetch this URL — it is a stored SSRF target (CURRENT_STATUS §6 P9). The check mirrors
-    // the buyer-side host policy (`@rail402/agent-helpers` `isPayableResourceUrl`); the opt-in is for
+    // the buyer-side host policy (`@rail402.dev/agent-helpers` `isPayableResourceUrl`); the opt-in is for
     // local development only.
     const hostVerdict = checkResourceHost(parsed, allowPrivateHosts === true);
     if (!hostVerdict.ok) {

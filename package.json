@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "canary": "pnpm --filter @rail402/canary exec tsx src/cli.ts",
+    "canary": "pnpm --filter @rail402.dev/canary exec tsx src/cli.ts",
     "conformance": "node packages/conformance/bin/conformance.mjs",
     "license:gate": "node scripts/license-gate.mjs",
     "license:report": "node scripts/license-gate.mjs --report",

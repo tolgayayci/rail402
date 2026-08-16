@@ -55,7 +55,7 @@ importers:
       '@hono/node-server':
         specifier: ^2.0.5
         version: 2.0.12(hono@4.13.0)
-      '@rail402/errors':
+      '@rail402.dev/errors':
         specifier: workspace:*
         version: link:../../packages/errors
       '@x402/core':
@@ -84,15 +84,37 @@ importers:
         specifier: ^3.0.5
         version: 3.2.7(@types/node@22.20.1)(tsx@4.23.1)
 
+  apps/cli:
+    dependencies:
+      '@rail402.dev/agent-helpers':
+        specifier: workspace:*
+        version: link:../../packages/agent-helpers
+      '@rail402.dev/errors':
+        specifier: workspace:*
+        version: link:../../packages/errors
+      '@stellar/stellar-sdk':
+        specifier: ^16.2.0
+        version: 16.2.0
+    devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.23.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.5
+        version: 3.2.7(@types/node@22.20.1)(tsx@4.23.1)
+
   apps/explorer:
     dependencies:
       '@hono/node-server':
         specifier: ^2.0.5
         version: 2.0.12(hono@4.13.0)
-      '@rail402/agent-helpers':
+      '@rail402.dev/agent-helpers':
         specifier: workspace:*
         version: link:../../packages/agent-helpers
-      '@rail402/errors':
+      '@rail402.dev/errors':
         specifier: workspace:*
         version: link:../../packages/errors
       '@stellar/stellar-sdk':
@@ -123,13 +145,13 @@ importers:
       '@hono/node-server':
         specifier: ^2.0.5
         version: 2.0.12(hono@4.13.0)
-      '@rail402/bazaar':
+      '@rail402.dev/bazaar':
         specifier: workspace:*
         version: link:../bazaar
-      '@rail402/errors':
+      '@rail402.dev/errors':
         specifier: workspace:*
         version: link:../../packages/errors
-      '@rail402/scheme-upto-stellar':
+      '@rail402.dev/scheme-upto-stellar':
         specifier: workspace:*
         version: link:../../packages/scheme-upto-stellar
       '@stellar/stellar-sdk':
@@ -169,13 +191,13 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.0
         version: 1.30.0(zod@4.4.3)
-      '@rail402/agent-helpers':
+      '@rail402.dev/agent-helpers':
         specifier: workspace:*
         version: link:../../packages/agent-helpers
-      '@rail402/errors':
+      '@rail402.dev/errors':
         specifier: workspace:*
         version: link:../../packages/errors
-      '@rail402/scheme-upto-stellar':
+      '@rail402.dev/scheme-upto-stellar':
         specifier: workspace:*
         version: link:../../packages/scheme-upto-stellar
       '@x402/core':
@@ -212,19 +234,22 @@ importers:
       '@hono/node-server':
         specifier: ^2.0.5
         version: 2.0.12(hono@4.13.0)
-      '@rail402/agent-helpers':
+      '@rail402.dev/agent-helpers':
         specifier: workspace:*
         version: link:../../packages/agent-helpers
-      '@rail402/errors':
+      '@rail402.dev/bazaar':
+        specifier: workspace:*
+        version: link:../bazaar
+      '@rail402.dev/errors':
         specifier: workspace:*
         version: link:../../packages/errors
-      '@rail402/facilitator':
+      '@rail402.dev/facilitator':
         specifier: workspace:*
         version: link:../facilitator
-      '@rail402/scheme-upto-stellar':
+      '@rail402.dev/scheme-upto-stellar':
         specifier: workspace:*
         version: link:../../packages/scheme-upto-stellar
-      '@rail402/seller-helpers':
+      '@rail402.dev/seller-helpers':
         specifier: workspace:*
         version: link:../../packages/seller-helpers
       '@stellar/stellar-sdk':
@@ -273,13 +298,13 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.0
         version: 1.30.0(zod@4.4.3)
-      '@rail402/agent-helpers':
+      '@rail402.dev/agent-helpers':
         specifier: workspace:*
         version: link:../../packages/agent-helpers
-      '@rail402/mcp-discovery':
+      '@rail402.dev/mcp-discovery':
         specifier: workspace:*
         version: link:../../apps/mcp-discovery
-      '@rail402/seller-helpers':
+      '@rail402.dev/seller-helpers':
         specifier: workspace:*
         version: link:../../packages/seller-helpers
       '@stellar/stellar-sdk':
@@ -313,7 +338,7 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.0
         version: 1.30.0(zod@4.4.3)
-      '@rail402/seller-helpers':
+      '@rail402.dev/seller-helpers':
         specifier: workspace:*
         version: link:../../packages/seller-helpers
       '@x402/core':
@@ -372,10 +397,10 @@ importers:
 
   packages/agent-helpers:
     dependencies:
-      '@rail402/errors':
+      '@rail402.dev/errors':
         specifier: workspace:*
         version: link:../errors
-      '@rail402/scheme-upto-stellar':
+      '@rail402.dev/scheme-upto-stellar':
         specifier: workspace:*
         version: link:../scheme-upto-stellar
       '@x402/core':
@@ -403,13 +428,13 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.0
         version: 1.30.0(zod@4.4.3)
-      '@rail402/bazaar':
+      '@rail402.dev/bazaar':
         specifier: workspace:*
         version: link:../../apps/bazaar
-      '@rail402/errors':
+      '@rail402.dev/errors':
         specifier: workspace:*
         version: link:../errors
-      '@rail402/mcp-discovery':
+      '@rail402.dev/mcp-discovery':
         specifier: workspace:*
         version: link:../../apps/mcp-discovery
       '@stellar/stellar-sdk':
@@ -460,7 +485,7 @@ importers:
 
   packages/scheme-upto-stellar:
     dependencies:
-      '@rail402/errors':
+      '@rail402.dev/errors':
         specifier: workspace:*
         version: link:../errors
       '@stellar/stellar-sdk':
@@ -482,7 +507,7 @@ importers:
 
   packages/seller-helpers:
     dependencies:
-      '@rail402/errors':
+      '@rail402.dev/errors':
         specifier: workspace:*
         version: link:../errors
       '@stellar/stellar-sdk':

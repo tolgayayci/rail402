@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 
 /**
  * Session permalinks: a browser posts its activity feed (payments, refusals, receipts — all

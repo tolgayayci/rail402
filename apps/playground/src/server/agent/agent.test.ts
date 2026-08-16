@@ -10,7 +10,7 @@ const config = (): PlaygroundConfig =>
   loadConfig({ PLAYGROUND_DISPENSER_SECRET: SECRET } as NodeJS.ProcessEnv);
 
 describe("buildMcpConfig", () => {
-  it("emits the env var names @rail402/mcp-discovery actually reads", () => {
+  it("emits the env var names @rail402.dev/mcp-discovery actually reads", () => {
     const session = Keypair.random().secret();
     const { json } = buildMcpConfig(config(), session, 5_000_000n);
     const parsed = JSON.parse(json) as {

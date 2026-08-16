@@ -1,7 +1,7 @@
 import { x402Client } from "@x402/core/client";
 import { wrapFetchWithPayment } from "@x402/fetch";
 import { createEd25519Signer } from "@x402/stellar";
-import { UptoStellarClientScheme } from "@rail402/scheme-upto-stellar";
+import { UptoStellarClientScheme } from "@rail402.dev/scheme-upto-stellar";
 import { txUrl } from "./format.js";
 import type { Session } from "./session.js";
 

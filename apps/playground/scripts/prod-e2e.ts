@@ -3,7 +3,7 @@
  * prod URL, so the session is funded by the deployed dispenser and the payment settles through the
  * deployed API + the public facilitator. Settles a real testnet transaction.
  *
- * Run:  PLAYGROUND_URL=https://… pnpm --filter @rail402/playground exec tsx scripts/prod-e2e.ts
+ * Run:  PLAYGROUND_URL=https://… pnpm --filter @rail402.dev/playground exec tsx scripts/prod-e2e.ts
  */
 import {
   createSession,

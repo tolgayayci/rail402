@@ -1,5 +1,5 @@
 import { Keypair, rpc } from "@stellar/stellar-sdk";
-import { uptoContractFor } from "@rail402/scheme-upto-stellar";
+import { uptoContractFor } from "@rail402.dev/scheme-upto-stellar";
 import { NETWORK, RPC_URL } from "../config.js";
 import type { PlaygroundConfig } from "../config.js";
 import {

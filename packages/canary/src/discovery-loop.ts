@@ -1,4 +1,4 @@
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import { CanaryRun, type CanaryReport } from "./report.js";
 import { callFacilitator, decodeExtensionResponses, reasonOf, stockBuyer } from "./payment.js";
 import { requireBazaarFacilitator } from "./supported.js";
@@ -9,6 +9,7 @@ import {
   type SyntheticSeller,
 } from "./seller.js";
 import { NETWORK, prepareFixtures, sleep } from "./testnet.js";
+import { startPublicHostProxy, type HostProxy } from "./host-proxy.js";
 
 /**
  * C-2 — the discovery-loop canary.
@@ -34,6 +35,12 @@ import { NETWORK, prepareFixtures, sleep } from "./testnet.js";
  */
 
 const AMOUNT = "2500000"; // 0.25 units at 7 decimals — atomic units, never a float.
+/**
+ * Synthetic public hostname the public-seller variant declares. A documentation domain (RFC 2606),
+ * so it is unmistakably a test identity, yet a legitimately public hostname the host-policy accepts.
+ * The seller is still served on loopback behind ./host-proxy.ts — only the declared identity is public.
+ */
+const PUBLIC_SELLER_HOST = "canary-seller.example.com";
 const INDEXING_DEADLINE_MS = 30_000;
 const INDEXING_POLL_MS = 250;
 /** How deep in the ranked results the resource may sit before we call retrieval broken. */
@@ -43,6 +50,13 @@ export interface DiscoveryLoopOptions {
   readonly facilitatorUrl: string;
   readonly runId: string;
   readonly log?: (line: string) => void;
+  /**
+   * Front the stock localhost seller with a public hostname (a cloudflared quick tunnel) so a
+   * DEPLOYED facilitator will catalog it. Off by default: a production instance soft-drops loopback
+   * `resource.url`s, so the plain loop only proves cataloging against a facilitator started with
+   * `BAZAAR_ALLOW_PRIVATE_HOSTS=1`. Needs the `cloudflared` binary; see ./tunnel.ts.
+   */
+  readonly publicSeller?: boolean;
 }
 
 interface DiscoveryResource {
@@ -60,6 +74,7 @@ export async function runDiscoveryLoop(options: DiscoveryLoopOptions): Promise<C
     options.log ?? (line => console.error(line)),
   );
   let seller: SyntheticSeller | undefined;
+  let proxy: HostProxy | undefined;
 
   try {
     // ── Is there anything to test? ──────────────────────────────────────────
@@ -93,11 +108,34 @@ export async function runDiscoveryLoop(options: DiscoveryLoopOptions): Promise<C
       })
     ).s;
 
+    // The URL the buyer will fetch. In public mode it goes through a local Host-rewriting proxy so
+    // the stock seller declares a PUBLIC resource identity (see ./host-proxy.ts) that a production
+    // facilitator will catalog — the seller itself is unchanged, still bound to loopback.
+    let buyerUrl = seller.resourceUrl;
+    if (options.publicSeller) {
+      const sellerPort = Number(new URL(seller.resourceUrl).port);
+      const fronted = await run.step("public-host", async () => {
+        const p = await startPublicHostProxy(sellerPort, PUBLIC_SELLER_HOST);
+        // Keep the seller's own path and query; only route the buyer through the proxy in front of it.
+        const href = new URL(seller!.resourceUrl);
+        const via = new URL(p.url);
+        href.protocol = via.protocol;
+        href.host = via.host;
+        return {
+          detail: `${PUBLIC_SELLER_HOST} → 127.0.0.1:${sellerPort}`,
+          p,
+          href: href.toString(),
+        };
+      });
+      proxy = fronted.p;
+      buyerUrl = fronted.href;
+    }
+
     // `@x402/core` + `@x402/stellar` as published — the buyer is stock all the way down.
     const buyer = stockBuyer(fixtures.f.buyer.secret());
 
     const payment = await run.step("payload-built", async () => {
-      const built = await buyer.pay(seller!.resourceUrl);
+      const built = await buyer.pay(buyerUrl);
       if (!built.payload.extensions?.["bazaar"]) {
         throw new X402Error("canary_setup_failed", {
           reason:
@@ -106,6 +144,18 @@ export async function runDiscoveryLoop(options: DiscoveryLoopOptions): Promise<C
       }
       return { detail: "stock client, discovery extension present", ...built };
     });
+
+    // The key the facilitator will actually catalog is the resource URL in the requirements it just
+    // returned — origin + path, no query. In localhost mode that equals seller.catalogKey exactly; in
+    // public mode it is the tunnel-derived public URL, and deriving it from the payload keeps the
+    // assertions in lockstep with whatever scheme the seller chose behind the tunnel instead of
+    // guessing. Localhost mode stays byte-identical by keeping seller.catalogKey there.
+    // The facilitator catalogs `paymentPayload.resource.url` (apps/bazaar/src/app.ts) — the resource
+    // the seller declared in its 402 and the stock client echoed back — as origin + path.
+    const declaredResourceUrl = (payment.payload as { resource?: { url?: string } }).resource?.url;
+    const catalogKey = options.publicSeller
+      ? catalogKeyFromResource(declaredResourceUrl, seller.catalogKey)
+      : seller.catalogKey;
 
     // ── verify / settle ─────────────────────────────────────────────────────
     await run.step("verify", async () => {
@@ -135,11 +185,11 @@ export async function runDiscoveryLoop(options: DiscoveryLoopOptions): Promise<C
           network: NETWORK,
           type: "http",
         })
-      ).find(r => r.resource === seller!.catalogKey);
+      ).find(r => r.resource === catalogKey);
       if (!found) {
         throw new X402Error("canary_resource_not_indexed", {
-          reason: `${seller!.catalogKey} verified but did not appear provisionally in GET /discovery/resources before settlement (hybrid cataloging).`,
-          details: { resource: seller!.catalogKey, phase: "post-verify-pre-settle" },
+          reason: `${catalogKey} verified but did not appear provisionally in GET /discovery/resources before settlement (hybrid cataloging).`,
+          details: { resource: catalogKey, phase: "post-verify-pre-settle" },
         });
       }
       // Provisional entries must not carry a settlement signal yet — settlement is what earns rank.
@@ -147,7 +197,7 @@ export async function runDiscoveryLoop(options: DiscoveryLoopOptions): Promise<C
       if (settlements !== 0) {
         throw new X402Error("canary_resource_not_indexed", {
           reason: `The provisional listing already shows ${settlements} settlement(s) before settling — a verify-time entry must carry zero ranking signal.`,
-          details: { resource: seller!.catalogKey, totalSettlements: settlements },
+          details: { resource: catalogKey, totalSettlements: settlements },
         });
       }
       return { detail: "discoverable provisionally after verify, before settle (0 signals)" };
@@ -208,7 +258,7 @@ export async function runDiscoveryLoop(options: DiscoveryLoopOptions): Promise<C
             network: NETWORK,
             type: "http",
           })
-        ).find(r => r.resource === seller!.catalogKey);
+        ).find(r => r.resource === catalogKey);
 
         if (found) {
           const lagMs = Date.now() - settled.settledAt;
@@ -218,8 +268,8 @@ export async function runDiscoveryLoop(options: DiscoveryLoopOptions): Promise<C
         }
         if (Date.now() >= deadline) {
           throw new X402Error("canary_resource_not_indexed", {
-            reason: `${seller!.catalogKey} settled successfully but never appeared in GET /discovery/resources within ${INDEXING_DEADLINE_MS}ms.`,
-            details: { resource: seller!.catalogKey, deadlineMs: INDEXING_DEADLINE_MS, polls },
+            reason: `${catalogKey} settled successfully but never appeared in GET /discovery/resources within ${INDEXING_DEADLINE_MS}ms.`,
+            details: { resource: catalogKey, deadlineMs: INDEXING_DEADLINE_MS, polls },
           });
         }
         await sleep(INDEXING_POLL_MS);
@@ -239,7 +289,7 @@ export async function runDiscoveryLoop(options: DiscoveryLoopOptions): Promise<C
 
     await run.step("ranked", async () => {
       const results = await searchResources(options.facilitatorUrl, KNOWN_QUERY);
-      const rank = results.findIndex(r => r.resource === seller!.catalogKey) + 1;
+      const rank = results.findIndex(r => r.resource === catalogKey) + 1;
       if (rank === 0 || rank > RANK_CEILING) {
         throw new X402Error("canary_resource_not_ranked", {
           reason:
@@ -255,13 +305,25 @@ export async function runDiscoveryLoop(options: DiscoveryLoopOptions): Promise<C
       return { detail: `rank ${rank} of ${results.length} for "${KNOWN_QUERY}"` };
     });
 
-    run.observe("resource", seller.catalogKey);
+    run.observe("resource", catalogKey);
     return run.finish();
   } catch (error) {
     run.observe("resource", seller?.catalogKey ?? null);
     return run.finish(error);
   } finally {
+    await proxy?.close();
     await seller?.close();
+  }
+}
+
+/** Origin + path of the resource URL the payload declared — the exact key the facilitator catalogs. */
+function catalogKeyFromResource(resource: string | undefined, fallback: string): string {
+  if (!resource) return fallback;
+  try {
+    const url = new URL(resource);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return fallback;
   }
 }
 

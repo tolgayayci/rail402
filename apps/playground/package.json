@@ -1,5 +1,5 @@
 {
-  "name": "@rail402/playground",
+  "name": "@rail402.dev/playground",
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
@@ -20,6 +20,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:browser-bundle": "node bundle/build-browser-bundle.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "dev": "tsx watch src/server/index.ts",
@@ -27,11 +28,12 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@rail402/agent-helpers": "workspace:*",
-    "@rail402/facilitator": "workspace:*",
-    "@rail402/errors": "workspace:*",
-    "@rail402/scheme-upto-stellar": "workspace:*",
-    "@rail402/seller-helpers": "workspace:*",
+    "@rail402.dev/agent-helpers": "workspace:*",
+    "@rail402.dev/bazaar": "workspace:*",
+    "@rail402.dev/facilitator": "workspace:*",
+    "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/scheme-upto-stellar": "workspace:*",
+    "@rail402.dev/seller-helpers": "workspace:*",
     "@x402/core": "2.20.0",
     "@x402/extensions": "2.20.0",
     "@x402/fetch": "2.20.0",

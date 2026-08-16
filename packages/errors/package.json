@@ -1,7 +1,6 @@
 {
-  "name": "@rail402/errors",
+  "name": "@rail402.dev/errors",
   "version": "0.1.0",
-  "private": true,
   "license": "Apache-2.0",
   "description": "Shared machine-readable error registry for the facilitator, Bazaar, and MCP server.",
   "type": "module",
@@ -14,7 +13,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "NOTICE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -26,5 +26,17 @@
   "devDependencies": {
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/x402-stellar.git",
+    "directory": "packages/errors"
+  },
+  "homepage": "https://rail402.dev",
+  "bugs": {
+    "url": "https://github.com/tolgayayci/x402-stellar/issues"
   }
 }

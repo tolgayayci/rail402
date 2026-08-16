@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createError } from "@rail402/errors";
+import { createError } from "@rail402.dev/errors";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import type { CatalogStore } from "./catalog/store.js";
 import type { DomainVerifier } from "./catalog/domain.js";
@@ -11,7 +11,8 @@ import { entryKey, type DiscoveryFilters } from "./catalog/types.js";
  * Bazaar HTTP surface.
  *
  * `GET /discovery/resources` and `GET /discovery/search` follow the extension spec
- * (`specs/extensions/bazaar.md` @ 3df52239) and, more importantly, follow what stock SDK clients
+ * (`specs/extensions/bazaar.md` @ 6b04d5e8) and, more
+ * importantly, follow what stock SDK clients
  * actually parse — the two endpoints differ in array key and pagination style, and getting that
  * backwards breaks `withBazaar()` silently.
  */

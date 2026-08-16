@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import pino from "pino";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 import { ExplorerStore } from "./db.js";
 import { FacilitatorRegistry, parseSupported, slugForUrl } from "./registry.js";
 import type { FetchLike } from "./rpc.js";

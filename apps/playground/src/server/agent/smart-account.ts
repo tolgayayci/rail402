@@ -33,8 +33,13 @@ export const OZ_ACCOUNT_WASM_HASH =
   "c09cac4623692cd62f700c5703f5cf48988bdff74074baa702e0fc7e3355b24f";
 /** OpenZeppelin ed25519 verifier. Stateless, immutable, shared. */
 export const OZ_ED25519_VERIFIER = "CCC4DCEZYW2GLEF2JCASZASC34AH4VHR2KISPODRQDC6D37SBRFSLEWP";
-/** Our x402 spending policy (carries `release` for upto reconciliation). */
-export const X402_POLICY = "CC34LRGI3NHGY7H4BZW4YXXZ7PJRVXMSMHXUSXHA2TZW3UN4UBOFIFEC";
+/**
+ * Our x402 spending policy (carries `release` for upto reconciliation, plus the `extend_ttl`
+ * refresh from audit item S6). This is the CURRENT deployment, matching the canary's
+ * `oz-constants.ts` and the `contracts/agent-policy` source; it supersedes the older
+ * `CC34LRGI…` build, which lacked the TTL refresh.
+ */
+export const X402_POLICY = "CC3XJMYTTLQNDHOQHNQPQWLRIABQDUQBNJQKED7D67A3RMLGVQHF7LEC";
 
 const MAX_TIMEOUT_SECONDS = 60;
 const AUTH_LEDGERS = Math.ceil(MAX_TIMEOUT_SECONDS / 5);
@@ -174,6 +179,49 @@ export async function signAsAccount(
 }
 
 /** Add a scoped context rule carrying the spending policy with a budget. Returns the rule id. */
+/**
+ * Sign an account-authorized administration call (via the owner rule 0), then submit it directly —
+ * NOT through the facilitator, because these are account management, not x402 payments. The session
+ * key signs the auth the account requires; the funder sources the transaction and pays the fee.
+ * Shared by `addPolicyRule` and `setSpendingLimit`.
+ */
+async function submitAsAccount(
+  config: SmartAccountConfig,
+  args: { source: Keypair; account: string; session: Keypair; op: xdr.Operation; label: string },
+): Promise<rpc.Api.GetSuccessfulTransactionResponse> {
+  const { server, verifier } = config;
+  const signed = await signAsAccount(server, {
+    source: args.source,
+    account: args.account,
+    session: args.session,
+    ruleIds: [0],
+    verifier,
+    op: args.op,
+  });
+  if (!signed.ok) throw new Error(`${args.label} failed: ${signed.error}`);
+
+  const acct = await server.getAccount(args.source.publicKey());
+  const carried = TransactionBuilder.fromXDR(signed.xdr, NETWORK_PASSPHRASE) as Transaction;
+  const carriedOp = carried.operations[0] as Operation.InvokeHostFunction;
+  const resend = new TransactionBuilder(acct, { fee: SETUP_FEE, networkPassphrase: NETWORK_PASSPHRASE })
+    .addOperation(Operation.invokeHostFunction({ func: carriedOp.func, auth: carriedOp.auth ?? [] }))
+    .setTimeout(60)
+    .build();
+  const resim = await server.simulateTransaction(resend);
+  if (rpc.Api.isSimulationError(resim)) {
+    throw new Error(`${args.label} failed: ${resim.error.split("\n")[0]}`);
+  }
+  const ready = rpc.assembleTransaction(resend, resim).build();
+  ready.sign(args.source);
+  const sent = await server.sendTransaction(ready);
+  const done = await settled(server, sent.hash);
+  if (done.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
+    throw new Error(`${args.label} did not succeed.`);
+  }
+  return done;
+}
+
+/** Add a scoped context rule carrying the spending policy with a budget. Returns the rule id. */
 export async function addPolicyRule(
   config: SmartAccountConfig,
   args: {
@@ -186,7 +234,7 @@ export async function addPolicyRule(
     periodLedgers: number;
   },
 ): Promise<number> {
-  const { server, verifier, policy } = config;
+  const { verifier, policy } = config;
   const policyParams = xdr.ScVal.scvMap([
     new xdr.ScMapEntry({
       key: xdr.ScVal.scvSymbol("period_ledgers"),
@@ -201,12 +249,11 @@ export async function addPolicyRule(
     new xdr.ScMapEntry({ key: new Address(policy).toScVal(), val: policyParams }),
   ]);
 
-  const signedRule = await signAsAccount(server, {
+  const done = await submitAsAccount(config, {
     source: args.source,
     account: args.account,
     session: args.session,
-    ruleIds: [0],
-    verifier,
+    label: `Adding the ${args.name} rule`,
     op: new Contract(args.account).call(
       "add_context_rule",
       xdr.ScVal.scvVec([xdr.ScVal.scvSymbol("CallContract"), new Address(args.target).toScVal()]),
@@ -216,29 +263,38 @@ export async function addPolicyRule(
       policiesMap,
     ),
   });
-  if (!signedRule.ok) throw new Error(`Adding the ${args.name} rule failed: ${signedRule.error}`);
-
-  // Administration is not a payment, so it is submitted directly (not through the facilitator).
-  const acct = await server.getAccount(args.source.publicKey());
-  const carried = TransactionBuilder.fromXDR(signedRule.xdr, NETWORK_PASSPHRASE) as Transaction;
-  const carriedOp = carried.operations[0] as Operation.InvokeHostFunction;
-  const resend = new TransactionBuilder(acct, { fee: SETUP_FEE, networkPassphrase: NETWORK_PASSPHRASE })
-    .addOperation(Operation.invokeHostFunction({ func: carriedOp.func, auth: carriedOp.auth ?? [] }))
-    .setTimeout(60)
-    .build();
-  const resim = await server.simulateTransaction(resend);
-  if (rpc.Api.isSimulationError(resim)) {
-    throw new Error(`Adding the ${args.name} rule failed: ${resim.error.split("\n")[0]}`);
-  }
-  const ready = rpc.assembleTransaction(resend, resim).build();
-  ready.sign(args.source);
-  const sent = await server.sendTransaction(ready);
-  const done = await settled(server, sent.hash);
-  if (done.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
-    throw new Error(`Adding the ${args.name} rule did not succeed.`);
-  }
   // Rule ids keep incrementing; read the id the account assigned rather than assuming.
   return Number((scValToNative(done.returnValue!) as { id: number | bigint }).id);
+}
+
+/**
+ * Change a rule's spending limit on-ledger. The policy requires the SMART ACCOUNT's own
+ * authorization (owner rule 0), so an agent holding only a scoped session key cannot raise its own
+ * budget — that authority stays with the account owner. This is what makes "raise the budget and
+ * retry" a real, on-ledger change in the lab, not a server-side fiction.
+ */
+export async function setSpendingLimit(
+  config: SmartAccountConfig,
+  args: {
+    source: Keypair;
+    account: string;
+    session: Keypair;
+    ruleId: number;
+    spendingLimitStroops: bigint;
+  },
+): Promise<void> {
+  await submitAsAccount(config, {
+    source: args.source,
+    account: args.account,
+    session: args.session,
+    label: "Changing the spending limit",
+    op: new Contract(config.policy).call(
+      "set_spending_limit",
+      nativeToScVal(args.ruleId, { type: "u32" }),
+      new Address(args.account).toScVal(),
+      nativeToScVal(args.spendingLimitStroops.toString(), { type: "i128" }),
+    ),
+  });
 }
 
 /** Deploy a fresh OZ smart account whose only signer is `session`. Returns its C-address. */
@@ -263,24 +319,34 @@ export async function deployAccount(
   return Address.fromScVal(res.returnValue!).toString();
 }
 
-/** Read a rule's committed spend from the on-ledger policy (a simulation, not a write). */
+/**
+ * Read a rule's committed spend from the on-ledger policy by SIMULATING `get_policy_data` — a
+ * read-only call that returns the value without sending a transaction. Simulation (not `submit`)
+ * matters here: `submit` consumes the source account's sequence number, so two reads in parallel
+ * from the same funder collide; simulations send nothing and are safely concurrent, and they cost
+ * no fee.
+ */
 export async function readBudgetSpent(
   config: SmartAccountConfig,
   args: { source: Keypair; account: string; ruleId: number },
 ): Promise<{ totalSpent: bigint; spendingLimit: bigint }> {
-  const res = await submit(
-    config.server,
-    args.source,
-    new Contract(config.policy).call(
-      "get_policy_data",
-      nativeToScVal(args.ruleId, { type: "u32" }),
-      new Address(args.account).toScVal(),
-    ),
-  );
-  if (res.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
+  const { server } = config;
+  const source = await server.getAccount(args.source.publicKey());
+  const tx = new TransactionBuilder(source, { fee: SETUP_FEE, networkPassphrase: NETWORK_PASSPHRASE })
+    .addOperation(
+      new Contract(config.policy).call(
+        "get_policy_data",
+        nativeToScVal(args.ruleId, { type: "u32" }),
+        new Address(args.account).toScVal(),
+      ),
+    )
+    .setTimeout(60)
+    .build();
+  const sim = await server.simulateTransaction(tx);
+  if (rpc.Api.isSimulationError(sim) || !sim.result) {
     throw new Error("Reading the policy budget failed.");
   }
-  const data = scValToNative(res.returnValue!) as { total_spent: bigint; spending_limit: bigint };
+  const data = scValToNative(sim.result.retval) as { total_spent: bigint; spending_limit: bigint };
   return { totalSpent: BigInt(data.total_spent), spendingLimit: BigInt(data.spending_limit) };
 }
 

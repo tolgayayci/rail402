@@ -6,7 +6,7 @@
  * and getting the unused upto ceiling refunded. Prints every event and asserts the load-bearing
  * beats. Slow (~60-90s, several settlements).
  *
- * Run:  pnpm --filter @rail402/playground exec tsx scripts/agent-e2e.ts
+ * Run:  pnpm --filter @rail402.dev/playground exec tsx scripts/agent-e2e.ts
  * Needs .env.testnet with CLIENT_STELLAR_PRIVATE_KEY holding testnet USDC (the dispenser/funder).
  */
 import { readFileSync } from "node:fs";

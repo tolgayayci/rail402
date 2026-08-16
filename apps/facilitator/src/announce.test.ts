@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
 import { startExplorerAnnounce } from "./announce.js";
 import { loadConfig } from "./config/env.js";
-import { X402Error } from "@rail402/errors";
+import { X402Error } from "@rail402.dev/errors";
 
 const silent = { info: () => {}, debug: () => {} };
 

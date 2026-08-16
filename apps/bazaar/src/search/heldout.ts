@@ -268,6 +268,9 @@ export const HELD_OUT_LARGE_THRESHOLDS = {
   // LOCKED slice actually improved sharply (p@1 50% -> 80%, nDCG 0.701 -> 0.822); only the narrow DEV
   // slice fell (recall@5 0.60, MRR 0.433, nDCG 0.482), and these floors sit just under it. Prior BM25
   // baseline for the record: dev 30% / r@5 0.75 / MRR 0.490 / nDCG 0.562.
+  // NB (2026-08-16 re-run): the narrow LOCKED p@1 above re-ran at 60% (nDCG 0.688), not 80% — a
+  // 2-query move inside a wide n=10 CI, i.e. noise. The 0.25 floor is set well below either figure
+  // on purpose; do not read the 80% as a stable number. Grow this slice before tuning against it.
   precisionAt1: 0.25,
   recallAt5: 0.55,
   mrr: 0.4,
@@ -306,7 +309,7 @@ export const HELD_OUT_LARGE_THRESHOLDS = {
  * locked 43.6% / 62.3% / 0.554 / 0.575; per-query sign test p ≈ 0.003 (40 better, 17 worse, 50 ties).
  *
  * That hybrid-vs-BM25 comparison is now REPRODUCIBLE, not just recorded: `pnpm --filter
- * @rail402/bazaar ablation` (`ablation.ts`) re-runs it against whatever the corpus and judgment set
+ * @rail402.dev/bazaar ablation` (`ablation.ts`) re-runs it against whatever the corpus and judgment set
  * currently are. On the 202-judgment set it reports BM25 MRR 0.554 / nDCG 0.520 -> hybrid 0.624 /
  * 0.594, per-query 82 better / 54 worse / 66 ties, two-sided sign test p = 0.020 — still significant,
  * and honestly weaker than the 107-set's 0.003 because the added queries are harder and noisier.

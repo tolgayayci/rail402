@@ -8,7 +8,7 @@ import { computeMetrics, type Judgment, type QueryResult } from "./metrics.js";
  *
  * `heldout.ts` states the hybrid arm beats pure BM25 with a per-query sign test of p ≈ 0.003, but for
  * a long time no script reproduced it — a claim in a comment is a claim, not evidence. This is the
- * script. `pnpm --filter @rail402/bazaar ablation` re-runs it against whatever the corpus and the
+ * script. `pnpm --filter @rail402.dev/bazaar ablation` re-runs it against whatever the corpus and the
  * broad judgment set currently are, so the number in that comment can be checked rather than trusted.
  *
  * It compares the two RETRIEVERS directly (not through the store), so the quality multiplier and the
@@ -94,7 +94,7 @@ function run(): void {
   console.log(`\n${p < 0.05 ? "SIGNIFICANT" : "not significant"} at α=0.05 — ${better > worse ? "hybrid" : "BM25"} is ahead.`);
 }
 
-// CLI: `pnpm --filter @rail402/bazaar ablation`
+// CLI: `pnpm --filter @rail402.dev/bazaar ablation`
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop() ?? " ")) {
   run();
 }

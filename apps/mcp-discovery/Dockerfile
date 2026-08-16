@@ -17,10 +17,10 @@ COPY scripts ./scripts
 # `--frozen-lockfile` so the image can never resolve a different dependency tree than the one the
 # licence gate scanned.
 RUN pnpm install --frozen-lockfile --ignore-scripts
-# `...` builds this package's workspace dependencies too (@rail402/agent-helpers, errors,
+# `...` builds this package's workspace dependencies too (@rail402.dev/agent-helpers, errors,
 # scheme-upto-stellar). No copy-weights step here — the search embedding blob lives in the Bazaar, not
 # in this server.
-RUN pnpm --filter @rail402/mcp-discovery... build
+RUN pnpm --filter @rail402.dev/mcp-discovery... build
 
 FROM node:24-slim
 WORKDIR /app

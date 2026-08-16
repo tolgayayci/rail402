@@ -7,7 +7,7 @@ import { stroopsToDisplay } from "../../shared/amounts.js";
  * same discover→pay loop into Claude Code, Cursor, or any MCP client, using the user's session
  * wallet and the same spend cap.
  *
- * Env var names are exactly what `@rail402/mcp-discovery` reads (`BAZAAR_URL`,
+ * Env var names are exactly what `@rail402.dev/mcp-discovery` reads (`BAZAAR_URL`,
  * `CLIENT_STELLAR_PRIVATE_KEY`, `STELLAR_NETWORK`, `MAX_AMOUNT_CEILING`). The package is reserved
  * but not yet published, so the command is the intended published form and `note` says so.
  *
@@ -32,7 +32,7 @@ export function buildMcpConfig(
     mcpServers: {
       "rail402-stellar": {
         command: "npx",
-        args: ["-y", "@rail402/mcp-discovery"],
+        args: ["-y", "@rail402.dev/mcp-discovery"],
         env,
       },
     },
@@ -41,6 +41,6 @@ export function buildMcpConfig(
     json: JSON.stringify(mcp, null, 2),
     warning:
       "This is a testnet key generated in your browser. It holds only test USDC and XLM. Do not reuse it for real funds.",
-    note: "@rail402/mcp-discovery is not published to npm yet; until it is, run it from a clone: replace command/args with node and the path to apps/mcp-discovery/dist/index.js.",
+    note: "@rail402.dev/mcp-discovery is not published to npm yet; until it is, run it from a clone: replace command/args with node and the path to apps/mcp-discovery/dist/index.js.",
   };
 }

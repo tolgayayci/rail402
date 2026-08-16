@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { X402Error, type ErrorCode, type X402ErrorPayload } from "@rail402/errors";
+import { X402Error, type ErrorCode, type X402ErrorPayload } from "@rail402.dev/errors";
 
 /**
  * Canary reporting.

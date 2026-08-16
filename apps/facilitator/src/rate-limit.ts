@@ -1,6 +1,6 @@
 import type { Context, Next } from "hono";
 import { getConnInfo } from "@hono/node-server/conninfo";
-import { createError, type ErrorCode } from "@rail402/errors";
+import { createError, type ErrorCode } from "@rail402.dev/errors";
 
 /**
  * Caller identification and fixed-window rate limiting, extracted from the app factory so other
