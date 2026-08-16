@@ -54,7 +54,7 @@ const ci = (p: number, n: number) => {
 
 interface Row {
   slice: string;
-  kind: "gold" | "silver";
+  kind: string;
   corpus: number;
   m: Metrics;
 }
@@ -72,8 +72,11 @@ const rawSilver = JSON.parse(readFileSync(join(DERIVED, "silver-judgments.json")
   query: string;
   relevant: string[];
 }[];
+// SILVER_LIMIT caps the silver slice for fast iteration (the JSON is hash-ordered, so a prefix is a
+// stable sample). Unset = all of them for the published number.
+const silverCap = Number(process.env.SILVER_LIMIT) || rawSilver.length;
 // The called function is the clearly-best answer -> grade 3.
-const silverJudgments: Judgment[] = rawSilver.map(j => ({
+const silverJudgments: Judgment[] = rawSilver.slice(0, silverCap).map(j => ({
   query: j.query,
   relevant: j.relevant,
   grades: Object.fromEntries(j.relevant.map(r => [r, 3])),
@@ -82,11 +85,33 @@ const silverJudgments: Judgment[] = rawSilver.map(j => ({
 const REAL = HELD_OUT_CORPUS_LARGE;
 const FULL = [...REAL, ...silverCorpus];
 
+// Gold-DERIVED slices — same human relevance labels, different query WORDING, to measure the query
+// shapes the natural-language gold set lacks. Relevance is inherited from the gold judgments (nothing
+// fabricated); only the phrasing changes. Honest robustness slices, labelled `derived`.
+const byKey = new Map(REAL.map(e => [entryKey(e.resource, undefined), e]));
+/** Keyword phrasing: query = the relevant service's own name (does an agent find it by name at scale?). */
+function keywordize(j: Judgment): Judgment | undefined {
+  const first = j.relevant[0];
+  const name = first ? byKey.get(first)?.serviceName : undefined;
+  return name ? { query: name, relevant: j.relevant, ...(j.grades ? { grades: j.grades } : {}) } : undefined;
+}
+/** Typo phrasing: swap two adjacent letters in every third word of the original query. Deterministic. */
+function mistype(w: string): string {
+  return w.length < 5 ? w : w.slice(0, 2) + w[3] + w[2] + w.slice(4);
+}
+function typoize(j: Judgment): Judgment {
+  const q = j.query.split(/\s+/).map((w, i) => (i % 3 === 0 ? mistype(w) : w)).join(" ");
+  return { query: q, relevant: j.relevant, ...(j.grades ? { grades: j.grades } : {}) };
+}
+const keywordSlice = HELD_OUT_BROAD_LOCKED.map(keywordize).filter((j): j is Judgment => j !== undefined);
+const typoSlice = HELD_OUT_BROAD_LOCKED.map(typoize);
+
 const rows: Row[] = [
   { slice: "gold · locked", kind: "gold", corpus: REAL.length, m: scoreOn(REAL, HELD_OUT_BROAD_LOCKED) },
   { slice: "gold · locked", kind: "gold", corpus: FULL.length, m: scoreOn(FULL, HELD_OUT_BROAD_LOCKED) },
-  { slice: "gold · dev", kind: "gold", corpus: REAL.length, m: scoreOn(REAL, HELD_OUT_BROAD_DEV) },
   { slice: "gold · dev", kind: "gold", corpus: FULL.length, m: scoreOn(FULL, HELD_OUT_BROAD_DEV) },
+  { slice: "keyword", kind: "derived", corpus: FULL.length, m: scoreOn(FULL, keywordSlice) },
+  { slice: "typo", kind: "derived", corpus: FULL.length, m: scoreOn(FULL, typoSlice) },
   { slice: "silver · toolace", kind: "silver", corpus: FULL.length, m: scoreOn(FULL, silverJudgments) },
 ];
 

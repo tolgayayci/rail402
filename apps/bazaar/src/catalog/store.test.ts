@@ -90,3 +90,20 @@ describe("search index is robust to prototype-key terms", () => {
     expect(res.resources.some(r => r.resource === "https://seller.example/proto")).toBe(true);
   });
 });
+
+describe("search tolerates typos", () => {
+  it("finds a service when a query term is misspelled", () => {
+    const store = freshStore();
+    store.upsert(
+      entry("https://seller.example/weather", {
+        serviceName: "Weather Forecast",
+        description: "Current weather conditions and forecast for any city.",
+      }),
+    );
+    store.upsert(entry("https://seller.example/news", { serviceName: "News Feed", description: "Latest headlines." }));
+    store.reindex();
+    // "weather" transposed to "wetaher" — an unknown term that must be rescued to the indexed one.
+    const res = store.search("wetaher forecast", {}, 5);
+    expect(res.resources[0]?.resource).toBe("https://seller.example/weather");
+  });
+});

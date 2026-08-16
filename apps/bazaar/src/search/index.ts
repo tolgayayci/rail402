@@ -237,6 +237,27 @@ function collectSchemaText(schema: unknown, out: Array<[string, number]>, depth 
 const K1 = 1.5;
 const B = 0.6;
 
+/** True if `a` and `b` are within `max` edits (bounded Levenshtein; early-exits on the band). */
+function withinEdits(a: string, b: string, max: number): boolean {
+  const la = a.length, lb = b.length;
+  if (Math.abs(la - lb) > max) return false;
+  let prev = new Array<number>(lb + 1);
+  let cur = new Array<number>(lb + 1);
+  for (let j = 0; j <= lb; j++) prev[j] = j;
+  for (let i = 1; i <= la; i++) {
+    cur[0] = i;
+    let rowMin = cur[0];
+    for (let j = 1; j <= lb; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j]! + 1, cur[j - 1]! + 1, prev[j - 1]! + cost);
+      if (cur[j]! < rowMin) rowMin = cur[j]!;
+    }
+    if (rowMin > max) return false; // whole row already past the band — cannot recover
+    [prev, cur] = [cur, prev];
+  }
+  return prev[lb]! <= max;
+}
+
 export class Bm25Retriever implements Retriever {
   private docs = new Map<string, FieldedDoc>();
   private docFreq = new Map<string, number>();
@@ -272,9 +293,36 @@ export class Bm25Retriever implements Retriever {
     this.avgLength = this.docs.size === 0 ? 0 : total / this.docs.size;
   }
 
+
+  /**
+   * Map a misspelled query term to the nearest term actually in the index. A term the corpus never
+   * contains (df = 0) contributes nothing to BM25, so "wether forcast" retrieves nothing useful; an
+   * agent's typo should still find the service. Only unknown terms are rescued (a real term is left
+   * exactly as typed), the search is pruned hard (length band + first two characters, which typos
+   * rarely disturb), and ties go to the most common candidate — so the rescue is cheap and can only
+   * ADD a plausible match, never rewrite a term the corpus already knows.
+   */
+  private rescue(term: string): string | undefined {
+    if (term.length < 4) return undefined; // too short to disambiguate a typo from a different word
+    const maxDist = term.length >= 6 ? 2 : 1;
+    let best: string | undefined;
+    let bestDf = 0;
+    for (const [cand, df] of this.docFreq) {
+      if (Math.abs(cand.length - term.length) > maxDist) continue;
+      if (cand[0] !== term[0] || cand[1] !== term[1]) continue; // strong prune: first two chars stable
+      if (df > bestDf && withinEdits(term, cand, maxDist)) {
+        best = cand;
+        bestDf = df;
+      }
+    }
+    return best;
+  }
+
   search(query: string, candidates: readonly CatalogEntry[], limit: number): ScoredEntry[] {
-    const queryTerms = tokenize(query);
-    if (queryTerms.length === 0) return [];
+    const raw = tokenize(query);
+    if (raw.length === 0) return [];
+    // Rescue misspelled terms to the nearest indexed term so an agent's typo still retrieves.
+    const queryTerms = raw.map(t => (this.docFreq.has(t) ? t : this.rescue(t) ?? t));
 
     const n = Math.max(this.docs.size, 1);
     const scored: ScoredEntry[] = [];
