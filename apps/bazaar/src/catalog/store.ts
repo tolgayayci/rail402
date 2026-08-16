@@ -43,6 +43,15 @@ const SEARCH_CEILING = 200;
 const PROVISIONAL_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
+ * Backstop on the PROVISIONAL population. A provisional entry lives up to PROVISIONAL_TTL_MS, so a
+ * distributed `/verify` flood could grow memory between TTL sweeps. When provisionals exceed this cap
+ * the oldest are dropped (they are closest to expiry anyway). This ONLY ever evicts provisionals —
+ * a confirmed entry cost a real settlement and is never dropped here — so it changes no listing a
+ * seller paid for. Overridable per-instance for tests.
+ */
+const MAX_PROVISIONAL_ENTRIES = 10_000;
+
+/**
  * Declared retrieval method, published in every search response.
  *
  * Deliberately specific rather than aspirational: BM25 over weighted fields, fused by Reciprocal Rank
@@ -66,6 +75,8 @@ export class CatalogStore {
    * clock rather than evicted by wall-clock drift.
    */
   now: () => string = () => new Date().toISOString();
+  /** Provisional-population backstop; see MAX_PROVISIONAL_ENTRIES. Overridable so a test need not write 10k rows. */
+  maxProvisionalEntries = MAX_PROVISIONAL_ENTRIES;
   /**
    * Online-signal recorder. Optional so the store stays usable in tests and in the evaluation
    * harness without dragging behavioural state into a measurement that must be deterministic.
@@ -273,6 +284,7 @@ export class CatalogStore {
     };
     this.entries.set(key, provisional);
     this.dirty = true;
+    this.evictOverflowProvisionals();
     // Provisional entries are persisted too. They carry no rank and no ownership, so restoring one
     // grants nothing — and dropping them on restart would make a verify-then-settle that straddles a
     // deploy behave differently from one that does not.
@@ -289,6 +301,29 @@ export class CatalogStore {
         this.dirty = true;
         this.persist(e.resource, e.toolName);
       }
+    }
+  }
+
+  /**
+   * Bound the provisional population (G1). Excluding provisionals from browse (see `list`) stops a
+   * `/verify` flood polluting the catalog, but the entries still cost memory until their TTL; this
+   * caps how many can accumulate between sweeps. Drops the oldest provisionals first and NEVER touches
+   * a confirmed entry, so no settled listing is ever lost. Runs only when the map is over the cap, so
+   * it is free in normal operation. Mirrors `pruneProvisional`'s persist-on-delete (removes the row).
+   */
+  private evictOverflowProvisionals(): void {
+    if (this.entries.size <= this.maxProvisionalEntries) return;
+    const provisionals: [string, CatalogEntry][] = [];
+    for (const [key, e] of this.entries) if (e.provisional) provisionals.push([key, e]);
+    const overflow = provisionals.length - this.maxProvisionalEntries;
+    if (overflow <= 0) return;
+    provisionals.sort((a, b) => (a[1].provisionalUntil ?? "").localeCompare(b[1].provisionalUntil ?? ""));
+    for (let i = 0; i < overflow; i++) {
+      const [key, e] = provisionals[i]!;
+      this.entries.delete(key);
+      this.payers.delete(key);
+      this.dirty = true;
+      this.persist(e.resource, e.toolName);
     }
   }
 
@@ -345,6 +380,10 @@ export class CatalogStore {
     this.pruneProvisional(this.now());
     const lim = clamp(limit ?? DEFAULT_LIMIT, 1, MAX_LIMIT);
     const off = Math.max(0, Math.floor(offset ?? 0));
+    // Provisional entries deliberately appear here, flagged `provisional: true` on the wire, so a
+    // resource shows up "during payment verification" (what the e2e suite checks) while
+    // an agent can still tell it from a settled listing. Their flood risk is bounded by
+    // `evictOverflowProvisionals` (a count cap) and the TTL, not by hiding them.
     const filtered = this.filter(this.all(), filters);
 
     return {
