@@ -71,3 +71,22 @@ describe("provisional population backstop (G1)", () => {
     expect(store.get("https://seller.example/f0")).toBeUndefined();
   });
 });
+
+describe("search index is robust to prototype-key terms", () => {
+  // A listing whose text tokenizes to an inherited Object key (e.g. "constructor") used to crash the
+  // WHOLE index build: the synonym lookup returned the prototype method instead of undefined, and
+  // iterating it threw "not iterable" — one such term in any listing broke search for every query.
+  // Found by scale-testing the ranker over a 16k-document corpus.
+  it("indexes and searches a listing containing 'constructor' without throwing", () => {
+    const store = freshStore();
+    store.upsert(
+      entry("https://seller.example/proto", {
+        serviceName: "Widget constructor service",
+        description: "A constructor endpoint for weather forecast data.",
+      }),
+    );
+    expect(() => store.reindex()).not.toThrow();
+    const res = store.search("weather forecast", {}, 10);
+    expect(res.resources.some(r => r.resource === "https://seller.example/proto")).toBe(true);
+  });
+});

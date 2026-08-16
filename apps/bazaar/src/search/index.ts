@@ -132,7 +132,12 @@ const SYNONYM_WEIGHT = 0.45;
 
 /** Expand a set of document terms with their domain synonyms. */
 function expandTerms(term: string): string[] {
-  return SYNONYMS[term] ?? [];
+  // Own-property check, NOT `SYNONYMS[term] ?? []`: a document term equal to an inherited Object key
+  // ("toString", "constructor", "valueOf", "hasOwnProperty", …) would otherwise resolve to the
+  // prototype method — a truthy value, so `?? []` never fires — and iterating a function throws
+  // "not iterable". A single such term in ANY indexed listing would crash the whole index build for
+  // every query. Surfaced by scale-testing the ranker over a 16k-document corpus.
+  return Object.hasOwn(SYNONYMS, term) ? (SYNONYMS[term] ?? []) : [];
 }
 
 // ── Field weighting ──────────────────────────────────────────────────────────
