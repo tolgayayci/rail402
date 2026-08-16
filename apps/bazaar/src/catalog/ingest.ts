@@ -13,6 +13,7 @@ import type { TrustlineVerdict } from "./trustline.js";
 import type { CatalogAccepts, CatalogEntry, ResourceType } from "./types.js";
 import { budgetClientSchema } from "./schema-budget.js";
 import { checkResourceHost } from "./host-policy.js";
+import { isRouteTemplateSafe } from "./route-template.js";
 
 /**
  * Automatic cataloging — the facilitator is a trust boundary.
@@ -227,7 +228,11 @@ export function ingest(input: IngestInput): CatalogOutcome {
   // and we fall back to the concrete path rather than rejecting the whole listing (soft drop).
   const rawTemplate = (bazaar as Record<string, unknown>)["routeTemplate"];
   const templateProvided = typeof rawTemplate === "string" && rawTemplate.length > 0;
-  const templateValid = isValidRouteTemplate(templateProvided ? rawTemplate : undefined);
+  // The SDK's isValidRouteTemplate percent-decodes ONCE, so a double-encoded traversal (%252e%252e)
+  // slips past its check (upstream x402-foundation/x402#3169). AND it with our stricter repeated-decode
+  // check; when the SDK accepts a template our check rejects, we soft-drop it from the key below.
+  const templateSdkValid = isValidRouteTemplate(templateProvided ? rawTemplate : undefined);
+  const templateValid = templateSdkValid && isRouteTemplateSafe(rawTemplate);
 
   const discovered = extractDiscoveryInfo(paymentPayload, paymentRequirements);
   if (!discovered) {
@@ -250,7 +255,17 @@ export function ingest(input: IngestInput): CatalogOutcome {
   // origin + routeTemplate when a valid template is present, origin + pathname otherwise — so
   // resolving the incumbent from it is what makes the ownership check below actually cover the
   // write. Never derive this key any other way; see the `lookup` doc comment.
-  const resource = discovered.resourceUrl;
+  //
+  // One exception: the SDK bakes a template into resourceUrl using its ONE-decode validity check, so a
+  // double-encoded traversal it accepts but our stricter #3169 check rejects would poison the key.
+  // In exactly that gap, soft-drop the template — key on the concrete origin + path, which is what the
+  // SDK itself produces for a template it rejects. `resource` is the single value used for both the
+  // lookup and the write, so recomputing it here keeps the two keys identical by construction.
+  let resource = discovered.resourceUrl;
+  if (templateProvided && templateSdkValid && !templateValid) {
+    const u = new URL(url);
+    resource = u.origin + u.pathname;
+  }
   const existing = lookup?.(resource, toolName);
 
   // Reject non-CAIP-2 networks at ingest. The largest live Bazaar contains entries with `aws:base`
