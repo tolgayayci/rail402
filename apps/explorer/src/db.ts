@@ -917,6 +917,35 @@ export class ExplorerStore {
   }
 
   /**
+   * Make each facilitator's row id equal its canonical WELL_KNOWN identity, so one operator with
+   * more than one network deployment keeps a single id even if a stale or foreign row grabbed it
+   * first (e.g. the testnet `facilitator.rail402.dev` seeded on a pubnet explorer once held the
+   * `rail402` id, forcing our real pubnet facilitator to `rail402-2`). A canonical id currently
+   * held by a DIFFERENT base_url that has ZERO payments is a stale seed and is removed; one that
+   * has real payments is left untouched, never clobbered. Renames carry the facilitator's payments
+   * across. Idempotent: a no-op once every id already matches its canonical.
+   */
+  reconcileFacilitatorIds(canonicalOf: (baseUrl: string) => string): number {
+    let changed = 0;
+    for (const f of this.listFacilitators()) {
+      const canonical = canonicalOf(f.baseUrl);
+      if (f.id === canonical) continue;
+      const holder = this.getFacilitator(canonical);
+      if (holder && holder.baseUrl !== f.baseUrl) {
+        const n = this.db
+          .prepare("SELECT COUNT(*) AS c FROM payments WHERE facilitator_id = ?")
+          .get(canonical) as { c: number };
+        if (n.c > 0) continue; // real attributed traffic under this id — do not clobber it
+        this.db.prepare("DELETE FROM facilitators WHERE id = ?").run(canonical);
+      }
+      this.db.prepare("UPDATE payments SET facilitator_id = ? WHERE facilitator_id = ?").run(canonical, f.id);
+      this.db.prepare("UPDATE facilitators SET id = ? WHERE id = ?").run(canonical, f.id);
+      changed++;
+    }
+    return changed;
+  }
+
+  /**
    * Retroactively attribute already-stored payments to a facilitator whose signers just became
    * known. Rows are classified at ingest time, so traffic ingested before a facilitator was
    * registered stays `x402-shaped` forever otherwise — this closes that gap (e.g. adding a

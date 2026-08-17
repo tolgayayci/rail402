@@ -7,7 +7,7 @@ import { CatalogSync } from "./catalog-sync.js";
 import { createBazaarEnricher } from "./enrich.js";
 import { HorizonBackfill } from "./horizon.js";
 import { IngestWorker } from "./ingest.js";
-import { FacilitatorRegistry } from "./registry.js";
+import { FacilitatorRegistry, slugForUrl } from "./registry.js";
 
 /** Server entrypoint: config → store → registry → HTTP (bind first) → ingest. Fail-fast on bad config. */
 
@@ -23,6 +23,11 @@ const registry = new FacilitatorRegistry({
   auth: config.facilitatorAuth,
 });
 registry.seed();
+// Consolidate any facilitator whose stored id drifted from its canonical WELL_KNOWN identity — e.g.
+// a second-network deployment (our pubnet facilitator) that lost an id-dedup race to a stale
+// testnet row seeded here once. Idempotent, runs once per boot.
+const reconciled = store.reconcileFacilitatorIds(slugForUrl);
+if (reconciled > 0) logger.info({ reconciled }, "reconciled facilitator ids to canonical");
 
 let ingest: IngestWorker | undefined;
 let horizon: HorizonBackfill | undefined;
