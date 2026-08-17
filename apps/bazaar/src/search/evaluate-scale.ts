@@ -48,7 +48,7 @@ function wilson(k: number, n: number): [number, number] {
 
 const pct = (x: number) => (x * 100).toFixed(1) + "%";
 const ci = (p: number, n: number) => {
-  const [lo, hi] = wilson(Math.round(p * n), n);
+  const [lo, hi] = wilson(Math.floor(p * n + 0.5), n);
   return `[${pct(lo)}, ${pct(hi)}]`;
 };
 
