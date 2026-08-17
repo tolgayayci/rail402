@@ -48,8 +48,24 @@ Settling real payments on testnet today.</p>
 <p><small>Full site shortly.</small></p>
 </body></html>`;
 
+// The ecosystem report is a ~900KB static page. Serve it from the explorer's static host by proxy
+// rather than embedding it here — a large inline string would risk the exact cold-start failure
+// (error 1104 on the first request after idle) this Worker exists to avoid.
+const REPORT_URL = "https://explorer.rail402.dev/reports/state-of-x402-2026-08.html";
+
 export default {
-  fetch() {
+  async fetch(request) {
+    const { pathname } = new URL(request.url);
+    if (pathname === "/ecosystem" || pathname === "/ecosystem/") {
+      const upstream = await fetch(REPORT_URL, { cf: { cacheTtl: 300, cacheEverything: true } });
+      return new Response(upstream.body, {
+        status: upstream.ok ? 200 : 502,
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "public, max-age=300",
+        },
+      });
+    }
     return new Response(HTML, {
       headers: {
         "content-type": "text/html; charset=utf-8",
