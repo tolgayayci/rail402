@@ -41,7 +41,12 @@ describe("ranking quality gate", () => {
     // slices also carry "@2k" but score MCP tools, not the ERC20 siblings, so they must be routed
     // to their own floors BEFORE the generic @2k fallthrough.
     const thresholds: Record<string, number> =
-      name === "synthetic"
+      // The `@50` / `@100` slices are report-only distractor-scaling views (see evaluate.ts): the
+      // 20-document held-out floors do not apply to them, and gating a 50-doc slice on 20-doc
+      // numbers would fail the build permanently. Routed to no floors, BEFORE the generic fallthrough.
+      name.includes("@50") || name.includes("@100")
+        ? {}
+        : name === "synthetic"
         ? THRESHOLDS
         : name.startsWith("mcp")
           ? HELD_OUT_MCP_THRESHOLDS

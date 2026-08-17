@@ -78,6 +78,16 @@ export function evaluateAll(): SetResult[] {
     runSet("synthetic", CORPUS, JUDGMENTS),
     runSet("held-out · dev", HELD_OUT_CORPUS, HELD_OUT_DEV),
     runSet("held-out · locked", HELD_OUT_CORPUS, HELD_OUT_LOCKED),
+    // Distractor-scaling slices (REPORT-ONLY, no CI floors — see the threshold routing below and in
+    // ranking.test.ts). The SAME 20 held-out queries and relevance labels scored against 50 and 100
+    // documents. The 20 gold resources are the first 20 of the large corpus, so `.slice()` keeps
+    // every target and adds 30 / 80 real distractors, filling the low end of the 20 -> 2,000 ->
+    // 18,450 curve. The broad 202-judgment set is deliberately NOT scaled down here: it references
+    // 358 distinct target documents, which cannot fit inside a 50- or 100-document corpus.
+    runSet("held-out · dev @50", HELD_OUT_CORPUS_LARGE.slice(0, 50), HELD_OUT_DEV),
+    runSet("held-out · locked @50", HELD_OUT_CORPUS_LARGE.slice(0, 50), HELD_OUT_LOCKED),
+    runSet("held-out · dev @100", HELD_OUT_CORPUS_LARGE.slice(0, 100), HELD_OUT_DEV),
+    runSet("held-out · locked @100", HELD_OUT_CORPUS_LARGE.slice(0, 100), HELD_OUT_LOCKED),
     // Same queries, same relevance labels, 100x the distractors. This is the set that can actually
     // tell two rankers apart.
     runSet("held-out · dev @2k", HELD_OUT_CORPUS_LARGE, HELD_OUT_DEV),
@@ -154,7 +164,9 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
       }
     }
 
-    const thresholds = set.name === "synthetic"
+    const thresholds = set.name.includes("@50") || set.name.includes("@100")
+      ? {} // report-only distractor-scaling slices (see evaluateAll) — measured, never gated
+      : set.name === "synthetic"
       ? THRESHOLDS
       : set.name.startsWith("mcp")
         ? HELD_OUT_MCP_THRESHOLDS
