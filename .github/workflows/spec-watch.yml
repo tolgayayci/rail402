@@ -122,7 +122,9 @@ jobs:
       # The canary needs dist/ too (same lesson as nightly).
       - name: Build
         if: steps.detect.outputs.drifted == 'true' && steps.fresh.outputs.fresh == 'true'
-        run: pnpm build
+        run: |
+          pnpm build
+          pnpm --filter @rail402.dev/playground build:browser-bundle
 
       # Our suite asserts conformance to the PINNED spec — a pass here plus a divergence in the
       # dual run below is what isolates the drift as the cause.
