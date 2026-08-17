@@ -1,0 +1,256 @@
+# Daily x402 spec-drift watch → test the change → draft branch → tracking issue → Claude fix.
+#
+# The RFP requires submissions to say HOW they will monitor upstream spec changes and ship
+# conformance updates, and to commit to it through the grant period. This workflow is that
+# commitment made mechanical. Every day it asks whether any spec file we are pinned to has moved
+# in x402-foundation/x402. When one has, it does not just notify — it MEASURES the change:
+#
+#   1. runs our own test suite (asserts conformance to the PINNED spec),
+#   2. runs the discovery-loop canary (a real testnet settlement, friendbot-funded, no secrets),
+#   3. runs the upstream x402 e2e suite TWICE — at the pinned spec SHA and at latest main — against
+#      the deployed facilitator, so "did this spec change break us?" is answered by scenario counts
+#      rather than by guessing (scripts/spec-watch-tests.mjs holds the verdict rules),
+#   4. pushes a DRAFT branch `spec-drift/<fingerprint>` with the pin bump + full diffs + report,
+#   5. opens ONE tracking issue carrying the breaking/non-breaking verdict and the test table, and
+#   6. hands the drift to Claude Code (anthropics/claude-code-action, authenticated with the
+#      maintainer's Claude subscription via CLAUDE_CODE_OAUTH_TOKEN), which analyses the change,
+#      applies fixes on a working branch, opens a DRAFT pull request, and reports on the issue.
+#
+# Nothing here merges anything, ever. Claude's PRs are drafts a human reviews; the drift branch is
+# a draft a human merges; the issue updates in place while the drift persists and closes when we
+# catch up — so it informs without becoming noise. Claude runs ONLY when the issue was created or
+# updated (a new or changed drift set), never repeatedly on an unchanged one.
+#
+# Why polling, not a webhook: GitHub webhooks can only be installed by an admin of the SOURCE repo,
+# and we do not administer x402-foundation/x402 (§3.8c also forbids asking). Scheduled polling is
+# the only native mechanism for watching a foreign repo — so this runs DAILY, and the freshness
+# gate below keeps that cheap: a drift set the open issue already tracks skips the whole test
+# battery, so a quiet or unchanged day costs about a minute of runner time. Detection latency is
+# therefore ≤24h against an upstream that historically changes specs every 2–4 weeks.
+#
+# Boundaries (CLAUDE.md §2, §3.8c): it only READS the public upstream; everything it writes — the
+# branch, the issue, Claude's PR — lives in THIS repository. It never pushes, comments, or files
+# anything upstream. Claude inherits the same rules: CLAUDE.md is in the checkout it works from.
+#
+# Secrets/vars used (all optional; missing ones degrade honestly, never lie):
+#   vars.X402_STELLAR_FACILITATOR_URL        facilitator under test (the Railway deployment)
+#   secrets.CANARY_CLIENT_STELLAR_PRIVATE_KEY funded testnet payer for the upstream suite (USDC)
+#   vars.CANARY_SERVER_STELLAR_ADDRESS       seller address with a USDC trustline
+#   secrets.CLAUDE_CODE_OAUTH_TOKEN          `claude setup-token` output (Claude subscription);
+#                                            also requires the Claude GitHub App on this repo
+#   vars.SPEC_WATCH_CLAUDE                   always | breaking-only | off (default always)
+#
+# The nightly.yml drift job stays as the in-log signal; this is the acting one.
+name: Spec drift watch
+
+on:
+  schedule:
+    # Daily 09:30 UTC — deliberately clear of nightly (06:00), whose dual e2e drives payments from
+    # the SAME funded testnet payer; overlapping runs would race its sequence numbers.
+    - cron: "30 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write # push the draft spec-drift/<fingerprint> branch — nothing is ever merged
+  issues: write
+  pull-requests: write # Claude's DRAFT fix PR
+  id-token: write # claude-code-action's GitHub App authentication
+
+concurrency:
+  group: spec-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Detect drift, test it, draft, track
+    runs-on: ubuntu-latest
+    # The dual e2e run alone builds the upstream monorepo twice (nightly gives a single dual run
+    # 45); the Claude fix draft can take a while on top.
+    timeout-minutes: 120
+    env:
+      # Job-level because the `secrets` context is not available in step-level `if:` — the Claude
+      # step's gate reads it through the `env` context instead.
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Clones upstream blobless, diffs every pinned spec SHA, writes a JSON report (with per-file
+      # diff excerpts) and sets outputs (drifted/count/fingerprint). Exits 0 even on drift — drift
+      # is information, not a failure.
+      - name: Detect spec drift
+        id: detect
+        run: node scripts/spec-watch.mjs --out "$RUNNER_TEMP/spec-drift.json"
+
+      # The freshness gate. Running daily must not re-spend the 60–90-minute test battery every
+      # day an already-reported drift stays unresolved: if the open tracking issue's fingerprint
+      # matches what we just detected, this drift set is fully handled — tested, branched, filed —
+      # and everything below no-ops. A missing or different fingerprint (including a previous run
+      # that died before filing) reads as fresh, so a crashed run self-heals on the next tick.
+      - name: Check whether this drift set is already tracked
+        id: fresh
+        if: steps.detect.outputs.drifted == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open_fp=$(gh issue list --label spec-drift --state open --json body --jq '.[0].body' 2>/dev/null \
+            | grep -o 'spec-drift-fingerprint: [0-9a-f]*' | awk '{print $2}' || true)
+          if [ -n "$open_fp" ] && [ "$open_fp" = "${{ steps.detect.outputs.fingerprint }}" ]; then
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+            echo "drift set $open_fp is already tracked by the open issue — skipping the test battery."
+          else
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+            echo "drift set ${{ steps.detect.outputs.fingerprint }} is new (issue tracks '${open_fp:-none}') — running the full battery."
+          fi
+
+      # ── Everything below runs only on NEW drift (detected + not already tracked) ─────────
+      - name: Install
+        if: steps.detect.outputs.drifted == 'true' && steps.fresh.outputs.fresh == 'true'
+        run: pnpm install --frozen-lockfile
+
+      # Build BEFORE the test suite, not just before the canary. Root `pnpm test` is vitest
+      # directly (not turbo), and vite resolves cross-workspace imports through each package's
+      # `exports`, which point at dist/ — with no build, 30 test files die at import with
+      # "Failed to resolve entry for package @rail402.dev/errors" while every test that runs passes.
+      # ci.yml only gets away without an explicit build because its Typecheck step (turbo,
+      # dependsOn ^build) builds every package as a side effect. Measured in run 31885481558.
+      # The canary needs dist/ too (same lesson as nightly).
+      - name: Build
+        if: steps.detect.outputs.drifted == 'true' && steps.fresh.outputs.fresh == 'true'
+        run: pnpm build
+
+      # Our suite asserts conformance to the PINNED spec — a pass here plus a divergence in the
+      # dual run below is what isolates the drift as the cause.
+      - name: Our test suite
+        id: unit
+        if: steps.detect.outputs.drifted == 'true' && steps.fresh.outputs.fresh == 'true'
+        continue-on-error: true
+        run: pnpm test
+
+      # --retries 2 retries ONLY failures the error registry marks retryable.
+      - name: Discovery-loop canary (real testnet)
+        id: canary
+        if: steps.detect.outputs.drifted == 'true' && steps.fresh.outputs.fresh == 'true'
+        continue-on-error: true
+        run: pnpm canary discovery-loop --retries 2
+
+      # The breaking-change instrument: the upstream suite at the pinned SHA AND at latest main,
+      # against the deployed facilitator, with stock upstream clients. --servers=next because the
+      # other servers 500 on every route for a diagnosed upstream defect (conformance README).
+      # With missing env it writes a `blocked` report rather than pretending — the verdict below
+      # then reads `inconclusive`, never `non-breaking`.
+      - name: Upstream e2e, pinned vs latest spec
+        id: dual
+        if: steps.detect.outputs.drifted == 'true' && steps.fresh.outputs.fresh == 'true'
+        continue-on-error: true
+        env:
+          X402_STELLAR_FACILITATOR_URL: ${{ vars.X402_STELLAR_FACILITATOR_URL }}
+          CLIENT_STELLAR_PRIVATE_KEY: ${{ secrets.CANARY_CLIENT_STELLAR_PRIVATE_KEY }}
+          SERVER_STELLAR_ADDRESS: ${{ vars.CANARY_SERVER_STELLAR_ADDRESS }}
+        # The status file is TRACKED (nightly publishes it), so remove the checked-out copy first:
+        # a crash before the harness writes must read as "no report" (→ inconclusive), never as a
+        # stale report presented fresh.
+        run: |
+          rm -f docs/status/conformance-dual.json
+          node packages/conformance/bin/conformance.mjs dual --servers=next
+
+      # Folds the three outcomes into one report + a breaking / non-breaking / inconclusive verdict.
+      - name: Compose the test verdict
+        id: verdict
+        if: steps.detect.outputs.drifted == 'true' && steps.fresh.outputs.fresh == 'true'
+        run: >
+          node scripts/spec-watch-tests.mjs
+          --unit "${{ steps.unit.outcome }}"
+          --canary "${{ steps.canary.outcome }}"
+          --dual-file docs/status/conformance-dual.json
+          --out "$RUNNER_TEMP/spec-drift-tests.json"
+
+      # Pushes spec-drift/<fingerprint>: pin bump + full diffs + the report. A DRAFT — merging it
+      # asserts conformance, so only a human ever does that. Idempotent: an existing branch for the
+      # same fingerprint is left untouched (it may hold review work in progress).
+      - name: Draft the update branch
+        id: branch
+        if: steps.detect.outputs.drifted == 'true' && steps.fresh.outputs.fresh == 'true'
+        run: node scripts/spec-watch-branch.mjs --report "$RUNNER_TEMP/spec-drift.json" --tests "$RUNNER_TEMP/spec-drift-tests.json"
+
+      # Opens / updates / closes exactly one labelled issue, idempotent by fingerprint. This step
+      # also runs on NO drift — that is what closes a stale issue once we catch up. Its outputs
+      # (action=created|updated|unchanged|closed|none, issue=<number>) gate the Claude step below.
+      - name: Open, update, or close the tracking issue
+        id: issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          node scripts/spec-watch-issue.mjs
+          --report "$RUNNER_TEMP/spec-drift.json"
+          --tests "$RUNNER_TEMP/spec-drift-tests.json"
+          --branch "${{ steps.branch.outputs.branch }}"
+
+      # The automated fix path: Claude Code, on the maintainer's Claude subscription. Runs only on
+      # a NEW or CHANGED drift set (issue created/updated), only when the token exists, and honours
+      # vars.SPEC_WATCH_CLAUDE (always | breaking-only | off). continue-on-error: a failed fix
+      # draft must not fail the watch — the issue and branch are already filed.
+      #
+      # github_token is deliberately NOT passed: the action authenticates as the Claude GitHub App,
+      # so the DRAFT PR it opens still triggers CI (PRs made with the default GITHUB_TOKEN do not).
+      # Claude works from this checkout, so CLAUDE.md's binding rules — §3.8c nothing leaves the
+      # repo, commit style, hard walls — ride along.
+      - name: Hand the drift to Claude for a fix draft
+        if: >-
+          steps.detect.outputs.drifted == 'true' &&
+          (steps.issue.outputs.action == 'created' || steps.issue.outputs.action == 'updated') &&
+          env.CLAUDE_CODE_OAUTH_TOKEN != '' &&
+          vars.SPEC_WATCH_CLAUDE != 'off' &&
+          (vars.SPEC_WATCH_CLAUDE != 'breaking-only' || steps.verdict.outputs.verdict == 'breaking')
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are the automated fix agent for this repository's weekly x402 spec-drift watch
+            (Stellar x402 facilitator + Bazaar; read CLAUDE.md first — its rules bind you).
+
+            Upstream spec drift was detected and already triaged:
+              fingerprint:    ${{ steps.detect.outputs.fingerprint }}
+              test verdict:   ${{ steps.verdict.outputs.verdict }}
+              tracking issue: #${{ steps.issue.outputs.issue }}
+              draft branch:   ${{ steps.branch.outputs.branch }}
+
+            Do this, in order:
+            1. Read the tracking issue and the drift dossier: fetch the draft branch
+               (git fetch origin ${{ steps.branch.outputs.branch }}) and read
+               docs/research/drift/DRIFT-${{ steps.detect.outputs.fingerprint }}.md on it — it has
+               the full spec diffs, the affected modules, and the test report.
+            2. Create a working branch claude/${{ steps.branch.outputs.branch }} FROM the draft
+               branch. Never commit to main and never modify the draft branch itself.
+            3. Follow the issue's "For the automated fix agent" section: update
+               docs/research/SPEC_SNAPSHOT.md to the new spec SHAs; if the verdict is breaking, fix
+               the affected modules with tests proving the new wire behaviour. NEVER touch
+               contracts/ or any path the dossier marks ⚠️ human-only.
+            4. Run pnpm install --frozen-lockfile, then pnpm verify. Report honestly if it fails —
+               a failing draft PR with an honest description beats a green-looking lie.
+            5. Push your branch and open a DRAFT pull request against main titled
+               "Spec drift ${{ steps.detect.outputs.fingerprint }}: <what it addresses>" describing
+               what changed upstream, what you changed, and the conformance impact. Then comment a
+               one-paragraph summary + the PR link on issue #${{ steps.issue.outputs.issue }}.
+
+            Hard rules: never merge anything; never push to main; everything stays in THIS
+            repository — no external PRs, issues, or comments anywhere else (CLAUDE.md §3.8c).
+          claude_args: |
+            --allowedTools "Bash(git:*),Bash(pnpm:*),Bash(node:*),Read,Edit,Write,Glob,Grep,mcp__github__create_pull_request,mcp__github__create_issue_comment,mcp__github__get_issue"
+
+      - name: Upload the run's evidence
+        if: always() && steps.detect.outputs.drifted == 'true' && steps.fresh.outputs.fresh == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-drift-evidence
+          path: |
+            ${{ runner.temp }}/spec-drift.json
+            ${{ runner.temp }}/spec-drift-tests.json
+            docs/status/conformance-dual.json
+          if-no-files-found: warn
