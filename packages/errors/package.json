@@ -1,0 +1,41 @@
+{
+  "name": "@rail402.dev/errors",
+  "version": "0.2.0",
+  "description": "Machine-readable error codes with mandatory reasons, shared by every Rail402 surface.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "x402",
+    "stellar",
+    "errors"
+  ],
+  "homepage": "https://docs.rail402.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/rail402.git",
+    "directory": "packages/errors"
+  },
+  "bugs": {
+    "url": "https://github.com/tolgayayci/rail402/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "engines": {
+    "node": ">=24.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
