@@ -1,0 +1,90 @@
+---
+title: Deploy on Railway
+description: Run Rail402 on Railway from the repository's Dockerfile and its infrastructure file, .railway/railway.ts.
+---
+
+`.railway/railway.ts` describes a Rail402 deployment as code, with Railway's TypeScript SDK (`railway`, MIT,
+pinned in `package.json`): a Postgres database and the `rail402` service built from the `Dockerfile`, both in
+Railway's US East region. The [hosted testnet facilitator](/facilitator/hosted-testnet) is managed with it:
+its `testnet` environment is kept in step with `railway config apply`, and the service is deployed with
+`railway up` from a checkout (the repository is not connected to Railway).
+
+## One command
+
+From a clone, with the [Railway CLI](https://docs.railway.com/cli) installed and logged in (`railway login`),
+Node.js 24 with npm, git and curl:
+
+```sh
+./deploy/railway.sh my-facilitator
+```
+
+The script:
+
+1. creates a Railway project named `my-facilitator` (default `rail402-testnet`);
+2. installs the pinned Railway SDK next to a copy of `.railway/railway.ts` and applies it with
+   `railway config apply`, which creates Postgres and the `rail402` service with its build, deploy settings and
+   variables;
+3. creates a testnet fee sponsor with Node's own ed25519 keys (`deploy/stellar-keys.ts`, no dependencies to
+   install), funds it with Friendbot, and sets the sponsor secret and a cursor secret on stdin, never on a
+   command line;
+4. moves Postgres, with its volume, to US East: a new database starts in Railway's default region whatever the
+   file says;
+5. deploys the checked-out commit (uncommitted changes are not uploaded), adds a `railway.app` domain and waits
+   until `/ready` passes, then prints the URL and the sponsor's public key.
+
+It works from a temporary copy of the commit, so the checkout's own Railway link is left alone. With more than
+one Railway workspace, set `RAILWAY_WORKSPACE`. A run from nothing to a ready service took about four minutes,
+and a stock client paid through the result.
+
+## What .railway/railway.ts sets
+
+- **Build.** The `Dockerfile` builder.
+- **Region.** US East (`us-east4-eqdc4a`) for the service and the database. Stellar's public testnet RPC and
+  Horizon run in AWS us-east-1, and every verification calls them several times.
+- **Health check on `/ready`.** A new deployment receives traffic only once the database is reachable, the
+  RPC is healthy, the sponsor is funded, every channel account exists and the search index is built.
+  `healthcheckTimeout` gives it 300 seconds; the first start also applies migrations and creates the channel
+  accounts.
+- **Overlap and draining.** `overlapSeconds` is set to 30 and `drainingSeconds` to 40; Railway's
+  documentation describes how it applies them. The service's own `SHUTDOWN_GRACE_MS`, the time it gives
+  in-flight settlements after `SIGTERM`, defaults to 30 seconds.
+- **Restarts.** Railway's default policy applies: a crashed deployment restarts up to 10 times.
+- **Variables.** `DATABASE_URL` references the database; `NETWORKS`, `TESTNET_RPC_URL` and
+  `TRUSTED_PROXY_HOPS=1` (Railway's edge proxy sets `X-Forwarded-For`) are fixed. `TESTNET_SPONSOR_SECRET`,
+  `SEARCH_CURSOR_SECRET`, `TESTNET_CHANNEL_COUNT` and `RAIL402_VERSION` keep whatever value the environment
+  already has.
+
+<Warning>
+  `railway config apply` deletes every variable the file does not declare. To add one, declare it in
+  `.railway/railway.ts` first, then apply.
+</Warning>
+
+## Manage an existing deployment
+
+After `pnpm install` (which installs the SDK), from a checkout linked to the project and environment
+(`railway link`):
+
+```sh
+railway config plan    # what would change
+railway config apply   # apply it
+railway up --service rail402
+```
+
+`railway config plan` reports "already up to date" when the environment matches the file.
+
+## Scaling
+
+The service is stateless. Settlement records, channel leases, the catalog, rate-limit windows and usage
+counters all live in Postgres, so you can run several replicas against one database: channel accounts are
+leased through Postgres, so two replicas never use the same channel at once, and rate limits apply across
+replicas. Set `SEARCH_CURSOR_SECRET` so a search cursor issued by one replica works on another.
+
+Each replica builds its search index in memory from the catalog and keeps it current in the background.
+Bazaar origin checks are claimed through Postgres, so each one is fetched by one replica.
+
+## Keys and limits
+
+A sealed variable's value is never shown again in the Railway dashboard. Before serving real traffic, read
+[Operations](/operations) for what the sponsor can and cannot do, how to rotate it, and the limits that
+protect it (`MAX_TX_FEE_STROOPS`, `SPONSOR_RESERVE_XLM`, `MAX_SPONSOR_SPEND_XLM_PER_HOUR`,
+`RATE_LIMIT_PER_MINUTE`).

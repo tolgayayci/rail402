@@ -1,0 +1,105 @@
+---
+title: Install from source
+description: Clone the repository, install the toolchain and dependencies, and verify the build.
+---
+
+These steps take a fresh machine to a verified checkout. Everything after them, running the service
+or reproducing the evidence, starts from here.
+
+## Prerequisites
+
+| Tool           | Version                   | Used for                                                      |
+| -------------- | ------------------------- | ------------------------------------------------------------- |
+| Node.js        | 24 LTS (`24.19.0` pinned) | Everything. The repository requires `>=24.11`.                |
+| pnpm           | 11 (`11.22.0` pinned)     | Workspace install, scripts.                                   |
+| Docker Compose | Docker with the v2 plugin | Postgres, the private Stellar network, and the service image. |
+| git            | any                       | Cloning; the conformance scripts also record the commit.      |
+| mise           | optional                  | Installs the pinned Node.js and pnpm from `mise.toml`.        |
+
+The pinned versions live in `mise.toml`, `.node-version` (used by CI) and the `packageManager` field of
+`package.json`.
+
+## Clone and install
+
+```sh
+git clone https://github.com/tolgayayci/rail402.git
+cd rail402
+mise install        # Node.js 24.19.0 and pnpm 11.22.0; run `mise trust` first if mise asks
+pnpm install
+```
+
+`pnpm install` resolves from `pnpm-lock.yaml`. Install scripts are denied unless the workspace allows them;
+`onnxruntime-node` ships its CPU binaries in the package, so its download script is deliberately not run.
+
+## Verify
+
+```sh
+pnpm verify
+```
+
+`pnpm verify` runs, in order, and stops at the first failure:
+
+| Step         | Command             | Checks                                                                                           |
+| ------------ | ------------------- | ------------------------------------------------------------------------------------------------ |
+| Formatting   | `pnpm format:check` | Prettier over the whole repository                                                               |
+| Lint         | `pnpm lint`         | ESLint                                                                                           |
+| Types        | `pnpm typecheck`    | `tsc` over every workspace package                                                               |
+| Unit tests   | `pnpm test`         | Vitest `unit` project; needs no network, Docker or model                                         |
+| Licence gate | `pnpm license:gate` | Every licence meets the [policy](/dependency-licenses); `docs/dependency-licenses.md` is current |
+
+CI (`.github/workflows/ci.yml`) runs the same command on every push to `main` and on every pull request,
+followed by `pnpm build`.
+
+## Build
+
+```sh
+pnpm build
+```
+
+This compiles every workspace package to its `dist/` directory. The service entry points are then
+`apps/rail402/dist/main.js` (the HTTP service) and `apps/rail402/dist/channels.js` (the
+[channel commands](/operations#channel-accounts)).
+
+## Integration tests
+
+Integration tests run against Postgres and a private Stellar network with 1-second ledgers, real accounts
+and a real token contract. They need the embedding model on disk.
+
+```sh
+pnpm models:fetch                                   # downloads and hash-checks the model into .models/
+docker compose --profile stellar up -d --wait       # Postgres on :5432, Stellar RPC and Friendbot on :8000
+pnpm test:integration
+```
+
+The private network runs with the testnet passphrase so the unmodified `@x402/stellar` scheme works against
+it. It resets whenever its container is recreated. Stop everything with `docker compose --profile stellar down`.
+
+## Run the service from source
+
+To run the service without the container image, fetch the model, start Postgres and set the three required
+variables. The [Docker page](/facilitator/docker#steps) shows how to create and fund a
+testnet sponsor account.
+
+```sh
+pnpm build
+pnpm models:fetch
+docker compose up -d postgres
+
+export DATABASE_URL=postgres://rail402:rail402@localhost:5432/rail402
+export TESTNET_RPC_URL=https://soroban-testnet.stellar.org
+export TESTNET_SPONSOR_SECRET=S...        # a funded testnet account; see the Docker page
+node apps/rail402/dist/main.js
+```
+
+Run it from the repository root: the model directory defaults to `.models`, relative to the working
+directory (`SEARCH_MODEL_DIR`). On first start the service applies its database migrations and, on testnet,
+creates its channel accounts. Check it with `curl localhost:8080/ready`.
+
+## Reproduce the published results
+
+| What                      | Command                                                             | Page                                              |
+| ------------------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
+| Search evaluation         | `pnpm eval`, and `pnpm eval:check` for the gate                     | [Search evaluation](/reference/search-evaluation) |
+| Canonical client payment  | `node tools/conformance/src/canonical-exact.ts --facilitator <url>` | [Conformance evidence](/reference/conformance)    |
+| Upstream x402 e2e suite   | `node tools/conformance/src/upstream-e2e.ts --x402 <path>`          | [Conformance evidence](/reference/conformance)    |
+| Dependency licence report | `pnpm license:report`                                               | [Dependency licences](/dependency-licenses)       |

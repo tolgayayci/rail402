@@ -1,0 +1,91 @@
+---
+title: API overview
+description: Base URL, authentication, response conventions and errors of the Rail402 HTTP API.
+---
+
+## Base URL
+
+```text
+{{facilitatorUrl}}
+```
+
+The hosted instance serves `stellar:testnet`. A self-hosted instance listens on port `8080` by default. Every
+endpoint speaks JSON except `/metrics`, which serves the Prometheus text format.
+
+| Endpoint                                 | Purpose                               |
+| ---------------------------------------- | ------------------------------------- |
+| `GET /supported`                         | Payment kinds, extensions and signers |
+| `POST /verify`                           | Verify a payment                      |
+| `POST /settle`                           | Settle a payment                      |
+| `GET /discovery/resources`               | List the catalog                      |
+| `GET /discovery/resources/{id}`          | One listing                           |
+| `GET /discovery/resources/{id}/versions` | A listing's version history           |
+| `GET /discovery/search`                  | Natural-language search               |
+| `GET /health`                            | Liveness                              |
+| `GET /ready`                             | Readiness, with the individual checks |
+| `GET /metrics`                           | Prometheus metrics                    |
+| `GET /usage`                             | Metered usage of the calling API key  |
+
+`/verify` and `/settle` take the body the stock x402 `HTTPFacilitatorClient` sends:
+`{ x402Version, paymentPayload, paymentRequirements }`. Point the client at the base URL and it calls these
+endpoints itself; you rarely call them by hand.
+
+## Authentication
+
+The hosted testnet instance needs no key. A self-hosted operator can require one per network
+(`REQUIRE_API_KEY`), which then applies to `/verify` and `/settle`. `/usage` always requires one. Send it as
+either header:
+
+```http
+Authorization: Bearer <key>
+X-API-Key: <key>
+```
+
+With the stock client, return the header per path from `createAuthHeaders`:
+
+```ts
+const facilitator = new HTTPFacilitatorClient({
+  url: "https://your-rail402.example",
+  createAuthHeaders: async () => {
+    const headers = { Authorization: `Bearer ${process.env.RAIL402_API_KEY}` };
+    return { verify: headers, settle: headers, supported: headers };
+  },
+});
+```
+
+## Conventions
+
+- **Amounts** are strings of integers in the asset's base units. Stellar USDC has 7 decimals, so
+  `"100000"` is 0.01 USDC. Nothing is ever converted through floating point.
+- **Networks** are CAIP-2 identifiers: `stellar:testnet`, `stellar:pubnet`.
+- **Addresses** are Stellar strkeys: `G…` accounts, `C…` contracts, `M…` muxed accounts.
+- **Timestamps** are ISO 8601 in UTC.
+
+## Errors
+
+Payment rejections are HTTP 200 bodies, as x402 requires: `isValid: false` with `invalidReason` and
+`invalidMessage` from `/verify`, `success: false` with `errorReason` and `errorMessage` from `/settle`. The
+reason is always a stable code, and the message is never empty.
+
+Everything else is an HTTP error with a body of this shape:
+
+```json
+{
+  "error": {
+    "code": "discovery_invalid_parameter",
+    "reason": "Unsupported parameter: foo.",
+    "retryable": false
+  }
+}
+```
+
+On `/verify` and `/settle`, transport errors (malformed body, missing key, oversized body, wrong content type,
+rate limit) keep the x402 fields too, so the stock client raises a typed `VerifyError` or `SettleError`.
+
+Every code, the check that produces it and the test that proves it are listed in
+[Errors and verification rules](/verification-rules).
+
+## Rate limits
+
+Every endpoint except `/health`, `/ready` and `/metrics` is limited per client address. A limited request
+gets HTTP 429, a `Retry-After` header in seconds and the code `rate_limited`.

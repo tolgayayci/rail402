@@ -1,0 +1,185 @@
+---
+title: Search
+description: Natural-language search over the Bazaar with hard filters, hybrid ranking and signed cursors.
+---
+
+```http
+GET /discovery/search?query=...
+```
+
+Search ranks published listings against a free-text query. Hard constraints, whether passed as parameters or
+written in the query ("on testnet", "under 1 cent", "mcp tools"), are applied as filters before anything is
+ranked, and a result never violates one. Ranking fuses a lexical and a semantic ranking. Everything runs in
+the service process; no query leaves it.
+
+```sh
+curl "{{facilitatorUrl}}/discovery/search?query=current%20weather%20for%20a%20city%20on%20testnet%20under%202%20cents&limit=10"
+```
+
+On the hosted service this returns the public demo seller's weather endpoint first. The response below is
+illustrative.
+
+## Parameters
+
+| Parameter    | Format                                                    | Meaning                                                                   |
+| ------------ | --------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `query`      | required; 1 to 500 characters after trimming              | What to find, in natural language. May contain constraints.               |
+| `type`       | `http`, `mcp`, …                                          | As in [`/discovery/resources`](/bazaar/discovery#list-resources)          |
+| `payTo`      | `G…`, `C…` or `M…` address                                | As in `/discovery/resources`                                              |
+| `scheme`     | e.g. `exact`                                              | As in `/discovery/resources`                                              |
+| `network`    | CAIP-2, e.g. `stellar:testnet`                            | As in `/discovery/resources`                                              |
+| `extensions` | comma-separated keys                                      | As in `/discovery/resources`                                              |
+| `asset`      | a `C…` contract address or an asset symbol such as `USDC` | Only payment options in this asset                                        |
+| `maxPrice`   | a decimal amount, e.g. `0.01`                             | Price ceiling: in the asset's units if `asset` is set, else in US dollars |
+| `limit`      | integer, at least 1                                       | Page size. Default 10; values above 50 are clamped to 50.                 |
+| `cursor`     | the `pagination.cursor` of the previous page              | Continue a search                                                         |
+
+All filters, including `asset` and `maxPrice`, must hold for one and the same payment option of a listing,
+and a result shows only the payment options that satisfy them.
+Price and symbol constraints fail closed: an option in an asset the instance does not know never satisfies
+them. A dollar ceiling applies only to options in a US-dollar stablecoin the instance accepts (`USDC`,
+`PYUSD`, `USDT` or `USDP` by symbol), and converts exactly to the asset's base units.
+
+## Response
+
+```json
+{
+  "x402Version": 2,
+  "resources": [
+    {
+      "resource": "https://api.example.com/weather",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [{ "scheme": "exact", "network": "stellar:testnet", "amount": "100000", "...": "..." }],
+      "lastUpdated": "2026-09-28T10:05:55.470Z",
+      "description": "Current weather for a city",
+      "mimeType": "application/json",
+      "extensions": { "bazaar": { "info": { "...": "..." }, "schema": { "...": "..." } } },
+      "rail402": {
+        "method": "GET",
+        "trust": "domain_verified",
+        "settlements": 12,
+        "listings": [
+          { "id": "da080b45-20e1-4617-bbde-4b815e83e63a", "network": "stellar:testnet", "...": "..." }
+        ],
+        "options": [{ "listing": "da080b45-20e1-4617-bbde-4b815e83e63a", "symbol": "USDC", "...": "..." }]
+      }
+    }
+  ],
+  "partialResults": false,
+  "pagination": { "limit": 10, "cursor": null },
+  "rail402": {
+    "method": "hybrid",
+    "recognised": ["network=stellar:testnet", "maxPrice=0.02 USD"],
+    "revision": 2
+  }
+}
+```
+
+| Field                | Meaning                                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resources`          | Results, best first, in the same item shape as [`/discovery/resources`](/bazaar/discovery#response)                                                                       |
+| `pagination.limit`   | The page size, in resources                                                                                                                                               |
+| `partialResults`     | `true` when the semantic ranking was cut at its depth, or when a ranked search ran lexical-only: no model is loaded, or embedding the query failed or took over 2 seconds |
+| `pagination.cursor`  | Pass it as `cursor` for the next page; `null` on the last page                                                                                                            |
+| `rail402.method`     | `hybrid`, `lexical` (no embedding model) or `filter` (the query was only constraints)                                                                                     |
+| `rail402.recognised` | Constraints read from the query text and applied as filters                                                                                                               |
+| `rail402.revision`   | The catalog revision the results come from                                                                                                                                |
+
+## Constraints in the query
+
+The query is parsed deterministically. A constraint needs an explicit trigger, such as a preposition or a
+clause of its own. A bare mention inside a sentence stays in the ranked text, because a wrong hard filter
+silently hides every right answer.
+
+| Kind    | Recognised examples                                                                                                   | Filter                                                                    |
+| ------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Network | "on testnet", "testnet only", "not on mainnet", "on the stellar public network", "…, testnet"                         | `network=stellar:testnet` or `stellar:pubnet`                             |
+| Type    | "mcp tools", "as an mcp server", "rest api", "over http", "…, mcp"                                                    | `type=mcp` or `http`                                                      |
+| Price   | "under 1¢", "below $0.05", "at most 2 XLM", "$0.002 or less", "under a tenth of a cent", "no more than half a dollar" | `maxPrice` in US dollars, or in the named asset (which also sets `asset`) |
+| Asset   | "paid in USDC", "takes XLM", "accepting EURC", "…, usdc"                                                              | `asset`                                                                   |
+
+- Asset and asset-denominated price constraints are recognised only for symbols of assets the instance
+  accepts (`TESTNET_ASSETS`, `PUBNET_ASSETS`). A number without a currency ("up to 100 requests per second")
+  is not a price.
+- Recognised phrases are removed from the text before ranking. A query that is only constraints, such as
+  `mcp tools on testnet`, returns every matching listing: domain-verified first, then origin-verified, then
+  the longest-listed (`method: "filter"`). Settlement counts play no part, since a seller could buy them.
+- An explicit parameter overrides the same constraint in the text, and `recognised` then lists only what
+  was taken from the text and applied.
+
+## Ranking
+
+<Steps>
+  <Step title="Filter">The candidate set is every published listing that satisfies every hard filter.</Step>
+  <Step title="Lexical">
+    BM25F over all candidates, with field weights: name 3 (service name, tool name, path words), tags 2,
+    description 1.5, schema 1 (parameter names and descriptions), host 0.5. The lexical ranking is never
+    truncated.
+  </Step>
+  <Step title="Semantic">
+    The query and each listing are embedded locally with `all-MiniLM-L6-v2` (ONNX, CPU, pinned revision and
+    SHA-256 hashes). Candidates with cosine similarity at least `SEARCH_SIMILARITY_FLOOR` (0.3 by default) are
+    ranked, and the top 100 are kept.
+  </Step>
+  <Step title="Fuse">
+    Reciprocal rank fusion (k = 60) combines the two rankings. Equal scores are ordered domain-verified first,
+    then origin-verified, then by how long the listing has been published, then by id.
+  </Step>
+  <Step title="Group">
+    A resource sold on several networks has one listing per network. It is returned once, at the rank of its
+    best-ranked listing, with every matching network's options, like
+    [`/discovery/resources`](/bazaar/discovery#one-resource-on-several-networks). Pages and cursors count
+    resources.
+  </Step>
+</Steps>
+
+With `SEARCH_EMBEDDINGS=false` the service does not load the model and search is lexical-only: ranked
+responses (`method: "lexical"`) have `partialResults: true`, while filter-only responses do not. A search
+whose query cannot be embedded, because the model fails or takes over 2 seconds, is answered the same way
+rather than failing.
+
+Each process builds its first index at startup, and `/ready` stays failing until it is built. After that it
+checks every 5 seconds whether the catalog changed and rebuilds the index in the background. A search reads
+the catalog revision at most once a second; one that arrives after a catalog change, before the background
+rebuild, builds the new index itself and waits for it. An index is built from the listings and the revision
+read together, so it never carries a revision without that revision's changes.
+
+## Cursors
+
+Cursors are opaque and HMAC-signed. Each one pins:
+
+- the request it continues: the normalised query and every filter. Reusing it with a different query or
+  filter is refused;
+- the catalog revision of the first page, so the pages of one search never skip or repeat a result when the
+  catalog changes meanwhile;
+- an expiry, 15 minutes after the page was served. The index a cursor was issued on is kept until its last
+  cursor expires, however often the catalog changes meanwhile.
+
+| HTTP | `code`                  | When                                                                                              |
+| ---- | ----------------------- | ------------------------------------------------------------------------------------------------- |
+| 400  | `search_invalid_cursor` | The cursor is malformed, altered, signed by another key, or belongs to another search             |
+| 400  | `search_cursor_expired` | The cursor expired, or its catalog snapshot is no longer available; search again without a cursor |
+
+Replicas that share `SEARCH_CURSOR_SECRET` accept each other's cursors while the catalog is still at the
+cursor's revision. Without the variable, each process signs with a random key, so cursors fail after a
+restart or on another replica.
+
+## Errors
+
+| HTTP | `code`                        | When                                                                                                          |
+| ---- | ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 400  | `discovery_invalid_parameter` | `query` is missing or longer than 2,000 characters, a parameter is malformed, or a parameter is not supported |
+| 400  | `search_query_required`       | `query` is blank                                                                                              |
+| 400  | `search_query_too_long`       | `query` is longer than 500 characters after trimming (and at most 2,000)                                      |
+| 400  | `search_invalid_cursor`       | See [Cursors](#cursors)                                                                                       |
+| 400  | `search_cursor_expired`       | See [Cursors](#cursors)                                                                                       |
+| 429  | `rate_limited`                | The client exceeded its rate limit; see `Retry-After`                                                         |
+
+## Quality
+
+Search quality is measured on a frozen, judged dataset of 500 listings and 202 queries, reproducible with
+`pnpm eval`, and gated in CI. On the test split, hybrid search reaches nDCG@10 0.742 and Recall@20 0.897
+against 0.677 and 0.821 for BM25F alone, with zero filter violations; each filter is also tested on its own
+with no violation and no missed listing. See
+[Search evaluation](/reference/search-evaluation).

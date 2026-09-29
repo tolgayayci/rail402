@@ -1,0 +1,282 @@
+---
+title: Cataloging and integrity
+description: How a settled payment becomes a Bazaar listing, and the rules that keep listings honest.
+---
+
+Rail402 catalogs a resource when a payment for it settles and the payment carries the x402 `bazaar`
+extension. There is no registration step and no separate API for sellers. The catalog is kept in Postgres,
+off-chain, and cataloging adds no transaction to the payment.
+
+Everything in the payment payload is echoed by the buyer and treated as untrusted. The rules on this page
+decide what reaches the catalog. They are implemented in `packages/bazaar` and listed with their codes and
+tests in [Errors and verification rules](/verification-rules#bazaar-cataloging).
+
+## When it runs
+
+| Call      | What happens                                                                                    |
+| --------- | ----------------------------------------------------------------------------------------------- |
+| `/verify` | If the payment is valid, the extension is checked and the outcome previewed. Nothing is stored. |
+| `/settle` | After a successful settlement, the resource is cataloged. A failed settlement catalogs nothing. |
+
+Cataloging never changes the payment result. `/verify` waits at most 250 ms for the preview and `/settle` at
+most 2 seconds for cataloging; past that, the response reports `processing` with `awaiting_settlement`
+(`/verify`) or `cataloging_in_progress` (`/settle`), and cataloging finishes in the background. A payment without a bazaar extension produces no outcome at all.
+
+A settled payment with a bazaar extension is written to a queue before cataloging starts and removed once
+cataloging reached an outcome. If the service stops in between, a background worker (every
+`ORIGIN_CHECK_INTERVAL_MS`, 30 seconds after the settlement at the earliest) finishes it; cataloging is
+idempotent per settlement, so nothing is cataloged twice. When the catalog store cannot take it, the worker
+retries after 10 seconds, 1 minute, 5 minutes, 30 minutes and 2 hours.
+
+A new HTTP resource is cataloged at once but **listed only after its own `402` response confirms it** (see
+[Origin verification](#origin-verification)): until then it is `pending`, visible only through
+`GET /discovery/resources/{id}`. An MCP tool is listed on settlement.
+
+## What is read from the payment
+
+- `paymentPayload.extensions.bazaar`: `info` (the resource's `input` and optional `output`), `schema` (a JSON
+  Schema that `info` must satisfy) and optional `routeTemplate`. Sellers produce it with
+  `declareDiscoveryExtension` from `@x402/extensions/bazaar`.
+- `paymentPayload.resource`: `url`, and optional `description`, `mimeType`, `serviceName`, `tags` and
+  `iconUrl`.
+- `paymentRequirements`: the settled scheme, network, asset, `payTo`, amount, `maxTimeoutSeconds` and `extra`.
+
+## Validation
+
+Checked in this order. The first failure rejects cataloging with its code; the payment is unaffected.
+
+<Steps>
+  <Step title="Protocol and structure">
+    The payment is x402 version 2 (`bazaar_unsupported_version`). The extension is an object with `info` and
+    `schema` objects (`bazaar_extension_malformed`) and passes the upstream structural check for an HTTP or
+    MCP discovery description (`bazaar_info_unsupported`).
+  </Step>
+  <Step title="Schema, in a sandbox">
+    Before anything is compiled, `schema` and `info` must each be at most 32 KiB serialized and 32 levels deep
+    (`bazaar_schema_too_large`), and `schema` may contain no external `$ref` or `$id`; only same-document
+    references (`#…`) are allowed (`bazaar_schema_external_reference`). The schema is then compiled as JSON
+    Schema Draft 2020-12 (`bazaar_schema_invalid`) and `info` validated against it (`bazaar_info_invalid`) in
+    an isolated worker thread with a 250 ms budget; a worker that runs over is terminated
+    (`bazaar_schema_timeout`).
+  </Step>
+  <Step title="Method or tool name">
+    For `info.input.type: "http"` the method is `info.input.method`, which upstream's structural check accepts
+    only in upper case. The schema that `declareDiscoveryExtension` produces requires `method`, so its
+    listings always declare one. When an extension's own schema leaves `method` optional and it is omitted,
+    the method is `POST` if `info.input.bodyType` is present and `GET` otherwise. For `info.input.type:
+    "mcp"`, `info.input.toolName` must be 1 to 128 visible ASCII characters, with no spaces or control
+    characters (`bazaar_info_unsupported`).
+  </Step>
+  <Step title="Resource URL">
+    `resource.url` must be an absolute URL of at most 2,048 characters, without credentials or control
+    characters, using `https`, or on testnet also `http` (MCP tools may also use `mcp://`)
+    (`bazaar_resource_invalid`). It is canonicalized: lower-case scheme and host, IDN host as punycode,
+    default port removed, percent-encoding normalized (escapes of unreserved characters decoded, others in
+    upper case, so `/%61pi` is `/api`), dot segments resolved (including encoded ones), query and fragment
+    removed. `http` and `https`, and a path with and without a trailing slash, remain different resources.
+  </Step>
+  <Step title="Public host">
+    For `http` and `https` URLs, the host must be public (`bazaar_resource_unsafe`): not `localhost` or a name
+    ending in `.localhost`, `.local`, `.internal`, `.home.arpa` or `.lan`, not a single-label name, and not an
+    IP literal in a private, loopback, link-local, shared, documentation, benchmarking, multicast or reserved
+    range (IPv4 and IPv6).
+  </Step>
+  <Step title="Owner">
+    The owner is the account the settlement paid: `payTo`, or the base `G…` account of an `M…` muxed address.
+    A payer paying its own `payTo` catalogs nothing (`bazaar_self_payment`). This is defence in depth: the
+    facilitator already refuses such a payment with `invalid_exact_stellar_payload_self_payment`, so it never
+    settles and the code cannot be reached through the service.
+  </Step>
+</Steps>
+
+## Soft-dropped metadata
+
+Invalid optional metadata is left out rather than failing the listing. The names of the dropped fields are
+returned in the outcome's `dropped` array.
+
+| Field           | Kept when                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `serviceName`   | 1 to 32 printable ASCII characters                                                                                                                            |
+| `tags`          | Each tag 1 to 32 printable ASCII characters; duplicates (case-insensitive) removed; at most 5 kept. `tags` is reported dropped if any tag was removed         |
+| `iconUrl`       | An `http` or `https` URL of at most 2,048 characters, without credentials, whose host is not an IP literal, a numeric or hexadecimal host, or a loopback name |
+| `description`   | Control characters become spaces and whitespace collapses; kept if the result is 1 to 1,000 characters                                                        |
+| `mimeType`      | A syntactically valid media type                                                                                                                              |
+| `routeTemplate` | See below                                                                                                                                                     |
+| `extra`         | The payment option's `extra` object serializes to at most 2,048 bytes; otherwise it is published as `{}`                                                      |
+| `extensions`    | The keys of other declared extensions, 1 to 64 letters, digits, `_` or `-`; at most 16 kept, sorted. `extensions` is reported dropped if any key was removed  |
+
+## Route templates
+
+An HTTP seller whose route has path parameters can declare `routeTemplate`, for example `/users/:id`, so that
+`/users/1` and `/users/2` are one listing. Rail402 uses it only if both hold:
+
+1. It passes the upstream `isValidRouteTemplate` check. The template must match `^/[a-zA-Z0-9_/:.\-~%]+$`, and
+   it is percent-decoded repeatedly (at most 5 passes) before the traversal checks, so an encoded `%2e%2e` is
+   caught: the decoded template may not contain `..` or `://`. Rail402 also refuses a template that decodes to
+   NUL, CR, LF, a backslash or an empty segment (`//`).
+2. It describes the path that was actually paid for: the same number of segments, every static segment equal
+   to the paid segment after percent-decoding, and every `:param` segment matching a non-empty paid segment.
+
+When both hold, the listing's `resource` is the origin plus the template, percent-encoding normalized like a
+path. Otherwise the template is ignored, `routeTemplate` appears in `dropped`, and the listing uses the
+concrete path. The `pathParams` in a templated listing's `info.input` are the example of the first path paid:
+paying another path of the same route is recorded against the listing and changes nothing else.
+
+## Identity and deduplication
+
+A listing is identified by:
+
+| Type | Identity                                                                |
+| ---- | ----------------------------------------------------------------------- |
+| HTTP | network, canonical resource URL (or origin plus route template), method |
+| MCP  | network, `resource.url`, `info.input.toolName` and the owner            |
+
+MCP tools are scoped to their owner because nothing proves who runs an MCP server: two sellers declaring the
+same tool get two listings, and neither can claim the other's. Settlements for the same identity update one
+listing. The network is part of the identity because a settlement proves a `payTo` on its own network only:
+a resource sold on testnet and pubnet has a listing on each, which discovery and search show as
+[one resource](/bazaar/discovery#one-resource-on-several-networks). A settlement transaction is counted once, and it catalogs at most one resource: replaying a settled
+payment with a different resource is refused (`bazaar_settlement_reused`).
+
+## Ownership and changes
+
+Each listing belongs to the `payTo` that its first settlement paid. Later settlements are handled like this:
+
+| Situation                                      | Outcome                                                                                                                                                                                                                                                             |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A new HTTP resource                            | `processing` / `awaiting_origin_verification`: the listing is created `pending` and listed once the origin check confirms it                                                                                                                                        |
+| A new MCP tool                                 | `success` / `cataloged`: the listing is published                                                                                                                                                                                                                   |
+| Same owner, same content                       | `success` / `recorded`: the settlement count and `lastSettled` are updated; a `pending` or quarantined HTTP listing is checked against its origin again                                                                                                             |
+| Same owner, changed metadata or price, HTTP    | `processing` / `awaiting_origin_verification`: the settlement is counted, and the published content changes only through the origin check                                                                                                                           |
+| Same owner, changed metadata, MCP tool         | `success` / `recorded`: the settlement is counted but the change is not applied; MCP tools keep their first-seen content, since there is no origin to check                                                                                                         |
+| A different `payTo`                            | `rejected` / `bazaar_owner_conflict`: for HTTP resources the origin is checked, and the listing moves to the new owner only if the resource's own `402` names it                                                                                                    |
+| A new listing beyond an hourly quota           | `rejected` / `bazaar_rate_limited`: per owner `BAZAAR_MAX_NEW_LISTINGS_PER_OWNER_PER_HOUR` (20; withdrawn listings do not count), per payer `BAZAAR_MAX_NEW_LISTINGS_PER_PAYER_PER_HOUR` (10), and for the whole catalog `BAZAAR_MAX_NEW_LISTINGS_PER_HOUR` (1,000) |
+| A settlement already used for another resource | `rejected` / `bazaar_settlement_reused`: nothing is cataloged                                                                                                                                                                                                       |
+| The catalog store is unreachable               | `rejected` / `bazaar_catalog_unavailable`: a later settlement catalogs it                                                                                                                                                                                           |
+
+A settlement proposes a change when its payment option or its metadata differs from the listing. Options
+are compared by scheme, network, asset and `payTo`: an option with the same four values and a different
+amount, timeout or `extra` is a change, and an option the listing does not have yet is a change. The proposal
+itself is never published. For an HTTP listing it only schedules an origin check, and what is then published
+comes from the resource's own `402`.
+
+## Origin verification
+
+For HTTP listings, the metadata echoed by a buyer is never the last word. After a listing is created, after
+a change is proposed, and after an ownership conflict, a background task (every `ORIGIN_CHECK_INTERVAL_MS`,
+5 seconds by default) requests the resource itself, without payment:
+
+- It sends the listing's method to the concrete paid URL (a `POST`, `PUT` or `PATCH` carries the body `{}`),
+  with the user agent `rail402-bazaar-origin-check/1 (+https://rail402.dev)`.
+- Every DNS answer must be a public address, checked in the connection's own lookup. Redirects are not
+  followed.
+- It expects `402` with a `PAYMENT-REQUIRED` header. When the resource cannot be reached, times out, or
+  answers `408`, `429` or `5xx`, the check is retried 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours
+  later; when every retry fails, the listing is withdrawn (quarantined). Any other answer, or a `402` without
+  an `accepts` array, withdraws it at once: the resource does not sell what is listed.
+- Each check is independent: a malformed response only affects its own listing.
+- A worker claims a due check for 60 seconds before fetching it, so with several replicas each check is
+  fetched once. A check requested again while it is being fetched runs again afterwards.
+- One host receives at most 30 origin requests a minute from each replica; a check over the budget waits
+  for the next minute without spending a retry.
+
+From the `402`, it takes the bazaar extension, the keys of any other extensions it declares (such as
+`payment-identifier`, which the `extensions` discovery filter matches), and the payment options on the
+listing's network. Only
+well-formed Stellar options are considered: a `C…` asset contract, a `G…`, `C…` or `M…` `payTo`, an integer
+amount and a positive integer `maxTimeoutSeconds`; others are ignored. When the listing is confirmed, its
+`accepts` become the options that pay its owner:
+
+| The origin's `402`                                                   | Result                                                                               |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Names the owner, with a valid bazaar extension for the same resource | The listing's content is replaced by the origin's; `trust` becomes `origin_verified` |
+| Names the other `payTo` from an ownership conflict, not the owner    | The listing moves to that `payTo` (`ownership_transfer`)                             |
+| Names neither                                                        | The listing is quarantined                                                           |
+| No longer declares a valid bazaar extension for this resource        | The listing is quarantined                                                           |
+
+A `pending` or quarantined listing is not returned by discovery or search. A later origin check that succeeds
+publishes it; every settlement for it by its owner, and every settlement by a different `payTo`, triggers one.
+Every one of these changes is a new version in the listing's history.
+
+## Trust
+
+| `trust`           | Meaning                                                                                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `settled`         | Created from a settled payment; its metadata was echoed by the buyer. Published HTTP listings never have it: they are listed once verified; MCP tools keep it       |
+| `origin_verified` | Confirmed against the resource's own `402` response                                                                                                                 |
+| `domain_verified` | Also claimed by its domain: the resource host's SEP-1 `stellar.toml` lists the owner in `ACCOUNTS`. HTTP listings and MCP tools under an `http(s)` URL can reach it |
+
+Search breaks score ties in favour of `domain_verified`, then `origin_verified` listings, then the
+longest-listed. None of these can be bought by repeating payments.
+
+## Stellar facts and domain claims
+
+A background task (every `ORIGIN_CHECK_INTERVAL_MS`) reads, for each published listing, and again six hours
+later:
+
+- **Each payment option's token**, from the token contract itself: `symbol()`, `name()` and `decimals()`.
+- **Whether its `payTo` can receive that token now.** A contract (`C…`) account always can. For a Stellar
+  Asset Contract, a `G…` or `M…` account can if it is the asset's issuer or holds an authorized trustline
+  (for native XLM, if it exists). For another SEP-41 token this is left unknown.
+- **The domain's claim.** Rail402 reads `https://<resource host>/.well-known/stellar.toml` (SEP-1; at most
+  100 KB, same DNS and redirect rules as origin checks). If its `ACCOUNTS` list contains the listing's owner,
+  `trust` becomes `domain_verified`; if a later read no longer lists the owner, `trust` falls back to
+  `origin_verified` (HTTP) or `settled` (MCP). Each change is a `domain_verification` version.
+
+The facts appear on every discovery item: token facts under `rail402.options`, one per `accepts` entry, and
+the check time and domain claim under each listing's `stellar`. They are not part of the listing's versioned
+content.
+
+## Version history
+
+Every change to a listing's published content, owner, trust or state creates a version with a cause:
+
+| Cause                 | When                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| `settlement`          | The listing was created by a settlement (`pending` for an HTTP resource)             |
+| `origin_verification` | The origin's `402` confirmed or updated the content                                  |
+| `ownership_transfer`  | The origin's `402` named a different `payTo`                                         |
+| `quarantine`          | The origin stopped supporting the listing, or stayed unreachable through every retry |
+| `domain_verification` | The resource's domain started or stopped listing the owner in its `stellar.toml`     |
+
+The history is public at [`GET /discovery/resources/{id}/versions`](/bazaar/discovery#version-history).
+
+## EXTENSION-RESPONSES
+
+The outcome is returned to the seller's resource server in the `EXTENSION-RESPONSES` response header of
+`/verify` and `/settle`: base64-encoded JSON keyed by extension name. Stock `HTTPFacilitatorClient` decodes it
+into `extensionResponses` and logs `status`, `code`, `reason` and `rejectedReason`. The header is at most
+4,096 bytes, so every HTTP client accepts it: reasons are cut to 300 characters, and an outcome that would
+still be larger is reduced to its `status`, `code`, `listingId` and `version`.
+
+```json
+{
+  "bazaar": {
+    "status": "processing",
+    "code": "awaiting_origin_verification",
+    "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+    "listingId": "0b6f2a7e-5a2c-4f0e-9d7a-3c1e2b4d5f60",
+    "version": 1,
+    "dropped": ["tags"]
+  }
+}
+```
+
+| Field            | Present                                                                |
+| ---------------- | ---------------------------------------------------------------------- |
+| `status`         | Always: `success`, `processing` or `rejected`                          |
+| `code`           | Always                                                                 |
+| `rejectedReason` | When `status` is `rejected`: a non-empty explanation                   |
+| `reason`         | With some `processing` and `success` outcomes: a non-empty explanation |
+| `listingId`      | When a listing exists (also with `bazaar_owner_conflict`)              |
+| `version`        | The listing's current published version                                |
+| `dropped`        | When soft-drop rules removed fields                                    |
+
+| `status`     | `code`                         | Meaning                                                                                     |
+| ------------ | ------------------------------ | ------------------------------------------------------------------------------------------- |
+| `processing` | `awaiting_settlement`          | At `/verify`: the metadata is valid (or still being checked) and is cataloged on settlement |
+| `processing` | `cataloging_in_progress`       | At `/settle`: the payment settled and cataloging continues in the background                |
+| `success`    | `cataloged`                    | A new MCP tool listing was published                                                        |
+| `success`    | `recorded`                     | The settlement was recorded against an existing listing                                     |
+| `processing` | `awaiting_origin_verification` | A new HTTP listing, or a change to one, waits for the origin's `402`                        |
+| `rejected`   | `bazaar_*`                     | Nothing was cataloged; see the codes in [Errors](/verification-rules#bazaar-cataloging)     |

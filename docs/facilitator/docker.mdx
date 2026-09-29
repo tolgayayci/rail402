@@ -1,0 +1,206 @@
+---
+title: Self-host with Docker
+description: Build the Rail402 image and run it against Postgres with Docker Compose.
+---
+
+The repository's `Dockerfile` builds the service image and `docker-compose.yml` runs it next to Postgres.
+This page takes a fresh clone to a ready testnet facilitator on `localhost:8080`.
+
+<Info>
+  You need Docker with the Compose v2 plugin and git. Node.js and pnpm are not needed on the host: the image
+  builds with its own toolchain.
+</Info>
+
+## Published image
+
+Every release is published to the GitHub Container Registry as `ghcr.io/tolgayayci/rail402:<version>` and
+`:latest`, with `/health` reporting that version. Without a clone, a testnet facilitator that keeps its state
+in memory is three commands:
+
+```sh
+docker run --rm ghcr.io/tolgayayci/rail402:0.2.0 node -e \
+  'const k = require("@stellar/stellar-sdk").Keypair.random(); console.log(k.publicKey(), k.secret())'
+curl "https://friendbot.stellar.org?addr=G..."          # the public key printed above
+docker run -p 8080:8080 -e STORE=memory \
+  -e TESTNET_RPC_URL=https://soroban-testnet.stellar.org -e TESTNET_SPONSOR_SECRET=S... \
+  ghcr.io/tolgayayci/rail402:0.2.0
+```
+
+`STORE=memory` suits trying it out: settlements are not durable and only one replica is safe. For a durable
+setup, use Postgres as below; in the compose file or your own, the published image can replace
+`rail402:local`.
+
+## One command
+
+From a clone, with Docker (Compose v2), curl and bash:
+
+```sh
+./deploy/docker.sh
+```
+
+The script builds the image, creates a testnet fee sponsor inside it and funds the sponsor with Friendbot,
+writes `TESTNET_RPC_URL`, `TESTNET_SPONSOR_SECRET` and `SEARCH_CURSOR_SECRET` to `.env` (git-ignored, mode
+600), starts Postgres and the service with the `service` profile, and waits until
+`http://127.0.0.1:8080/ready` passes. It never overwrites an existing `.env`: run it again and it reuses the
+file and only starts the stack. The [steps](#steps) below do the same by hand.
+
+## The image
+
+The `Dockerfile` has two stages on `node:24.19.0-trixie-slim` (Debian, because the embedding runtime needs
+glibc):
+
+- **build** installs pnpm 11.22.0, installs dependencies offline from the lockfile, compiles the service,
+  downloads the pinned embedding model and checks its SHA-256 hashes, and deploys the service with
+  production dependencies only.
+- **runtime** copies the service to `/app` and the model to `/app/models`, runs as the unprivileged `node`
+  user, listens on port `8080`, and runs `node dist/main.js`. A `HEALTHCHECK` calls `/health` every 15
+  seconds.
+
+The version reported by `/health` comes from the `RAIL402_VERSION` build argument, `dev` by default.
+
+## Steps
+
+<Steps>
+  <Step title="Clone and build">
+    ```sh
+    git clone https://github.com/tolgayayci/rail402.git
+    cd rail402
+    docker compose --profile service build
+    ```
+
+    This tags the image `rail402:local`. To stamp a version, build it directly:
+    `docker build --build-arg RAIL402_VERSION=$(git rev-parse --short HEAD) -t rail402:local .`
+
+  </Step>
+  <Step title="Create a sponsor account">
+    The sponsor pays settlement fees and the reserves of the channel accounts. Generate a fresh key with the
+    image you just built, and write the service's secrets to `.env` in the repository root (it is
+    git-ignored):
+
+    ```sh
+    docker run --rm rail402:local node -e '
+    const { Keypair } = require("@stellar/stellar-sdk");
+    const { randomBytes } = require("node:crypto");
+    const sponsor = Keypair.random();
+    console.log("TESTNET_RPC_URL=https://soroban-testnet.stellar.org");
+    console.log(`TESTNET_SPONSOR_SECRET=${sponsor.secret()}`);
+    console.log(`SEARCH_CURSOR_SECRET=${randomBytes(32).toString("hex")}`);
+    console.error(`sponsor account: ${sponsor.publicKey()}`);
+    ' > .env
+    chmod 600 .env
+    ```
+
+    The command prints the sponsor's public key (`G…`). Fund it with Friendbot, which gives a new testnet
+    account 10,000 XLM:
+
+    ```sh
+    curl "https://friendbot.stellar.org?addr=G..."
+    ```
+
+    The service refuses to report ready while the sponsor holds less than `MIN_SPONSOR_BALANCE_XLM`
+    (25 XLM by default).
+
+  </Step>
+  <Step title="Start Postgres and the service">
+    ```sh
+    docker compose --profile service up -d
+    ```
+
+    Compose starts Postgres, waits for it to be healthy, then starts the service with
+    `DATABASE_URL=postgres://rail402:rail402@postgres:5432/rail402` and the variables in `.env`. On first
+    start the service applies its database migrations and creates its 8 channel accounts on testnet, paid
+    by the sponsor.
+
+  </Step>
+  <Step title="Check readiness">
+    ```sh
+    curl localhost:8080/ready
+    ```
+
+    ```json
+    {
+      "ready": true,
+      "checks": {
+        "database": { "ok": true },
+        "stellar:testnet:rpc": { "ok": true },
+        "stellar:testnet:sponsor": { "ok": true, "detail": "99999997600 stroops" },
+        "stellar:testnet:channels": { "ok": true, "detail": "8 channels" },
+        "search": { "ok": true }
+      }
+    }
+    ```
+
+    `/ready` answers `503` with the same body until every check passes. `/supported` lists the sponsor and
+    the channel accounts as `signers`.
+
+  </Step>
+  <Step title="Pay through it">
+    From a [source checkout](/install), the canonical client run pays a stock seller through your instance
+    with fresh Friendbot-funded accounts and checks the balances:
+
+    ```sh
+    node tools/conformance/src/canonical-exact.ts --facilitator http://127.0.0.1:8080
+    ```
+
+    It prints the settlement transaction and the buyer's and seller's USDC balances before and after.
+
+  </Step>
+</Steps>
+
+## Configuration for a working self-host
+
+| Variable                 | Needed         | Notes                                                                                                                                                     |
+| ------------------------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`           | yes            | Set by `docker-compose.yml` for the bundled Postgres. Set it yourself for any other database.                                                             |
+| `TESTNET_RPC_URL`        | yes            | A Stellar RPC endpoint. `https://soroban-testnet.stellar.org` is SDF's public testnet RPC.                                                                |
+| `TESTNET_SPONSOR_SECRET` | yes            | The funded sponsor's `S…` seed. Channel account keys are derived from it.                                                                                 |
+| `SEARCH_CURSOR_SECRET`   | recommended    | 32 bytes or more of hex. Without it, search cursors are signed with a random per-process key and stop working after a restart or on another replica.      |
+| `TRUSTED_PROXY_HOPS`     | behind a proxy | `0` by default: the TCP peer is the client. Set it to the number of reverse proxies in front of the service so rate limits apply per real client address. |
+
+Every other setting has a default. The full list is on the [Configuration](/configuration) page. The
+service validates its configuration at startup and exits with code `78` and a message naming the variable
+when something is missing or malformed:
+
+```text
+rail402: invalid configuration:
+  TESTNET_RPC_URL: Invalid input: expected string, received undefined
+  TESTNET_SPONSOR_SECRET: Invalid input: expected string, received undefined
+```
+
+## Compose profiles
+
+| Command                                  | Starts                                                                                                                   |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `docker compose up -d postgres`          | Postgres 18 only, on `127.0.0.1:5432` (user, password and database `rail402`).                                           |
+| `docker compose --profile stellar up -d` | Postgres and a private Stellar network (1-second ledgers, RPC and Friendbot on `127.0.0.1:8000`), for integration tests. |
+| `docker compose --profile service up -d` | Postgres and the Rail402 image on `127.0.0.1:8080`, configured from `.env`.                                              |
+
+Every published port (`5432`, `8000` and `8080`) is bound to `127.0.0.1`. To expose the service, put a TLS-terminating reverse proxy in front of
+it and set `TRUSTED_PROXY_HOPS`. The bundled Postgres keeps its data in the `postgres-data` volume; for
+anything beyond a trial, use a managed Postgres with point-in-time recovery (see
+[Operations](/operations#state-backups-and-recovery)).
+
+## Operate
+
+```sh
+docker compose --profile service logs -f rail402                        # JSON logs
+docker compose --profile service exec rail402 node dist/channels.js status
+docker compose --profile service down                                    # stop; data stays in the volume
+```
+
+`channels status` prints one JSON line per network:
+
+```text
+{"network":"stellar:testnet","sponsor":"G...","channels":8,"present":8,"missing":[],"unfinishedSettlements":0,"leasedChannels":0}
+```
+
+On `SIGTERM` the service stops accepting requests, lets in-flight settlements finish for up to
+`SHUTDOWN_GRACE_MS` (30 s), reconciles once more and exits. Compose allows 40 seconds
+(`stop_grace_period`).
+
+## Pubnet
+
+The image can be configured for `stellar:pubnet`, but pubnet has not been exercised end to end. Its
+configuration has stricter rules, checked at startup: an `https` RPC URL, an explicit
+`PUBNET_REQUIRE_API_KEY`, and channel accounts that are not created at startup but provisioned by an operator.
+See [Configuration](/configuration#per-network) and [Operations](/operations#channel-accounts).

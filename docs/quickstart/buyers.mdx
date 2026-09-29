@@ -1,0 +1,154 @@
+---
+title: Quickstart for buyers
+description: Pay a Rail402-backed seller on the Stellar testnet with the stock @x402/fetch client.
+---
+
+A buyer needs nothing from Rail402 directly. The seller picks the facilitator; the buyer only signs an
+authorization for the exact amount the seller asks for. This page sets up a testnet buyer and pays a seller
+with unmodified x402 packages.
+
+<Info>
+  Requires Node.js 24, which runs the `.ts` files below directly. Every package version matches what Rail402
+  is tested against.
+</Info>
+
+## 1. Install
+
+```sh
+mkdir x402-buyer && cd x402-buyer
+npm init -y && npm pkg set type=module
+npm install @x402/fetch@2.27.0 @x402/core@2.27.0 @x402/stellar@2.27.0 @stellar/stellar-sdk@16.3.0
+```
+
+Keep `@stellar/stellar-sdk` on the version `@x402/stellar` uses. Two copies of the SDK's XDR classes in one
+process break signing in ways that only show up at runtime.
+
+## 2. Create a funded testnet account
+
+The buyer's account needs a USDC trustline and some testnet USDC. This script creates an account with
+Friendbot, adds the trustline and, when given an amount, buys that much USDC from the testnet XLM/USDC pool,
+the same way Rail402's conformance run does.
+
+```ts create-account.ts
+import {
+  Asset,
+  BASE_FEE,
+  Horizon,
+  Keypair,
+  Networks,
+  Operation,
+  TransactionBuilder,
+  xdr,
+} from "@stellar/stellar-sdk";
+
+// Circle's testnet USDC. Its Stellar Asset Contract is CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA.
+const USDC = new Asset("USDC", "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5");
+const horizon = new Horizon.Server("https://horizon-testnet.stellar.org");
+const usdc = process.argv[2] ?? "0"; // USDC to buy from the testnet XLM/USDC pool
+
+const account = Keypair.random();
+const funded = await fetch(`https://friendbot.stellar.org?addr=${account.publicKey()}`);
+if (!funded.ok) throw new Error(`friendbot: HTTP ${funded.status}`);
+
+const operations: xdr.Operation[] = [Operation.changeTrust({ asset: USDC })];
+if (usdc !== "0") {
+  operations.push(
+    Operation.pathPaymentStrictReceive({
+      sendAsset: Asset.native(),
+      sendMax: "100",
+      destination: account.publicKey(),
+      destAsset: USDC,
+      destAmount: usdc,
+      path: [],
+    }),
+  );
+}
+const builder = new TransactionBuilder(await horizon.loadAccount(account.publicKey()), {
+  fee: String(Number(BASE_FEE) * 10),
+  networkPassphrase: Networks.TESTNET,
+}).setTimeout(60);
+for (const operation of operations) builder.addOperation(operation);
+const transaction = builder.build();
+transaction.sign(account);
+await horizon.submitTransaction(transaction);
+
+console.log(`public key: ${account.publicKey()}`);
+console.log(`secret:     ${account.secret()}`);
+```
+
+```sh
+node create-account.ts 1        # a buyer holding 1 testnet USDC
+```
+
+Keep the secret in an environment variable, never in code: `export BUYER_SECRET=S...`
+
+## 3. Pay
+
+```ts buyer.ts
+import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
+import { decodePaymentResponseHeader } from "@x402/core/http";
+import { createEd25519Signer } from "@x402/stellar";
+import { ExactStellarScheme } from "@x402/stellar/exact/client";
+
+const NETWORK = "stellar:testnet";
+const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
+  schemes: [
+    {
+      network: NETWORK,
+      client: new ExactStellarScheme(createEd25519Signer(process.env.BUYER_SECRET!, NETWORK)),
+    },
+  ],
+});
+
+const response = await fetchWithPayment(process.env.RESOURCE_URL ?? "http://localhost:4021/weather");
+console.log(response.status, await response.json());
+const receipt = response.headers.get("PAYMENT-RESPONSE");
+if (receipt !== null) console.log(decodePaymentResponseHeader(receipt));
+```
+
+`wrapFetchWithPaymentFromConfig` sends the request, and on a `402` it picks the seller's `exact` /
+`stellar:testnet` option, signs the transfer authorization with the buyer's key and retries with the
+`PAYMENT-SIGNATURE` header. The stock default spend controls apply.
+
+Point it at any x402 seller on `stellar:testnet`. To have one, run the
+[seller quickstart](/quickstart/sellers) in another terminal; it listens on `localhost:4021`.
+
+```sh
+RESOURCE_URL="http://localhost:4021/weather?city=Ankara" node buyer.ts
+```
+
+The output has this shape; the values in angle brackets are placeholders:
+
+```text
+200 { temperature: 21, conditions: 'sunny' }
+{
+  success: true,
+  transaction: '<64 hex characters>',
+  network: 'stellar:testnet',
+  payer: '<buyer G… address>'
+}
+```
+
+The `transaction` is the settlement on the testnet; look it up at
+`https://stellar.expert/explorer/testnet/tx/<transaction>`. The network fee is paid by the facilitator's
+sponsor, not the buyer: the recorded [canonical client run](/reference/conformance#canonical-client) shows the
+buyer's USDC balance falling by exactly the price and the seller's rising by the same amount.
+
+## Find something to buy
+
+Resources that sellers have been paid for through Rail402 are listed in its Bazaar:
+
+```sh
+curl "{{facilitatorUrl}}/discovery/search?query=weather%20forecast%20under%201%20cent"
+```
+
+On the hosted service this finds, among others, the public demo seller's resources (`apps/demo-seller`), whose
+listings are paid through the hosted facilitator. Each result carries its `resource` URL, its `accepts` payment options
+and the bazaar `info` that describes its input and output. See [Search](/bazaar/search).
+
+## When a payment is refused
+
+When the facilitator refuses a payment, the seller does not serve the resource. Rail402 always names the
+reason with a stable code and a non-empty message, for example `insufficient_funds` when the balance is too
+low by the time the payment is verified, or `invalid_exact_stellar_payload_payer_trustline_missing` when the
+buyer has no trustline for the asset. The full list is in [Errors and verification rules](/verification-rules).

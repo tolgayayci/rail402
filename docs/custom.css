@@ -1,0 +1,46 @@
+/* Rail402 documentation theme. docs.json sets the colours, fonts and background; this adds a mono
+ * voice for code and sidebar labels and a few quieter component edges. */
+
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+:root {
+  --rail402-accent: #e23e00;
+  --rail402-accent-dark: #ff7a47;
+  --rail402-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--rail402-mono) !important;
+}
+
+:not(pre) > code {
+  font-size: 0.86em;
+}
+
+.sidebar-group-header {
+  font-family: var(--rail402-mono) !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rail402-accent) !important;
+}
+
+.dark .sidebar-group-header {
+  color: var(--rail402-accent-dark) !important;
+}
+
+.code-block,
+.callout {
+  border-radius: 0.5rem !important;
+}
+
+.card {
+  border-radius: 0.75rem !important;
+}
+
+::selection {
+  background: rgba(226, 62, 0, 0.16);
+}

@@ -1,0 +1,220 @@
+---
+title: Conformance evidence
+description: Unmodified x402 clients and servers paying through Rail402 on the Stellar testnet, the live facilitator matrix, the live Bazaar run and the benchmark, with the commands to reproduce them.
+---
+
+Five recorded runs back the facilitator's and the Bazaar's claims. The canonical client, the live matrix, the
+live Bazaar run and the benchmark ran against the hosted service at `{{facilitatorUrl}}` without an API key;
+the upstream e2e suite starts Rail402 itself. They use fresh Friendbot-funded testnet accounts and Circle testnet
+USDC, so none needs secrets; the one exception is the live Bazaar run's second seller, a fixed testnet account
+derived from a public label, so that repeated runs reuse its one listing. Their results are committed in
+`tools/conformance/evidence/`.
+
+## Canonical client
+
+An unmodified buyer pays an unmodified seller whose facilitator is Rail402.
+
+- **Buyer:** `@x402/fetch` (`wrapFetchWithPaymentFromConfig`) with the stock `ExactStellarScheme` client
+  from `@x402/stellar` and its default spend controls.
+- **Seller:** `@x402/express` `paymentMiddleware` with `x402ResourceServer` and
+  `HTTPFacilitatorClient({ url })`, charging `$0.01` for `GET /weather`.
+
+The script funds a buyer and a seller with Friendbot, gives both a USDC trustline, buys 1 USDC for the buyer
+from the testnet XLM/USDC pool, makes the paid request, and then checks on-chain that the transaction
+succeeded and that the buyer's loss equals the seller's gain.
+
+```sh
+node tools/conformance/src/canonical-exact.ts --facilitator {{facilitatorUrl}}
+```
+
+`--facilitator` defaults to `http://localhost:8080`; `--write` records the result in
+`tools/conformance/evidence/canonical-exact-stellar-testnet.json`. Run it from a
+[source checkout](/install) after `pnpm install`.
+
+### Recorded run
+
+From `tools/conformance/evidence/canonical-exact-stellar-testnet.json`:
+
+| Field          | Value                                                                                                                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date           | 2026-09-28                                                                                                                                                                                        |
+| Facilitator    | `https://testnet.rail402.dev`, deployed commit `8ad31c8` (from `/health`)                                                                                                                         |
+| Rail402 commit | `8ad31c8b63` (full hash in the evidence file)                                                                                                                                                     |
+| Packages       | `@x402/core`, `@x402/fetch`, `@x402/express`, `@x402/stellar` 2.27.0; `@stellar/stellar-sdk` 16.3.0                                                                                               |
+| Command        | `node tools/conformance/src/canonical-exact.ts --facilitator https://testnet.rail402.dev`                                                                                                         |
+| Result         | `GET /weather` returned `200` after payment, 4,225 ms end to end                                                                                                                                  |
+| Transaction    | [`c94e0d2b26e3c2bdb454764847af678bac465835749454afb8988f3f989b1c23`](https://stellar.expert/explorer/testnet/tx/c94e0d2b26e3c2bdb454764847af678bac465835749454afb8988f3f989b1c23), ledger 4917397 |
+| Amount         | `100000` base units of `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` (0.01 USDC)                                                                                                     |
+| Fee charged    | 23,126 stroops, paid by the facilitator's sponsor                                                                                                                                                 |
+| Balances       | buyer `10000000` → `9900000`; seller `0` → `100000`                                                                                                                                               |
+
+The buyer lost exactly the price and the seller gained exactly the price: the facilitator paid the fee and
+moved no funds of its own.
+
+## Live facilitator matrix
+
+`tools/conformance/src/live-matrix.ts` exercises every facilitator behaviour over HTTP against a deployed
+Rail402, sending no API key. Every settlement is checked on chain: the transaction is a fee bump whose fee
+source and inner source are facilitator signers and never the payer or `payTo`; it emits exactly one
+`transfer` event, payer → `payTo`, for the exact amount of the required asset; the payer's balance falls and
+`payTo`'s rises by exactly that amount; the sponsor's XLM falls by exactly the fee and no other signer's XLM
+changes; and no facilitator account holds the asset. Every rejection must be spec-shaped with a registered
+code and a non-empty reason.
+
+```sh
+node tools/conformance/src/live-matrix.ts --facilitator {{facilitatorUrl}}
+```
+
+The sponsor check is exact only while no other settlement runs on the service at the same time.
+
+### Recorded run
+
+From `tools/conformance/evidence/live-matrix-stellar-testnet.json` (2026-09-28, facilitator
+`https://testnet.rail402.dev`): **17 of 17 cases passed**, with 6 settlements and 27 coded
+rejections.
+
+| Case                      | What it proves                                                                       | Result                                                                                                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supported`               | `/supported` lists `exact` on `stellar:testnet` with `extra.areFeesSponsored: true`  | passed                                                                                                                                                                                          |
+| `g-payer-settles`         | A `G…` payer pays 1.2345678 USDC; non-custody checked on chain                       | tx `87098ae4…`                                                                                                                                                                                  |
+| `smallest-unit`           | One base unit (0.0000001 USDC) settles                                               | tx `0ed090fb…`                                                                                                                                                                                  |
+| `replay-idempotent`       | The same payment settled twice returns the original transaction and moves funds once | tx `64014092…`                                                                                                                                                                                  |
+| `replay-rejected`         | A settled authorization in a new envelope is refused; verify names the replay        | `settle_exact_stellar_idempotency_conflict`, `invalid_exact_stellar_payload_nonce_already_used`                                                                                                 |
+| `tamper-amount`           | A changed amount breaks the signed authorization                                     | `invalid_exact_stellar_payload_auth_invocation_mismatch`, `invalid_exact_stellar_payload_invalid_signature`                                                                                     |
+| `tamper-recipient`        | A redirected `payTo` breaks the signed authorization                                 | `invalid_exact_stellar_payload_invalid_signature`                                                                                                                                               |
+| `mismatched-requirements` | A payment that differs from the requirements is refused                              | `invalid_exact_stellar_payload_accepted_mismatch`                                                                                                                                               |
+| `payer-no-trustline`      | A payer without a USDC trustline is named                                            | `invalid_exact_stellar_payload_payer_trustline_missing`                                                                                                                                         |
+| `payto-no-trustline`      | A `payTo` without a USDC trustline is named                                          | `invalid_exact_stellar_payload_recipient_trustline_missing`                                                                                                                                     |
+| `insufficient-balance`    | A payer holding less than the amount is refused                                      | `insufficient_funds`                                                                                                                                                                            |
+| `expired`                 | Expired and about-to-expire authorizations are refused; nothing moves                | `invalid_exact_stellar_signature_expired`, `invalid_exact_stellar_signature_expiration_too_soon`                                                                                                |
+| `self-payment`            | A payer paying its own account is refused                                            | `invalid_exact_stellar_payload_self_payment`                                                                                                                                                    |
+| `c-payer-settles`         | A `C…` payer (contract account, `__check_auth`) pays; non-custody checked on chain   | tx `f52ec863…`                                                                                                                                                                                  |
+| `c-payer-wrong-key`       | A `C…` payment signed by the wrong key is refused                                    | `invalid_exact_stellar_payload_invalid_signature`                                                                                                                                               |
+| `c-payto`                 | A `C…` `payTo` is credited                                                           | tx `ad4a409c…`                                                                                                                                                                                  |
+| `refusals`                | Malformed or unserviceable requests are refused before the chain                     | `invalid_payload`, `unsupported_media_type`, `invalid_network`, `unsupported_scheme`, `invalid_exact_stellar_requirements_asset_not_accepted`, `…_fees_not_sponsored`, `…_timeout_out_of_range` |
+
+The evidence file holds every transaction hash, fee, rejection code and reason.
+
+## Benchmark
+
+`tools/conformance/src/benchmark.ts` runs the same workload against each facilitator named with
+`--facilitator`, from the same client in the same window: sequential verifications, sequential settlements
+from `G…` payers and from a `C…` smart-account payer, and batches of concurrent settlements (first
+facilitator only). Each payment is built before its timed call and never reused. Latency is the client's wall
+time for the HTTP call, so it includes the network path; the round trip of `GET /supported` is recorded as
+that path's baseline. Ledgers to confirm counts from the latest ledger when the request was sent to the
+ledger that included the transaction.
+
+```sh
+node tools/conformance/src/benchmark.ts --facilitator {{facilitatorUrl}} --facilitator https://x402.org/facilitator \
+  --samples 50 --smart-account-samples 10 --batches 3 --batch-size 20
+```
+
+### Recorded run
+
+From `tools/conformance/evidence/benchmark-stellar-testnet.json`, 2026-09-28 15:54–16:08 UTC, Rail402 with 24 channel accounts, every payment 100 base units of testnet USDC:
+
+| Metric                                             | Rail402                                                         | x402.org facilitator    |
+| -------------------------------------------------- | --------------------------------------------------------------- | ----------------------- |
+| Network round trip (`GET /supported`) p50          | 183 ms                                                          | 195 ms                  |
+| `/verify` p50 / p95 (50)                           | 258 / 367 ms                                                    | 319 / 572 ms            |
+| `/settle` to confirmed, `G…` payer, p50 / p95 (50) | 3,984 / 4,652 ms                                                | 4,439 / 4,815 ms        |
+| `/settle` to confirmed, `C…` payer, p50 / p95 (10) | 3,793 / 4,198 ms                                                | 3,740 / 4,878 ms        |
+| Ledgers to confirm, p50 / p95                      | 1 / 1                                                           | 1 / 1                   |
+| Sponsor fee per settlement, `G…` / `C…` payer, p50 | 23,126 / 20,325 stroops                                         | 23,126 / 20,326 stroops |
+| 3 batches of 20 concurrent settlements             | 60 of 60 settled, 60 distinct transactions, 3.6–5.2 s per batch | not run                 |
+| Failures                                           | 0                                                               | 0                       |
+
+## Live Bazaar
+
+`tools/conformance/src/live-bazaar.ts` exercises every cataloging and integrity rule against the hosted
+service through a public seller, [`apps/demo-seller`](https://github.com/tolgayayci/rail402/tree/main/apps/demo-seller):
+stock `@x402/express` with the bazaar server extension, three paid routes (`GET /weather`, `GET /users/:id`,
+`POST /translate`), a free `/health`, and a SEP-1 `stellar.toml` that lists its `payTo`. Each case settles a
+real payment built from the seller's own `402` exactly as a stock client builds it, and records the
+`EXTENSION-RESPONSES` outcome and the resulting listing.
+
+```sh
+node tools/conformance/src/live-bazaar.ts --facilitator {{facilitatorUrl}} --seller https://demo.rail402.dev
+```
+
+Listings persist between runs: a resource listed by an earlier run reports `recorded` instead of
+`awaiting_origin_verification`, and the checks accept either.
+
+### Recorded run
+
+From `tools/conformance/evidence/live-bazaar-stellar-testnet.json` (2026-09-28):
+**14 of 14 cases passed**, with 16 settlements.
+
+| Case                   | What it proves                                                                                                         | Outcome                                                               |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `http-listed`          | An HTTP resource is cataloged after settlement and listed once its own `402` confirms it, bound to the settled `payTo` | versions `settlement` → `origin_verification` → `domain_verification` |
+| `duplicate-settlement` | The same settlement twice is recorded once                                                                             | `recorded` twice, one transaction                                     |
+| `settlement-reused`    | A settled payment replayed with another resource catalogs nothing                                                      | `bazaar_settlement_reused`                                            |
+| `route-template`       | `/users/42` and `/users/7` are one listing under `/users/:id`                                                          | same listing id                                                       |
+| `post-body`            | A `POST` resource with a JSON body is listed with its method, and with the other extension its `402` declares          | `method: POST`; `extensions.payment-identifier`                       |
+| `owner-conflict`       | A payment to another `payTo` claiming the resource changes nothing                                                     | `bazaar_owner_conflict`; owner and version unchanged                  |
+| `forged-metadata`      | A buyer's echoed description never reaches the listing                                                                 | `awaiting_origin_verification`; description unchanged                 |
+| `soft-drop`            | Invalid `serviceName` and `tags` are dropped; the payment settles                                                      | `dropped: [serviceName, tags]`                                        |
+| `schema-rejected`      | An external `$ref` is refused; the payment settles                                                                     | `bazaar_schema_external_reference`                                    |
+| `header-bounded`       | A 20,000-character buyer input yields a short reason and a header under 4 KB                                           | `bazaar_info_unsupported`                                             |
+| `not-x402`             | A URL that answers `200` is never listed                                                                               | `quarantined`                                                         |
+| `mcp-tool`             | MCP tools are keyed by URL and tool name and scoped to their owner                                                     | two separate listings                                                 |
+| `stellar-facts`        | The listing shows USDC's on-chain symbol and 7 decimals, that `payTo` can receive it, and the domain's SEP-1 claim     | `trust: domain_verified`                                              |
+| `discovery`            | Filters by `type`, `payTo`, `network`, `extensions`, and pages pinned by `asOf` join into the full list in order       | `extensions=payment-identifier` returns `POST /translate` only        |
+
+The evidence file holds every transaction hash and decoded outcome.
+
+## Upstream x402 e2e suite
+
+The e2e suite of [x402-foundation/x402](https://github.com/x402-foundation/x402) runs every stock TypeScript
+client and server against a facilitator, then validates the facilitator's Bazaar. Rail402 joins it as an
+external facilitator through `tools/conformance/upstream-e2e/` (`test.config.json` and `run.sh`), which the
+suite supports without modification. `run.sh` maps the suite's variables onto Rail402's and starts the
+service with `STORE=memory`, `DISCOVERY_ALLOW_LOOPBACK=true` (the suite's sellers listen on `localhost`) and
+rate limits off.
+
+```sh
+node tools/conformance/src/upstream-e2e.ts --x402 ../x402
+```
+
+`--x402` is a checkout of `x402-foundation/x402` at the tag matching `@x402/stellar` 2.27.0 (the script
+refuses any other version), prepared as its `e2e/README.md` describes: `pnpm install` in `e2e/`, the
+TypeScript packages built, and `./setup.sh` run. The script funds a fresh sponsor, buyer and seller, installs
+the Rail402 proxy into the suite, and runs:
+
+```sh
+pnpm test --testnet --families=stellar --facilitators=rail402 --extensions=bazaar
+```
+
+`--write` records `tools/conformance/evidence/upstream-e2e-stellar-testnet.json`. The run fails unless the
+suite exits `0`, at least one test ran, and the Bazaar discovery validation passed.
+
+### Recorded run
+
+From `tools/conformance/evidence/upstream-e2e-stellar-testnet.json`:
+
+| Field                       | Value                                                                            |
+| --------------------------- | -------------------------------------------------------------------------------- |
+| Date                        | 2026-09-28                                                                       |
+| Upstream                    | `x402-foundation/x402` 2.27.0, commit `71eb9a55e081e7b81ba3046d0bd17c3eb9c7bf81` |
+| Result                      | **18 of 18 passed**, exit code 0, 4.58 minutes                                   |
+| Bazaar discovery validation | PASSED                                                                           |
+
+| Server                    | Clients      | Flows                  | Passed |
+| ------------------------- | ------------ | ---------------------- | ------ |
+| `typescript/http/express` | axios, fetch | authorization, upfront | 4 / 4  |
+| `typescript/http/fastify` | axios, fetch | authorization, upfront | 4 / 4  |
+| `typescript/http/hono`    | axios, fetch | authorization, upfront | 4 / 4  |
+| `typescript/http/next`    | axios, fetch | authorization, upfront | 4 / 4  |
+| `typescript/mcp`          | mcp          | authorization, upfront | 2 / 2  |
+
+Each result in the file carries its settlement transaction hash.
+
+## Integration tests
+
+Beyond these runs, the integration tests (`pnpm test:integration`, against a private Stellar network) cover
+the required behaviours with real balances and events: `G…` and `C…` (smart account) payers,
+exact SEP-41 amounts, trustlines, expiry, tampering, replay, idempotent and crash-safe settlement, and the
+Bazaar end to end with a real `@x402/express` seller. The [verification rules](/verification-rules) name the
+test for every check.

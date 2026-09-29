@@ -1,0 +1,147 @@
+---
+title: Search evaluation
+description: The frozen, judged dataset for natural-language search, the metrics, and the CI gate.
+---
+
+Rail402's search is scored on a frozen, graded dataset by a harness that runs the production
+`SearchService`. It reproduces with one command from a fresh clone. The dataset, method and results are
+documented in full in `tools/search-eval/README.md`; this page summarises them.
+
+## Reproduce
+
+Prerequisites: Node.js 24.11 or later (`.node-version` pins 24.19.0), pnpm 11.22 through Corepack
+(`corepack enable`), and network access to `huggingface.co` on the first run, which downloads the embedding
+model (about 90 MB). A run takes about 15 seconds on a laptop CPU. Every number except latency reproduces exactly on the
+machine that recorded the baseline; other CPU models have not been checked, and floating-point inference may
+differ on them.
+
+```sh
+pnpm install
+pnpm eval          # prints the report and writes tools/search-eval/results/report.json
+pnpm eval:check    # the release gate CI runs; non-zero exit on failure
+```
+
+The pinned embedding model (`all-MiniLM-L6-v2`, revision `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`, hashes in
+`packages/search/models/all-minilm-l6-v2.json`) is downloaded from Hugging Face on first use and verified
+against its SHA-256 hashes. The harness refuses to run on data whose hashes do not match
+`tools/search-eval/data/manifest.json`.
+
+| Option                   | Effect                                                               |
+| ------------------------ | -------------------------------------------------------------------- |
+| `--check`                | Run the gate against `data/baseline.json`                            |
+| `--write-baseline <tag>` | Record `data/baseline.json` and `data/report.json` for a release tag |
+| `--data <dir>`           | Evaluate another dataset directory                                   |
+| `--models <dir>`         | Model directory, `.models` by default                                |
+| `--repeats <n>`          | Latency repetitions, 3 by default                                    |
+
+## Results
+
+Baseline `search-eval-v1.1.0`, test split, 81 answerable queries. Relevant means grade 2 or higher. nDCG
+uses linear gain with the ideal ranking over all judged listings (trec_eval semantics).
+
+| Mode          | MRR              | nDCG@10           | Recall@20         | P@1   | Latency p50 / p95 |
+| ------------- | ---------------- | ----------------- | ----------------- | ----- | ----------------- |
+| BM25F         | 0.823            | 0.677             | 0.821             | 0.741 | 0.2 / 0.5 ms      |
+| Hybrid (RRF)  | 0.881            | 0.742             | 0.897             | 0.815 | 5.1 / 6.8 ms      |
+| Hybrid − BM25 | +0.058 (p 0.020) | +0.066 (p 0.0002) | +0.076 (p 0.0006) |       |                   |
+
+- 95% bootstrap intervals for hybrid: nDCG@10 [0.700, 0.780], Recall@20 [0.846, 0.940].
+- p-values come from a paired randomization test.
+- Latency covers the whole search call, with single-threaded model inference, on an Intel Core Ultra 5 225
+  (`environment` in `tools/search-eval/data/report.json`).
+- **Filter violations: 0** across 1,216 results of 43 constrained queries, checked by an implementation
+  independent of the service (`tools/search-eval/src/constraints.ts`).
+- **Constraint extraction**, against hand-labelled constraints (45 queries): network 15/16, type 23/23,
+  asset 13/14, price 14/15, with no spurious filters.
+
+By query class, all splits, answerable queries:
+
+| Class      | Queries | nDCG@10 BM25 → hybrid | Recall@20 BM25 → hybrid |
+| ---------- | ------- | --------------------- | ----------------------- |
+| intent     | 40      | 0.625 → 0.688         | 0.762 → 0.823           |
+| paraphrase | 25      | 0.474 → 0.614         | 0.645 → 0.786           |
+| keyword    | 30      | 0.699 → 0.737         | 0.834 → 0.905           |
+| constraint | 20      | 0.749 → 0.805         | 0.900 → 0.917           |
+| stellar    | 25      | 0.769 → 0.766         | 0.905 → 0.911           |
+| mcp        | 16      | 0.799 → 0.853         | 0.953 → 0.984           |
+| typo       | 12      | 0.664 → 0.776         | 0.772 → 0.835           |
+
+## Filter conformance
+
+Network, asset, scheme, recipient and price filters are each tested on their own, apart from the judged
+dataset, by `tools/search-eval/src/conformance.ts`. It generates a catalog of 172 listings built to stress the filters:
+
+- both networks, and the `exact` and `upto` schemes;
+- recipients as a `G…` account, a muxed `M…` address on it, another `G…` account and a contract `C…`;
+- assets with 6, 7 and 18 decimals, and one the service does not know;
+- prices one base unit below, at and above each ceiling;
+- listings whose options each satisfy part of a filter, which must never match the whole of it.
+
+31 queries (5 network, 8 asset, 3 scheme, 7 recipient, 8 price) use the filters as parameters and as
+query text, alone and combined. Each runs lexical-only and hybrid and is paged to the end with cursors.
+An independent check compares the results both ways: a result, or a payment option shown in it, that breaks
+a filter is a violation; a listing that satisfies every filter but is not returned is a miss.
+
+| Filter    | Queries | Results checked | Violations | Missed |
+| --------- | ------- | --------------- | ---------- | ------ |
+| network   | 5       | 856             | 0          | 0      |
+| asset     | 8       | 498             | 0          | 0      |
+| scheme    | 3       | 448             | 0          | 0      |
+| recipient | 7       | 560             | 0          | 0      |
+| price     | 8       | 394             | 0          | 0      |
+
+Results are counted over both modes. The gate fails on any violation or miss.
+
+## The gate
+
+`pnpm eval:check` runs in CI and fails when:
+
+- test nDCG@10 or Recall@20 drops more than 0.02 below `tools/search-eval/data/baseline.json`;
+- hybrid scores below BM25 on either metric, as measured now or as recorded in the baseline;
+- any result violates an applied filter, or the filter-conformance run finds a violation or a miss;
+- the dataset or the model changed without a re-baseline;
+- `tools/search-eval/data/baseline.json` differs from the copy at the release tag it names (`search-eval-vX.Y.Z`), so a
+  change cannot lower the bar by editing it.
+
+A change that improves search re-baselines in a dedicated commit with
+`pnpm eval --write-baseline search-eval-vX.Y.Z`, and that commit gets the new annotated tag. CI fetches tags
+to check the baseline against it.
+
+## Dataset
+
+| Part       | Size                                                                              |
+| ---------- | --------------------------------------------------------------------------------- |
+| Listings   | 500: 4 public, 496 sample; 347 HTTP, 153 MCP; 302 pubnet and 248 testnet options  |
+| Queries    | 202 in 8 classes, split evenly into dev and test; a typo query follows its source |
+| Judgments  | 9,012 pairs, graded 0–3 by two judge sets                                         |
+| Answerable | 168 queries with a listing graded 2 or higher; 34 without an answer               |
+
+- **Public listings (4)** are every resource in Rail402's hosted testnet catalog when the dataset was built: the public demo seller's four resources (`"source": "public"`, with the catalog
+  URL and retrieval time). They were read with plain GET requests; the raw capture, with page hashes and the
+  facilitator version, is in `tools/search-eval/construction/public/capture.json`.
+- **Other catalogs are not imported**: Rail402 does not harvest other facilitators' catalogs, whose licensing
+  and provenance it cannot vouch for, so services listed only elsewhere are not included.
+- **Sample listings (496) are synthetic and labelled so** (`"source": "sample"`; the 461 web URLs use hosts
+  under the reserved `.example` domain, and the 35 `mcp://` URLs use the host `tool`). They were drafted by six
+  writers from a taxonomy of 15 categories and 107 capabilities, in four styles, with competing providers,
+  sibling endpoints, multi-tool MCP servers and 10 adversarial listings. Each draft's discovery metadata is
+  produced with the stock `declareDiscoveryExtension` and passed through Rail402's own `extractCandidate`, so
+  the corpus is exactly what the catalog stores after a settlement. Four samples that no judge graded above 0
+  were dropped to keep the corpus at 500.
+- **Queries** were written by three writers who saw only the taxonomy, never the listings, and were frozen
+  in a commit before any system ran on them. A typo query shares its source query's dev or test split.
+- **Judgments** pool the results of six systems per query (22 to 58 candidates) and were graded blind by two independent judge
+  sets. The public listings are judged against every query instead of pooled. The sets agreed
+  exactly on 96.8% of pairs and within one grade on all of them (quadratic-weighted kappa 0.965). Grades one
+  apart take the lower. A listing that breaks a query's labelled constraints is graded 0 by code: 214 grades
+  were overridden this way.
+
+## Limitations
+
+- The sample listings and the queries are synthetic. The corpus is diverse by construction, but it is not a
+  sample of a real catalog.
+- Search has no confidence threshold that yields an empty result: it returned results for 33 of 34
+  unanswerable queries.
+- The evaluation prices listings in USDC, EURC and XLM on both networks. A deployment's search knows the
+  assets its facilitator accepts (USDC by default), which are the only assets its catalog can hold listings in.
+- With 12 to 40 queries per class, per-class differences under about 0.07 nDCG are within noise.

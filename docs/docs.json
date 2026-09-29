@@ -1,0 +1,126 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Rail402",
+  "description": "x402 facilitator and Bazaar discovery layer for Stellar.",
+  "colors": {
+    "primary": "#E23E00",
+    "light": "#FF7A47",
+    "dark": "#C43D00"
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "favicon": "/favicon.svg",
+  "variables": {
+    "facilitatorUrl": "https://testnet.rail402.dev"
+  },
+  "appearance": {
+    "default": "light"
+  },
+  "background": {
+    "decoration": "grid",
+    "color": {
+      "light": "#FCFBF9",
+      "dark": "#0E0E10"
+    }
+  },
+  "fonts": {
+    "heading": {
+      "family": "Space Grotesk",
+      "weight": 600
+    },
+    "body": {
+      "family": "Archivo",
+      "weight": 400
+    }
+  },
+  "styling": {
+    "eyebrows": "section",
+    "codeblocks": {
+      "theme": {
+        "light": "github-light",
+        "dark": "github-dark"
+      }
+    }
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude", "perplexity", "cursor", "vscode"]
+  },
+  "seo": {
+    "indexing": "all"
+  },
+  "navigation": {
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "icon": "github",
+          "href": "https://github.com/tolgayayci/rail402"
+        },
+        {
+          "anchor": "x402 specification",
+          "icon": "book",
+          "href": "https://github.com/x402-foundation/x402"
+        }
+      ]
+    },
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Start here",
+            "pages": ["index", "architecture/overview", "install", "quickstart/buyers", "quickstart/sellers"]
+          },
+          {
+            "group": "Facilitator",
+            "pages": [
+              "facilitator/hosted-testnet",
+              "facilitator/docker",
+              "facilitator/railway",
+              "facilitator/in-process",
+              "configuration",
+              "operations"
+            ]
+          },
+          {
+            "group": "Bazaar",
+            "pages": ["bazaar/cataloging", "bazaar/discovery", "bazaar/search"]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "verification-rules",
+              "reference/conformance",
+              "reference/search-evaluation",
+              "dependency-licenses"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["api-reference/overview"]
+          },
+          {
+            "group": "Endpoints",
+            "openapi": {
+              "source": "api-reference/openapi.yaml",
+              "directory": "api-reference/endpoints"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/tolgayayci/rail402"
+    }
+  }
+}

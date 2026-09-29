@@ -1,0 +1,190 @@
+---
+title: Quickstart for sellers
+description: Charge for an HTTP endpoint with the stock @x402/express middleware, settle through Rail402 and get listed in its Bazaar.
+---
+
+A seller runs a stock x402 resource server and names Rail402 as its facilitator. Nothing Rail402-specific
+is installed: the facilitator is just a URL. This page uses the hosted testnet facilitator.
+
+<Info>
+  Requires Node.js 24, which runs the `.ts` file below directly. The upstream x402 e2e suite also passes
+  through Rail402 with the stock Hono, Fastify and Next.js servers; see [Conformance
+  evidence](/reference/conformance).
+</Info>
+
+## 1. Install
+
+```sh
+mkdir x402-seller && cd x402-seller
+npm init -y && npm pkg set type=module
+npm install express@5 @x402/express@2.27.0 @x402/core@2.27.0 @x402/stellar@2.27.0 @x402/extensions@2.27.0 @stellar/stellar-sdk@16.3.0
+```
+
+## 2. A receiving account
+
+`payTo` must be able to hold the asset. For a `G…` account that means a USDC trustline. Without one,
+payments to it are refused with `invalid_exact_stellar_payload_recipient_trustline_missing`. The
+`create-account.ts` script from the [buyer quickstart](/quickstart/buyers#2-create-a-funded-testnet-account)
+creates a testnet account with the trustline:
+
+```sh
+node create-account.ts          # no amount: trustline only
+export PAY_TO=G...              # the public key it printed
+```
+
+The seller never needs XLM for fees and never signs anything during a payment.
+
+## 3. The seller
+
+```ts seller.ts
+import express from "express";
+import { HTTPFacilitatorClient, x402ResourceServer } from "@x402/core/server";
+import { paymentMiddleware } from "@x402/express";
+import { bazaarResourceServerExtension, declareDiscoveryExtension } from "@x402/extensions/bazaar";
+import { ExactStellarScheme } from "@x402/stellar/exact/server";
+
+const NETWORK = "stellar:testnet";
+const facilitator = new HTTPFacilitatorClient({
+  url: process.env.FACILITATOR_URL ?? "{{facilitatorUrl}}",
+});
+const resourceServer = new x402ResourceServer(facilitator)
+  .register(NETWORK, new ExactStellarScheme())
+  .registerExtension(bazaarResourceServerExtension);
+
+const app = express();
+app.use(
+  paymentMiddleware(
+    {
+      "GET /weather": {
+        accepts: { scheme: "exact", price: "$0.01", network: NETWORK, payTo: process.env.PAY_TO! },
+        description: "Current weather for a city",
+        mimeType: "application/json",
+        extensions: declareDiscoveryExtension({
+          input: { city: "Ankara" },
+          inputSchema: {
+            properties: { city: { type: "string", description: "City name" } },
+            required: ["city"],
+          },
+          output: { example: { temperature: 21, conditions: "sunny" } },
+        }),
+      },
+    },
+    resourceServer,
+  ),
+);
+app.get("/weather", (_req, res) => {
+  res.json({ temperature: 21, conditions: "sunny" });
+});
+app.listen(4021);
+```
+
+```sh
+node seller.ts
+```
+
+- `price: "$0.01"` is converted by the stock Stellar server scheme into Circle testnet USDC:
+  `amount: "100000"` (7 decimals) of contract `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`.
+- `x402ResourceServer` reads `/supported` from the facilitator, so the payment requirements carry
+  `extra: { areFeesSponsored: true }`.
+- `bazaarResourceServerExtension` and `declareDiscoveryExtension` publish the route's discovery metadata:
+  the query parameters it takes, their JSON Schema, and an example output.
+
+An unpaid request gets `402` with a `PAYMENT-REQUIRED` header. Decoded, it looks like this (illustrative and
+abridged; `payTo` is your account):
+
+```json
+{
+  "x402Version": 2,
+  "error": "Payment required",
+  "resource": {
+    "url": "http://localhost:4021/weather?city=Ankara",
+    "description": "Current weather for a city",
+    "mimeType": "application/json"
+  },
+  "accepts": [
+    {
+      "scheme": "exact",
+      "network": "stellar:testnet",
+      "amount": "100000",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "payTo": "GAF777EXHOBA6Z4JEEZNOUD2LTGSOAMVCPQGDHCQ2HBOREZUAMLI47ZW",
+      "maxTimeoutSeconds": 300,
+      "extra": { "areFeesSponsored": true }
+    }
+  ],
+  "extensions": {
+    "bazaar": {
+      "info": {
+        "input": { "type": "http", "queryParams": { "city": "Ankara" }, "method": "GET" },
+        "output": { "type": "json", "example": { "temperature": 21, "conditions": "sunny" } }
+      },
+      "schema": { "$schema": "https://json-schema.org/draft/2020-12/schema", "...": "..." }
+    }
+  }
+}
+```
+
+Pay it with the [buyer quickstart](/quickstart/buyers#3-pay).
+
+## 4. Get listed
+
+When a payment that carries the bazaar extension settles, Rail402 catalogs the resource and tells the seller
+the outcome in the `EXTENSION-RESPONSES` header of its `/verify` and `/settle` responses. The stock
+`HTTPFacilitatorClient` logs both:
+
+```text
+[x402] extension responses: {"bazaar":{"status":"processing","reason":"The discovery metadata is valid; the resource is cataloged once the payment settles.","code":"awaiting_settlement"}}
+[x402] extension responses: {"bazaar":{"status":"processing","reason":"The resource is listed once its own 402 response confirms the payment options and metadata.","code":"awaiting_origin_verification"}}
+```
+
+The first settlement of a new HTTP resource reports `awaiting_origin_verification`: Rail402 then requests the
+resource without payment, and lists it once the `402` your server answers with confirms the payment options
+and metadata. Later settlements report `recorded`, or `awaiting_origin_verification` when the payment carries
+changed metadata. The full outcome also carries
+`listingId` and `version`; see [Cataloging](/bazaar/cataloging#extension-responses).
+
+<Warning>
+  Only resources on public hosts are cataloged. The seller above, on `localhost`, is paid normally but its
+  listing is refused:
+
+```text
+[x402] extension responses: {"bazaar":{"status":"rejected","rejectedReason":"Host \"localhost\" is not a public host.","code":"bazaar_resource_unsafe"}}
+```
+
+Deploy the seller on a public host name to be listed. Behind a TLS-terminating proxy, call
+`app.set("trust proxy", 1)` so Express reports the `https` URL the buyer used: the resource URL comes from
+the request, and Rail402 fetches it later, without payment, to confirm the listing.
+
+</Warning>
+
+Once listed, the resource appears in discovery, bound to your `payTo`:
+
+```sh
+curl "{{facilitatorUrl}}/discovery/resources?payTo=$PAY_TO"
+```
+
+Shortly after the first settlement, Rail402 requests the resource without payment. If the `402` it gets
+back names the same `payTo` and a matching bazaar extension, the listing's `trust` becomes
+`origin_verified` and a new version is recorded.
+
+To have your domain vouch for the listing as well, publish a SEP-1 `stellar.toml` at
+`https://<your host>/.well-known/stellar.toml` that lists your `payTo` account:
+
+```toml
+ACCOUNTS = ["G..."]
+```
+
+Within minutes the listing's `trust` becomes `domain_verified`.
+
+## Changing price or metadata
+
+Change the route config and redeploy. The next settlement reports the change as proposed
+(`awaiting_origin_verification`); Rail402 then requests the resource and publishes what its own `402`
+response declares. Every published change is a new entry in the listing's
+public [version history](/bazaar/discovery#version-history). A different `payTo` settling for the same
+resource cannot take the listing over unless the resource's own `402` names that `payTo`.
+
+## Self-facilitation
+
+To verify and settle inside the seller process instead of calling a facilitator over HTTP, see
+[In-process facilitator](/facilitator/in-process).

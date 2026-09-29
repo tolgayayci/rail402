@@ -1,0 +1,80 @@
+---
+title: Rail402
+sidebarTitle: Introduction
+description: An x402 facilitator and Bazaar discovery layer for Stellar.
+---
+
+Rail402 verifies and settles [x402](https://github.com/x402-foundation/x402) payments on Stellar and pays
+the network fees for them. When a settled payment carries the x402 `bazaar` extension and passes the
+[cataloging rules](/bazaar/cataloging), Rail402 catalogs the paid HTTP endpoint or MCP tool, and buyers can
+find it with filters or natural-language search.
+
+It is built on the unmodified [`@x402/stellar`](https://www.npmjs.com/package/@x402/stellar) 2.27.0 scheme
+and speaks x402 version 2 on the wire, so stock x402 clients and servers work with it without changes.
+The code is Apache-2.0.
+
+## What it does
+
+<CardGroup cols={2}>
+  <Card title="Facilitator" icon="scale-balanced" href="/facilitator/hosted-testnet">
+    `/supported`, `/verify` and `/settle` for the `exact` scheme on `stellar:testnet`. It pays the network fee
+    and is never the source of the payment. `stellar:pubnet` can be configured but has not been exercised end
+    to end.
+  </Card>
+  <Card title="Bazaar catalog" icon="store" href="/bazaar/cataloging">
+    Resources are cataloged only after a payment to them settles, and each listing is bound to the `payTo`
+    that received the payment.
+  </Card>
+  <Card title="Discovery API" icon="list" href="/bazaar/discovery">
+    `GET /discovery/resources` with type, `payTo`, network and extension filters, stable offset paging and a
+    public version history for each listing.
+  </Card>
+  <Card title="Search" icon="magnifying-glass" href="/bazaar/search">
+    `GET /discovery/search`: BM25F and local embeddings fused with RRF, hard filters, constraints read from
+    the query text, and signed cursors.
+  </Card>
+</CardGroup>
+
+## Where to start
+
+<CardGroup cols={2}>
+  <Card title="Pay a Rail402 seller" icon="wallet" href="/quickstart/buyers">
+    A stock `@x402/fetch` buyer on the Stellar testnet.
+  </Card>
+  <Card title="Sell through Rail402" icon="cash-register" href="/quickstart/sellers">
+    A stock `@x402/express` seller that uses the hosted testnet facilitator and its Bazaar.
+  </Card>
+  <Card title="Run your own" icon="docker" href="/facilitator/docker">
+    Build the container image and run it with Postgres.
+  </Card>
+  <Card title="Install from source" icon="terminal" href="/install">
+    Clone, install and verify the repository.
+  </Card>
+</CardGroup>
+
+## Hosted testnet facilitator
+
+A public instance runs on the Stellar testnet. It is free and needs no API key.
+
+```sh
+curl {{facilitatorUrl}}/supported
+```
+
+See [Hosted testnet](/facilitator/hosted-testnet) for what it accepts and what it does not.
+
+## Repository layout
+
+| Path                      | Contents                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| `apps/rail402`            | HTTP service: `/supported`, `/verify`, `/settle`, discovery; channel commands   |
+| `packages/facilitator`    | Settlement engine on `@x402/stellar`: preflight, idempotent crash-safe settle   |
+| `packages/stellar`        | Stellar payload inspection, reason codes, diagnosis of on-chain failures        |
+| `packages/bazaar`         | Settlement-gated catalog: integrity rules, origin verification, version history |
+| `packages/search`         | Natural-language search: BM25F, local embeddings, reciprocal rank fusion        |
+| `packages/store-postgres` | Durable ledger, channel leases, catalog, rate limits and metering               |
+| `packages/errors`         | Error code registry: every rejection has a stable code and reason               |
+| `packages/testkit`        | Private-network test helpers (private)                                          |
+| `tools/conformance`       | Canonical-client and upstream e2e runs with recorded evidence                   |
+| `tools/search-eval`       | Reproducible search evaluation and release gate                                 |
+| `tools/license-gate`      | Fail-closed licence gate and dependency licence report                          |
+| `tools/models`            | Fetches the pinned embedding model and verifies its hashes                      |

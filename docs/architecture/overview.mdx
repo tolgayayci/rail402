@@ -1,0 +1,114 @@
+---
+title: Architecture overview
+description: The x402 payment loop on Stellar, where Rail402 sits in it, and the components it is built from.
+---
+
+x402 has three parties. The **buyer** asks for a resource, the **seller** (the resource server) names a
+price, and the **facilitator** checks the payment and puts it on-chain. Rail402 is the facilitator. Buyers
+and sellers use the stock x402 packages and never talk to Stellar directly about fees.
+
+## The payment loop
+
+<Steps>
+  <Step title="The seller asks for payment">
+    The buyer requests a paid route. The seller answers `402 Payment Required` with a `PAYMENT-REQUIRED`
+    header that lists what it accepts: scheme `exact`, network `stellar:testnet`, the asset's contract
+    address, the `payTo` address, the amount in the asset's base units, `maxTimeoutSeconds`, and
+    `extra.areFeesSponsored: true`, which the seller's scheme reads from Rail402's `/supported`.
+  </Step>
+  <Step title="The buyer signs an authorization">
+    The buyer's x402 client builds a Soroban invocation of the asset contract's `transfer(from, to, amount)`
+    and signs its authorization entry with the buyer's key. The signature fixes the asset, the recipient and
+    the amount. The client sends the payment as `payload: {transaction}` in the `PAYMENT-SIGNATURE` header.
+  </Step>
+  <Step title="The seller calls /verify">
+    Rail402 runs its own checks first, before any simulation: protocol, operator policy, transaction shape,
+    accounts, authorization and expiry. It then runs the unmodified `@x402/stellar` verifier, which simulates
+    the transaction against the current ledger. When simulation fails, Rail402 names the on-chain cause, for
+    example a missing trustline or a spent nonce.
+  </Step>
+  <Step title="The seller calls /settle">
+    Rail402 runs its own checks again, claims the payer's authorization and leases one of its channel
+    accounts. Upstream `@x402/stellar` then runs its verifier again and rebuilds the transaction around the
+    buyer's signed authorization with the channel account as the source, and Rail402's sponsor account wraps
+    it in a fee bump and pays the fee. Rail402 records the signed envelope before broadcasting it, then waits
+    for the ledger.
+  </Step>
+  <Step title="The seller serves the resource">
+    The settle response carries the transaction hash. The seller returns it to the buyer in the
+    `PAYMENT-RESPONSE` header together with the resource.
+  </Step>
+</Steps>
+
+## What the facilitator can and cannot do
+
+Rail402 is non-custodial. It holds one secret per network, the **sponsor** seed, and derives its **channel
+accounts** from it.
+
+- The sponsor pays every settlement fee and the base reserves of the channel accounts. It needs only XLM.
+- Channel accounts are the source accounts of settlement transactions, one settlement at a time each, so
+  concurrent settlements never compete for a sequence number. They hold no balance.
+- Verification refuses any payment in which a facilitator account is the payer, a transaction or operation
+  source, or a party to an authorization.
+- The payer's signature covers the asset, recipient and amount. Changing any of them after signing fails
+  signature verification.
+
+The facilitator can therefore only spend its own XLM on fees. See [Operations](/operations) for key custody
+and the limits that protect the sponsor.
+
+## Settlement is idempotent and crash-safe
+
+Each settlement is keyed by the payer's authorization (network, payer, nonce).
+
+- A repeated `/settle` for the same payment returns the original result, and funds move once.
+- A different envelope for an authorization that was already settled is refused
+  (`settle_exact_stellar_idempotency_conflict`).
+- If the transaction is not final within the confirmation window, `/settle` answers `settlement_pending`
+  with the transaction hash, and a background reconciler finishes it from the recorded bytes.
+- After a crash or restart, only the recorded bytes are ever resubmitted, so there is never a second
+  transaction for the same authorization.
+
+The full list of checks, codes and tests is in [Errors and verification rules](/verification-rules).
+
+## The Bazaar
+
+A payment can carry the x402 `bazaar` extension, which describes the paid resource: its input and output
+schema, method or tool name, and service metadata. When a payment with that extension settles, Rail402 adds
+the resource to its catalog, provided the metadata is valid and, for an `http` or `https` resource URL, the
+host is public. A payment without the extension is settled normally and not cataloged.
+
+- **Settlement-gated.** Nothing is listed without a settled payment to it. `/verify` only previews the
+  outcome.
+- **Bound to the payee.** The listing belongs to the `payTo` the settlement paid. Another seller cannot
+  change it.
+- **Confirmed at the origin.** An HTTP resource is listed, and any change to it published, only after the
+  resource's own `402` response confirms it.
+- **Off the payment path.** Cataloging never changes the payment result and adds no transaction. The seller
+  learns the outcome from the `EXTENSION-RESPONSES` header of the facilitator's response.
+
+Buyers and agents read the catalog through [`GET /discovery/resources`](/bazaar/discovery) and
+[`GET /discovery/search`](/bazaar/search). The catalog lives in Postgres, not on-chain.
+
+## Networks
+
+Rail402 knows the CAIP-2 networks `stellar:testnet` and `stellar:pubnet`. Which ones an instance serves is
+configuration (`NETWORKS`). The [hosted instance](/facilitator/hosted-testnet) serves `stellar:testnet`
+only. The tests and conformance runs exercise testnet. Pubnet can be configured, with stricter rules that
+the service checks at startup (see [Configuration](/configuration)), but it has not been exercised end to
+end.
+
+## Components
+
+Rail402 is one service backed by Postgres, built from workspace packages that can also be used on their own.
+
+| Component                 | Role                                                                                               |
+| ------------------------- | -------------------------------------------------------------------------------------------------- |
+| `apps/rail402`            | The HTTP service: `/supported`, `/verify`, `/settle`, `/discovery/*`, health, metrics and metering |
+| `packages/facilitator`    | The settlement engine on `@x402/stellar`: preflight checks, fee sponsorship, crash-safe settlement |
+| `packages/stellar`        | Stellar payload inspection, reason codes and diagnosis of on-chain failures                        |
+| `packages/bazaar`         | The catalog: cataloging from settlements, integrity rules, origin checks and version history       |
+| `packages/search`         | Natural-language search: BM25F, local embeddings and reciprocal rank fusion                        |
+| `packages/store-postgres` | Durable settlement ledger, channel-account leases, catalog, rate limits and metering               |
+
+Without Postgres (`STORE=memory`) the same service runs in one process with no durable state, which suits
+local development and tests. See [Configuration](/configuration).

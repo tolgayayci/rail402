@@ -1,0 +1,120 @@
+---
+title: In-process facilitator
+description: Verify and settle inside your own resource server, with no HTTP facilitator.
+---
+
+`@rail402.dev/facilitator` is the settlement engine the service runs. A resource server can run it in its own
+process and call it through `inProcessClient`, a stock x402 `FacilitatorClient`. Verification and settlement
+run the same checks with the same codes as over HTTP (stages 1 to 8 of
+[Errors and verification rules](/verification-rules)), without the network hop. The HTTP request checks
+(stage 0) and the Bazaar are part of the service and are not included.
+
+The seller then holds a sponsor seed and pays its own settlement fees. Use this when you want no dependency on
+an external facilitator; otherwise point `HTTPFacilitatorClient` at a Rail402 instance.
+
+```sh
+npm install @rail402.dev/facilitator
+```
+
+The package runs on Node.js 24.11 or later. For durable settlement across processes, add
+`@rail402.dev/store-postgres` (see [Options](#options)).
+
+## Example
+
+An `@x402/express` seller that settles its own payments on testnet. The seller's dependencies are the same
+as in the [seller quickstart](/quickstart/sellers#1-install), plus `@rail402.dev/facilitator`:
+
+```sh
+npm install express@5 @x402/express@2.27.0 @x402/core@2.27.0 @x402/stellar@2.27.0 @stellar/stellar-sdk@16.3.0 @rail402.dev/facilitator@0.2.0
+```
+
+```ts server.ts
+import express from "express";
+import { Keypair, Networks, rpc } from "@stellar/stellar-sdk";
+import { x402ResourceServer } from "@x402/core/server";
+import { paymentMiddleware } from "@x402/express";
+import { ExactStellarScheme } from "@x402/stellar/exact/server";
+import {
+  createStellarFacilitator,
+  deriveChannelKeypairs,
+  inProcessClient,
+  provisionChannels,
+} from "@rail402.dev/facilitator";
+
+const NETWORK = "stellar:testnet";
+const RPC_URL = "https://soroban-testnet.stellar.org";
+const CHANNELS = 2;
+const sponsor = Keypair.fromSecret(process.env.SPONSOR_SECRET!);
+
+// Channel accounts are derived from the sponsor. Create the missing ones; the sponsor pays their reserves.
+await provisionChannels({
+  server: new rpc.Server(RPC_URL),
+  passphrase: Networks.TESTNET,
+  sponsor,
+  channels: deriveChannelKeypairs(sponsor, NETWORK, CHANNELS),
+});
+
+const facilitator = createStellarFacilitator({
+  networks: [{ network: NETWORK, rpcUrl: RPC_URL, sponsorSecret: sponsor.secret(), channelCount: CHANNELS }],
+});
+// Finishes settlements that answered `settlement_pending`.
+setInterval(() => void facilitator.reconcile(), 5_000).unref();
+
+const resourceServer = new x402ResourceServer(inProcessClient(facilitator)).register(
+  NETWORK,
+  new ExactStellarScheme(),
+);
+
+const app = express();
+app.use(
+  paymentMiddleware(
+    {
+      "GET /weather": {
+        accepts: { scheme: "exact", price: "$0.01", network: NETWORK, payTo: process.env.PAY_TO! },
+        description: "Weather report",
+        mimeType: "application/json",
+      },
+    },
+    resourceServer,
+  ),
+);
+app.get("/weather", (_req, res) => {
+  res.json({ weather: "sunny", temperature: 21 });
+});
+app.listen(4021);
+```
+
+`SPONSOR_SECRET` is a funded testnet account (see [Self-host with Docker](/facilitator/docker#steps) for one
+way to create it), and `PAY_TO` an account with a USDC trustline. The stock buyer from the
+[buyer quickstart](/quickstart/buyers) pays this server unchanged.
+
+## Options
+
+`createStellarFacilitator({ networks, log })` takes one entry per network:
+
+| Field           | Required | Default                                                                                                            | Meaning                                                                                                                                                                                                            |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `network`       | yes      |                                                                                                                    | `"stellar:testnet"` or `"stellar:pubnet"`                                                                                                                                                                          |
+| `rpcUrl`        | yes      |                                                                                                                    | Stellar RPC URL; pubnet requires `https`                                                                                                                                                                           |
+| `sponsorSecret` | yes      |                                                                                                                    | The sponsor's `S…` seed                                                                                                                                                                                            |
+| `channelCount`  | yes      |                                                                                                                    | Channel accounts, i.e. settlements that can be in flight at once                                                                                                                                                   |
+| `assets`        | no       | Circle USDC for the network                                                                                        | `acceptedAsset({ contract, symbol, decimals }, { minAmount, maxAmount })` entries                                                                                                                                  |
+| `policy`        | no       | `{ min: 10, max: 300 }` s timeouts, 1 ledger margin, 300,000 stroop fee ceiling, 100 stroop inclusion fee          | `timeoutSeconds`, `expirationMarginLedgers`, `maxTransactionFeeStroops`, `inclusionFeeStroops`                                                                                                                     |
+| `ledger`        | no       | in-memory                                                                                                          | Settlement ledger: idempotency and crash recovery                                                                                                                                                                  |
+| `channels`      | no       | in-memory                                                                                                          | Channel pool: leases channel accounts to settlements                                                                                                                                                               |
+| `timing`        | no       | `channelWaitMs` 5000, `claimTtlMs` 30000, `confirmTimeoutMs` 25000, `duplicateWaitMs` 25000, `pollIntervalMs` 1000 | Settlement waits in milliseconds: for a free channel, before an unsigned claim may be taken over, for confirmation before `settlement_pending`, for a duplicate request's original, and between confirmation polls |
+| `inclusionFee`  | no       | fixed bid from `policy`                                                                                            | `{ floor, cap, percentile }`: bid from the network's recent fee stats                                                                                                                                              |
+| `guard`         | no       | none                                                                                                               | Refuses settlements while the sponsor cannot pay for them                                                                                                                                                          |
+
+The in-memory ledger and channel pool suit one process that can lose its state on restart. For durable,
+multi-process settlement, pass the Postgres stores the service itself uses, from `@rail402.dev/store-postgres`
+(`PostgresSettlementLedger`, `PostgresChannelPool`, `createDatabase`, `migrate`); see
+`apps/rail402/src/runtime.ts` for how the service wires them.
+
+## What you give up
+
+- **Bazaar.** Cataloging and discovery live in the Rail402 service, not in the facilitator package. An
+  in-process facilitator does not catalog resources.
+- **Operations.** Readiness checks, metrics, rate limits and the sponsor balance polling are part of the
+  service. Monitor the sponsor's balance yourself, and run `facilitator.reconcile()` at startup and
+  periodically, as the example does.

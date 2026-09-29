@@ -1,0 +1,125 @@
+---
+title: Hosted testnet
+description: The public Rail402 facilitator on the Stellar testnet. Free, no API key.
+---
+
+A public Rail402 instance serves the Stellar testnet. Point any stock x402 seller at it to accept testnet
+payments, and read its Bazaar catalog without an account.
+
+```text
+{{facilitatorUrl}}
+```
+
+| Property   | Value                                                                                                |
+| ---------- | ---------------------------------------------------------------------------------------------------- |
+| Network    | `stellar:testnet` only                                                                               |
+| Scheme     | `exact`, x402 version 2                                                                              |
+| Asset      | Circle testnet USDC, contract `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`, 7 decimals |
+| Fees       | Sponsored: `extra.areFeesSponsored` is `true`; the payer pays no network fee                         |
+| Access     | Free, no API key                                                                                     |
+| Extensions | `bazaar`                                                                                             |
+
+It runs the repository's Docker image on [Railway](/facilitator/railway), with Postgres, and `/health` reports
+the commit it was built from. It does not serve `stellar:pubnet`.
+
+## Check it
+
+```sh
+curl {{facilitatorUrl}}/supported
+```
+
+```json
+{
+  "kinds": [
+    {
+      "x402Version": 2,
+      "scheme": "exact",
+      "network": "stellar:testnet",
+      "extra": { "areFeesSponsored": true }
+    }
+  ],
+  "extensions": ["bazaar"],
+  "signers": {
+    "stellar:*": [
+      "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
+      "GDZREJ6UXJDL7IMLRMHP4F6RM37TF3WUGRB7GPE5G4IUIXKS6ISZPVEQ",
+      "..."
+    ]
+  }
+}
+```
+
+`signers` lists the fee sponsor followed by the channel accounts. A payment in which any of them is the payer,
+a transaction or operation source, or a party to an authorization is refused.
+
+```sh
+curl {{facilitatorUrl}}/health
+```
+
+```json
+{ "status": "ok", "version": "0.1.0" }
+```
+
+```sh
+curl {{facilitatorUrl}}/ready
+```
+
+```json
+{
+  "ready": true,
+  "checks": {
+    "database": { "ok": true },
+    "stellar:testnet:rpc": { "ok": true },
+    "stellar:testnet:sponsor": { "ok": true, "detail": "99993241283 stroops" },
+    "stellar:testnet:channels": { "ok": true, "detail": "24 channels" },
+    "search": { "ok": true }
+  }
+}
+```
+
+The version and balance above are examples; the live values differ.
+
+## Pay through it
+
+The quickest end-to-end check is the canonical client run from a [source checkout](/install). It creates and
+funds a fresh buyer and seller with Friendbot, buys 1 testnet USDC for the buyer, starts a stock
+`@x402/express` seller on `127.0.0.1` that uses the hosted facilitator, and pays it with stock `@x402/fetch`:
+
+```sh
+node tools/conformance/src/canonical-exact.ts --facilitator {{facilitatorUrl}}
+```
+
+It prints the settlement transaction, a Stellar Expert link and the buyer's and seller's USDC balances before
+and after, and it fails unless the transaction succeeded on-chain and the buyer's loss equals the seller's
+gain. Recorded runs are on the [Conformance evidence](/reference/conformance) page.
+
+To build your own, follow the [buyer](/quickstart/buyers) and [seller](/quickstart/sellers) quickstarts.
+
+## Limits
+
+- **Rate limits.** Requests are limited per client address; the instance runs with `TRUSTED_PROXY_HOPS=1`,
+  so the address is the one Railway's edge proxy reports in `X-Forwarded-For`. A limited request gets HTTP
+  `429` with a `Retry-After` header and the code `rate_limited`.
+- **Operator policy.** The accepted asset, amount bounds, `maxTimeoutSeconds` range and settlement fee ceiling
+  are configuration; the defaults are on the [Configuration](/configuration#per-network) page. A payment
+  outside them is refused with a specific `invalid_exact_stellar_requirements_*` or
+  `invalid_exact_stellar_payload_fee_exceeds_maximum` code. Amounts are SEP-41 base units: `10000000` is
+  1 USDC.
+- **Cataloging.** Only resources on public hosts are cataloged. A seller on `localhost` or a private address is
+  paid normally, but its listing is refused with `bazaar_resource_unsafe`.
+- **Testnet only.** Testnet accounts, balances and the catalog carry no value.
+
+## Discovery
+
+The catalog is public:
+
+```sh
+curl "{{facilitatorUrl}}/discovery/resources?limit=5"
+curl "{{facilitatorUrl}}/discovery/search?query=weather%20data%20under%201%20cent"
+```
+
+The hosted catalog lists the resources of the public demo seller (`apps/demo-seller`, at
+`https://demo.rail402.dev`), paid through this facilitator, with their payment options,
+bazaar metadata, trust and Stellar facts.
+
+See [Discovery API](/bazaar/discovery) and [Search](/bazaar/search).

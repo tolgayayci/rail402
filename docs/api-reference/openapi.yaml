@@ -1,0 +1,1092 @@
+openapi: 3.1.0
+info:
+  title: Rail402
+  version: 0.0.0
+  summary: x402 facilitator and Bazaar discovery layer for Stellar.
+  description: |
+    The Rail402 HTTP service. `/supported`, `/verify` and `/settle` follow the x402 version 2 facilitator
+    interface; `/discovery/*` serves the Bazaar catalog and search.
+
+    Every endpoint except `/health`, `/ready` and `/metrics` is rate-limited per client address. A limited
+    request gets HTTP 429 with a `Retry-After` header and the code `rate_limited`.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+servers:
+  - url: https://testnet.rail402.dev
+    description: Hosted testnet facilitator (stellar:testnet only, no API key)
+tags:
+  - name: Facilitator
+    description: x402 facilitator interface.
+  - name: Discovery
+    description: Bazaar catalog and natural-language search.
+  - name: Operations
+    description: Health, readiness, metrics and usage.
+paths:
+  /supported:
+    get:
+      tags: [Facilitator]
+      operationId: getSupported
+      summary: List supported payment kinds
+      description: |
+        The payment kinds this instance serves, the extensions it supports and the addresses of its fee
+        sponsor and channel accounts. A payment in which any listed signer is the payer, a transaction or
+        operation source, or a party to an authorization is refused.
+      responses:
+        "200":
+          description: Supported kinds.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportedResponse"
+              example:
+                kinds:
+                  - x402Version: 2
+                    scheme: exact
+                    network: stellar:testnet
+                    extra:
+                      areFeesSponsored: true
+                extensions: [bazaar]
+                signers:
+                  stellar:*:
+                    - GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC
+                    - GDZREJ6UXJDL7IMLRMHP4F6RM37TF3WUGRB7GPE5G4IUIXKS6ISZPVEQ
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /verify:
+    post:
+      tags: [Facilitator]
+      operationId: verifyPayment
+      summary: Verify a payment
+      description: |
+        Checks a payment against its requirements without settling it. Rejections are HTTP 200 with
+        `isValid: false`, a stable `invalidReason` code and a non-empty `invalidMessage`.
+
+        When the payment carries a valid `bazaar` extension, the `EXTENSION-RESPONSES` header previews the
+        cataloging outcome.
+      security:
+        - {}
+        - bearerKey: []
+        - headerKey: []
+      requestBody:
+        $ref: "#/components/requestBodies/FacilitatorRequest"
+      responses:
+        "200":
+          description: The verification outcome.
+          headers:
+            EXTENSION-RESPONSES:
+              $ref: "#/components/headers/ExtensionResponses"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyResponse"
+              examples:
+                valid:
+                  summary: The payer of the recorded canonical client run
+                  value:
+                    isValid: true
+                    payer: GDQMM2IJX6XCBTEW7J242PBXG3HQCKIF2N6WDYIQPG6UXPPY3N4VHC75
+                invalidNetwork:
+                  value:
+                    isValid: false
+                    invalidReason: invalid_network
+                    invalidMessage: This facilitator does not serve the requested network.
+        "400":
+          description: The body is not JSON or lacks a required field (`invalid_payload`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyTransportError"
+              example:
+                isValid: false
+                invalidReason: invalid_payload
+                invalidMessage: "Malformed request: x402Version: Invalid input: expected number, received undefined."
+                error:
+                  code: bad_request
+                  reason: "Malformed request: x402Version: Invalid input: expected number, received undefined."
+                  retryable: false
+        "401":
+          description: The network requires an API key and none, or an unknown one, was sent (`unauthorized`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyTransportError"
+        "413":
+          description: The body exceeds `BODY_LIMIT_BYTES` (`payload_too_large`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyTransportError"
+        "415":
+          description: "The request is not `Content-Type: application/json` (`unsupported_media_type`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyTransportError"
+        "429":
+          description: Rate limited (`rate_limited`).
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyTransportError"
+        "500":
+          description: An unexpected error (`unexpected_verify_error`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyResponse"
+  /settle:
+    post:
+      tags: [Facilitator]
+      operationId: settlePayment
+      summary: Settle a payment
+      description: |
+        Verifies the payment again and settles it on-chain: a channel account is the transaction source and
+        the fee sponsor pays the fee through a fee bump. Settlement is idempotent per authorization: a repeated
+        request returns the original result and moves funds once.
+
+        Rejections are HTTP 200 with `success: false`, a stable `errorReason` code and a non-empty
+        `errorMessage`. `settlement_pending` carries the transaction hash; the settlement is finished in the
+        background.
+
+        When the settled payment carries a `bazaar` extension, the `EXTENSION-RESPONSES` header reports the
+        cataloging outcome.
+      security:
+        - {}
+        - bearerKey: []
+        - headerKey: []
+      requestBody:
+        $ref: "#/components/requestBodies/FacilitatorRequest"
+      responses:
+        "200":
+          description: The settlement outcome.
+          headers:
+            EXTENSION-RESPONSES:
+              $ref: "#/components/headers/ExtensionResponses"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleResponse"
+              examples:
+                settled:
+                  summary: The settlement of the recorded canonical client run
+                  value:
+                    success: true
+                    transaction: 9cd39ec85e02bf9d009d3d790801fa860557a3120b06d7b721d2ba55d7631fe5
+                    network: stellar:testnet
+                    payer: GDQMM2IJX6XCBTEW7J242PBXG3HQCKIF2N6WDYIQPG6UXPPY3N4VHC75
+                refused:
+                  value:
+                    success: false
+                    errorReason: invalid_exact_stellar_payload_accepted_mismatch
+                    errorMessage: The payload's accepted requirements differ from the payment requirements.
+                    transaction: ""
+                    network: stellar:testnet
+        "400":
+          description: The body is not JSON or lacks a required field (`invalid_payload`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleTransportError"
+        "401":
+          description: The network requires an API key and none, or an unknown one, was sent (`unauthorized`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleTransportError"
+        "413":
+          description: The body exceeds `BODY_LIMIT_BYTES` (`payload_too_large`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleTransportError"
+        "415":
+          description: "The request is not `Content-Type: application/json` (`unsupported_media_type`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleTransportError"
+              example:
+                success: false
+                errorReason: unsupported_media_type
+                errorMessage: "The request body must be JSON (Content-Type: application/json)."
+                transaction: ""
+                network: ""
+                error:
+                  code: unsupported_media_type
+                  reason: "The request body must be JSON (Content-Type: application/json)."
+                  retryable: false
+        "429":
+          description: Rate limited (`rate_limited`).
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleTransportError"
+        "500":
+          description: An unexpected error (`unexpected_settle_error`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleResponse"
+  /discovery/resources:
+    get:
+      tags: [Discovery]
+      operationId: listResources
+      summary: List cataloged resources
+      description: |
+        Published resources in catalog order (first published first), so offset paging pinned with
+        `asOf` is stable. A resource sold on several networks is one item. `payTo`, `scheme` and `network`
+        must hold for one and the same payment option, and a filtered item shows only the options that
+        matched. Unsupported or malformed parameters are refused.
+      parameters:
+        - $ref: "#/components/parameters/Type"
+        - $ref: "#/components/parameters/PayTo"
+        - $ref: "#/components/parameters/Scheme"
+        - $ref: "#/components/parameters/Network"
+        - $ref: "#/components/parameters/Extensions"
+        - name: limit
+          in: query
+          description: Page size, in resources. Values above 100 are clamped to 100.
+          schema:
+            type: integer
+            minimum: 1
+            default: 20
+        - name: offset
+          in: query
+          description: Resources to skip.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1000000
+            default: 0
+        - name: asOf
+          in: query
+          description: Only listings first published at or before this time. Pass back `pagination.asOf`.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: A page of resources.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoveryList"
+        "400":
+          $ref: "#/components/responses/InvalidParameter"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /discovery/resources/{id}:
+    get:
+      tags: [Discovery]
+      operationId: getResource
+      summary: Get a listing
+      description: One listing, on its one network, by id, published or quarantined, with its `state`.
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200":
+          description: The listing.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/DiscoveryItem"
+                  - type: object
+                    required: [state]
+                    properties:
+                      state:
+                        type: string
+                        enum: [pending, published, quarantined]
+        "404":
+          $ref: "#/components/responses/ListingNotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /discovery/resources/{id}/versions:
+    get:
+      tags: [Discovery]
+      operationId: getResourceVersions
+      summary: Get a listing's version history
+      description: Every version of the listing, oldest first, each a full snapshot of what was published.
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200":
+          description: The version history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionList"
+        "404":
+          $ref: "#/components/responses/ListingNotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /discovery/search:
+    get:
+      tags: [Discovery]
+      operationId: searchResources
+      summary: Search the catalog
+      description: |
+        Natural-language search over published listings. Hard filters, from parameters or recognised in
+        the query text, apply before ranking; lexical (BM25F) and semantic (local embeddings) rankings are
+        fused with reciprocal rank fusion. Explicit parameters override the same constraint in the text.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: |
+            What to find, in natural language. 1 to 500 characters after trimming. Longer than 500 after
+            trimming is `search_query_too_long`; longer than 2,000 is `discovery_invalid_parameter`.
+          schema:
+            type: string
+            maxLength: 2000
+          example: current weather for a city on testnet under 2 cents
+        - $ref: "#/components/parameters/Type"
+        - $ref: "#/components/parameters/PayTo"
+        - $ref: "#/components/parameters/Scheme"
+        - $ref: "#/components/parameters/Network"
+        - $ref: "#/components/parameters/Extensions"
+        - name: asset
+          in: query
+          description: Only payment options in this asset, by `C…` contract address or symbol.
+          schema:
+            type: string
+            pattern: "^C[A-Z2-7]{55}$|^[A-Za-z0-9]{1,12}$"
+        - name: maxPrice
+          in: query
+          description: Price ceiling, in the asset's units if `asset` is set, else in US dollars.
+          schema:
+            type: string
+            pattern: "^\\d{1,15}(\\.\\d{1,18})?$"
+        - name: limit
+          in: query
+          description: Page size, in resources. Values above 50 are clamped to 50.
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+        - name: cursor
+          in: query
+          description: The `pagination.cursor` of the previous page.
+          schema:
+            type: string
+            maxLength: 512
+      responses:
+        "200":
+          description: A page of results, best first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
+          description: |
+            `discovery_invalid_parameter` (missing `query`, malformed or unsupported parameter),
+            `search_query_required`, `search_query_too_long`, `search_invalid_cursor` or
+            `search_cursor_expired`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                error:
+                  code: search_query_required
+                  reason: The `query` parameter is required and must not be blank.
+                  retryable: false
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /health:
+    get:
+      tags: [Operations]
+      operationId: getHealth
+      summary: Liveness
+      description: Answers while the process is up. Never rate-limited.
+      responses:
+        "200":
+          description: The process is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+                  version:
+                    type: string
+                    description: The `RAIL402_VERSION` the image was built with, `dev` by default.
+              example:
+                status: ok
+                version: 0.1.0
+  /ready:
+    get:
+      tags: [Operations]
+      operationId: getReady
+      summary: Readiness
+      description: |
+        Ready when the database is reachable, and for every network the RPC is healthy, the sponsor holds at
+        least `MIN_SPONSOR_BALANCE_XLM` and every channel account exists, and the first search index is
+        built. Never rate-limited.
+      responses:
+        "200":
+          description: Every check passes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Readiness"
+              example:
+                ready: true
+                checks:
+                  database:
+                    ok: true
+                  stellar:testnet:rpc:
+                    ok: true
+                  stellar:testnet:sponsor:
+                    ok: true
+                    detail: 99999974478 stroops
+                  stellar:testnet:channels:
+                    ok: true
+                    detail: 24 channels
+                  search:
+                    ok: true
+        "503":
+          description: At least one check fails.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Readiness"
+  /metrics:
+    get:
+      tags: [Operations]
+      operationId: getMetrics
+      summary: Prometheus metrics
+      description: Metrics in the Prometheus text format. Never rate-limited.
+      responses:
+        "200":
+          description: The metrics.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /usage:
+    get:
+      tags: [Operations]
+      operationId: getUsage
+      summary: Usage of the calling API key
+      description: |
+        The last 31 days of metered `/verify` and `/settle` calls for the API key that makes the request, and
+        the service fee accrued for its successful settlements.
+      security:
+        - bearerKey: []
+        - headerKey: []
+      responses:
+        "200":
+          description: Usage rows. With the Postgres store they are ordered newest day first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageResponse"
+        "401":
+          description: No known API key was sent (`unauthorized`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                error:
+                  code: unauthorized
+                  reason: A valid API key is required for this endpoint.
+                  retryable: false
+        "429":
+          $ref: "#/components/responses/RateLimited"
+components:
+  securitySchemes:
+    bearerKey:
+      type: http
+      scheme: bearer
+      description: An API key whose SHA-256 digest is listed in `API_KEY_SHA256`.
+    headerKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: An API key whose SHA-256 digest is listed in `API_KEY_SHA256`.
+  headers:
+    ExtensionResponses:
+      description: |
+        Base64-encoded JSON keyed by extension name, present when the payment carries a `bazaar` extension:
+        `{"bazaar": CatalogOutcome}`.
+      schema:
+        type: string
+    RetryAfter:
+      description: Seconds until a retry can succeed.
+      schema:
+        type: integer
+  parameters:
+    Type:
+      name: type
+      in: query
+      description: Only listings of this resource type. Unknown types match nothing.
+      schema:
+        type: string
+        pattern: "^[a-z][a-z0-9_-]{0,31}$"
+        examples: [http, mcp]
+    PayTo:
+      name: payTo
+      in: query
+      description: Only payment options paying this address (a `G…` address also matches muxed addresses on it).
+      schema:
+        type: string
+        pattern: "^[A-Z2-7]{56}$|^M[A-Z2-7]{68}$"
+    Scheme:
+      name: scheme
+      in: query
+      description: Only payment options in this scheme.
+      schema:
+        type: string
+        pattern: "^[a-z][a-z0-9_-]{0,31}$"
+        examples: [exact]
+    Network:
+      name: network
+      in: query
+      description: Only payment options on this CAIP-2 network.
+      schema:
+        type: string
+        pattern: "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,64}$"
+        examples: [stellar:testnet]
+    Extensions:
+      name: extensions
+      in: query
+      description: Comma-separated extension keys (at most 10) every resource must declare in its 402 response.
+      schema:
+        type: string
+        pattern: "^[a-zA-Z0-9_-]{1,64}(,[a-zA-Z0-9_-]{1,64}){0,9}$"
+        examples: [bazaar]
+    ListingId:
+      name: id
+      in: path
+      required: true
+      description: A listing's id (`rail402.listings[].id`).
+      schema:
+        type: string
+        format: uuid
+  requestBodies:
+    FacilitatorRequest:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/FacilitatorRequest"
+  responses:
+    RateLimited:
+      description: Rate limited (`rate_limited`).
+      headers:
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    InvalidParameter:
+      description: A parameter is malformed or not supported (`discovery_invalid_parameter`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: discovery_invalid_parameter
+              reason: "Unsupported parameter: foo."
+              retryable: false
+    ListingNotFound:
+      description: No listing has this id (`discovery_listing_not_found`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: discovery_listing_not_found
+              reason: No listing has this identifier.
+              retryable: false
+  schemas:
+    PaymentRequirements:
+      type: object
+      description: An x402 version 2 payment option.
+      required: [scheme, network]
+      properties:
+        scheme:
+          type: string
+          examples: [exact]
+        network:
+          type: string
+          examples: [stellar:testnet]
+        asset:
+          type: string
+          description: The SEP-41 token's contract address (`C…`).
+        payTo:
+          type: string
+          description: The recipient, a `G…`, `C…` or `M…` address.
+        amount:
+          type: string
+          description: The amount in the asset's base units.
+        maxTimeoutSeconds:
+          type: integer
+        extra:
+          type: object
+          additionalProperties: true
+          properties:
+            areFeesSponsored:
+              type: boolean
+      additionalProperties: true
+    PaymentPayload:
+      type: object
+      description: An x402 version 2 payment payload. For `exact` on Stellar, `payload` is `{ transaction }`.
+      required: [x402Version, accepted, payload]
+      properties:
+        x402Version:
+          type: integer
+          const: 2
+        accepted:
+          $ref: "#/components/schemas/PaymentRequirements"
+        payload:
+          type: object
+          properties:
+            transaction:
+              type: string
+              description: A base64 transaction envelope with the payer's signed authorization entry.
+          additionalProperties: true
+        resource:
+          type: object
+          description: The paid resource; read for cataloging.
+          additionalProperties: true
+        extensions:
+          type: object
+          description: Extensions echoed from the seller's 402, such as `bazaar`.
+          additionalProperties: true
+      additionalProperties: true
+    FacilitatorRequest:
+      type: object
+      required: [x402Version, paymentPayload, paymentRequirements]
+      properties:
+        x402Version:
+          type: integer
+          examples: [2]
+        paymentPayload:
+          $ref: "#/components/schemas/PaymentPayload"
+        paymentRequirements:
+          $ref: "#/components/schemas/PaymentRequirements"
+    VerifyResponse:
+      type: object
+      required: [isValid]
+      properties:
+        isValid:
+          type: boolean
+        invalidReason:
+          type: string
+          description: A stable code; present when `isValid` is false.
+        invalidMessage:
+          type: string
+          description: A non-empty human-readable reason; present when `isValid` is false.
+        payer:
+          type: string
+    SettleResponse:
+      type: object
+      required: [success, transaction, network]
+      properties:
+        success:
+          type: boolean
+        errorReason:
+          type: string
+          description: A stable code; present when `success` is false.
+        errorMessage:
+          type: string
+          description: A non-empty human-readable reason; present when `success` is false.
+        payer:
+          type: string
+        transaction:
+          type: string
+          description: The settlement transaction hash; empty when nothing was broadcast.
+        network:
+          type: string
+    ErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, reason, retryable]
+          properties:
+            code:
+              type: string
+            reason:
+              type: string
+            retryable:
+              type: boolean
+            details:
+              type: object
+              additionalProperties: true
+    VerifyTransportError:
+      description: A transport-level rejection of `/verify`, in the x402 shape plus the `error` object.
+      allOf:
+        - $ref: "#/components/schemas/VerifyResponse"
+        - $ref: "#/components/schemas/ErrorBody"
+    SettleTransportError:
+      description: A transport-level rejection of `/settle`, in the x402 shape plus the `error` object.
+      allOf:
+        - $ref: "#/components/schemas/SettleResponse"
+        - $ref: "#/components/schemas/ErrorBody"
+    SupportedResponse:
+      type: object
+      required: [kinds, extensions, signers]
+      properties:
+        kinds:
+          type: array
+          items:
+            type: object
+            required: [x402Version, scheme, network]
+            properties:
+              x402Version:
+                type: integer
+              scheme:
+                type: string
+              network:
+                type: string
+              extra:
+                type: object
+                additionalProperties: true
+        extensions:
+          type: array
+          items:
+            type: string
+        signers:
+          type: object
+          description: Facilitator addresses by CAIP family (`stellar:*`), sponsor first, then channel accounts.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    CatalogOutcome:
+      type: object
+      description: The `bazaar` entry of the `EXTENSION-RESPONSES` header.
+      required: [status, code]
+      properties:
+        status:
+          type: string
+          enum: [success, processing, rejected]
+        code:
+          type: string
+          examples:
+            [
+              cataloged,
+              recorded,
+              awaiting_settlement,
+              cataloging_in_progress,
+              awaiting_origin_verification,
+              bazaar_resource_unsafe,
+            ]
+        rejectedReason:
+          type: string
+        reason:
+          type: string
+        listingId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        dropped:
+          type: array
+          items:
+            type: string
+    Readiness:
+      type: object
+      required: [ready, checks]
+      properties:
+        ready:
+          type: boolean
+        checks:
+          type: object
+          additionalProperties:
+            type: object
+            required: [ok]
+            properties:
+              ok:
+                type: boolean
+              detail:
+                type: string
+    DiscoveryItem:
+      type: object
+      required: [resource, type, x402Version, accepts, lastUpdated, extensions, rail402]
+      properties:
+        resource:
+          type: string
+        type:
+          type: string
+          enum: [http, mcp]
+        x402Version:
+          type: integer
+          const: 2
+        accepts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentRequirements"
+        lastUpdated:
+          type: string
+          format: date-time
+        description:
+          type: string
+        mimeType:
+          type: string
+        serviceName:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        iconUrl:
+          type: string
+        extensions:
+          type: object
+          required: [bazaar]
+          description: >-
+            `bazaar`, and an empty object for every other extension the resource declares in its 402
+            response.
+          properties:
+            bazaar:
+              type: object
+              description: The validated `info`, `schema` and, if accepted, `routeTemplate`.
+              additionalProperties: true
+          additionalProperties:
+            type: object
+            maxProperties: 0
+        rail402:
+          type: object
+          description: >-
+            The catalog listings behind the resource. A resource sold on several networks is one item with
+            one listing per network.
+          required: [trust, settlements, listings, options]
+          properties:
+            method:
+              type: string
+            toolName:
+              type: string
+            trust:
+              type: string
+              enum: [settled, origin_verified, domain_verified]
+              description: The strongest trust among the resource's listings.
+            settlements:
+              type: integer
+              description: Settlements across the resource's listings.
+            listings:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required: [id, network, version, trust, owner, settlements, firstCataloged, lastSettled]
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  network:
+                    type: string
+                  version:
+                    type: integer
+                  trust:
+                    type: string
+                    enum: [settled, origin_verified, domain_verified]
+                  owner:
+                    type: string
+                  settlements:
+                    type: integer
+                  firstCataloged:
+                    type: string
+                    format: date-time
+                  lastSettled:
+                    type: string
+                    format: date-time
+                  stellar:
+                    type: object
+                    description: When the listing's Stellar facts were read; absent until first checked.
+                    required: [checkedAt]
+                    properties:
+                      checkedAt:
+                        type: string
+                        format: date-time
+                      domain:
+                        type: object
+                        required: [host, claimsOwner]
+                        properties:
+                          host:
+                            type: string
+                          claimsOwner:
+                            type: boolean
+                            description: Whether the host's SEP-1 stellar.toml lists the owner in ACCOUNTS.
+            options:
+              type: array
+              description: One entry per `accepts` option, in the same order.
+              items:
+                type: object
+                required: [listing]
+                properties:
+                  listing:
+                    type: string
+                    format: uuid
+                    description: The listing the option belongs to.
+                  symbol:
+                    type: string
+                  name:
+                    type: string
+                  decimals:
+                    type: integer
+                  receivable:
+                    type: boolean
+                    description: Whether payTo can receive the token now.
+    DiscoveryList:
+      type: object
+      required: [x402Version, items, pagination]
+      properties:
+        x402Version:
+          type: integer
+          const: 2
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveryItem"
+        pagination:
+          type: object
+          required: [limit, offset, total, asOf]
+          properties:
+            limit:
+              type: integer
+            offset:
+              type: integer
+            total:
+              type: integer
+            asOf:
+              type: string
+              format: date-time
+              description: The time this page was read at; pass it back as `asOf` to pin a pagination.
+    VersionList:
+      type: object
+      required: [x402Version, id, versions]
+      properties:
+        x402Version:
+          type: integer
+          const: 2
+        id:
+          type: string
+          format: uuid
+        versions:
+          type: array
+          items:
+            type: object
+            required: [version, createdAt, cause, owner, trust, state, content]
+            properties:
+              version:
+                type: integer
+              createdAt:
+                type: string
+                format: date-time
+              cause:
+                type: string
+                enum: [settlement, origin_verification, ownership_transfer, domain_verification, quarantine]
+              transaction:
+                type: string
+                description: The settlement that caused this version, when there was one.
+              owner:
+                type: string
+              trust:
+                type: string
+                enum: [settled, origin_verified, domain_verified]
+              state:
+                type: string
+                enum: [pending, published, quarantined]
+              content:
+                type: object
+                description: The published content, with the catalog's field names (`kind`, `method` or `toolName`, `bazaar`, `accepts`).
+                additionalProperties: true
+    SearchResponse:
+      type: object
+      required: [x402Version, resources, partialResults, pagination, rail402]
+      properties:
+        x402Version:
+          type: integer
+          const: 2
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveryItem"
+        partialResults:
+          type: boolean
+          description: >-
+            True when the semantic ranking was cut at its depth, or a ranked (not filter-only) search ran
+            lexical-only because no model is loaded or embedding the query failed or took over 2 seconds.
+        pagination:
+          type: object
+          required: [limit, cursor]
+          properties:
+            limit:
+              type: integer
+            cursor:
+              type: [string, "null"]
+        rail402:
+          type: object
+          required: [method, recognised, revision]
+          properties:
+            method:
+              type: string
+              enum: [hybrid, lexical, filter]
+            recognised:
+              type: array
+              items:
+                type: string
+              examples: [["network=stellar:testnet", "maxPrice=0.02 USD"]]
+            revision:
+              type: integer
+    UsageResponse:
+      type: object
+      required: [subject, days, serviceFee, usage]
+      properties:
+        subject:
+          type: string
+          description: "`key:` followed by the first 16 hex characters of the key's SHA-256 digest."
+        days:
+          type: integer
+          const: 31
+        serviceFee:
+          type: object
+          required: [perSettlementUsd, accruedUsd]
+          properties:
+            perSettlementUsd:
+              type: string
+            accruedUsd:
+              type: string
+        usage:
+          type: array
+          items:
+            type: object
+            required: [day, network, operation, outcome, asset, requests, settledAmount]
+            properties:
+              day:
+                type: string
+                format: date
+              network:
+                type: string
+              operation:
+                type: string
+                enum: [verify, settle]
+              outcome:
+                type: string
+                enum: [valid, invalid, success, failure, pending]
+              asset:
+                type: string
+              requests:
+                type: integer
+              settledAmount:
+                type: string
+                description: Settled volume in the asset's base units.

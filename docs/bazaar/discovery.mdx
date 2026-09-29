@@ -1,0 +1,233 @@
+---
+title: Discovery API
+description: List the catalog with filters and stable pagination, read a listing, and read its version history.
+---
+
+The discovery API is public, read-only JSON. It needs no API key; requests count against the per-client
+rate limit. Listings appear here only while their state is `published`; see
+[Cataloging](/bazaar/cataloging) for how they get there.
+
+## List resources
+
+```http
+GET /discovery/resources
+```
+
+| Parameter    | Format                                     | Meaning                                                                                                                                                                              |
+| ------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `type`       | a resource type, e.g. `http` or `mcp`      | Only resources of this type. An unknown type matches nothing.                                                                                                                        |
+| `payTo`      | a Stellar `G…`, `C…` or `M…` address       | Only payment options paying this address. A `G…` address also matches muxed `M…` addresses on that account; an `M…` address matches only itself. The address checksum must be valid. |
+| `scheme`     | a scheme name, e.g. `exact`                | Only payment options in this scheme.                                                                                                                                                 |
+| `network`    | a CAIP-2 network, e.g. `stellar:testnet`   | Only payment options on this network.                                                                                                                                                |
+| `extensions` | comma-separated extension keys, at most 10 | Only resources that declare every key in their 402 response. Every listed resource declares `bazaar`.                                                                                |
+| `limit`      | integer, at least 1                        | Page size, in resources. Default 20; values above 100 are clamped to 100.                                                                                                            |
+| `offset`     | integer, 0 to 1,000,000                    | Resources to skip. Default 0.                                                                                                                                                        |
+| `asOf`       | ISO 8601 date-time                         | Only listings first published at or before this time. Default: now. Pass back the `pagination.asOf` of the first page to pin a pagination.                                           |
+
+`payTo`, `scheme` and `network` must hold for one and the same payment option: a resource that pays one
+address on testnet and another on pubnet does not match `payTo` of the first with `network=stellar:pubnet`.
+A filtered resource shows only the payment options that matched, so asking for `network=stellar:testnet`
+never returns a pubnet price.
+
+Every parameter is validated. A malformed value or an unsupported parameter is refused with HTTP `400` and
+`discovery_invalid_parameter`; nothing is silently ignored.
+
+```sh
+curl "{{facilitatorUrl}}/discovery/resources?type=http&network=stellar:testnet&limit=20&offset=0"
+```
+
+On the hosted service this returns the public demo seller's HTTP resources (`apps/demo-seller`). Its
+`POST /translate` route also declares the `payment-identifier` extension, so
+`extensions=payment-identifier` returns that resource alone. The responses below show what an item looks
+like.
+
+### One resource on several networks
+
+The catalog keeps one listing per network: a settlement proves a `payTo` on its own network only, so each
+network's listing has its own owner, trust and version history. Discovery shows the listings of one
+resource as one item. Its `accepts` holds every network's payment options, which is how the resource's own
+402 response offers them, and `rail402.listings` names the listing behind each network. A resource is
+cataloged on a network once a payment on that network settles through Rail402.
+
+### Stable pagination
+
+Resources are returned in catalog order: the order in which each was first published on any network.
+Every response carries `pagination.asOf`, the time it was read at; pass it back as `asOf` with the next
+`offset` and the pages of one pagination leave out anything published since, so a new resource never
+shifts them. A resource withdrawn while you page drops out and moves the later ones up by one.
+`pagination.total` is the number of resources that match the filters, read from the same snapshot as the
+page.
+
+### Response
+
+The item shape is x402 v2's discovery item. Rail402-specific facts are kept under `rail402`, so a stock
+client sees exactly the specification's fields. The example is illustrative: its ids, addresses and
+timestamps do not come from a recorded run.
+
+```json
+{
+  "x402Version": 2,
+  "items": [
+    {
+      "resource": "https://api.example.com/weather",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "extra": { "areFeesSponsored": true },
+          "payTo": "GACJR6T25HXLYJ44ZK6PQK4LCBXWACO2HHWR3WGAXQPH6AS5AKCSVSGT",
+          "amount": "100000",
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "maxTimeoutSeconds": 300
+        }
+      ],
+      "lastUpdated": "2026-09-28T10:05:55.470Z",
+      "description": "Current weather for a city",
+      "mimeType": "application/json",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": { "type": "http", "method": "GET", "queryParams": { "city": "Ankara" } },
+            "output": { "type": "json", "example": { "conditions": "sunny", "temperature": 21 } }
+          },
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "...": "..."
+          }
+        }
+      },
+      "rail402": {
+        "method": "GET",
+        "trust": "domain_verified",
+        "settlements": 1,
+        "listings": [
+          {
+            "id": "da080b45-20e1-4617-bbde-4b815e83e63a",
+            "network": "stellar:testnet",
+            "version": 3,
+            "trust": "domain_verified",
+            "owner": "GACJR6T25HXLYJ44ZK6PQK4LCBXWACO2HHWR3WGAXQPH6AS5AKCSVSGT",
+            "settlements": 1,
+            "firstCataloged": "2026-09-28T10:05:53.162Z",
+            "lastSettled": "2026-09-28T10:05:53.162Z",
+            "stellar": {
+              "checkedAt": "2026-09-28T10:06:10.000Z",
+              "domain": { "host": "api.example.com", "claimsOwner": true }
+            }
+          }
+        ],
+        "options": [
+          {
+            "listing": "da080b45-20e1-4617-bbde-4b815e83e63a",
+            "symbol": "USDC",
+            "name": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "decimals": 7,
+            "receivable": true
+          }
+        ]
+      }
+    }
+  ],
+  "pagination": { "limit": 20, "offset": 0, "total": 1, "asOf": "2026-09-28T12:00:00.000Z" }
+}
+```
+
+| Field                                                       | Meaning                                                                                                                                                                                                |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `resource`                                                  | The canonical resource URL, or origin plus route template                                                                                                                                              |
+| `type`                                                      | `http` or `mcp`                                                                                                                                                                                        |
+| `accepts`                                                   | Payment options on every listed network, as x402 `PaymentRequirements` objects; with filters, only those that matched                                                                                  |
+| `lastUpdated`                                               | When one of the resource's listings last got a new version                                                                                                                                             |
+| `description`, `mimeType`, `serviceName`, `tags`, `iconUrl` | Present when the seller supplied valid values; taken from the first listing                                                                                                                            |
+| `extensions.bazaar`                                         | The validated `info`, `schema` and, if accepted, `routeTemplate`                                                                                                                                       |
+| `extensions.<key>`                                          | An empty object for every other extension the resource declares in its 402 response, such as `payment-identifier`. Only the key is kept: the resource's 402 carries the current declaration            |
+| `rail402.method`, `rail402.toolName`                        | HTTP resources: the method. MCP tools: the tool name                                                                                                                                                   |
+| `rail402.trust`                                             | The strongest trust among the resource's listings: `settled`, `origin_verified` or `domain_verified` ([Trust](/bazaar/cataloging#trust))                                                               |
+| `rail402.settlements`                                       | Settlements recorded across the resource's listings                                                                                                                                                    |
+| `rail402.listings[]`                                        | One per network: the listing's `id` (a UUID), `network`, current `version`, `trust`, `owner` (the settled `payTo`, or its base account), `settlements`, `firstCataloged` and `lastSettled`             |
+| `rail402.listings[].stellar`                                | Once checked: `checkedAt`, and `domain` with the resource host and whether its `stellar.toml` lists the owner (`claimsOwner`). See [Stellar facts](/bazaar/cataloging#stellar-facts-and-domain-claims) |
+| `rail402.options[]`                                         | One per `accepts` entry, in the same order: the `listing` it belongs to and, once checked, the token's `symbol`, `name` and `decimals` and whether `payTo` can receive it (`receivable`)               |
+
+## Get a listing
+
+```http
+GET /discovery/resources/{id}
+```
+
+Returns one listing, on its one network, as an item in the same shape, with an extra `state` field
+(`pending`, `published` or `quarantined`). A quarantined listing is still readable here by its id, but is not
+listed or searched. An unknown or malformed
+id returns HTTP `404` with `discovery_listing_not_found`.
+
+## Version history
+
+```http
+GET /discovery/resources/{id}/versions
+```
+
+Every version of the listing, oldest first. Each entry is a full snapshot of what was published. An
+illustrative example:
+
+```json
+{
+  "x402Version": 2,
+  "id": "da080b45-20e1-4617-bbde-4b815e83e63a",
+  "versions": [
+    {
+      "version": 1,
+      "createdAt": "2026-09-28T10:05:53.162Z",
+      "cause": "settlement",
+      "transaction": "018731f9f5ba3176f0a394ab4b11ef3bf0ebca3393622a836716deab3ac61340",
+      "owner": "GACJR6T25HXLYJ44ZK6PQK4LCBXWACO2HHWR3WGAXQPH6AS5AKCSVSGT",
+      "trust": "settled",
+      "state": "pending",
+      "content": {
+        "resource": "https://api.example.com/weather",
+        "kind": "http",
+        "method": "GET",
+        "description": "Current weather for a city",
+        "mimeType": "application/json",
+        "bazaar": { "info": { "...": "..." }, "schema": { "...": "..." } },
+        "accepts": [{ "scheme": "exact", "network": "stellar:testnet", "...": "..." }]
+      }
+    },
+    {
+      "version": 2,
+      "createdAt": "2026-09-28T10:05:55.470Z",
+      "cause": "origin_verification",
+      "owner": "GACJR6T25HXLYJ44ZK6PQK4LCBXWACO2HHWR3WGAXQPH6AS5AKCSVSGT",
+      "trust": "origin_verified",
+      "state": "published",
+      "content": { "...": "..." }
+    }
+  ]
+}
+```
+
+`cause` is `settlement`, `origin_verification`, `ownership_transfer`, `domain_verification` or `quarantine`.
+`transaction` is present when a settlement caused the version. `content` uses the catalog's internal field
+names (`kind` for the type, `method` or `toolName`, `bazaar`, `accepts`, and `extensions` for the keys of
+the other declared extensions).
+
+## Errors
+
+Discovery errors use the transport error body:
+
+```json
+{
+  "error": {
+    "code": "discovery_invalid_parameter",
+    "reason": "Unsupported parameter: foo.",
+    "retryable": false
+  }
+}
+```
+
+| HTTP | `code`                        | When                                                  |
+| ---- | ----------------------------- | ----------------------------------------------------- |
+| 400  | `discovery_invalid_parameter` | A parameter is malformed or not supported             |
+| 404  | `discovery_listing_not_found` | No listing has this id                                |
+| 429  | `rate_limited`                | The client exceeded its rate limit; see `Retry-After` |
