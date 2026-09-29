@@ -100,12 +100,12 @@ Friendbot, and start the service (`STORE=memory` keeps state in the process; use
 that must survive a restart):
 
 ```sh
-docker run --rm ghcr.io/tolgayayci/rail402:0.2.0 node -e \
+docker run --rm ghcr.io/tolgayayci/rail402:0.2.1 node -e \
   'const k = require("@stellar/stellar-sdk").Keypair.random(); console.log(k.publicKey(), k.secret())'
 curl "https://friendbot.stellar.org?addr=G..."          # the public key printed above
 docker run -p 8080:8080 -e STORE=memory \
   -e TESTNET_RPC_URL=https://soroban-testnet.stellar.org -e TESTNET_SPONSOR_SECRET=S... \
-  ghcr.io/tolgayayci/rail402:0.2.0
+  ghcr.io/tolgayayci/rail402:0.2.1
 ```
 
 `curl localhost:8080/ready` answers `200` once the channel accounts exist, within seconds.

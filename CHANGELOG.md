@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+The same code as 0.2.0, republished: on npm, `@rail402.dev/bazaar` 0.2.0 cannot be installed, and with it
+neither can `@rail402.dev/search` and `@rail402.dev/store-postgres` 0.2.0. Use 0.2.1.
+
 ## 0.2.0
 
 The first release of Rail402 from this repository. Earlier `@rail402.dev` packages on npm (0.1.x) came from a
