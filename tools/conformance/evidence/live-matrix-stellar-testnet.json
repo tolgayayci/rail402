@@ -1,0 +1,369 @@
+{
+  "run": "live-matrix",
+  "date": "2026-09-28T15:51:40.432Z",
+  "network": "stellar:testnet",
+  "facilitator": "https://testnet.rail402.dev",
+  "facilitatorVersion": "8ad31c8",
+  "apiKey": "none",
+  "harnessCommit": "394d770eb6f317aa54f6d3727b9330932ec15474",
+  "packages": {
+    "@x402/core": "2.27.0",
+    "@x402/stellar": "2.27.0",
+    "@stellar/stellar-sdk": "16.3.0"
+  },
+  "command": "node tools/conformance/src/live-matrix.ts --facilitator https://testnet.rail402.dev",
+  "summary": {
+    "cases": 17,
+    "passed": 17,
+    "failed": 0,
+    "settlements": 6,
+    "rejections": 27
+  },
+  "cases": [
+    {
+      "id": "supported",
+      "criterion": "/supported: stellar:testnet, exact, extra.areFeesSponsored true",
+      "passed": true,
+      "elapsedMs": 259,
+      "rejections": [],
+      "transactions": []
+    },
+    {
+      "id": "g-payer-settles",
+      "criterion": "G… payer, 7-decimal amount (1.2345678 USDC); non-custody on chain",
+      "passed": true,
+      "elapsedMs": 6708,
+      "rejections": [],
+      "transactions": [
+        {
+          "hash": "87098ae48858b37d9257b760af19dd37251035626a5736ebb7f43a99d666b646",
+          "feeChargedStroops": "23125",
+          "explorer": "https://stellar.expert/explorer/testnet/tx/87098ae48858b37d9257b760af19dd37251035626a5736ebb7f43a99d666b646"
+        }
+      ]
+    },
+    {
+      "id": "smallest-unit",
+      "criterion": "SEP-41 amount of one base unit (0.0000001 USDC)",
+      "passed": true,
+      "elapsedMs": 9622,
+      "rejections": [],
+      "transactions": [
+        {
+          "hash": "0ed090fb2c2e627165faa62264fec1b1aeb0b9b3f8a13a59416dc8948c3d9552",
+          "feeChargedStroops": "23125",
+          "explorer": "https://stellar.expert/explorer/testnet/tx/0ed090fb2c2e627165faa62264fec1b1aeb0b9b3f8a13a59416dc8948c3d9552"
+        }
+      ]
+    },
+    {
+      "id": "replay-idempotent",
+      "criterion": "the same payment settled twice moves funds once, same result",
+      "passed": true,
+      "elapsedMs": 10297,
+      "rejections": [],
+      "transactions": [
+        {
+          "hash": "640140923defc64cd81fd7b1d43a6be3df96ff6d5935e117bcbeea71f421c869",
+          "feeChargedStroops": "23126",
+          "explorer": "https://stellar.expert/explorer/testnet/tx/640140923defc64cd81fd7b1d43a6be3df96ff6d5935e117bcbeea71f421c869"
+        }
+      ]
+    },
+    {
+      "id": "replay-rejected",
+      "criterion": "a settled authorization in a new envelope is refused; verify names the replay",
+      "passed": true,
+      "elapsedMs": 4928,
+      "rejections": [
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "settle_exact_stellar_idempotency_conflict",
+          "reason": "This authorization was already submitted for settlement inside a different transaction envelope."
+        },
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_nonce_already_used",
+          "reason": "This authorization's nonce has already been consumed on-chain."
+        }
+      ],
+      "transactions": [
+        {
+          "hash": "10adb6cc0596c8eff45d67313e94df4375b709beff1fbdd1cb3f16d5a6e4037a",
+          "feeChargedStroops": "23125",
+          "explorer": "https://stellar.expert/explorer/testnet/tx/10adb6cc0596c8eff45d67313e94df4375b709beff1fbdd1cb3f16d5a6e4037a"
+        }
+      ]
+    },
+    {
+      "id": "tamper-amount",
+      "criterion": "a changed amount fails the payer's signed authorization",
+      "passed": true,
+      "elapsedMs": 1734,
+      "rejections": [
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_auth_invocation_mismatch",
+          "reason": "The payer's authorization entry does not authorize exactly the transfer the operation performs."
+        },
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        },
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        }
+      ],
+      "transactions": []
+    },
+    {
+      "id": "tamper-recipient",
+      "criterion": "a redirected payTo fails the payer's signed authorization",
+      "passed": true,
+      "elapsedMs": 1207,
+      "rejections": [
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        }
+      ],
+      "transactions": []
+    },
+    {
+      "id": "mismatched-requirements",
+      "criterion": "a payment that does not match the requirements is refused",
+      "passed": true,
+      "elapsedMs": 695,
+      "rejections": [
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_accepted_mismatch",
+          "reason": "The payload's accepted requirements differ from the payment requirements."
+        }
+      ],
+      "transactions": []
+    },
+    {
+      "id": "payer-no-trustline",
+      "criterion": "a payer without a USDC trustline is named",
+      "passed": true,
+      "elapsedMs": 6189,
+      "rejections": [
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_payer_trustline_missing",
+          "reason": "The payer GDG4OASURQGDIKFZEB4WTL6DAFDSNOHXGSWQ55X7ZP3WQDOY72RPC5BO has no trustline for this asset."
+        },
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_payer_trustline_missing",
+          "reason": "The payer GDG4OASURQGDIKFZEB4WTL6DAFDSNOHXGSWQ55X7ZP3WQDOY72RPC5BO has no trustline for this asset."
+        }
+      ],
+      "transactions": []
+    },
+    {
+      "id": "payto-no-trustline",
+      "criterion": "a payTo without a USDC trustline is named",
+      "passed": true,
+      "elapsedMs": 5162,
+      "rejections": [
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_recipient_trustline_missing",
+          "reason": "payTo GC6XP4WE5XGV5OOVP5BHNTJ4TQO4LLGEIXMCDJ4AVKAEDQZL6CHXQAJN has no trustline for this asset and cannot receive it."
+        },
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_recipient_trustline_missing",
+          "reason": "payTo GC6XP4WE5XGV5OOVP5BHNTJ4TQO4LLGEIXMCDJ4AVKAEDQZL6CHXQAJN has no trustline for this asset and cannot receive it."
+        }
+      ],
+      "transactions": []
+    },
+    {
+      "id": "insufficient-balance",
+      "criterion": "a payer holding less than the amount is refused",
+      "passed": true,
+      "elapsedMs": 14163,
+      "rejections": [
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "insufficient_funds",
+          "reason": "The transfer would take a balance outside its allowed range (insufficient funds or limit exceeded)."
+        },
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "insufficient_funds",
+          "reason": "The transfer would take a balance outside its allowed range (insufficient funds or limit exceeded)."
+        }
+      ],
+      "transactions": []
+    },
+    {
+      "id": "expired",
+      "criterion": "expired and about-to-expire authorizations are refused, nothing moves",
+      "passed": true,
+      "elapsedMs": 1913,
+      "rejections": [
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_signature_expired",
+          "reason": "The authorization expired at ledger 4917413; the network is at ledger 4917414."
+        },
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_signature_expired",
+          "reason": "The authorization expired at ledger 4917413; the network is at ledger 4917414."
+        },
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_signature_expiration_too_soon",
+          "reason": "The authorization expires at ledger 4917414, within 1 ledger(s) of the current ledger 4917414."
+        }
+      ],
+      "transactions": []
+    },
+    {
+      "id": "self-payment",
+      "criterion": "a payer paying its own account is refused; the sponsor pays nothing",
+      "passed": true,
+      "elapsedMs": 954,
+      "rejections": [
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_self_payment",
+          "reason": "The payer and payTo are the same account; a payment to oneself moves no funds and is not settled."
+        },
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_self_payment",
+          "reason": "The payer and payTo are the same account; a payment to oneself moves no funds and is not settled."
+        }
+      ],
+      "transactions": []
+    },
+    {
+      "id": "c-payer-settles",
+      "criterion": "C… payer (contract account, __check_auth); non-custody on chain",
+      "passed": true,
+      "elapsedMs": 27295,
+      "rejections": [],
+      "transactions": [
+        {
+          "hash": "f52ec863ee8de6a7ab3f9c14f4de98ed3cc5dc42b2694f3208cda21645fa3501",
+          "feeChargedStroops": "20325",
+          "explorer": "https://stellar.expert/explorer/testnet/tx/f52ec863ee8de6a7ab3f9c14f4de98ed3cc5dc42b2694f3208cda21645fa3501"
+        }
+      ]
+    },
+    {
+      "id": "c-payer-wrong-key",
+      "criterion": "a C… payment signed by the wrong key is refused",
+      "passed": true,
+      "elapsedMs": 1147,
+      "rejections": [
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        },
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        }
+      ],
+      "transactions": []
+    },
+    {
+      "id": "c-payto",
+      "criterion": "a C… payTo (contract address) is credited",
+      "passed": true,
+      "elapsedMs": 8732,
+      "rejections": [],
+      "transactions": [
+        {
+          "hash": "ad4a409cdf97df4ffdb82bf8bafe86d6d649809e8dda39aae222fd2b148a922d",
+          "feeChargedStroops": "21711",
+          "explorer": "https://stellar.expert/explorer/testnet/tx/ad4a409cdf97df4ffdb82bf8bafe86d6d649809e8dda39aae222fd2b148a922d"
+        }
+      ]
+    },
+    {
+      "id": "refusals",
+      "criterion": "malformed or unserviceable requests get coded, reasoned refusals",
+      "passed": true,
+      "elapsedMs": 1879,
+      "rejections": [
+        {
+          "operation": "verify",
+          "httpStatus": 400,
+          "code": "invalid_payload",
+          "reason": "The body is not valid JSON."
+        },
+        {
+          "operation": "verify",
+          "httpStatus": 415,
+          "code": "unsupported_media_type",
+          "reason": "The request body must be JSON (Content-Type: application/json)."
+        },
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_network",
+          "reason": "This facilitator does not serve the requested network."
+        },
+        {
+          "operation": "settle",
+          "httpStatus": 200,
+          "code": "unsupported_scheme",
+          "reason": "Only the exact scheme is supported."
+        },
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_asset_not_accepted",
+          "reason": "This facilitator does not settle payments in the requested asset."
+        },
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_fees_not_sponsored",
+          "reason": "Stellar exact payments require extra.areFeesSponsored to be true."
+        },
+        {
+          "operation": "verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_timeout_out_of_range",
+          "reason": "maxTimeoutSeconds must be an integer between 10 and 300."
+        }
+      ],
+      "transactions": []
+    }
+  ]
+}

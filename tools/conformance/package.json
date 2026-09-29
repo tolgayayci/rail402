@@ -1,0 +1,28 @@
+{
+  "name": "@rail402.dev/conformance",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Wire-level conformance runs against a Rail402 facilitator using unmodified x402 packages.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "canonical": "node src/canonical-exact.ts",
+    "upstream-e2e": "node src/upstream-e2e.ts",
+    "live-matrix": "node src/live-matrix.ts",
+    "benchmark": "node src/benchmark.ts",
+    "live-bazaar": "node src/live-bazaar.ts"
+  },
+  "dependencies": {
+    "@rail402.dev/testkit": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:",
+    "@x402/core": "catalog:",
+    "@x402/express": "catalog:",
+    "@x402/extensions": "catalog:",
+    "@x402/fetch": "catalog:",
+    "@x402/stellar": "catalog:",
+    "express": "5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6"
+  }
+}

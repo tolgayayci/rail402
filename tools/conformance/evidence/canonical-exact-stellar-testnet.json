@@ -1,0 +1,42 @@
+{
+  "run": "canonical-exact",
+  "date": "2026-09-28T15:49:33.595Z",
+  "network": "stellar:testnet",
+  "facilitator": "https://testnet.rail402.dev",
+  "facilitatorVersion": "8ad31c8",
+  "rail402Commit": "8ad31c8b630b62d4b11a998bde5d206d52e3413b",
+  "packages": {
+    "@x402/core": "2.27.0",
+    "@x402/fetch": "2.27.0",
+    "@x402/express": "2.27.0",
+    "@x402/stellar": "2.27.0",
+    "@stellar/stellar-sdk": "16.3.0"
+  },
+  "command": "node tools/conformance/src/canonical-exact.ts --facilitator https://testnet.rail402.dev",
+  "request": {
+    "url": "GET /weather",
+    "price": "$0.01",
+    "status": 200,
+    "elapsedMs": 4225
+  },
+  "settlement": {
+    "transaction": "c94e0d2b26e3c2bdb454764847af678bac465835749454afb8988f3f989b1c23",
+    "ledger": 4917397,
+    "payer": "GD2HCVSDZS27NO3KOLILY7UFY66PRZGBN4WDYAK6HQEERJCT5W2RDPFI",
+    "payTo": "GBPMGVQAMOVLF7NLDXL7HDWG23A6HVWGGSKWRW5V7DQP2JKSNXEZKNG7",
+    "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "amount": "100000",
+    "feeChargedStroops": "23126",
+    "explorer": "https://stellar.expert/explorer/testnet/tx/c94e0d2b26e3c2bdb454764847af678bac465835749454afb8988f3f989b1c23"
+  },
+  "balances": {
+    "buyer": {
+      "before": "10000000",
+      "after": "9900000"
+    },
+    "seller": {
+      "before": "0",
+      "after": "100000"
+    }
+  }
+}

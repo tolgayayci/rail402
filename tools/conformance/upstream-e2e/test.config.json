@@ -1,0 +1,14 @@
+{
+  "name": "rail402",
+  "type": "facilitator",
+  "language": "typescript",
+  "protocolFamilies": ["stellar"],
+  "schemes": ["exact"],
+  "x402Versions": [2],
+  "extensions": ["bazaar"],
+  "endpoints": [{ "path": "/health", "health": true }],
+  "environment": {
+    "required": ["RAIL402_ROOT", "FACILITATOR_STELLAR_PRIVATE_KEY"],
+    "optional": ["STELLAR_RPC_URL", "SEARCH_MODEL_DIR", "LOG_LEVEL"]
+  }
+}

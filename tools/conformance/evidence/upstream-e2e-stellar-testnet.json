@@ -1,0 +1,192 @@
+{
+  "run": "2026-09-28T19:45:19.449Z",
+  "command": "pnpm test --testnet --families=stellar --facilitators=rail402 --extensions=bazaar",
+  "exitCode": 0,
+  "upstream": {
+    "repository": "x402-foundation/x402",
+    "commit": "71eb9a55e081e7b81ba3046d0bd17c3eb9c7bf81",
+    "version": "2.27.0"
+  },
+  "rail402": {
+    "commit": "c461428df26b16164f1c6110589a04b4a52da5c4",
+    "uncommittedChanges": false
+  },
+  "network": "stellar:testnet",
+  "accounts": {
+    "sponsor": "GAG2O4OOX5LGAOMAYWO5XRVTHEAE33AYM5W56532WKI523KQMB3AYV7N",
+    "buyer": "GAJKDV6BXHV5CO6ETBRP4AMBQTV5Y6LJ4V274O5Z6B45WTCFNQFE52TD",
+    "seller": "GDSLXNPZKICKD557YGFEC7TY6AQZIZSW5E7SFS5C3WDKIL53A77G7AHV"
+  },
+  "summary": {
+    "total": 18,
+    "passed": 18,
+    "failed": 0,
+    "networkMode": "testnet",
+    "durationMinutes": 4.58
+  },
+  "bazaarDiscoveryValidation": "PASSED",
+  "results": [
+    {
+      "client": "typescript/http/axios",
+      "server": "typescript/http/express",
+      "endpoint": "/exact/stellar",
+      "transport": "http",
+      "paymentFlow": "authorization",
+      "passed": true,
+      "transaction": "c1ea737767b8fa2e7d6a48554208d4cc230925faefa49cd007a91e6ebcb7412d"
+    },
+    {
+      "client": "typescript/http/axios",
+      "server": "typescript/http/express",
+      "endpoint": "/exact/stellar/upfront",
+      "transport": "http",
+      "paymentFlow": "upfront",
+      "passed": true,
+      "transaction": "7c4f9eebb2327fec40c6bff37ac30a2d962a6a1c35271010494e4b5485f1c499"
+    },
+    {
+      "client": "typescript/http/fetch",
+      "server": "typescript/http/express",
+      "endpoint": "/exact/stellar",
+      "transport": "http",
+      "paymentFlow": "authorization",
+      "passed": true,
+      "transaction": "df3690bf5986c712f6593a281a216f7f32c921683809ddee3e69c1be6226e93a"
+    },
+    {
+      "client": "typescript/http/fetch",
+      "server": "typescript/http/express",
+      "endpoint": "/exact/stellar/upfront",
+      "transport": "http",
+      "paymentFlow": "upfront",
+      "passed": true,
+      "transaction": "4af289e5a335af999dbd8c90f7e70520f2540babbdc04ac1d284d51482255870"
+    },
+    {
+      "client": "typescript/http/axios",
+      "server": "typescript/http/fastify",
+      "endpoint": "/exact/stellar",
+      "transport": "http",
+      "paymentFlow": "authorization",
+      "passed": true,
+      "transaction": "12406d288b736a6b270d5d6465e36f746a09a4a25025415e40d166b4bec8f678"
+    },
+    {
+      "client": "typescript/http/axios",
+      "server": "typescript/http/fastify",
+      "endpoint": "/exact/stellar/upfront",
+      "transport": "http",
+      "paymentFlow": "upfront",
+      "passed": true,
+      "transaction": "d9480c2bc84f9c03108a43070333f7a0b49e4f3bedda2e61974edf1667d7678c"
+    },
+    {
+      "client": "typescript/http/fetch",
+      "server": "typescript/http/fastify",
+      "endpoint": "/exact/stellar",
+      "transport": "http",
+      "paymentFlow": "authorization",
+      "passed": true,
+      "transaction": "d59bf86c50c37de05d99a4d080a852ad9a3f32561f961a7d265199d3eac84e47"
+    },
+    {
+      "client": "typescript/http/fetch",
+      "server": "typescript/http/fastify",
+      "endpoint": "/exact/stellar/upfront",
+      "transport": "http",
+      "paymentFlow": "upfront",
+      "passed": true,
+      "transaction": "f99585f302b0f69a4c017526068aad78f0bf440e6f769242be54d45390a0810e"
+    },
+    {
+      "client": "typescript/http/axios",
+      "server": "typescript/http/hono",
+      "endpoint": "/exact/stellar",
+      "transport": "http",
+      "paymentFlow": "authorization",
+      "passed": true,
+      "transaction": "3e3b6d019b712e9b62383ac1301c8471f540e80f65bc9284ee4f50e8c4405a7d"
+    },
+    {
+      "client": "typescript/http/axios",
+      "server": "typescript/http/hono",
+      "endpoint": "/exact/stellar/upfront",
+      "transport": "http",
+      "paymentFlow": "upfront",
+      "passed": true,
+      "transaction": "6fc50af0403fb3707a750dfcdd7b743bc49818995a132dec3ac9769f9f6cebcd"
+    },
+    {
+      "client": "typescript/http/fetch",
+      "server": "typescript/http/hono",
+      "endpoint": "/exact/stellar",
+      "transport": "http",
+      "paymentFlow": "authorization",
+      "passed": true,
+      "transaction": "3a5491e01eab89d887e110387cb2fd28ae9a58d070a68fb508a1abd7d926cc73"
+    },
+    {
+      "client": "typescript/http/fetch",
+      "server": "typescript/http/hono",
+      "endpoint": "/exact/stellar/upfront",
+      "transport": "http",
+      "paymentFlow": "upfront",
+      "passed": true,
+      "transaction": "98e13be6f6534950344d8e9262b940e78b44697effdb45ba8126a90ffc89fb6e"
+    },
+    {
+      "client": "typescript/http/axios",
+      "server": "typescript/http/next",
+      "endpoint": "/api/exact/stellar/withx402",
+      "transport": "http",
+      "paymentFlow": "authorization",
+      "passed": true,
+      "transaction": "461de48f8ba8d32d8d77c90a3bc541c72432d5d0ea4435764e5981c2107ae130"
+    },
+    {
+      "client": "typescript/http/axios",
+      "server": "typescript/http/next",
+      "endpoint": "/api/exact/stellar/upfront/withx402",
+      "transport": "http",
+      "paymentFlow": "upfront",
+      "passed": true,
+      "transaction": "76cb3a2aadc9469ff860f0de5e6c0349398e70c18baadc1ceb4e436b63b61afe"
+    },
+    {
+      "client": "typescript/http/fetch",
+      "server": "typescript/http/next",
+      "endpoint": "/api/exact/stellar/withx402",
+      "transport": "http",
+      "paymentFlow": "authorization",
+      "passed": true,
+      "transaction": "67c00336d2bbc368246acf21ce36b1e1e9ffc830d940210e12586eebf8073491"
+    },
+    {
+      "client": "typescript/http/fetch",
+      "server": "typescript/http/next",
+      "endpoint": "/api/exact/stellar/upfront/withx402",
+      "transport": "http",
+      "paymentFlow": "upfront",
+      "passed": true,
+      "transaction": "edd76df233b17fd663097444c374d7a47773ea70a9fe7b0196ba6f5b2e7db07b"
+    },
+    {
+      "client": "typescript/mcp",
+      "server": "typescript/mcp",
+      "endpoint": "exact_stellar",
+      "transport": "mcp",
+      "paymentFlow": "authorization",
+      "passed": true,
+      "transaction": "7295abb484ac05f1519a1c5e421978355680b37ebe5b7084912b3b80038aad46"
+    },
+    {
+      "client": "typescript/mcp",
+      "server": "typescript/mcp",
+      "endpoint": "exact_stellar_upfront",
+      "transport": "mcp",
+      "paymentFlow": "upfront",
+      "passed": true,
+      "transaction": "4f91a84a451e3b94864b4dc8a9bf2f641fa33f896c7700d5d6154870893129b6"
+    }
+  ]
+}

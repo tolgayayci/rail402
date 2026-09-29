@@ -1,0 +1,521 @@
+{
+  "run": "live-bazaar",
+  "date": "2026-09-28T19:39:59.948Z",
+  "network": "stellar:testnet",
+  "facilitator": "https://testnet.rail402.dev",
+  "facilitatorVersion": "02b2995",
+  "seller": "https://demo-seller-production.up.railway.app",
+  "sellerPayTo": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+  "apiKey": "none",
+  "harnessCommit": "02b29957763095ef0401b213a78218e84cb27953",
+  "packages": {
+    "@x402/core": "2.27.0",
+    "@x402/extensions": "2.27.0",
+    "@x402/stellar": "2.27.0",
+    "@stellar/stellar-sdk": "16.3.0"
+  },
+  "command": "node tools/conformance/src/live-bazaar.ts --facilitator https://testnet.rail402.dev --seller https://demo-seller-production.up.railway.app",
+  "summary": {
+    "cases": 14,
+    "passed": 14,
+    "failed": 0,
+    "settlements": 16
+  },
+  "cases": [
+    {
+      "id": "http-listed",
+      "rule": "an HTTP resource is cataloged after settlement and listed once its own 402 confirms it",
+      "passed": true,
+      "elapsedMs": 5656,
+      "settlements": [
+        {
+          "transaction": "721386bfa0d1e22355cedd4caaeaf46d93bfe5fdedd56254bf2962c7bec597fe",
+          "outcome": {
+            "status": "success",
+            "code": "recorded",
+            "listingId": "941ac496-7141-4b99-9947-d6e314d0e38a",
+            "version": 3
+          },
+          "headerBytes": 152
+        }
+      ],
+      "listing": {
+        "id": "941ac496-7141-4b99-9947-d6e314d0e38a",
+        "state": "published",
+        "trust": "domain_verified",
+        "resource": "https://demo-seller-production.up.railway.app/weather",
+        "version": 3
+      },
+      "versions": [
+        {
+          "version": 1,
+          "cause": "settlement",
+          "state": "pending"
+        },
+        {
+          "version": 2,
+          "cause": "origin_verification",
+          "state": "published"
+        },
+        {
+          "version": 3,
+          "cause": "domain_verification",
+          "state": "published"
+        }
+      ]
+    },
+    {
+      "id": "duplicate-settlement",
+      "rule": "a repeated settlement is recorded once and creates no listing",
+      "passed": true,
+      "elapsedMs": 4660,
+      "settlements": [
+        {
+          "transaction": "588507320c7c952b77d27b14330a77fb7b27ab66e2912a4d4c7b25b64f01df7e",
+          "outcome": {
+            "status": "success",
+            "code": "recorded",
+            "listingId": "941ac496-7141-4b99-9947-d6e314d0e38a",
+            "version": 3
+          },
+          "headerBytes": 152
+        },
+        {
+          "transaction": "588507320c7c952b77d27b14330a77fb7b27ab66e2912a4d4c7b25b64f01df7e",
+          "outcome": {
+            "status": "success",
+            "code": "recorded",
+            "listingId": "941ac496-7141-4b99-9947-d6e314d0e38a",
+            "version": 3
+          },
+          "headerBytes": 152
+        }
+      ]
+    },
+    {
+      "id": "settlement-reused",
+      "rule": "one settlement catalogs at most one resource",
+      "passed": true,
+      "elapsedMs": 5566,
+      "settlements": [
+        {
+          "transaction": "19bbbefa5a680f004d5608c9ee5c56fabdae6f505da530b1c3f6283ccb004237",
+          "outcome": {
+            "status": "success",
+            "code": "recorded",
+            "listingId": "941ac496-7141-4b99-9947-d6e314d0e38a",
+            "version": 3
+          },
+          "headerBytes": 152
+        },
+        {
+          "transaction": "19bbbefa5a680f004d5608c9ee5c56fabdae6f505da530b1c3f6283ccb004237",
+          "outcome": {
+            "status": "rejected",
+            "code": "bazaar_settlement_reused",
+            "rejectedReason": "This settlement already cataloged another resource; one payment catalogs at most one resource."
+          },
+          "headerBytes": 240
+        }
+      ]
+    },
+    {
+      "id": "route-template",
+      "rule": "a route with parameters is one listing under its route template",
+      "passed": true,
+      "elapsedMs": 8982,
+      "settlements": [
+        {
+          "transaction": "1e55cc1f0cf89c461206134d833a896d7853c92ecf07d576200df16d7e90a945",
+          "outcome": {
+            "status": "success",
+            "code": "recorded",
+            "listingId": "67e9ad73-6d45-4ea7-8c43-f562d5e92823",
+            "version": 6
+          },
+          "headerBytes": 152
+        },
+        {
+          "transaction": "437503bca59fbc1655f84916ca257ceef8bdd9fcf11cb8cde678fade896d8ace",
+          "outcome": {
+            "status": "success",
+            "code": "recorded",
+            "listingId": "67e9ad73-6d45-4ea7-8c43-f562d5e92823",
+            "version": 6
+          },
+          "headerBytes": 152
+        }
+      ],
+      "listing": {
+        "id": "67e9ad73-6d45-4ea7-8c43-f562d5e92823",
+        "state": "published",
+        "trust": "domain_verified",
+        "resource": "https://demo-seller-production.up.railway.app/users/:id",
+        "version": 6
+      },
+      "versions": [
+        {
+          "version": 1,
+          "cause": "settlement",
+          "state": "pending"
+        },
+        {
+          "version": 2,
+          "cause": "origin_verification",
+          "state": "published"
+        },
+        {
+          "version": 3,
+          "cause": "origin_verification",
+          "state": "published"
+        },
+        {
+          "version": 4,
+          "cause": "origin_verification",
+          "state": "published"
+        },
+        {
+          "version": 5,
+          "cause": "origin_verification",
+          "state": "published"
+        },
+        {
+          "version": 6,
+          "cause": "domain_verification",
+          "state": "published"
+        }
+      ]
+    },
+    {
+      "id": "post-body",
+      "rule": "a POST resource with a JSON body is listed with its method",
+      "passed": true,
+      "elapsedMs": 8101,
+      "settlements": [
+        {
+          "transaction": "40555e9fed6dd803917d7049d69d4fe353327741b0e1d7a5b847e8f5d2a514cc",
+          "outcome": {
+            "status": "processing",
+            "code": "awaiting_origin_verification",
+            "reason": "The listing's metadata or price changed; the change is published once the resource's own 402 response confirms it.",
+            "listingId": "fa0396fe-6bb4-4dfe-a93a-4be78b528ca3",
+            "version": 3
+          },
+          "headerBytes": 348
+        }
+      ],
+      "listing": {
+        "id": "fa0396fe-6bb4-4dfe-a93a-4be78b528ca3",
+        "state": "published",
+        "trust": "domain_verified",
+        "resource": "https://demo-seller-production.up.railway.app/translate",
+        "version": 4
+      },
+      "versions": [
+        {
+          "version": 1,
+          "cause": "settlement",
+          "state": "pending"
+        },
+        {
+          "version": 2,
+          "cause": "origin_verification",
+          "state": "published"
+        },
+        {
+          "version": 3,
+          "cause": "domain_verification",
+          "state": "published"
+        },
+        {
+          "version": 4,
+          "cause": "origin_verification",
+          "state": "published"
+        }
+      ]
+    },
+    {
+      "id": "owner-conflict",
+      "rule": "a different payTo cannot take over or modify a listing",
+      "passed": true,
+      "elapsedMs": 22404,
+      "settlements": [
+        {
+          "transaction": "005f7b3f3834c413d4cdd8d5a4d7a7c1ef1a8e89ca5a6a46ee7909fd2bd30326",
+          "outcome": {
+            "status": "rejected",
+            "code": "bazaar_owner_conflict",
+            "rejectedReason": "This resource is cataloged for a different payTo. The resource's own 402 response will be checked; the listing changes owner only if it names this payTo.",
+            "listingId": "941ac496-7141-4b99-9947-d6e314d0e38a"
+          },
+          "headerBytes": 384
+        }
+      ]
+    },
+    {
+      "id": "forged-metadata",
+      "rule": "metadata echoed by a buyer never changes a listing on its own",
+      "passed": true,
+      "elapsedMs": 19497,
+      "settlements": [
+        {
+          "transaction": "002b15f7e8b4e853b09e7fe2787fb918774763b9fd18409d0e9797e4e5355e49",
+          "outcome": {
+            "status": "processing",
+            "code": "awaiting_origin_verification",
+            "reason": "The listing's metadata or price changed; the change is published once the resource's own 402 response confirms it.",
+            "listingId": "941ac496-7141-4b99-9947-d6e314d0e38a",
+            "version": 3
+          },
+          "headerBytes": 348
+        }
+      ]
+    },
+    {
+      "id": "soft-drop",
+      "rule": "invalid optional metadata is dropped without failing the payment",
+      "passed": true,
+      "elapsedMs": 4930,
+      "settlements": [
+        {
+          "transaction": "72e0a548d9286b2433ae135127d3c0a7bc249d0ceeb396466e75fd66b940b7e7",
+          "outcome": {
+            "status": "success",
+            "code": "recorded",
+            "listingId": "941ac496-7141-4b99-9947-d6e314d0e38a",
+            "version": 3,
+            "dropped": [
+              "serviceName",
+              "tags"
+            ]
+          },
+          "headerBytes": 196
+        }
+      ]
+    },
+    {
+      "id": "schema-rejected",
+      "rule": "metadata is validated against its schema; a rejection never fails the payment",
+      "passed": true,
+      "elapsedMs": 4893,
+      "settlements": [
+        {
+          "transaction": "cafead9ce951e60348deb33b0268705898ae2cfed9f58b0a38f1a757571ff8ec",
+          "outcome": {
+            "status": "rejected",
+            "code": "bazaar_schema_external_reference",
+            "rejectedReason": "The bazaar `schema` references \"https://example.com/schema.json\"; only same-document references (#…) are allowed."
+          },
+          "headerBytes": 284
+        }
+      ]
+    },
+    {
+      "id": "header-bounded",
+      "rule": "an outcome quoting a huge buyer input stays within any HTTP client's header limit",
+      "passed": true,
+      "elapsedMs": 5083,
+      "settlements": [
+        {
+          "transaction": "8dcc198c76c17b75c5100562f6ae510aa3464a7383064e8ef55bf7b2ded8f1c5",
+          "outcome": {
+            "status": "rejected",
+            "code": "bazaar_info_unsupported",
+            "rejectedReason": "info.input.type must be \"http\" or \"mcp\", got \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          "headerBytes": 520
+        }
+      ]
+    },
+    {
+      "id": "not-x402",
+      "rule": "a URL that is not an x402 resource is never listed",
+      "passed": true,
+      "elapsedMs": 5560,
+      "settlements": [
+        {
+          "transaction": "4ca3b3532c21d98dd75f629c2d15af5df2b9ca3679a3eb6e477f50fd53ab2274",
+          "outcome": {
+            "status": "processing",
+            "code": "awaiting_origin_verification",
+            "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+            "listingId": "ba2e8558-3ad1-4363-872b-8244caba65f5",
+            "version": 2
+          },
+          "headerBytes": 320
+        }
+      ],
+      "listing": {
+        "id": "ba2e8558-3ad1-4363-872b-8244caba65f5",
+        "state": "quarantined",
+        "trust": "settled",
+        "resource": "https://demo-seller-production.up.railway.app/health",
+        "version": 2
+      },
+      "versions": [
+        {
+          "version": 1,
+          "cause": "settlement",
+          "state": "pending"
+        },
+        {
+          "version": 2,
+          "cause": "quarantine",
+          "state": "quarantined"
+        }
+      ]
+    },
+    {
+      "id": "mcp-tool",
+      "rule": "MCP tools are keyed by resource URL and tool name, scoped to their owner",
+      "passed": true,
+      "elapsedMs": 9785,
+      "settlements": [
+        {
+          "transaction": "346320d9e3e9907fed143dab7171ab2995d559479d29208fbdd03601bdc78a54",
+          "outcome": {
+            "status": "success",
+            "code": "recorded",
+            "listingId": "897561fd-c3d9-4672-88a2-0013665ed595",
+            "version": 2
+          },
+          "headerBytes": 152
+        },
+        {
+          "transaction": "9ea94e0034d1918000707042b9551d46e8aca5a03b69baf98658fb73c6d036d7",
+          "outcome": {
+            "status": "success",
+            "code": "cataloged",
+            "listingId": "a4004f57-df72-4b5e-b8c1-a5b7bc9ad2da",
+            "version": 1
+          },
+          "headerBytes": 152
+        }
+      ],
+      "listing": {
+        "id": "897561fd-c3d9-4672-88a2-0013665ed595",
+        "state": "published",
+        "trust": "domain_verified",
+        "resource": "https://demo-seller-production.up.railway.app/mcp",
+        "version": 2
+      },
+      "versions": [
+        {
+          "version": 1,
+          "cause": "settlement",
+          "state": "published"
+        },
+        {
+          "version": 2,
+          "cause": "domain_verification",
+          "state": "published"
+        }
+      ]
+    },
+    {
+      "id": "stellar-facts",
+      "rule": "a listing carries its token's on-chain facts, whether payTo can receive it, and its domain's SEP-1 claim",
+      "passed": true,
+      "elapsedMs": 315,
+      "settlements": [],
+      "listing": {
+        "id": "941ac496-7141-4b99-9947-d6e314d0e38a",
+        "state": "published",
+        "trust": "domain_verified",
+        "resource": "https://demo-seller-production.up.railway.app/weather",
+        "version": 3
+      },
+      "versions": [
+        {
+          "version": 1,
+          "cause": "settlement",
+          "state": "pending"
+        },
+        {
+          "version": 2,
+          "cause": "origin_verification",
+          "state": "published"
+        },
+        {
+          "version": 3,
+          "cause": "domain_verification",
+          "state": "published"
+        }
+      ]
+    },
+    {
+      "id": "discovery",
+      "rule": "GET /discovery/resources filters by type, payTo, network and extensions and pages stably",
+      "passed": true,
+      "elapsedMs": 1450,
+      "settlements": []
+    }
+  ],
+  "catalog": [
+    {
+      "resource": "https://demo-seller-production.up.railway.app/mcp",
+      "type": "mcp",
+      "extensions": [
+        "bazaar"
+      ],
+      "listings": [
+        {
+          "id": "897561fd-c3d9-4672-88a2-0013665ed595",
+          "network": "stellar:testnet",
+          "trust": "domain_verified",
+          "version": 2,
+          "settlements": 5
+        }
+      ]
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/weather",
+      "type": "http",
+      "extensions": [
+        "bazaar"
+      ],
+      "listings": [
+        {
+          "id": "941ac496-7141-4b99-9947-d6e314d0e38a",
+          "network": "stellar:testnet",
+          "trust": "domain_verified",
+          "version": 3,
+          "settlements": 20
+        }
+      ]
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/users/:id",
+      "type": "http",
+      "extensions": [
+        "bazaar"
+      ],
+      "listings": [
+        {
+          "id": "67e9ad73-6d45-4ea7-8c43-f562d5e92823",
+          "network": "stellar:testnet",
+          "trust": "domain_verified",
+          "version": 6,
+          "settlements": 8
+        }
+      ]
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/translate",
+      "type": "http",
+      "extensions": [
+        "bazaar",
+        "payment-identifier"
+      ],
+      "listings": [
+        {
+          "id": "fa0396fe-6bb4-4dfe-a93a-4be78b528ca3",
+          "network": "stellar:testnet",
+          "trust": "domain_verified",
+          "version": 4,
+          "settlements": 4
+        }
+      ]
+    }
+  ]
+}
