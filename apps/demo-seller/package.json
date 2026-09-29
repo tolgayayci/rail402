@@ -1,0 +1,32 @@
+{
+  "name": "@rail402.dev/demo-seller",
+  "version": "0.2.0",
+  "private": true,
+  "description": "A public x402 seller on the Stellar testnet with Bazaar discovery metadata, paid through Rail402.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/seller.ts",
+      "default": "./src/seller.ts"
+    }
+  },
+  "scripts": {
+    "start": "node src/main.ts"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "catalog:",
+    "@x402/core": "catalog:",
+    "@x402/express": "catalog:",
+    "@x402/extensions": "catalog:",
+    "@x402/stellar": "catalog:",
+    "express": "5.2.1"
+  },
+  "devDependencies": {
+    "@rail402.dev/bazaar": "workspace:*",
+    "@types/express": "5.0.6"
+  },
+  "files": [
+    "src"
+  ]
+}
