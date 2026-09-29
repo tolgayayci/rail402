@@ -37,15 +37,15 @@ From `tools/conformance/evidence/canonical-exact-stellar-testnet.json`:
 
 | Field          | Value                                                                                                                                                                                             |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date           | 2026-09-28                                                                                                                                                                                        |
-| Facilitator    | `https://testnet.rail402.dev`, deployed commit `8ad31c8` (from `/health`)                                                                                                                         |
-| Rail402 commit | `8ad31c8b63` (full hash in the evidence file)                                                                                                                                                     |
+| Date           | 2026-09-29                                                                                                                                                                                        |
+| Facilitator    | `https://testnet.rail402.dev`, version `0.2.1` (from `/health`)                                                                                                                                   |
+| Rail402 commit | [`8d24e06`](https://github.com/tolgayayci/rail402/commit/8d24e06af90edef2d190ffc46ad981823ee098d6), tag `v0.2.1`                                                                                  |
 | Packages       | `@x402/core`, `@x402/fetch`, `@x402/express`, `@x402/stellar` 2.27.0; `@stellar/stellar-sdk` 16.3.0                                                                                               |
 | Command        | `node tools/conformance/src/canonical-exact.ts --facilitator https://testnet.rail402.dev`                                                                                                         |
-| Result         | `GET /weather` returned `200` after payment, 4,225 ms end to end                                                                                                                                  |
-| Transaction    | [`c94e0d2b26e3c2bdb454764847af678bac465835749454afb8988f3f989b1c23`](https://stellar.expert/explorer/testnet/tx/c94e0d2b26e3c2bdb454764847af678bac465835749454afb8988f3f989b1c23), ledger 4917397 |
+| Result         | `GET /weather` returned `200` after payment, 4,841 ms end to end                                                                                                                                  |
+| Transaction    | [`84d1f76085e81ce808c773a43879078a0516eead222d2361dfb88f2cf044c195`](https://stellar.expert/explorer/testnet/tx/84d1f76085e81ce808c773a43879078a0516eead222d2361dfb88f2cf044c195), ledger 4933991 |
 | Amount         | `100000` base units of `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` (0.01 USDC)                                                                                                     |
-| Fee charged    | 23,126 stroops, paid by the facilitator's sponsor                                                                                                                                                 |
+| Fee charged    | 23,134 stroops, paid by the facilitator's sponsor                                                                                                                                                 |
 | Balances       | buyer `10000000` → `9900000`; seller `0` → `100000`                                                                                                                                               |
 
 The buyer lost exactly the price and the seller gained exactly the price: the facilitator paid the fee and
@@ -143,7 +143,7 @@ Listings persist between runs: a resource listed by an earlier run reports `reco
 
 ### Recorded run
 
-From `tools/conformance/evidence/live-bazaar-stellar-testnet.json` (2026-09-28):
+From `tools/conformance/evidence/live-bazaar-stellar-testnet.json` (2026-09-29):
 **14 of 14 cases passed**, with 16 settlements.
 
 | Case                   | What it proves                                                                                                         | Outcome                                                               |
