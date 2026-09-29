@@ -1,0 +1,50 @@
+{
+  "name": "@rail402.dev/stellar",
+  "version": "0.2.0",
+  "description": "Stellar network profiles, x402 exact payload inspection and failure classification for Rail402.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "x402",
+    "stellar",
+    "stellar",
+    "soroban"
+  ],
+  "homepage": "https://docs.rail402.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/rail402.git",
+    "directory": "packages/stellar"
+  },
+  "bugs": {
+    "url": "https://github.com/tolgayayci/rail402/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@rail402.dev/errors": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:",
+    "@x402/stellar": "catalog:"
+  },
+  "devDependencies": {
+    "@rail402.dev/testkit": "workspace:*"
+  },
+  "engines": {
+    "node": ">=24.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
