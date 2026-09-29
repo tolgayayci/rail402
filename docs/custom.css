@@ -1,44 +1,102 @@
-/* Rail402 documentation theme. docs.json sets the colours, fonts and background; this adds a mono
- * voice for code and sidebar labels and a few quieter component edges. */
+/* Rail402 documentation theme. docs.json sets the colours, fonts and grid background; this adds the
+ * signature touches: a mono voice for code and sidebar labels, section headings with a hairline and an
+ * accent tick, cards that lift on hover, and callouts with an accent rule. Selectors are Mintlify's own
+ * component classes (.card, .callout, .code-block, .sidebar-group-header). */
 
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap");
 
 :root {
   --rail402-accent: #e23e00;
+  --rail402-accent-bright: #ff4d00;
   --rail402-accent-dark: #ff7a47;
   --rail402-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --rail402-hairline: color-mix(in srgb, currentColor 12%, transparent);
 }
+
+/* Code voice */
 
 code,
 pre,
-kbd {
+kbd,
+samp,
+.font-mono {
   font-family: var(--rail402-mono) !important;
 }
 
 :not(pre) > code {
   font-size: 0.86em;
+  font-weight: 500;
 }
+
+.code-block {
+  border-radius: 0.625rem !important;
+}
+
+/* Sidebar group headers as small, tracked, uppercase mono labels */
 
 .sidebar-group-header {
   font-family: var(--rail402-mono) !important;
-  font-size: 0.68rem !important;
+  font-size: 0.66rem !important;
   font-weight: 700 !important;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--rail402-accent) !important;
+  opacity: 0.95;
 }
 
-.dark .sidebar-group-header {
+.dark .sidebar-group-header,
+html.dark .sidebar-group-header,
+[data-theme="dark"] .sidebar-group-header {
   color: var(--rail402-accent-dark) !important;
+  opacity: 1;
 }
 
-.code-block,
-.callout {
-  border-radius: 0.5rem !important;
+/* Section headings: a hairline under them and an accent tick before them */
+
+h2.font-semibold {
+  border-bottom: 1px solid var(--rail402-hairline);
+  padding-bottom: 0.3em;
+  margin-top: 2.6rem;
+  letter-spacing: -0.01em;
 }
+
+h2.font-semibold::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.55rem;
+  background: var(--rail402-accent-bright);
+  vertical-align: 0.06em;
+}
+
+/* Cards: tighter corners and an accent lift on hover */
 
 .card {
   border-radius: 0.75rem !important;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px -12px rgba(226, 62, 0, 0.3);
+}
+
+/* Callouts: an accent left rule */
+
+.callout {
+  border-radius: 0.5rem !important;
+  border-left-width: 3px !important;
+}
+
+/* Links: an underline that clears the descenders */
+
+.prose a[href]:not([class]) {
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
 }
 
 ::selection {
