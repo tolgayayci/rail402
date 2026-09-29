@@ -1,0 +1,283 @@
+{
+  "dataset": {
+    "version": "1.1.0",
+    "hash": "5a33c705dc1916fcb4038f52f7afd8f1104ef9ca1f580b11607231fa4d8b70a1",
+    "listings": 500,
+    "public": 4,
+    "sample": 496,
+    "queries": 202,
+    "noAnswerQueries": 34
+  },
+  "model": "all-minilm-l6-v2@1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+  "environment": {
+    "node": "v24.19.0",
+    "cpu": "Intel(R) Core(TM) Ultra 5 225",
+    "cores": 7
+  },
+  "modes": {
+    "lexical": {
+      "splits": {
+        "dev": {
+          "queries": 87,
+          "mrr": 0.793307851656309,
+          "ndcgAt10": 0.666380141971119,
+          "recallAt20": 0.8076628352490419,
+          "precisionAt1": 0.7126436781609196
+        },
+        "test": {
+          "queries": 81,
+          "mrr": 0.8233090640498046,
+          "ndcgAt10": 0.6767642169244033,
+          "recallAt20": 0.8209876543209876,
+          "precisionAt1": 0.7407407407407407
+        },
+        "all": {
+          "queries": 168,
+          "mrr": 0.8077727219174589,
+          "ndcgAt10": 0.6713867495378811,
+          "recallAt20": 0.8140873015873014,
+          "precisionAt1": 0.7261904761904762
+        }
+      },
+      "classes": {
+        "mcp": {
+          "queries": 16,
+          "mrr": 0.859375,
+          "ndcgAt10": 0.7991979810142559,
+          "recallAt20": 0.953125,
+          "precisionAt1": 0.75
+        },
+        "paraphrase": {
+          "queries": 25,
+          "mrr": 0.6930769230769229,
+          "ndcgAt10": 0.474494450318286,
+          "recallAt20": 0.6446666666666667,
+          "precisionAt1": 0.6
+        },
+        "constraint": {
+          "queries": 20,
+          "mrr": 0.8375,
+          "ndcgAt10": 0.7494669711392922,
+          "recallAt20": 0.9,
+          "precisionAt1": 0.8
+        },
+        "typo": {
+          "queries": 12,
+          "mrr": 0.7708333333333334,
+          "ndcgAt10": 0.6639348267528994,
+          "recallAt20": 0.7722222222222221,
+          "precisionAt1": 0.6666666666666666
+        },
+        "intent": {
+          "queries": 40,
+          "mrr": 0.7910885167464115,
+          "ndcgAt10": 0.6252958032985868,
+          "recallAt20": 0.7616666666666666,
+          "precisionAt1": 0.7
+        },
+        "stellar": {
+          "queries": 25,
+          "mrr": 0.89,
+          "ndcgAt10": 0.7687495292627367,
+          "recallAt20": 0.9053333333333333,
+          "precisionAt1": 0.84
+        },
+        "keyword": {
+          "queries": 30,
+          "mrr": 0.8245117845117844,
+          "ndcgAt10": 0.6985439086948748,
+          "recallAt20": 0.8344444444444445,
+          "precisionAt1": 0.7333333333333333
+        }
+      },
+      "intervals": {
+        "ndcgAt10": [0.6251948158260677, 0.7269330104306062],
+        "recallAt20": [0.7611111111111111, 0.8751028806584361]
+      },
+      "latencyMs": {
+        "p50": 0.24,
+        "p95": 0.46,
+        "p99": 0.55,
+        "mean": 0.27
+      },
+      "emptyOnNoAnswer": 1
+    },
+    "hybrid": {
+      "splits": {
+        "dev": {
+          "queries": 87,
+          "mrr": 0.8307471264367817,
+          "ndcgAt10": 0.724668554933299,
+          "recallAt20": 0.8501915708812261,
+          "precisionAt1": 0.7586206896551724
+        },
+        "test": {
+          "queries": 81,
+          "mrr": 0.8814814814814815,
+          "ndcgAt10": 0.7423524129353014,
+          "recallAt20": 0.8965020576131686,
+          "precisionAt1": 0.8148148148148148
+        },
+        "all": {
+          "queries": 168,
+          "mrr": 0.8552083333333332,
+          "ndcgAt10": 0.7331947007556926,
+          "recallAt20": 0.8725198412698412,
+          "precisionAt1": 0.7857142857142857
+        }
+      },
+      "classes": {
+        "mcp": {
+          "queries": 16,
+          "mrr": 0.8645833333333333,
+          "ndcgAt10": 0.8534512215068442,
+          "recallAt20": 0.984375,
+          "precisionAt1": 0.75
+        },
+        "paraphrase": {
+          "queries": 25,
+          "mrr": 0.838,
+          "ndcgAt10": 0.6137103415530523,
+          "recallAt20": 0.786,
+          "precisionAt1": 0.8
+        },
+        "constraint": {
+          "queries": 20,
+          "mrr": 0.8875,
+          "ndcgAt10": 0.8052456831593096,
+          "recallAt20": 0.9166666666666667,
+          "precisionAt1": 0.85
+        },
+        "typo": {
+          "queries": 12,
+          "mrr": 0.8333333333333334,
+          "ndcgAt10": 0.7761950385926358,
+          "recallAt20": 0.8347222222222221,
+          "precisionAt1": 0.75
+        },
+        "intent": {
+          "queries": 40,
+          "mrr": 0.8372916666666667,
+          "ndcgAt10": 0.6875854961501389,
+          "recallAt20": 0.8229166666666666,
+          "precisionAt1": 0.775
+        },
+        "stellar": {
+          "queries": 25,
+          "mrr": 0.9,
+          "ndcgAt10": 0.7657759067776595,
+          "recallAt20": 0.9106666666666666,
+          "precisionAt1": 0.84
+        },
+        "keyword": {
+          "queries": 30,
+          "mrr": 0.8383333333333333,
+          "ndcgAt10": 0.7370553334091909,
+          "recallAt20": 0.9049999999999999,
+          "precisionAt1": 0.7333333333333333
+        }
+      },
+      "intervals": {
+        "ndcgAt10": [0.7001304448620937, 0.7798473704633883],
+        "recallAt20": [0.8456790123456789, 0.9395061728395061]
+      },
+      "latencyMs": {
+        "p50": 5.14,
+        "p95": 6.78,
+        "p99": 7.6,
+        "mean": 5.12
+      },
+      "emptyOnNoAnswer": 1
+    }
+  },
+  "comparison": {
+    "ndcgAt10": {
+      "delta": 0.06558819601089816,
+      "pValue": 0.00019998000199980003
+    },
+    "recallAt20": {
+      "delta": 0.07551440329218095,
+      "pValue": 0.0005999400059994001
+    },
+    "mrr": {
+      "delta": 0.05817241743167689,
+      "pValue": 0.019598040195980403
+    }
+  },
+  "filters": {
+    "checkedQueries": 43,
+    "checkedResults": 1216,
+    "violations": {
+      "network": 0,
+      "type": 0,
+      "asset": 0,
+      "price": 0,
+      "scheme": 0,
+      "payTo": 0
+    }
+  },
+  "filterConformance": {
+    "listings": 172,
+    "queries": 31,
+    "modes": ["lexical", "hybrid"],
+    "byFilter": {
+      "network": {
+        "queries": 10,
+        "results": 856,
+        "violations": 0,
+        "missed": 0
+      },
+      "asset": {
+        "queries": 16,
+        "results": 498,
+        "violations": 0,
+        "missed": 0
+      },
+      "scheme": {
+        "queries": 6,
+        "results": 448,
+        "violations": 0,
+        "missed": 0
+      },
+      "payTo": {
+        "queries": 14,
+        "results": 560,
+        "violations": 0,
+        "missed": 0
+      },
+      "price": {
+        "queries": 16,
+        "results": 394,
+        "violations": 0,
+        "missed": 0
+      }
+    }
+  },
+  "constraints": {
+    "queries": 45,
+    "extraction": {
+      "network": {
+        "labelled": 16,
+        "recovered": 15,
+        "spurious": 0
+      },
+      "type": {
+        "labelled": 23,
+        "recovered": 23,
+        "spurious": 0
+      },
+      "asset": {
+        "labelled": 14,
+        "recovered": 13,
+        "spurious": 0
+      },
+      "price": {
+        "labelled": 15,
+        "recovered": 14,
+        "spurious": 0
+      }
+    },
+    "resultsChecked": 658,
+    "resultsUnmet": 25
+  }
+}

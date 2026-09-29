@@ -1,0 +1,21 @@
+{
+  "name": "@rail402.dev/search-eval",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Reproducible evaluation of Rail402 search: corpus, queries, graded judgments, metrics and the CI regression gate.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@rail402.dev/bazaar": "workspace:*",
+    "@rail402.dev/search": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:",
+    "@x402/core": "catalog:",
+    "@x402/extensions": "catalog:"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "version": "1.1.0",
+  "files": {
+    "corpus": {
+      "sha256": "546228f5c8477c39ea6dfabd6f4e6415d11503b1c65456bc30f6e681d47b3199",
+      "count": 500
+    },
+    "queries": {
+      "sha256": "54e3776fecab749d7f3470efb66dbbb5be7652b1c4c41687249173105a52b294",
+      "count": 202
+    },
+    "qrels": {
+      "sha256": "f970b0d6f0fdb9be6fd6ea2a0e1e706c8b9720812a9d000b438e675ac8659d0d",
+      "count": 9012
+    }
+  },
+  "corpus": {
+    "public": 4,
+    "sample": 496
+  },
+  "judging": {
+    "scale": "0-3",
+    "method": "pooled top results of six systems, and every public listing for every query; two blind judge sets per pair; one grade apart takes the lower, two or more apart is adjudicated; labelled constraints decided by code",
+    "judges": ["set a", "set b", "adjudicator"],
+    "agreement": {
+      "pairs": 9012,
+      "exact": 0.968,
+      "withinOne": 1,
+      "quadraticWeightedKappa": 0.965,
+      "relevantKappa": 0.961,
+      "adjudicated": 0,
+      "constraintOverrides": 214,
+      "copiedQueries": 0
+    }
+  }
+}

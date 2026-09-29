@@ -1,0 +1,26 @@
+{
+  "version": "fixture",
+  "files": {
+    "corpus": {
+      "sha256": "83cf8523e98e06fd987fe3ebccbed7dc4cd353fa11b50094852932eeb8155b7d",
+      "count": 6
+    },
+    "queries": {
+      "sha256": "71a0b8516851edea5c4025abce588de33ba170a753fc7d89e675dcdb02521160",
+      "count": 5
+    },
+    "qrels": {
+      "sha256": "76bc0fdca508990a7c76c63517d66510769c980c2c13776e82b3d7db63f36cbe",
+      "count": 8
+    }
+  },
+  "corpus": {
+    "public": 0,
+    "sample": 6
+  },
+  "judging": {
+    "scale": "0-3",
+    "method": "hand-assigned fixture",
+    "judges": ["fixture"]
+  }
+}

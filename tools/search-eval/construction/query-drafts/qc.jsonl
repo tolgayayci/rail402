@@ -1,0 +1,75 @@
+{"draft":"qc-001","text":"weather forecast api on stellar mainnet under half a cent per call","class":"constraint","targets":["weather-forecast"],"expected":{"network":"stellar:pubnet","maxPrice":{"amount":"0.005","unit":"USD"}}}
+{"draft":"qc-002","text":"translate product descriptions into German, must be payable in EURC","class":"constraint","targets":["translation"],"expected":{"asset":"EURC"}}
+{"draft":"qc-003","text":"testnet-only OCR endpoint so I can try it without spending real money","class":"constraint","targets":["ocr"],"expected":{"network":"stellar:testnet"}}
+{"draft":"qc-004","text":"sanctions screening for a counterparty name, max $0.10 per lookup","class":"constraint","targets":["credit-risk"],"expected":{"maxPrice":{"amount":"0.10","unit":"USD"}}}
+{"draft":"qc-005","text":"email deliverability check","class":"constraint","targets":["email-validation"],"filter":{"network":"stellar:pubnet","asset":"USDC"},"expected":{"network":"stellar:pubnet","asset":"USDC"}}
+{"draft":"qc-006","text":"I need an MCP tool for live football scores that accepts XLM","class":"constraint","targets":["sports-scores"],"expected":{"type":"mcp","asset":"XLM"}}
+{"draft":"qc-007","text":"btc and eth spot price feed below 0.1 cents a request","class":"constraint","targets":["spot-prices"],"expected":{"maxPrice":{"amount":"0.001","unit":"USD"}}}
+{"draft":"qc-008","text":"delayed stock quotes for under 0.02 USDC per quote","class":"constraint","targets":["stock-quotes"],"expected":{"maxPrice":{"amount":"0.02","unit":"USDC"}}}
+{"draft":"qc-009","text":"bulk address geocoding over plain http, no more than 1 cent each, pubnet","class":"constraint","targets":["geocoding"],"expected":{"type":"http","network":"stellar:pubnet","maxPrice":{"amount":"0.01","unit":"USD"}}}
+{"draft":"qc-010","text":"summarize a 60 page annual report","class":"constraint","targets":["summarization"],"filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"draft":"qc-011","text":"image generation priced at most 0.5 XLM per image","class":"constraint","targets":["image-generation"],"expected":{"maxPrice":{"amount":"0.5","unit":"XLM"}}}
+{"draft":"qc-012","text":"cheapest iban validator on the test network, anything under a tenth of a cent","class":"constraint","targets":["bank-validation"],"expected":{"network":"stellar:testnet","maxPrice":{"amount":"0.001","unit":"USD"}}}
+{"draft":"qc-013","text":"shipping quotes for a 2kg parcel from Berlin to Paris","class":"constraint","targets":["shipping-rates"],"filter":{"asset":"EURC"},"expected":{"asset":"EURC"}}
+{"draft":"qc-014","text":"transcribe meeting audio, pay in USDC on mainnet, below 3 cents a minute","class":"constraint","targets":["speech-to-text"],"expected":{"network":"stellar:pubnet","asset":"USDC","maxPrice":{"amount":"0.03","unit":"USD"}}}
+{"draft":"qc-015","text":"phishing checker for links, exposed as an mcp tool, testnet","class":"constraint","targets":["url-scan"],"expected":{"type":"mcp","network":"stellar:testnet"}}
+{"draft":"qc-016","text":"VAT rate lookup by country and product category","class":"constraint","targets":["tax-rates"],"filter":{"network":"stellar:pubnet"},"expected":{"network":"stellar:pubnet"}}
+{"draft":"qc-017","text":"EUR/USD exchange rate api payable in eurc, 0.005 EURC or less","class":"constraint","targets":["fx-rates"],"expected":{"asset":"EURC","maxPrice":{"amount":"0.005","unit":"EURC"}}}
+{"draft":"qc-018","text":"run a python snippet in a sandbox - only services that take XLM","class":"constraint","targets":["code-execution"],"expected":{"asset":"XLM"}}
+{"draft":"qc-019","text":"track a DHL parcel by its tracking number","class":"constraint","targets":["package-tracking"],"filter":{"type":"http","network":"stellar:testnet"},"expected":{"type":"http","network":"stellar:testnet"}}
+{"draft":"qc-020","text":"academic paper search with citation counts, max one dollar per query","class":"constraint","targets":["paper-search"],"filter":{"type":"http"},"expected":{"type":"http","maxPrice":{"amount":"1","unit":"USD"}}}
+{"draft":"qc-021","text":"liquidity pool reserves and APY, real network not testnet","class":"constraint","targets":["amm-pools"],"expected":{"network":"stellar:pubnet"}}
+{"draft":"qc-022","text":"security scanner for my soroban contract wasm","class":"constraint","targets":["contract-audit"],"filter":{"network":"stellar:testnet","asset":"USDC"},"expected":{"network":"stellar:testnet","asset":"USDC"}}
+{"draft":"qc-023","text":"phone carrier and line type lookup, $0.002 or less, usdc","class":"constraint","targets":["phone-lookup"],"expected":{"asset":"USDC","maxPrice":{"amount":"0.002","unit":"USD"}}}
+{"draft":"qc-024","text":"precios del oro y la plata en tiempo real, solo en mainnet","class":"constraint","targets":["commodities"],"expected":{"network":"stellar:pubnet"}}
+{"draft":"qc-025","text":"take a full-page screenshot of a website as png","class":"constraint","targets":["screenshots"],"filter":{"type":"mcp","asset":"XLM"},"expected":{"type":"mcp","asset":"XLM"}}
+{"draft":"qc-026","text":"crypto news with sentiment scores under 1¢ on stellar testnet","class":"constraint","targets":["crypto-news"],"expected":{"network":"stellar:testnet","maxPrice":{"amount":"0.01","unit":"USD"}}}
+{"draft":"qc-027","text":"inflation and central bank rate data, pay per call in lumens, 0.1 XLM tops","class":"constraint","targets":["macro-data"],"expected":{"asset":"XLM","maxPrice":{"amount":"0.1","unit":"XLM"}}}
+{"draft":"qc-028","text":"check interactions between two medications, less than 5 cents","class":"constraint","targets":["drug-info"],"filter":{"network":"stellar:pubnet"},"expected":{"network":"stellar:pubnet","maxPrice":{"amount":"0.05","unit":"USD"}}}
+{"draft":"qc-029","text":"movie and tv show metadata, http api (not mcp), under $0.001","class":"constraint","targets":["movies-tv"],"expected":{"type":"http","maxPrice":{"amount":"0.001","unit":"USD"}}}
+{"draft":"qc-030","text":"is this erc20 token a honeypot","class":"constraint","targets":["token-security"],"filter":{"network":"stellar:pubnet","asset":"USDC","type":"http"},"expected":{"network":"stellar:pubnet","asset":"USDC","type":"http"}}
+{"draft":"qc-031","text":"show trustlines, signers and thresholds for a G... address","class":"stellar","targets":["account-balances"]}
+{"draft":"qc-032","text":"decode a transaction envelope XDR and show each operation's result code","class":"stellar","targets":["transaction-lookup"]}
+{"draft":"qc-033","text":"current fee_charged p90 and p99, is the network in surge pricing right now","class":"stellar","targets":["fee-stats"]}
+{"draft":"qc-034","text":"strict-receive path payment from XLM so the destination gets exactly 100 EURC","class":"stellar","targets":["path-payment"]}
+{"draft":"qc-035","text":"which SEP-24 anchors support MXN deposits via SPEI","class":"stellar","targets":["anchor-directory"]}
+{"draft":"qc-036","text":"SEP-31 payout quote, USDC in, PHP to a bank account out","class":"stellar","targets":["cross-border-quote"]}
+{"draft":"qc-037","text":"is my soroban contract instance TTL close to expiring, do I need extend_footprint_ttl","class":"stellar","targets":["contract-storage"]}
+{"draft":"qc-038","text":"persistent entry got archived, what would a RestoreFootprint cost","class":"stellar","targets":["contract-storage","contract-simulation"]}
+{"draft":"qc-039","text":"simulateTransaction for a soroban invoke, return the resource fee and emitted events","class":"stellar","targets":["contract-simulation"]}
+{"draft":"qc-040","text":"asset issuer home domain, stellar.toml currency info and total supply","class":"stellar","targets":["asset-info"]}
+{"draft":"qc-041","text":"classic dex orderbook depth XLM/USDC","class":"stellar","targets":["orderbook"]}
+{"draft":"qc-042","text":"payment history for a muxed M-address, grouped by memo id","class":"stellar","targets":["account-history"]}
+{"draft":"qc-043","text":"average ledger close time and current protocol version","class":"stellar","targets":["ledger-stats"]}
+{"draft":"qc-044","text":"is horizon lagging behind stellar-core? health of RPC nodes and validators","class":"stellar","targets":["network-status"]}
+{"draft":"qc-045","text":"label stellar addresses: which belong to exchanges that require a memo, which are flagged scams","class":"stellar","targets":["account-labels"]}
+{"draft":"qc-046","text":"deploy the Stellar Asset Contract for a classic asset I issued, on testnet","class":"stellar","targets":["token-deploy"],"expected":{"network":"stellar:testnet"}}
+{"draft":"qc-047","text":"decode ScVal topics and data from a contract event","class":"stellar","targets":["abi-decoding","contract-events"]}
+{"draft":"qc-048","text":"all transfer events emitted by a SEP-41 token contract since ledger 50000000","class":"stellar","targets":["contract-events"]}
+{"draft":"qc-049","text":"supply and borrow APR for USDC on soroban lending pools","class":"stellar","targets":["lending-rates"]}
+{"draft":"qc-050","text":"SEP-40 compatible price oracle my soroban contract can read","class":"stellar","targets":["price-oracle"]}
+{"draft":"qc-051","text":"what are all my stellar balances worth in EUR, including liquidity pool shares","class":"stellar","targets":["portfolio-value"]}
+{"draft":"qc-052","text":"generate a SEP-7 web+stellar:pay URI for a customer invoice","class":"stellar","targets":["payment-links"]}
+{"draft":"qc-053","text":"best route to swap AQUA to USDC across AMM pools and the orderbook","class":"stellar","targets":["swap-quote"]}
+{"draft":"qc-054","text":"SEP-12 customer KYC status at an anchor","class":"stellar","targets":["kyc-check"]}
+{"draft":"qc-055","text":"cotización de retiro SEP-6 de USDC a pesos argentinos","class":"stellar","targets":["ramp-quote"]}
+{"draft":"qc-056","text":"get_trustlines for a stellar account","class":"mcp","targets":["account-balances"],"filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"draft":"qc-057","text":"mcp tool to fetch the last 50 payments of an account (not balances)","class":"mcp","targets":["account-history"],"expected":{"type":"mcp"}}
+{"draft":"qc-058","text":"tool to verify a deployed contract's wasm hash matches a github release build","class":"mcp","targets":["contract-verification"],"filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"draft":"qc-059","text":"which tool gives the hourly forecast for a lat/lon, not the daily one","class":"mcp","targets":["weather-forecast"]}
+{"draft":"qc-060","text":"reverse geocode: coordinates to street address","class":"mcp","targets":["geocoding"],"filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"draft":"qc-061","text":"tool call that sends one transactional email using a template id","class":"mcp","targets":["email-sending"]}
+{"draft":"qc-062","text":"send sms tool for one-time passcodes","class":"mcp","targets":["sms-sending"],"filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"draft":"qc-063","text":"tool that decodes a QR code from an image url (reading, not generating)","class":"mcp","targets":["qr-codes"]}
+{"draft":"qc-064","text":"mcp tool: remove background from png","class":"mcp","targets":["image-processing"],"expected":{"type":"mcp"}}
+{"draft":"qc-065","text":"merge_pdfs tool, combine two files into one","class":"mcp","targets":["pdf-tools"],"filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"draft":"qc-066","text":"get_candles tool with 1h interval for SOL/USDT","class":"mcp","targets":["ohlcv"]}
+{"draft":"qc-067","text":"tool returning registrar and expiry date for a domain","class":"mcp","targets":["domain-info"]}
+{"draft":"qc-068","text":"the tool that checks a password hash prefix against breach dumps (k-anonymity range lookup)","class":"mcp","targets":["breach-check"],"filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"draft":"qc-069","text":"tool listing a company's latest 10-K and 10-Q filings","class":"mcp","targets":["filings"]}
+{"draft":"qc-070","text":"sign a message with an ed25519 key tool","class":"mcp","targets":["hashing-crypto"]}
+{"draft":"qc-071","text":"key-value put/get tool so my agent can keep state between runs","class":"mcp","targets":["storage"],"filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"draft":"qc-072","text":"create_invoice tool that also returns a pdf receipt","class":"mcp","targets":["invoicing"]}
+{"draft":"qc-073","text":"tool to schedule a webhook callback 10 minutes from now","class":"mcp","targets":["scheduling"]}
+{"draft":"qc-074","text":"Werkzeug, das ein JSON-Dokument gegen ein Schema validiert","class":"mcp","targets":["data-validation"],"filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"draft":"qc-075","text":"mcp tool that returns recent trades for a stellar dex pair, not the order book","class":"mcp","targets":["orderbook"],"expected":{"type":"mcp"}}

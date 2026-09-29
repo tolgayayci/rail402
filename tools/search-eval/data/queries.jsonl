@@ -1,0 +1,202 @@
+{"id":"Q001","text":"tool to verify a deployed contract's wasm hash matches a github release build","class":"mcp","split":"dev","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q002","text":"send sms tool for one-time passcodes","class":"mcp","split":"test","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q003","text":"mcp tool that returns recent trades for a stellar dex pair, not the order book","class":"mcp","split":"test","expected":{"type":"mcp"}}
+{"id":"Q004","text":"phone carrier and line type lookup, $0.002 or less, usdc","class":"constraint","split":"dev","expected":{"asset":"USDC","maxPrice":{"amount":"0.002","unit":"USD"}}}
+{"id":"Q005","text":"security scanner for my soroban contract wasm","class":"constraint","split":"test","filter":{"network":"stellar:testnet","asset":"USDC"},"expected":{"network":"stellar:testnet","asset":"USDC"}}
+{"id":"Q006","text":"how many mexican pesos would land in my bank account if I cash out 200 USDC","class":"paraphrase","split":"dev"}
+{"id":"Q007","text":"EUR/USD exchange rate api payable in eurc, 0.005 EURC or less","class":"constraint","split":"test","expected":{"asset":"EURC","maxPrice":{"amount":"0.005","unit":"EURC"}}}
+{"id":"Q008","text":"mcp tool to fech the last 50 pyaments of an account (not balances)","class":"typo","split":"test","expected":{"type":"mcp"}}
+{"id":"Q009","text":"what's the best rate I can get swapping 500 XLM into USDC right now","class":"intent","split":"dev"}
+{"id":"Q010","text":"floor price of an ethereum NFT collection","class":"no_answer","split":"dev"}
+{"id":"Q011","text":"tool listing a company's latest 10-K and 10-Q filings","class":"mcp","split":"dev"}
+{"id":"Q012","text":"co2 emissions of a flight from paris to new york","class":"no_answer","split":"test"}
+{"id":"Q013","text":"find recent papers on retrieval augmented generation and how often they're cited","class":"intent","split":"dev"}
+{"id":"Q014","text":"which executives have been dumping shares of their own company lately","class":"paraphrase","split":"dev"}
+{"id":"Q015","text":"look up pending court cases filed against a company","class":"no_answer","split":"test"}
+{"id":"Q016","text":"has my password leaked in one of those big hacks","class":"paraphrase","split":"dev"}
+{"id":"Q017","text":"is this address run by an exchange, or has anyone reported it as a scammer?","class":"paraphrase","split":"test"}
+{"id":"Q018","text":"give me the gist of a 40 page contract in a few bullet points","class":"intent","split":"dev"}
+{"id":"Q019","text":"get_candles tool with 1h interval for SOL/USDT","class":"mcp","split":"test"}
+{"id":"Q020","text":"shipping quotes for a 2kg parcel from Berlin to Paris","class":"constraint","split":"dev","filter":{"asset":"EURC"},"expected":{"asset":"EURC"}}
+{"id":"Q021","text":"How long is the drive from Denver to Aspen with current traffic?","class":"intent","split":"test"}
+{"id":"Q022","text":"compare UPS, FedEx and DHL prices for sending a 3kg box to Toronto","class":"intent","split":"test"}
+{"id":"Q023","text":"persistent entry got archived, what would a RestoreFootprint cost","class":"stellar","split":"dev"}
+{"id":"Q024","text":"send a password reset email from my app without running my own mail server","class":"intent","split":"test"}
+{"id":"Q025","text":"gold spot price","class":"keyword","split":"dev"}
+{"id":"Q026","text":"where is my parcel right now, I have the number the courier gave me","class":"paraphrase","split":"dev"}
+{"id":"Q027","text":"sandbox to execute a python snippet and return stdout","class":"intent","split":"test"}
+{"id":"Q028","text":"criminal background check on a job candidate","class":"no_answer","split":"dev"}
+{"id":"Q029","text":"crypto news with sentiment scores under 1¢ on stellar testnet","class":"constraint","split":"test","expected":{"network":"stellar:testnet","maxPrice":{"amount":"0.01","unit":"USD"}}}
+{"id":"Q030","text":"barcode reader","class":"keyword","split":"test"}
+{"id":"Q031","text":"is horizon lagging behind stellar-core? health of RPC nodes and validators","class":"stellar","split":"dev"}
+{"id":"Q032","text":"cotización de retiro SEP-6 de USDC a pesos argentinos","class":"stellar","split":"dev"}
+{"id":"Q033","text":"estimate the market value of a house from its street address","class":"no_answer","split":"test"}
+{"id":"Q034","text":"uuid generator","class":"keyword","split":"test"}
+{"id":"Q035","text":"need a tool that tells me which assets a G-address trusts and how much of each it holds","class":"intent","split":"dev"}
+{"id":"Q036","text":"catch hateful or harassing user comments before they get posted","class":"paraphrase","split":"test"}
+{"id":"Q037","text":"deploy the Stellar Asset Contract for a classic asset I issued, on testnet","class":"stellar","split":"test","expected":{"network":"stellar:testnet"}}
+{"id":"Q038","text":"combine three PDFs into a single file","class":"intent","split":"test"}
+{"id":"Q039","text":"whois lookup","class":"keyword","split":"dev"}
+{"id":"Q040","text":"SEP-12 customer KYC status at an anchor","class":"stellar","split":"dev"}
+{"id":"Q041","text":"reverse geocode: coordinates to street address","class":"mcp","split":"test","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q042","text":"key-value put/get tool so my agennt can keep state betwene runs","class":"typo","split":"dev","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q043","text":"get_candles tool with 1h intevral for SOL/USDT","class":"typo","split":"test"}
+{"id":"Q044","text":"xlm usdc swap quote","class":"keyword","split":"test"}
+{"id":"Q045","text":"reverse geocode","class":"keyword","split":"test"}
+{"id":"Q046","text":"show trustlines, signers and thresholds for a G... address","class":"stellar","split":"test"}
+{"id":"Q047","text":"nba odds","class":"keyword","split":"dev"}
+{"id":"Q048","text":"pull apple's last four qurterly income stateemnts","class":"typo","split":"test"}
+{"id":"Q049","text":"get a personalized mortgage offer for buying a house","class":"no_answer","split":"test"}
+{"id":"Q050","text":"weather forecast api on stellar mainnet under half a cent per call","class":"constraint","split":"test","expected":{"network":"stellar:pubnet","maxPrice":{"amount":"0.005","unit":"USD"}}}
+{"id":"Q051","text":"Has USDT drifted off its dollar peg at all this week?","class":"intent","split":"dev"}
+{"id":"Q052","text":"check interactions between two medications, less than 5 cents","class":"constraint","split":"dev","filter":{"network":"stellar:pubnet"},"expected":{"network":"stellar:pubnet","maxPrice":{"amount":"0.05","unit":"USD"}}}
+{"id":"Q053","text":"is this erc20 token a honeypot","class":"constraint","split":"dev","filter":{"network":"stellar:pubnet","asset":"USDC","type":"http"},"expected":{"network":"stellar:pubnet","asset":"USDC","type":"http"}}
+{"id":"Q054","text":"how fast are consumer prices rising in the US, month by month","class":"paraphrase","split":"dev"}
+{"id":"Q055","text":"get me the top search results for 'best standing desk 2026' with links and snippets","class":"intent","split":"dev"}
+{"id":"Q056","text":"track a DHL parcel by its tracking number","class":"constraint","split":"test","filter":{"type":"http","network":"stellar:testnet"},"expected":{"type":"http","network":"stellar:testnet"}}
+{"id":"Q057","text":"earthquake early warnings for Tokyo","class":"no_answer","split":"test"}
+{"id":"Q058","text":"mcp tool to fetch the last 50 payments of an account (not balances)","class":"mcp","split":"test","expected":{"type":"mcp"}}
+{"id":"Q059","text":"bulk address geocoding over plain http, no more than 1 cent each, pubnet","class":"constraint","split":"dev","expected":{"type":"http","network":"stellar:pubnet","maxPrice":{"amount":"0.01","unit":"USD"}}}
+{"id":"Q060","text":"dry run my contract call and tell me what it woulld cost in resources before I sbumit it","class":"typo","split":"dev"}
+{"id":"Q061","text":"SEP-40 compatible price oracle my soroban contract can read","class":"stellar","split":"dev"}
+{"id":"Q062","text":"turn my recorded meeting into written text word for word","class":"paraphrase","split":"test"}
+{"id":"Q063","text":"pull apple's last four quarterly income statements","class":"intent","split":"test"}
+{"id":"Q064","text":"text to image","class":"keyword","split":"dev"}
+{"id":"Q065","text":"testnet-only OCR endpoint so I can try it without spending real money","class":"constraint","split":"test","expected":{"network":"stellar:testnet"}}
+{"id":"Q066","text":"stellar fee percentiles","class":"keyword","split":"test"}
+{"id":"Q067","text":"que horas são agora em Tóquio","class":"paraphrase","split":"dev"}
+{"id":"Q068","text":"where's my parcel, tracking number 1Z999AA10123456784","class":"intent","split":"dev"}
+{"id":"Q069","text":"how much is everything sitting in my stellar wallet worth in euros right now","class":"paraphrase","split":"test"}
+{"id":"Q070","text":"is it safe to take ibuprofen together with my blood pressure pills","class":"paraphrase","split":"dev"}
+{"id":"Q071","text":"remittance corridors","class":"keyword","split":"dev"}
+{"id":"Q072","text":"hit my webhook every monday at 9am","class":"intent","split":"test"}
+{"id":"Q073","text":"ofac sanctions check","class":"keyword","split":"test"}
+{"id":"Q074","text":"has any of the big dollar-pegged coins drifted away from $1 this week","class":"paraphrase","split":"dev"}
+{"id":"Q075","text":"phone carrier lookup","class":"keyword","split":"dev"}
+{"id":"Q076","text":"will it rain in lisbon this weekend","class":"intent","split":"test"}
+{"id":"Q077","text":"whale alerts","class":"keyword","split":"test"}
+{"id":"Q078","text":"flag hateful or sexual comments in user posts before they go live on our forum","class":"intent","split":"test"}
+{"id":"Q079","text":"who links to my competitor's site and what keywords do they rank for","class":"intent","split":"dev"}
+{"id":"Q080","text":"VAT rate lookup by country and product category","class":"constraint","split":"dev","filter":{"network":"stellar:pubnet"},"expected":{"network":"stellar:pubnet"}}
+{"id":"Q081","text":"merge_pdfs tool, combine two files into one","class":"mcp","split":"dev","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q082","text":"annotate the variants in my genome VCF file","class":"no_answer","split":"dev"}
+{"id":"Q083","text":"need to check a customer's IBAN is legit before we send them a payout","class":"intent","split":"dev"}
+{"id":"Q084","text":"can I actually sell this new token after buying it or is it a trap","class":"paraphrase","split":"dev"}
+{"id":"Q085","text":"qué conciertos hay este fin de semana en Madrid","class":"paraphrase","split":"test"}
+{"id":"Q086","text":"calories in avocado","class":"keyword","split":"test"}
+{"id":"Q087","text":"Generate a link my customer can click to pay me 25 USDC on Stellar","class":"intent","split":"test"}
+{"id":"Q088","text":"current wildfire perimeters near my town","class":"no_answer","split":"dev"}
+{"id":"Q089","text":"decode ScVal topics and data from a contract event","class":"stellar","split":"test"}
+{"id":"Q090","text":"Werkzeug, das ein JSON-Dokument gegen ein Schema validiert","class":"mcp","split":"dev","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q091","text":"register a .dev domain name for me and pay for it","class":"no_answer","split":"test"}
+{"id":"Q092","text":"Which Nvidia executives sold shares in the past month?","class":"intent","split":"test"}
+{"id":"Q093","text":"quel est le casting du dernier film de Denis Villeneuve","class":"intent","split":"dev"}
+{"id":"Q094","text":"soroban event indexer","class":"keyword","split":"test"}
+{"id":"Q095","text":"asset issuer home domain, stellar.toml currency info and total supply","class":"stellar","split":"dev"}
+{"id":"Q096","text":"create_invoice tool that also returns a pdf receipt","class":"mcp","split":"test"}
+{"id":"Q097","text":"pollen count","class":"keyword","split":"test"}
+{"id":"Q098","text":"sandboxed python runner","class":"keyword","split":"test"}
+{"id":"Q099","text":"summarize a 60 page annual report","class":"constraint","split":"test","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q100","text":"what sales tax do I charge for an order shipped to austin texas","class":"intent","split":"test"}
+{"id":"Q101","text":"predict the 3D structure of this protein sequence","class":"no_answer","split":"dev"}
+{"id":"Q102","text":"where do I earn the most interest if I park my USDC in a soroban protocol, and what does it cost to borrow against it","class":"paraphrase","split":"dev"}
+{"id":"Q103","text":"what is solana trading at and whats its market cap","class":"intent","split":"test"}
+{"id":"Q104","text":"address normalization","class":"keyword","split":"dev"}
+{"id":"Q105","text":"decode scval","class":"keyword","split":"test"}
+{"id":"Q106","text":"url to png","class":"keyword","split":"dev"}
+{"id":"Q107","text":"any concerts in berlin next friday night?","class":"intent","split":"test"}
+{"id":"Q108","text":"payment history for a muxed M-address, grouped by memo id","class":"stellar","split":"test"}
+{"id":"Q109","text":"geneerate a SEP-7 web+stellar:pay URI for a customer invocie","class":"typo","split":"test"}
+{"id":"Q110","text":"turn an hour-long podcast recording into a written transcript","class":"intent","split":"test"}
+{"id":"Q111","text":"neural tts voices","class":"keyword","split":"test"}
+{"id":"Q112","text":"capture what a website looks like as a picture","class":"paraphrase","split":"test"}
+{"id":"Q113","text":"all transfer events emitted by a SEP-41 token contract since ledger 50000000","class":"stellar","split":"dev"}
+{"id":"Q114","text":"decode a car VIN and show its accident history","class":"no_answer","split":"dev"}
+{"id":"Q115","text":"btc and eth spot price feed below 0.1 cents a request","class":"constraint","split":"test","expected":{"maxPrice":{"amount":"0.001","unit":"USD"}}}
+{"id":"Q116","text":"tool returning registrar and expiry date for a domain","class":"mcp","split":"dev"}
+{"id":"Q117","text":"image generation priced at most 0.5 XLM per image","class":"constraint","split":"test","expected":{"maxPrice":{"amount":"0.5","unit":"XLM"}}}
+{"id":"Q118","text":"prove the wasm running at this contract id was actually built from our github repo","class":"intent","split":"dev"}
+{"id":"Q119","text":"which tool gives the hourly forecast for a lat/lon, not the daily one","class":"mcp","split":"dev"}
+{"id":"Q120","text":"email deliverability check","class":"constraint","split":"test","filter":{"network":"stellar:pubnet","asset":"USDC"},"expected":{"network":"stellar:pubnet","asset":"USDC"}}
+{"id":"Q121","text":"is this brand name already taken as a registered trademark","class":"no_answer","split":"dev"}
+{"id":"Q122","text":"create_invoice tool that also reeturns a pdf recept","class":"typo","split":"test"}
+{"id":"Q123","text":"is this signup email a throwaway address","class":"intent","split":"test"}
+{"id":"Q124","text":"eu vat rates","class":"keyword","split":"dev"}
+{"id":"Q125","text":"Is this address an exchange hot wallet or a known scammer? Want to know before I send funds.","class":"intent","split":"dev"}
+{"id":"Q126","text":"academic paper search with citation counts, max one dollar per query","class":"constraint","split":"test","filter":{"type":"http"},"expected":{"type":"http","maxPrice":{"amount":"1","unit":"USD"}}}
+{"id":"Q127","text":"split a song into separate vocal and instrument tracks","class":"no_answer","split":"test"}
+{"id":"Q128","text":"get_trustlines for a stellar account","class":"mcp","split":"dev","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q129","text":"how many other sites point to my blog and where does it show up on google","class":"paraphrase","split":"test"}
+{"id":"Q130","text":"embedding model api","class":"keyword","split":"test"}
+{"id":"Q131","text":"what country and ISP is this ip from, and is it a vpn or proxy","class":"intent","split":"test"}
+{"id":"Q132","text":"cheapest iban validator on the test network, anything under a tenth of a cent","class":"constraint","split":"dev","expected":{"network":"stellar:testnet","maxPrice":{"amount":"0.001","unit":"USD"}}}
+{"id":"Q133","text":"serp api","class":"keyword","split":"dev"}
+{"id":"Q134","text":"do I need an umbrella in Lisbon tomorrow afternoon","class":"paraphrase","split":"dev"}
+{"id":"Q135","text":"average ledger close time and current protocol version","class":"stellar","split":"dev"}
+{"id":"Q136","text":"current fee_charged p90 and p99, is the network in surge pricing right now","class":"stellar","split":"dev"}
+{"id":"Q137","text":"movie and tv show metadata, http api (not mcp), under $0.001","class":"constraint","split":"test","expected":{"type":"http","maxPrice":{"amount":"0.001","unit":"USD"}}}
+{"id":"Q138","text":"supply and borrow APR for USDC on soroban lending pools","class":"stellar","split":"test"}
+{"id":"Q139","text":"can I take ibuprofen while on blood thinners","class":"intent","split":"test"}
+{"id":"Q140","text":"live positions of cargo ships near the port of Rotterdam","class":"no_answer","split":"test"}
+{"id":"Q141","text":"what payments has this G address sent and received over the past month","class":"paraphrase","split":"test"}
+{"id":"Q142","text":"who won last night's premier league games","class":"intent","split":"dev"}
+{"id":"Q143","text":"docx to markdowwn","class":"typo","split":"test"}
+{"id":"Q144","text":"take a full-page screenshot of a website as png","class":"constraint","split":"dev","filter":{"type":"mcp","asset":"XLM"},"expected":{"type":"mcp","asset":"XLM"}}
+{"id":"Q145","text":"honeypot checker","class":"keyword","split":"dev"}
+{"id":"Q146","text":"inflation and central bank rate data, pay per call in lumens, 0.1 XLM tops","class":"constraint","split":"test","expected":{"asset":"XLM","maxPrice":{"amount":"0.1","unit":"XLM"}}}
+{"id":"Q147","text":"task a satellite to take a fresh image of my farm field next week","class":"no_answer","split":"test"}
+{"id":"Q148","text":"grab the title, price and availability from a product page and return it as json","class":"intent","split":"test"}
+{"id":"Q149","text":"the tool that checks a password hash prefix against breach dumps (k-anonymity range lookup)","class":"mcp","split":"test","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q150","text":"crop yield forecast for winter wheat in kansas","class":"no_answer","split":"dev"}
+{"id":"Q151","text":"precios del oro y la plata en tiempo real, solo en mainnet","class":"constraint","split":"dev","expected":{"network":"stellar:pubnet"}}
+{"id":"Q152","text":"eur usd rate","class":"keyword","split":"dev"}
+{"id":"Q153","text":"I sent a payment an hour ago, what actually happened in that tx? which ops ran and did it fail","class":"intent","split":"dev"}
+{"id":"Q154","text":"tool call that sends one transactional email using a template id","class":"mcp","split":"test"}
+{"id":"Q155","text":"give me the gist of a 60 page report in a few bullet points","class":"paraphrase","split":"test"}
+{"id":"Q156","text":"I need an MCP tool for live football scores that accepts XLM","class":"constraint","split":"test","expected":{"type":"mcp","asset":"XLM"}}
+{"id":"Q157","text":"Übersetze diesen Absatz bitte ins Englische","class":"intent","split":"dev"}
+{"id":"Q158","text":"make sure the account number a customer typed for their european bank transfer is real before I send money","class":"paraphrase","split":"test"}
+{"id":"Q159","text":"what are all my stellar balances worth in EUR, including liquidity pool shares","class":"stellar","split":"dev"}
+{"id":"Q160","text":"spin up a dedicated horizon instance just for my app","class":"no_answer","split":"dev"}
+{"id":"Q161","text":"cómo convierto mis USDC en pesos mexicanos y los cobro en mi cuenta bancaria","class":"intent","split":"dev"}
+{"id":"Q162","text":"classic dex orderbook depth XLM/USDC","class":"stellar","split":"test"}
+{"id":"Q163","text":"stellar asset holders","class":"keyword","split":"dev"}
+{"id":"Q164","text":"best route to swap AQUA to USDC across AMM pools and the orderbook","class":"stellar","split":"test"}
+{"id":"Q165","text":"label stellar addresses: which belong to exchanges that require a memo, which are flagged scams","class":"stellar","split":"dev"}
+{"id":"Q166","text":"turn an hour-long podcast recordig into a written traanscript","class":"typo","split":"test"}
+{"id":"Q167","text":"check whether a user's password has shown up in a data leak","class":"intent","split":"dev"}
+{"id":"Q168","text":"tool that decodes a QR code from an image url (reading, not generating)","class":"mcp","split":"test"}
+{"id":"Q169","text":"generate a SEP-7 web+stellar:pay URI for a customer invoice","class":"stellar","split":"test"}
+{"id":"Q170","text":"cut out the background from a batch of product photos","class":"intent","split":"dev"}
+{"id":"Q171","text":"hit my endpoint every monday at 9am without running my own server","class":"paraphrase","split":"test"}
+{"id":"Q172","text":"liquidity pool reserves and APY, real network not testnet","class":"constraint","split":"dev","expected":{"network":"stellar:pubnet"}}
+{"id":"Q173","text":"tool to schedule a webhook callback 10 minutes from now","class":"mcp","split":"dev"}
+{"id":"Q174","text":"key-value put/get tool so my agent can keep state between runs","class":"mcp","split":"dev","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q175","text":"dry run a call to my contract and tell me what it would return and how much it would cost, without actually submitting it","class":"paraphrase","split":"test"}
+{"id":"Q176","text":"simulateTransaction for a soroban invoke, return the resource fee and emitted events","class":"stellar","split":"test"}
+{"id":"Q177","text":"run a python snippet in a sandbox - only services that take XLM","class":"constraint","split":"dev","expected":{"asset":"XLM"}}
+{"id":"Q178","text":"strict-receive path payment from XLM so the destination gets exactly 100 EURC","class":"stellar","split":"test"}
+{"id":"Q179","text":"is my soroban contract instance TTL close to expiring, do I need extend_footprint_ttl","class":"stellar","split":"test"}
+{"id":"Q180","text":"is my flight UA 857 delayed","class":"intent","split":"dev"}
+{"id":"Q181","text":"translate product descriptions into German, must be payable in EURC","class":"constraint","split":"dev","expected":{"asset":"EURC"}}
+{"id":"Q182","text":"dry run my contract call and tell me what it would cost in resources before I submit it","class":"intent","split":"dev"}
+{"id":"Q183","text":"sanctions screening for a counterparty name, max $0.10 per lookup","class":"constraint","split":"dev","expected":{"maxPrice":{"amount":"0.10","unit":"USD"}}}
+{"id":"Q184","text":"generate a 3D model I can 3D print from a text prompt","class":"no_answer","split":"test"}
+{"id":"Q185","text":"honeypot cecker","class":"typo","split":"dev"}
+{"id":"Q186","text":"which SEP-24 anchors support MXN deposits via SPEI","class":"stellar","split":"test"}
+{"id":"Q187","text":"cut the person out of a photo so the background is transparent","class":"paraphrase","split":"dev"}
+{"id":"Q188","text":"mcp tool: remove background from png","class":"mcp","split":"test","expected":{"type":"mcp"}}
+{"id":"Q189","text":"Werkzeug, das ein JSON-Dokument gegen ein Schma valideirt","class":"typo","split":"dev","filter":{"type":"mcp"},"expected":{"type":"mcp"}}
+{"id":"Q190","text":"make a scannable code for the tables that opens our menu page","class":"intent","split":"test"}
+{"id":"Q191","text":"sign a message with an ed25519 key tool","class":"mcp","split":"dev"}
+{"id":"Q192","text":"arxiv paper search","class":"keyword","split":"dev"}
+{"id":"Q193","text":"Lebensmittelrückrufe in Deutschland prüfen","class":"no_answer","split":"dev"}
+{"id":"Q194","text":"SEP-31 payout quote, USDC in, PHP to a bank account out","class":"stellar","split":"dev"}
+{"id":"Q195","text":"delayed stock quotes for under 0.02 USDC per quote","class":"constraint","split":"dev","expected":{"maxPrice":{"amount":"0.02","unit":"USDC"}}}
+{"id":"Q196","text":"blend borrow apy","class":"keyword","split":"dev"}
+{"id":"Q197","text":"decode a transaction envelope XDR and show each operation's result code","class":"stellar","split":"dev"}
+{"id":"Q198","text":"label stellar addresses: which belong to exchanges that requiire a memo, whch are flagged scams","class":"typo","split":"dev"}
+{"id":"Q199","text":"docx to markdown","class":"keyword","split":"test"}
+{"id":"Q200","text":"phishing checker for links, exposed as an mcp tool, testnet","class":"constraint","split":"dev","expected":{"type":"mcp","network":"stellar:testnet"}}
+{"id":"Q201","text":"is my contract's data about to expire, and does any of it need to be brought back from the archive","class":"paraphrase","split":"dev"}
+{"id":"Q202","text":"transcribe meeting audio, pay in USDC on mainnet, below 3 cents a minute","class":"constraint","split":"test","expected":{"network":"stellar:pubnet","asset":"USDC","maxPrice":{"amount":"0.03","unit":"USD"}}}

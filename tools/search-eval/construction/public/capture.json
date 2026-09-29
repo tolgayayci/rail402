@@ -1,0 +1,973 @@
+{
+  "catalog": "https://testnet.rail402.dev/discovery/resources",
+  "retrievedAt": "2026-09-28T19:40:37.500Z",
+  "facilitatorVersion": "02b2995",
+  "pages": ["e9c38c8742fd6da2399ca52602ddb6189c17f52c8bd740cf3bb1949ecf92e08c"],
+  "items": [
+    {
+      "resource": "https://demo-seller-production.up.railway.app/mcp",
+      "type": "mcp",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "extra": {
+            "areFeesSponsored": true
+          },
+          "payTo": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+          "amount": "10000",
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "maxTimeoutSeconds": 300
+        }
+      ],
+      "lastUpdated": "2026-09-28T15:48:14.212Z",
+      "description": "Forecast tool",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "type": "mcp",
+              "toolName": "forecast",
+              "description": "Weather forecast for a city",
+              "inputSchema": {
+                "type": "object",
+                "required": ["city"],
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "schema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "required": ["input"],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": ["type", "toolName", "inputSchema"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "mcp"
+                  },
+                  "toolName": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "inputSchema": {
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      },
+      "rail402": {
+        "toolName": "forecast",
+        "trust": "domain_verified",
+        "settlements": 5,
+        "listings": [
+          {
+            "id": "897561fd-c3d9-4672-88a2-0013665ed595",
+            "network": "stellar:testnet",
+            "version": 2,
+            "trust": "domain_verified",
+            "owner": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+            "settlements": 5,
+            "firstCataloged": "2026-09-28T14:39:37.549Z",
+            "lastSettled": "2026-09-28T19:39:52.198Z",
+            "stellar": {
+              "checkedAt": "2026-09-28T15:48:14.212Z",
+              "domain": {
+                "host": "demo-seller-production.up.railway.app",
+                "claimsOwner": true
+              }
+            }
+          }
+        ],
+        "options": [
+          {
+            "listing": "897561fd-c3d9-4672-88a2-0013665ed595",
+            "name": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "symbol": "USDC",
+            "decimals": 7,
+            "receivable": true
+          }
+        ]
+      }
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/mcp",
+      "type": "mcp",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "extra": {
+            "areFeesSponsored": true
+          },
+          "payTo": "GCQG2MAFDWQPJLBGOF6LSYAYP7ZDZATP6N3IQ25OLYWV7AASXCPTQKE6",
+          "amount": "10000",
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "maxTimeoutSeconds": 300
+        }
+      ],
+      "lastUpdated": "2026-09-28T14:39:42.183Z",
+      "description": "Forecast tool",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "type": "mcp",
+              "toolName": "forecast",
+              "description": "Weather forecast for a city",
+              "inputSchema": {
+                "type": "object",
+                "required": ["city"],
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "schema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "required": ["input"],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": ["type", "toolName", "inputSchema"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "mcp"
+                  },
+                  "toolName": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "inputSchema": {
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      },
+      "rail402": {
+        "toolName": "forecast",
+        "trust": "settled",
+        "settlements": 1,
+        "listings": [
+          {
+            "id": "b72a4165-d321-4896-ab5a-13e134e04395",
+            "network": "stellar:testnet",
+            "version": 1,
+            "trust": "settled",
+            "owner": "GCQG2MAFDWQPJLBGOF6LSYAYP7ZDZATP6N3IQ25OLYWV7AASXCPTQKE6",
+            "settlements": 1,
+            "firstCataloged": "2026-09-28T14:39:42.183Z",
+            "lastSettled": "2026-09-28T14:39:42.183Z",
+            "stellar": {
+              "checkedAt": "2026-09-28T15:48:14.212Z",
+              "domain": {
+                "host": "demo-seller-production.up.railway.app",
+                "claimsOwner": false
+              }
+            }
+          }
+        ],
+        "options": [
+          {
+            "listing": "b72a4165-d321-4896-ab5a-13e134e04395",
+            "name": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "symbol": "USDC",
+            "decimals": 7,
+            "receivable": true
+          }
+        ]
+      }
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/weather",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "extra": {
+            "areFeesSponsored": true
+          },
+          "payTo": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+          "amount": "10000",
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "maxTimeoutSeconds": 300
+        }
+      ],
+      "lastUpdated": "2026-09-28T15:48:14.212Z",
+      "description": "Current weather for a city",
+      "mimeType": "application/json",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "type": "http",
+              "method": "GET",
+              "queryParams": {
+                "city": "Istanbul"
+              }
+            },
+            "output": {
+              "type": "json",
+              "example": {
+                "city": "Istanbul",
+                "conditions": "sunny",
+                "temperature": 21
+              }
+            }
+          },
+          "schema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "required": ["input"],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": ["type", "method"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "http"
+                  },
+                  "method": {
+                    "enum": ["GET"],
+                    "type": "string"
+                  },
+                  "queryParams": {
+                    "type": "object",
+                    "required": ["city"],
+                    "properties": {
+                      "city": {
+                        "type": "string",
+                        "description": "City name"
+                      }
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "output": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "example": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rail402": {
+        "method": "GET",
+        "trust": "domain_verified",
+        "settlements": 20,
+        "listings": [
+          {
+            "id": "941ac496-7141-4b99-9947-d6e314d0e38a",
+            "network": "stellar:testnet",
+            "version": 3,
+            "trust": "domain_verified",
+            "owner": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+            "settlements": 20,
+            "firstCataloged": "2026-09-28T14:54:47.390Z",
+            "lastSettled": "2026-09-28T19:39:32.608Z",
+            "stellar": {
+              "checkedAt": "2026-09-28T15:48:14.212Z",
+              "domain": {
+                "host": "demo-seller-production.up.railway.app",
+                "claimsOwner": true
+              }
+            }
+          }
+        ],
+        "options": [
+          {
+            "listing": "941ac496-7141-4b99-9947-d6e314d0e38a",
+            "name": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "symbol": "USDC",
+            "decimals": 7,
+            "receivable": true
+          }
+        ]
+      }
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/users/:id",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "extra": {
+            "areFeesSponsored": true
+          },
+          "payTo": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+          "amount": "10000",
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "maxTimeoutSeconds": 300
+        }
+      ],
+      "lastUpdated": "2026-09-28T15:48:14.212Z",
+      "description": "Public profile of a user",
+      "mimeType": "application/json",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "type": "http",
+              "method": "GET",
+              "pathParams": {
+                "id": "7"
+              },
+              "queryParams": {}
+            },
+            "output": {
+              "type": "json",
+              "example": {
+                "id": "42",
+                "name": "Ada",
+                "joined": "2026-01-01"
+              }
+            }
+          },
+          "schema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "required": ["input"],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": ["type", "method"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "http"
+                  },
+                  "method": {
+                    "enum": ["GET"],
+                    "type": "string"
+                  },
+                  "pathParams": {
+                    "type": "object"
+                  },
+                  "queryParams": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                },
+                "additionalProperties": false
+              },
+              "output": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "example": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "routeTemplate": "/users/:id"
+        }
+      },
+      "rail402": {
+        "method": "GET",
+        "trust": "domain_verified",
+        "settlements": 8,
+        "listings": [
+          {
+            "id": "67e9ad73-6d45-4ea7-8c43-f562d5e92823",
+            "network": "stellar:testnet",
+            "version": 6,
+            "trust": "domain_verified",
+            "owner": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+            "settlements": 8,
+            "firstCataloged": "2026-09-28T14:55:07.145Z",
+            "lastSettled": "2026-09-28T19:38:37.248Z",
+            "stellar": {
+              "checkedAt": "2026-09-28T15:48:14.212Z",
+              "domain": {
+                "host": "demo-seller-production.up.railway.app",
+                "claimsOwner": true
+              }
+            }
+          }
+        ],
+        "options": [
+          {
+            "listing": "67e9ad73-6d45-4ea7-8c43-f562d5e92823",
+            "name": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "symbol": "USDC",
+            "decimals": 7,
+            "receivable": true
+          }
+        ]
+      }
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/translate",
+      "type": "http",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "extra": {
+            "areFeesSponsored": true
+          },
+          "payTo": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+          "amount": "20000",
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "maxTimeoutSeconds": 300
+        }
+      ],
+      "lastUpdated": "2026-09-28T19:38:44.060Z",
+      "description": "Translate a short text into another language",
+      "mimeType": "application/json",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "body": {
+                "to": "tr",
+                "text": "Hello"
+              },
+              "type": "http",
+              "method": "POST",
+              "bodyType": "json"
+            },
+            "output": {
+              "type": "json",
+              "example": {
+                "to": "tr",
+                "text": "Merhaba"
+              }
+            }
+          },
+          "schema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "required": ["input"],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": ["type", "method", "bodyType", "body"],
+                "properties": {
+                  "body": {
+                    "required": ["text", "to"],
+                    "properties": {
+                      "to": {
+                        "type": "string",
+                        "description": "Target language code, e.g. tr"
+                      },
+                      "text": {
+                        "type": "string",
+                        "description": "Text to translate, up to 500 characters"
+                      }
+                    }
+                  },
+                  "type": {
+                    "type": "string",
+                    "const": "http"
+                  },
+                  "method": {
+                    "enum": ["POST"],
+                    "type": "string"
+                  },
+                  "bodyType": {
+                    "enum": ["json", "form-data", "text"],
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "output": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "example": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "payment-identifier": {}
+      },
+      "rail402": {
+        "method": "POST",
+        "trust": "domain_verified",
+        "settlements": 4,
+        "listings": [
+          {
+            "id": "fa0396fe-6bb4-4dfe-a93a-4be78b528ca3",
+            "network": "stellar:testnet",
+            "version": 4,
+            "trust": "domain_verified",
+            "owner": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+            "settlements": 4,
+            "firstCataloged": "2026-09-28T14:55:22.299Z",
+            "lastSettled": "2026-09-28T19:38:42.992Z",
+            "stellar": {
+              "checkedAt": "2026-09-28T19:38:44.069Z",
+              "domain": {
+                "host": "demo-seller-production.up.railway.app",
+                "claimsOwner": true
+              }
+            }
+          }
+        ],
+        "options": [
+          {
+            "listing": "fa0396fe-6bb4-4dfe-a93a-4be78b528ca3",
+            "name": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "symbol": "USDC",
+            "decimals": 7,
+            "receivable": true
+          }
+        ]
+      }
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/mcp",
+      "type": "mcp",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "extra": {
+            "areFeesSponsored": true
+          },
+          "payTo": "GAM4AJD54OC6OWRGYRAYSCSPL7A47LKORWDVONFJH3Y4B46M4ZTG6YIO",
+          "amount": "10000",
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "maxTimeoutSeconds": 300
+        }
+      ],
+      "lastUpdated": "2026-09-28T14:56:37.260Z",
+      "description": "Forecast tool",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "type": "mcp",
+              "toolName": "forecast",
+              "description": "Weather forecast for a city",
+              "inputSchema": {
+                "type": "object",
+                "required": ["city"],
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "schema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "required": ["input"],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": ["type", "toolName", "inputSchema"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "mcp"
+                  },
+                  "toolName": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "inputSchema": {
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      },
+      "rail402": {
+        "toolName": "forecast",
+        "trust": "settled",
+        "settlements": 1,
+        "listings": [
+          {
+            "id": "6483e268-80d7-4fb0-8ff8-ad4ed367ad88",
+            "network": "stellar:testnet",
+            "version": 1,
+            "trust": "settled",
+            "owner": "GAM4AJD54OC6OWRGYRAYSCSPL7A47LKORWDVONFJH3Y4B46M4ZTG6YIO",
+            "settlements": 1,
+            "firstCataloged": "2026-09-28T14:56:37.260Z",
+            "lastSettled": "2026-09-28T14:56:37.260Z",
+            "stellar": {
+              "checkedAt": "2026-09-28T15:48:14.212Z",
+              "domain": {
+                "host": "demo-seller-production.up.railway.app",
+                "claimsOwner": false
+              }
+            }
+          }
+        ],
+        "options": [
+          {
+            "listing": "6483e268-80d7-4fb0-8ff8-ad4ed367ad88",
+            "name": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "symbol": "USDC",
+            "decimals": 7,
+            "receivable": true
+          }
+        ]
+      }
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/mcp",
+      "type": "mcp",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "extra": {
+            "areFeesSponsored": true
+          },
+          "payTo": "GB6SBLTTI5CFDJK7GXWO7SV6D5PQ4RFQZHTYFQAZUCQAETJO2YNI7PHY",
+          "amount": "10000",
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "maxTimeoutSeconds": 300
+        }
+      ],
+      "lastUpdated": "2026-09-28T14:59:57.309Z",
+      "description": "Forecast tool",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "type": "mcp",
+              "toolName": "forecast",
+              "description": "Weather forecast for a city",
+              "inputSchema": {
+                "type": "object",
+                "required": ["city"],
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "schema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "required": ["input"],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": ["type", "toolName", "inputSchema"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "mcp"
+                  },
+                  "toolName": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "inputSchema": {
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      },
+      "rail402": {
+        "toolName": "forecast",
+        "trust": "settled",
+        "settlements": 1,
+        "listings": [
+          {
+            "id": "e5d842f2-e839-4505-b5ba-8de1a4d2ef83",
+            "network": "stellar:testnet",
+            "version": 1,
+            "trust": "settled",
+            "owner": "GB6SBLTTI5CFDJK7GXWO7SV6D5PQ4RFQZHTYFQAZUCQAETJO2YNI7PHY",
+            "settlements": 1,
+            "firstCataloged": "2026-09-28T14:59:57.309Z",
+            "lastSettled": "2026-09-28T14:59:57.309Z",
+            "stellar": {
+              "checkedAt": "2026-09-28T15:48:14.212Z",
+              "domain": {
+                "host": "demo-seller-production.up.railway.app",
+                "claimsOwner": false
+              }
+            }
+          }
+        ],
+        "options": [
+          {
+            "listing": "e5d842f2-e839-4505-b5ba-8de1a4d2ef83",
+            "name": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "symbol": "USDC",
+            "decimals": 7,
+            "receivable": true
+          }
+        ]
+      }
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/mcp",
+      "type": "mcp",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "extra": {
+            "areFeesSponsored": true
+          },
+          "payTo": "GDBDXUROJQJEHEWZTRNRRMMG2K7QLOL2O76JVE35PQTUMMUERNDEREYL",
+          "amount": "10000",
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "maxTimeoutSeconds": 300
+        }
+      ],
+      "lastUpdated": "2026-09-28T15:53:57.922Z",
+      "description": "Forecast tool",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "type": "mcp",
+              "toolName": "forecast",
+              "description": "Weather forecast for a city",
+              "inputSchema": {
+                "type": "object",
+                "required": ["city"],
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "schema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "required": ["input"],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": ["type", "toolName", "inputSchema"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "mcp"
+                  },
+                  "toolName": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "inputSchema": {
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      },
+      "rail402": {
+        "toolName": "forecast",
+        "trust": "settled",
+        "settlements": 1,
+        "listings": [
+          {
+            "id": "8d40c3d5-e3b4-48d9-bebf-31fa8d88381d",
+            "network": "stellar:testnet",
+            "version": 1,
+            "trust": "settled",
+            "owner": "GDBDXUROJQJEHEWZTRNRRMMG2K7QLOL2O76JVE35PQTUMMUERNDEREYL",
+            "settlements": 1,
+            "firstCataloged": "2026-09-28T15:53:57.922Z",
+            "lastSettled": "2026-09-28T15:53:57.922Z",
+            "stellar": {
+              "checkedAt": "2026-09-28T15:53:59.225Z",
+              "domain": {
+                "host": "demo-seller-production.up.railway.app",
+                "claimsOwner": false
+              }
+            }
+          }
+        ],
+        "options": [
+          {
+            "listing": "8d40c3d5-e3b4-48d9-bebf-31fa8d88381d",
+            "name": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "symbol": "USDC",
+            "decimals": 7,
+            "receivable": true
+          }
+        ]
+      }
+    },
+    {
+      "resource": "https://demo-seller-production.up.railway.app/mcp",
+      "type": "mcp",
+      "x402Version": 2,
+      "accepts": [
+        {
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "extra": {
+            "areFeesSponsored": true
+          },
+          "payTo": "GBQR4YONCXGNLSKT4DTQWK5V45LVBZUQKALVAABT6QUH6DOA42BJL67X",
+          "amount": "10000",
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "maxTimeoutSeconds": 300
+        }
+      ],
+      "lastUpdated": "2026-09-28T19:39:57.594Z",
+      "description": "Conformance run: a second seller declaring the same tool",
+      "extensions": {
+        "bazaar": {
+          "info": {
+            "input": {
+              "type": "mcp",
+              "toolName": "forecast",
+              "description": "Weather forecast for a city",
+              "inputSchema": {
+                "type": "object",
+                "required": ["city"],
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "schema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "required": ["input"],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": ["type", "toolName", "inputSchema"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "mcp"
+                  },
+                  "toolName": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "inputSchema": {
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      },
+      "rail402": {
+        "toolName": "forecast",
+        "trust": "settled",
+        "settlements": 1,
+        "listings": [
+          {
+            "id": "a4004f57-df72-4b5e-b8c1-a5b7bc9ad2da",
+            "network": "stellar:testnet",
+            "version": 1,
+            "trust": "settled",
+            "owner": "GBQR4YONCXGNLSKT4DTQWK5V45LVBZUQKALVAABT6QUH6DOA42BJL67X",
+            "settlements": 1,
+            "firstCataloged": "2026-09-28T19:39:57.594Z",
+            "lastSettled": "2026-09-28T19:39:57.594Z",
+            "stellar": {
+              "checkedAt": "2026-09-28T19:39:59.020Z",
+              "domain": {
+                "host": "demo-seller-production.up.railway.app",
+                "claimsOwner": false
+              }
+            }
+          }
+        ],
+        "options": [
+          {
+            "listing": "a4004f57-df72-4b5e-b8c1-a5b7bc9ad2da",
+            "name": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "symbol": "USDC",
+            "decimals": 7,
+            "receivable": true
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,236 @@
+{
+  "version": "1",
+  "description": "Needs an agent might pay for through x402 on Stellar. Listing writers use it to decide what services exist; query writers use it (without ever seeing listings) to decide what people look for. Capability ids tie queries and listings together only for building judgment pools; judges never see them.",
+  "categories": [
+    {
+      "id": "stellar-data",
+      "name": "Stellar network data",
+      "listings": 45,
+      "capabilities": [
+        ["account-balances", "Balances, trustlines and signers of a Stellar account"],
+        ["account-history", "Payment and transaction history of an account"],
+        [
+          "transaction-lookup",
+          "Decode or look up a transaction by hash, including its operations and result"
+        ],
+        ["ledger-stats", "Ledger close times, protocol version, network throughput"],
+        ["fee-stats", "Current inclusion fee percentiles and surge pricing state"],
+        ["asset-info", "Asset issuer, supply, holders and stellar.toml metadata"],
+        ["orderbook", "Classic DEX order book depth and trades for an asset pair"],
+        ["account-labels", "Known-entity labels for addresses: exchanges, anchors, scam flags"],
+        ["network-status", "Validator and RPC health, network upgrades"]
+      ]
+    },
+    {
+      "id": "stellar-defi",
+      "name": "Stellar DeFi and payments",
+      "listings": 35,
+      "capabilities": [
+        ["swap-quote", "Best swap route and price across classic DEX and AMMs"],
+        ["path-payment", "Find a path payment route between two assets for a target amount"],
+        ["amm-pools", "Liquidity pool reserves, fees and yields"],
+        ["lending-rates", "Supply and borrow rates on Soroban lending protocols"],
+        ["price-oracle", "Signed price feeds usable by Soroban contracts"],
+        ["portfolio-value", "Value of an account's holdings in a fiat currency"],
+        ["payment-links", "Create payment requests, invoices or checkout links payable on Stellar"]
+      ]
+    },
+    {
+      "id": "anchors-fiat",
+      "name": "Anchors, ramps and FX",
+      "listings": 25,
+      "capabilities": [
+        ["ramp-quote", "Quotes for moving between fiat and Stellar assets through anchors (SEP-24/SEP-6)"],
+        ["cross-border-quote", "Cross-border payout quotes and corridors (SEP-31)"],
+        ["fx-rates", "Fiat currency exchange rates"],
+        ["anchor-directory", "Which anchors serve a country, currency or payment rail"],
+        ["kyc-check", "Identity verification or KYC status checks"],
+        ["bank-validation", "Validate IBAN, SWIFT/BIC or bank account details"]
+      ]
+    },
+    {
+      "id": "soroban-dev",
+      "name": "Soroban and smart contract tools",
+      "listings": 30,
+      "capabilities": [
+        ["contract-simulation", "Simulate a contract invocation and return its result, events and cost"],
+        ["contract-verification", "Verify a deployed contract's WASM against source"],
+        ["contract-events", "Index and query contract events"],
+        ["contract-storage", "Read contract storage and entry TTLs; archival and restore status"],
+        ["contract-audit", "Automated security analysis of a contract"],
+        ["abi-decoding", "Decode contract specs, XDR values and function signatures"],
+        ["token-deploy", "Deploy or wrap tokens and Stellar Asset Contracts"]
+      ]
+    },
+    {
+      "id": "crypto-markets",
+      "name": "Crypto market data",
+      "listings": 30,
+      "capabilities": [
+        ["spot-prices", "Current crypto prices and market caps"],
+        ["ohlcv", "Historical candles for trading pairs"],
+        ["crypto-news", "Crypto news and sentiment"],
+        ["onchain-analytics", "Whale movements and wallet analytics on other chains"],
+        ["stablecoin-metrics", "Stablecoin supply, peg deviation and flows"],
+        ["token-security", "Token contract risk scores and honeypot checks"]
+      ]
+    },
+    {
+      "id": "tradfi",
+      "name": "Traditional finance data",
+      "listings": 30,
+      "capabilities": [
+        ["stock-quotes", "Real-time and delayed stock quotes"],
+        ["company-fundamentals", "Financial statements, ratios and earnings"],
+        ["filings", "Regulatory filings and insider transactions"],
+        ["macro-data", "Economic indicators: inflation, rates, GDP"],
+        ["commodities", "Commodity and precious metal prices"],
+        ["credit-risk", "Company credit scores and sanctions screening"]
+      ]
+    },
+    {
+      "id": "ai-models",
+      "name": "AI models and inference",
+      "listings": 50,
+      "capabilities": [
+        ["text-generation", "Chat or completion from a language model"],
+        ["summarization", "Summarize long text or documents"],
+        ["embeddings", "Text embeddings for semantic search"],
+        ["classification", "Sentiment, topic or intent classification"],
+        ["translation", "Translate text between languages"],
+        ["image-generation", "Generate images from a prompt"],
+        ["speech-to-text", "Transcribe audio"],
+        ["text-to-speech", "Synthesize speech from text"],
+        ["ocr", "Extract text from images or scanned documents"],
+        ["moderation", "Detect unsafe, toxic or policy-violating content"],
+        ["code-assistant", "Generate, explain or review code"]
+      ]
+    },
+    {
+      "id": "web-data",
+      "name": "Web data and search",
+      "listings": 35,
+      "capabilities": [
+        ["web-search", "Search the web and return ranked results"],
+        ["scraping", "Fetch a page and extract structured content"],
+        ["screenshots", "Render a URL to an image or PDF"],
+        ["news-search", "Search recent news articles"],
+        ["seo-metrics", "Backlinks, rankings and keyword volume"],
+        ["social-data", "Posts and profiles from social platforms"],
+        ["link-preview", "Title, description and image for a URL"]
+      ]
+    },
+    {
+      "id": "geo-travel",
+      "name": "Weather, maps and travel",
+      "listings": 35,
+      "capabilities": [
+        ["weather-current", "Current weather conditions"],
+        ["weather-forecast", "Weather forecasts"],
+        ["weather-history", "Historical weather and climate data"],
+        ["geocoding", "Addresses to coordinates and back"],
+        ["routing", "Directions, travel times and distance matrices"],
+        ["flights", "Flight status, schedules and fares"],
+        ["timezones", "Time zone and local time lookup"],
+        ["air-quality", "Air quality and pollen"],
+        ["places", "Points of interest, restaurants and hotels nearby"]
+      ]
+    },
+    {
+      "id": "identity-security",
+      "name": "Identity, fraud and security",
+      "listings": 30,
+      "capabilities": [
+        ["email-validation", "Check whether an email address is deliverable or disposable"],
+        ["phone-lookup", "Phone number validation, carrier and line type"],
+        ["ip-intel", "IP geolocation and reputation"],
+        ["url-scan", "Malware and phishing checks for URLs"],
+        ["domain-info", "WHOIS, DNS and certificate details for a domain"],
+        ["breach-check", "Whether credentials appear in known breaches"],
+        ["captcha-bot", "Bot detection and human verification"]
+      ]
+    },
+    {
+      "id": "commerce",
+      "name": "Commerce and logistics",
+      "listings": 30,
+      "capabilities": [
+        ["shipping-rates", "Shipping quotes across carriers"],
+        ["package-tracking", "Track parcels by tracking number"],
+        ["product-search", "Search products and compare prices across stores"],
+        ["invoicing", "Create invoices and receipts"],
+        ["tax-rates", "Sales tax and VAT rates by location"],
+        ["address-validation", "Validate and normalize postal addresses"]
+      ]
+    },
+    {
+      "id": "media",
+      "name": "Media and documents",
+      "listings": 30,
+      "capabilities": [
+        ["image-processing", "Resize, crop, convert or remove backgrounds from images"],
+        ["video-processing", "Transcode, trim or thumbnail videos"],
+        ["pdf-tools", "Merge, split, convert or fill PDFs"],
+        ["qr-codes", "Generate or read QR codes and barcodes"],
+        ["stock-media", "Search licensed photos, icons or music"],
+        ["file-conversion", "Convert documents between formats"]
+      ]
+    },
+    {
+      "id": "dev-utilities",
+      "name": "Developer utilities",
+      "listings": 35,
+      "capabilities": [
+        ["code-execution", "Run code in a sandbox and return output"],
+        ["email-sending", "Send transactional email"],
+        ["sms-sending", "Send SMS or voice messages"],
+        ["data-validation", "Validate JSON, CSV or schemas"],
+        ["random-data", "Random numbers, UUIDs and fake test data"],
+        ["storage", "Store and retrieve files or key-value data"],
+        ["scheduling", "Cron parsing, reminders and scheduled webhooks"],
+        ["hashing-crypto", "Hashing, signing and encryption utilities"]
+      ]
+    },
+    {
+      "id": "knowledge",
+      "name": "Science, health and education",
+      "listings": 25,
+      "capabilities": [
+        ["paper-search", "Search academic papers and citations"],
+        ["nutrition", "Nutrition facts and recipe analysis"],
+        ["drug-info", "Drug information and interactions"],
+        ["math-solver", "Solve math problems and unit conversions"],
+        ["dictionary", "Definitions, synonyms and etymology"],
+        ["patents", "Patent search"]
+      ]
+    },
+    {
+      "id": "entertainment",
+      "name": "Sports, entertainment and culture",
+      "listings": 25,
+      "capabilities": [
+        ["sports-scores", "Live scores and fixtures"],
+        ["sports-odds", "Betting odds and statistics"],
+        ["movies-tv", "Movie and TV metadata"],
+        ["music-metadata", "Songs, artists and lyrics metadata"],
+        ["events", "Concerts and local events"],
+        ["games", "Video game data and prices"]
+      ]
+    }
+  ],
+  "adversarial": {
+    "listings": 10,
+    "kinds": [
+      "keyword stuffing: a thin service whose description and tags repeat popular terms",
+      "near-clone: copies another listing's text with a different provider",
+      "empty: no description, no tags, an opaque resource path"
+    ]
+  },
+  "mix": {
+    "kind": { "http": 0.7, "mcp": 0.3 },
+    "network": { "stellar:pubnet": 0.55, "stellar:testnet": 0.45 },
+    "asset": { "USDC": 0.75, "EURC": 0.1, "XLM": 0.15 },
+    "multipleOptions": 0.1,
+    "style": { "sparse": 0.15, "sloppy": 0.15, "standard": 0.5, "detailed": 0.2 }
+  }
+}
