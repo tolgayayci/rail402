@@ -1,0 +1,17 @@
+{
+  "name": "@rail402.dev/license-gate",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Fail-closed dependency licence gate: permissive licences only, no copyleft anywhere.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/policy.ts",
+      "default": "./src/policy.ts"
+    }
+  },
+  "devDependencies": {
+    "prettier": "catalog:"
+  }
+}
