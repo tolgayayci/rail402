@@ -1,0 +1,13 @@
+# Only what the image build needs enters the build context.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!tsconfig.json
+!apps/
+!packages/
+!tools/
+**/node_modules
+**/dist
+**/*.tsbuildinfo
