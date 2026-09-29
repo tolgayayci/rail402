@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Resolve workspace packages to their TypeScript sources, so type-checking never needs a build.
+    "customConditions": ["@rail402/source"]
+  },
+  "include": [
+    "apps/*/src",
+    "apps/*/test",
+    "packages/*/src",
+    "packages/*/test",
+    "tools/*/src",
+    "tools/*/test",
+    "deploy",
+    ".railway/*.ts",
+    "test",
+    "*.ts"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "rail402",
+  "version": "0.2.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "x402 facilitator and Bazaar discovery layer for Stellar.",
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=24.11"
+  },
+  "scripts": {
+    "build": "pnpm -r run build",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write . --ignore-path .gitignore --ignore-path .prettierignore --ignore-path .git/info/exclude",
+    "format:check": "prettier --check . --ignore-path .gitignore --ignore-path .prettierignore --ignore-path .git/info/exclude",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "license:gate": "node tools/license-gate/src/main.ts --check-report",
+    "license:report": "node tools/license-gate/src/main.ts --write-report",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm license:gate",
+    "clean": "pnpm -r exec rm -rf dist",
+    "models:fetch": "node --conditions=@rail402/source tools/models/src/fetch.ts",
+    "eval": "node --conditions=@rail402/source tools/search-eval/src/main.ts",
+    "eval:check": "node --conditions=@rail402/source tools/search-eval/src/main.ts --check"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "railway": "3.11.0",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}

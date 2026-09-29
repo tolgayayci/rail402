@@ -1,0 +1,39 @@
+packages:
+  - apps/*
+  - packages/*
+  - tools/*
+
+# One resolved version of every shared dependency. The x402 family and the Stellar SDK are pinned
+# exactly: two copies of the XDR classes, or two x402 packages that disagree on wire types, break
+# verification in ways that only show up at runtime.
+catalog:
+  "@x402/core": 2.27.0
+  "@x402/stellar": 2.27.0
+  "@x402/extensions": 2.27.0
+  "@x402/fetch": 2.27.0
+  "@x402/express": 2.27.0
+  "@x402/paywall": 2.27.0
+  # @x402/stellar 2.27.0 depends on ^16.3.0; 17.x would load a second, incompatible XDR copy.
+  "@stellar/stellar-sdk": 16.3.0
+  "zod": 4.6.5
+  "hono": 4.13.8
+  "@hono/node-server": 2.1.1
+  "pino": 10.3.1
+  "prom-client": 15.1.3
+  "pg": 8.23.0
+  "kysely": 0.29.6
+  "@types/pg": 8.23.1
+  "@eslint/js": 10.0.1
+  "@types/node": 24.13.6
+  "@vitest/coverage-v8": 5.0.1
+  "eslint": 10.11.0
+  "prettier": 3.9.9
+  "typescript": 6.0.3
+  "typescript-eslint": 8.70.1
+  "vitest": 5.0.1
+
+# Install scripts are denied unless listed here. onnxruntime-node's postinstall only downloads CUDA
+# libraries; its CPU binaries ship in the package, so the script is deliberately not run.
+allowBuilds:
+  esbuild: false
+  onnxruntime-node: false

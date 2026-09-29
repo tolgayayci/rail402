@@ -1,0 +1,39 @@
+# secrets
+.env
+.env.*
+!.env.example
+# node
+node_modules/
+.pnpm-store/
+dist/
+.next/
+.turbo/
+.cache/
+coverage/
+*.log
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+# rust / go
+target/
+# editors / os
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+# build output
+*.tsbuildinfo
+# local runtime data (postgres volumes, downloaded embedding models)
+.data/
+.models/
+
+# search evaluation output (the tagged report lives in tools/search-eval/data)
+tools/search-eval/results/
+
+# Judge packets are generated (src/build/pool.ts, src/build/public.ts); the judged copies are in packets.tar.gz
+tools/search-eval/construction/judging/*/packets/
+tools/search-eval/construction/judging/*/packets-public/
