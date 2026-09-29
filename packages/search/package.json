@@ -1,0 +1,54 @@
+{
+  "name": "@rail402.dev/search",
+  "version": "0.2.0",
+  "description": "Natural-language search over the Stellar Bazaar: field-weighted BM25, local embeddings and reciprocal rank fusion, with hard filters.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "x402",
+    "stellar",
+    "search",
+    "bm25",
+    "embeddings"
+  ],
+  "homepage": "https://docs.rail402.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/rail402.git",
+    "directory": "packages/search"
+  },
+  "bugs": {
+    "url": "https://github.com/tolgayayci/rail402/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "models"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@huggingface/tokenizers": "0.2.0",
+    "@rail402.dev/bazaar": "workspace:*",
+    "@rail402.dev/errors": "workspace:*",
+    "onnxruntime-node": "1.30.0",
+    "stemmer": "2.0.1"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
