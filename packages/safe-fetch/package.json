@@ -1,0 +1,69 @@
+{
+  "name": "@rail402.dev/safe-fetch",
+  "version": "0.4.1",
+  "description": "Outbound HTTP for untrusted URLs: SSRF-safe DNS pinning, redirect control, and size and time limits.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "x402",
+    "stellar",
+    "ssrf",
+    "fetch"
+  ],
+  "homepage": "https://docs.rail402.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/rail402.git",
+    "directory": "packages/safe-fetch"
+  },
+  "bugs": {
+    "url": "https://github.com/tolgayayci/rail402/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./codes": {
+      "@rail402/source": "./src/codes.ts",
+      "types": "./dist/codes.d.ts",
+      "default": "./dist/codes.js"
+    },
+    "./shared": {
+      "@rail402/source": "./src/shared.ts",
+      "types": "./dist/shared.d.ts",
+      "default": "./dist/shared.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@rail402.dev/errors": "workspace:*"
+  },
+  "engines": {
+    "node": ">=24.11"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./codes": {
+        "types": "./dist/codes.d.ts",
+        "default": "./dist/codes.js"
+      },
+      "./shared": {
+        "types": "./dist/shared.d.ts",
+        "default": "./dist/shared.js"
+      }
+    }
+  }
+}
