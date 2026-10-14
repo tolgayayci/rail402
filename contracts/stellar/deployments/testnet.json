@@ -13,7 +13,7 @@
   "bldimg": "docker.io/stellar/stellar-cli:28.0.0-rust1.98.0-slim-trixie-amd64-0@sha256:3901802ef2324ff9563a50995279818ca4b98938b45e1dab0e1e7c5d69adb5a9",
   "bldopt": ["--locked", "--optimize"],
   "build_cli": "28.1.0",
-  "commit": "f107e0993e0c807e7c646a169bdc225191fa5a47",
+  "commit": "b63695c8ac4ed27fa5e75e18690084c9b74c23bb",
   "deployer": "GDIPKWWR6XJF54ZWAU5VVAUY36RFAWJG4OTWU5TVHEI2WGAE6PCSFBA4",
   "salt": "379714072c27ad068d175a4e64017065e569fb9fd33b9c7c8b59428741f7330b",
   "salt_preimage": "x402-upto-stellar/v1.1",
@@ -46,12 +46,13 @@
     {
       "contract_id": "CCNU3CYA6HCLF5HQSPV3UU2FYVGJ4QWKLCJPMCRSSU6ZKF6LJSN5AYPB",
       "wasm_sha256": "40258eb6b66e51016abe13a4cc1b11b18b7d65ac4f9999a38f13fa15448d2435",
-      "commit": "9e4686ade88743a31c8ec81de212688336386490",
+      "commit": "b63695c8ac4ed27fa5e75e18690084c9b74c23bb",
       "salt_preimage": "x402-upto-stellar/v1",
       "deploy": {
         "tx": "cde479b8cfe62edce958d6fd0425d208bc230fe403e12eefb26025d1a0fce422",
         "ledger": 4941332
-      }
+      },
+      "note": "Superseded by the current deployment. The same source, built with `--locked` only (no `--optimize`) and SEP-58 metadata (`bldimg`, `bldopt`, `source_sha256`) instead of SEP-55 `source_repo`."
     }
   ]
 }

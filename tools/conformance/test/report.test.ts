@@ -51,11 +51,33 @@ describe("the settlement contract page", () => {
       expect(page).toContain(value);
     }
     const moved = { ...record, commit: "f".repeat(40) };
-    expect(renderDeploymentRecord(moved)).toContain(`\`${"f".repeat(40)}\``);
-    expect(renderDeploymentRecord(moved)).not.toContain(record.commit);
+    const revision = (rendered: string) =>
+      rendered.split("\n").find((line) => line.startsWith("| Source revision"));
+    expect(revision(renderDeploymentRecord(moved))).toContain(`\`${"f".repeat(40)}\``);
+    expect(revision(renderDeploymentRecord(moved))).not.toContain(record.commit);
     expect(renderDeployments(record)).toContain(
       `https://stellar.expert/explorer/testnet/contract/${record.contract_id}`,
     );
+  });
+
+  it("names each replaced deployment's deploy transaction, source revision and note", () => {
+    const record = loadDeploymentRecord(REPO_ROOT);
+    const replaced = {
+      contract_id: record.contract_id,
+      wasm_sha256: record.wasm_sha256,
+      commit: "e".repeat(40),
+      salt_preimage: "earlier",
+      deploy: record.transactions.deploy,
+    };
+    const plain = renderDeploymentRecord({ ...record, previous: [replaced] });
+    expect(plain).toContain(
+      `deployed in \`${record.transactions.deploy.tx}\` (ledger ${record.transactions.deploy.ledger}) from source revision \`${"e".repeat(40)}\` |`,
+    );
+    const noted = renderDeploymentRecord({
+      ...record,
+      previous: [{ ...replaced, note: "Built another way." }],
+    });
+    expect(noted).toContain(`\`${"e".repeat(40)}\`. Built another way. |`);
   });
 });
 

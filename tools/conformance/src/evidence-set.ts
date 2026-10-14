@@ -146,7 +146,10 @@ function rehearsalBranch(value: unknown): string | undefined {
   return typeof branch === "string" ? branch : undefined;
 }
 
-/** Deployment records whose `commit` names the source revision a published page links to. */
+/**
+ * Deployment records whose `commit` (and each replaced deployment's under `previous`) names a source
+ * revision a published page links to.
+ */
 export const DEPLOYMENT_RECORDS = [
   "contracts/stellar/deployments/testnet.json",
   "contracts/testing/deployments/test6-testnet.json",
@@ -183,9 +186,19 @@ export function publicationProblems(
   for (const record of DEPLOYMENT_RECORDS) {
     const path = join(root, record);
     if (!existsSync(path)) continue;
-    const { commit } = JSON.parse(readFileSync(path, "utf8")) as { commit?: unknown };
+    const { commit, previous } = JSON.parse(readFileSync(path, "utf8")) as {
+      commit?: unknown;
+      previous?: { contract_id?: unknown; commit?: unknown }[];
+    };
     if (typeof commit === "string" && reachable(commit) === false) {
       problems.push(`${record}: source revision ${commit.slice(0, 12)} is not on main`);
+    }
+    for (const entry of Array.isArray(previous) ? previous : []) {
+      if (typeof entry.commit === "string" && reachable(entry.commit) === false) {
+        problems.push(
+          `${record}: the source revision ${entry.commit.slice(0, 12)} of ${String(entry.contract_id)} is not on main`,
+        );
+      }
     }
   }
   const coverage = join(root, COVERAGE_RECORD_FILE);

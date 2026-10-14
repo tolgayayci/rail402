@@ -34,7 +34,7 @@ const deploymentRecord = z.object({
     extend_code: transaction,
   }),
   live_until_ledger: z.object({ instance: z.number().int(), code: z.number().int() }),
-  /** Earlier deployments this one replaced, newest first. */
+  /** Earlier deployments this one replaced, newest first, each with an optional note on how it was built. */
   previous: z
     .array(
       z.object({
@@ -43,6 +43,7 @@ const deploymentRecord = z.object({
         commit: z.string().regex(/^[0-9a-f]{40}$/),
         salt_preimage: z.string().min(1),
         deploy: transaction,
+        note: z.string().min(1).optional(),
       }),
     )
     .optional(),
@@ -98,7 +99,9 @@ export function renderDeploymentRecord(record: DeploymentRecord): string {
       ["Deployment CLI", `${code(`stellar`)} ${record.stellar_cli}`],
       ...(record.previous ?? []).map((entry) => [
         "Replaces",
-        `${code(entry.contract_id)} (WASM ${code(entry.wasm_sha256)}, salt ${code(`sha256("${entry.salt_preimage}")`)})`,
+        `${code(entry.contract_id)} (WASM ${code(entry.wasm_sha256)}, salt ${code(`sha256("${entry.salt_preimage}")`)}), ` +
+          `deployed in ${tx(entry.deploy)} from source revision ${code(entry.commit)}` +
+          (entry.note === undefined ? "" : `. ${entry.note}`),
       ]),
     ],
   );

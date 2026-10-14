@@ -72,13 +72,16 @@ does not match, `Error(Auth, ExistingValue)` when the payer's entry was already 
 The deployment record holds the source commit, the WASM and source-archive hashes, the build image, options and
 CLI, the deployer, the salt, the hash and ledger of every deployment transaction (upload, deploy, both TTL
 extensions), the ledgers until which the instance and the code live, the CLI version that sent them, and under
-`previous` the deployment it replaced.
+`previous` the deployment it replaced: its address, WASM hash, source commit, salt and deploy transaction, and a
+note on how it was built.
 
 The address depends only on the network, the deployer and the salt `sha256("x402-upto-stellar/v1.1")`
 (`37971407…f7330b`), so it can be computed before anything is sent, and only the deployer can create a contract
 there. The contract has no admin and cannot be upgraded, so the deployer holds no privilege over it
 afterwards. It replaces `CCNU3CYA…AYPB` (salt `sha256("x402-upto-stellar/v1")`), which runs the same source
-built without the SEP-55 `source_repo` metadata and stays on chain unchanged.
+built with the SEP-58 recipe of the test contracts (no `--optimize`, no SEP-55 `source_repo` metadata) and stays
+on chain unchanged. `verify.sh --contract upto --recipe sep58 --rev <commit> --wasm <file>` rebuilds it from the
+commit its record names.
 
 ### Verifying a deployment
 
@@ -173,6 +176,7 @@ scripts/contracts/build.sh --contract upto                   # build the working
 scripts/contracts/build.sh --contract upto --check           # rebuild and compare with the committed wasm
 scripts/contracts/build.sh --contract upto --update-fixture  # refresh packages/testkit/fixtures/x402_upto_stellar.*
 scripts/contracts/verify.sh --wasm <file>                    # rebuild HEAD (or --rev <rev>) and compare with a wasm file
+scripts/contracts/verify.sh --wasm <file> --recipe sep58     # the same with the test contracts' SEP-58 recipe
 ```
 
 `build.sh` builds the contract exactly as stellar.expert's release workflow does:

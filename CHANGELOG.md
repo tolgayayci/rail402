@@ -63,6 +63,10 @@ code, reason }`: `rpc_method_unknown` (`-32601`) for a method it does not serve,
   on two replicas as on one.
 - Tests cover `upto` payments signed through a delegated smart-account signer, the safe-fetch check of the
   connected address, and the TLS and unreadable-asset refusals.
+- `scripts/contracts/verify.sh --recipe sep58` rebuilds a contract with the test contracts' SEP-58 recipe. The
+  replaced testnet `upto` contract `CCNU3CYA…AYPB` is that build of the current source, and the deployment record
+  names its source revision and recipe; the contract page shows each replaced deployment's deploy transaction
+  and source revision.
 
 ## 0.4.0 — 2026-10-08
 

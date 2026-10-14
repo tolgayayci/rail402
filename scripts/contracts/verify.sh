@@ -7,6 +7,8 @@
 #                                                     rebuild <git-rev> (default HEAD) and compare with a wasm file
 #   --contract <name>                                 verify another contract of build.sh (default upto;
 #                                                     a deployment record names its own contract)
+#   --recipe <sep58|release>                          build with this recipe instead of the contract's own
+#                                                     (an older build of a contract, e.g. a replaced deployment)
 #
 # With a deployment record it rebuilds the recorded commit from a clean export with the contract's
 # build recipe (common.sh), checks the source archive and the result against the recorded hashes,
@@ -24,6 +26,7 @@ record=""
 wasm_file=""
 rev="HEAD"
 contract="upto"
+recipe=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --network)
@@ -46,8 +49,13 @@ while [[ $# -gt 0 ]]; do
       contract="${2:?--contract needs a name}"
       shift 2
       ;;
+    --recipe)
+      recipe="${2:?--recipe needs a name}"
+      [[ "$recipe" == "sep58" || "$recipe" == "release" ]] || fail "unknown recipe: $recipe (known: sep58, release)"
+      shift 2
+      ;;
     -h | --help)
-      sed -n '2,16p' "$0"
+      sed -n '2,18p' "$0"
       exit 0
       ;;
     *) fail "unknown argument: $1" ;;
@@ -61,6 +69,7 @@ if [[ -n "$record" && -f "$record" ]]; then
   contract="${contract:-upto}"
 fi
 select_contract "$contract"
+[[ -z "$recipe" ]] || CONTRACT_RECIPE="$recipe"
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT

@@ -67,7 +67,16 @@ describe("publicationProblems", () => {
 
   it("names older-format files and commits that are not on main, including deployment records", () => {
     mkdirSync(join(root, "contracts/stellar/deployments"), { recursive: true });
-    writeFileSync(join(root, "contracts/stellar/deployments/testnet.json"), JSON.stringify({ commit: LOST }));
+    writeFileSync(
+      join(root, "contracts/stellar/deployments/testnet.json"),
+      JSON.stringify({
+        commit: LOST,
+        previous: [
+          { contract_id: "CPREVIOUS", commit: LOST },
+          { contract_id: "CKEPT", commit: ON_MAIN },
+        ],
+      }),
+    );
     expect(
       publicationProblems(
         set([
@@ -82,6 +91,7 @@ describe("publicationProblems", () => {
       "b.json: recorded in the older format; re-record it with pnpm evidence or delete it",
       "b.json: commit 222222222222 is not on main",
       "contracts/stellar/deployments/testnet.json: source revision 222222222222 is not on main",
+      "contracts/stellar/deployments/testnet.json: the source revision 222222222222 of CPREVIOUS is not on main",
     ]);
   });
 
