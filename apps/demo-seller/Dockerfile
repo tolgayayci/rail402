@@ -8,6 +8,8 @@ RUN npm install --global pnpm@11.22.0 && npm cache clean --force
 WORKDIR /repo
 COPY . .
 RUN pnpm install --frozen-lockfile --filter "@rail402.dev/demo-seller..."
+# The seller runs its own TypeScript directly; the workspace packages it imports are built to dist.
+RUN pnpm --filter "@rail402.dev/demo-seller^..." run build
 # A self-contained copy of the seller with production dependencies only. Node runs its TypeScript directly.
 RUN pnpm --filter @rail402.dev/demo-seller deploy --prod --legacy /out
 

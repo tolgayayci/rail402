@@ -1,0 +1,349 @@
+{
+  "/weather?city=Ankara": {
+    "x402Version": 2,
+    "error": "Payment required",
+    "resource": {
+      "url": "http://seller/weather?city=Ankara",
+      "description": "Current weather for a city",
+      "mimeType": "application/json"
+    },
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "stellar:testnet",
+        "amount": "10000",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "payTo": "GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A",
+        "maxTimeoutSeconds": 300,
+        "extra": {
+          "areFeesSponsored": true
+        }
+      }
+    ],
+    "extensions": {
+      "bazaar": {
+        "info": {
+          "input": {
+            "type": "http",
+            "queryParams": {
+              "city": "Istanbul"
+            },
+            "method": "GET"
+          },
+          "output": {
+            "type": "json",
+            "example": {
+              "city": "Istanbul",
+              "temperature": 21,
+              "conditions": "sunny"
+            }
+          }
+        },
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "input": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "http"
+                },
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "GET"
+                  ]
+                },
+                "queryParams": {
+                  "type": "object",
+                  "properties": {
+                    "city": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "description": "City name"
+                    }
+                  },
+                  "required": [
+                    "city"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "type",
+                "method"
+              ],
+              "additionalProperties": false
+            },
+            "output": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "example": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            }
+          },
+          "required": [
+            "input"
+          ]
+        }
+      }
+    }
+  },
+  "/users/42": {
+    "x402Version": 2,
+    "error": "Payment required",
+    "resource": {
+      "url": "http://seller/users/42",
+      "description": "Public profile of a user",
+      "mimeType": "application/json"
+    },
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "stellar:testnet",
+        "amount": "10000",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "payTo": "GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A",
+        "maxTimeoutSeconds": 300,
+        "extra": {
+          "areFeesSponsored": true
+        }
+      }
+    ],
+    "extensions": {
+      "bazaar": {
+        "info": {
+          "input": {
+            "type": "http",
+            "queryParams": {},
+            "method": "GET",
+            "pathParams": {
+              "id": "42"
+            }
+          },
+          "output": {
+            "type": "json",
+            "example": {
+              "id": "42",
+              "name": "Ada",
+              "joined": "2026-01-01"
+            }
+          }
+        },
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "input": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "http"
+                },
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "GET"
+                  ]
+                },
+                "queryParams": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": false
+                },
+                "pathParams": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 40,
+                      "description": "User id"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "id"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "method"
+              ],
+              "additionalProperties": false
+            },
+            "output": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "example": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            }
+          },
+          "required": [
+            "input"
+          ]
+        },
+        "routeTemplate": "/users/:id"
+      }
+    }
+  },
+  "/translate": {
+    "x402Version": 2,
+    "error": "Payment required",
+    "resource": {
+      "url": "http://seller/translate",
+      "description": "Translate a short text into another language",
+      "mimeType": "application/json"
+    },
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "stellar:testnet",
+        "amount": "20000",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "payTo": "GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A",
+        "maxTimeoutSeconds": 300,
+        "extra": {
+          "areFeesSponsored": true
+        }
+      }
+    ],
+    "extensions": {
+      "payment-identifier": {
+        "info": {
+          "required": false
+        },
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "id": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            }
+          },
+          "required": [
+            "required"
+          ]
+        }
+      },
+      "bazaar": {
+        "info": {
+          "input": {
+            "type": "http",
+            "bodyType": "json",
+            "body": {
+              "text": "Hello",
+              "to": "tr"
+            },
+            "method": "POST"
+          },
+          "output": {
+            "type": "json",
+            "example": {
+              "text": "Merhaba",
+              "to": "tr"
+            }
+          }
+        },
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "input": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "http"
+                },
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "POST"
+                  ]
+                },
+                "bodyType": {
+                  "type": "string",
+                  "enum": [
+                    "json",
+                    "form-data",
+                    "text"
+                  ]
+                },
+                "body": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "maxLength": 500,
+                      "description": "Text to translate, up to 500 characters"
+                    },
+                    "to": {
+                      "type": "string",
+                      "maxLength": 8,
+                      "description": "Target language code, e.g. tr"
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "to"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "type",
+                "method",
+                "bodyType",
+                "body"
+              ],
+              "additionalProperties": false
+            },
+            "output": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "example": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            }
+          },
+          "required": [
+            "input"
+          ]
+        }
+      }
+    }
+  }
+}

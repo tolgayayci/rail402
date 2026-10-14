@@ -1,0 +1,14 @@
+{
+  "name": "@rail402.dev/example-sdk-buyer",
+  "version": "0.4.1",
+  "private": true,
+  "description": "Pay an x402 resource on Stellar by URL, then search the Bazaar and pay the best match, with @rail402.dev/sdk.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --conditions=@rail402/source src/index.ts"
+  },
+  "dependencies": {
+    "@rail402.dev/sdk": "workspace:*"
+  }
+}
