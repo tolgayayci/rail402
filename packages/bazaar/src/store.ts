@@ -5,9 +5,11 @@ import type {
   Listing,
   ListingContent,
   ListingIdentity,
+  ListingState,
   ListingVersion,
   OriginCheck,
   OriginCheckReason,
+  PaymentOption,
   ResourceListings,
 } from "./types.ts";
 
@@ -31,7 +33,11 @@ export interface CatalogTransaction {
   observe(listingId: string, observation: Observation): Promise<"new" | "seen" | "elsewhere">;
   /** The listing a settlement transaction was already observed against, if any. */
   observedListing(transaction: string): Promise<string | undefined>;
-  /** Listings first cataloged for `owner` since `since`, not counting those the origin check withdrew. */
+  /**
+   * Listings first cataloged for `owner` since `since` that its origin confirmed: published with trust
+   * above `settled`. Pending and withdrawn listings, which any payer can create for any payTo, and
+   * unverifiable `mcp://` listings do not count.
+   */
   countCreatedBy(owner: string, since: Date): Promise<number>;
   /** Listings created by settlements from `payer` since `since`. */
   countCreatedByPayer(payer: string, since: Date): Promise<number>;
@@ -46,6 +52,7 @@ export interface CatalogTransaction {
     reason: OriginCheckReason,
     url: string,
     proposedOwner?: string,
+    settled?: PaymentOption,
   ): Promise<void>;
 }
 
@@ -56,6 +63,8 @@ export interface CatalogStore {
    */
   transaction<T>(key: ListingIdentity | string, work: (tx: CatalogTransaction) => Promise<T>): Promise<T>;
   get(id: string): Promise<Listing | undefined>;
+  /** The listings with these ids as they are now, in any order; unknown ids are left out. */
+  getMany(ids: readonly string[]): Promise<Listing[]>;
   /**
    * Published resources matching `filter`, in stable catalog order, and how many match in total. A
    * resource holds its matching listings, one per network, each narrowed to its matching payment
@@ -91,6 +100,15 @@ export interface CatalogStore {
   deferSettlement(transaction: string, delayMs: number): Promise<void>;
   /** Removes a settlement that reached a cataloging outcome. */
   completeSettlement(transaction: string): Promise<void>;
+  /** How many listings are in each state, and how many settlements wait to be cataloged. */
+  stats(): Promise<CatalogStats>;
+}
+
+/** A catalog's size, for monitoring. */
+export interface CatalogStats {
+  readonly listings: Readonly<Record<ListingState, number>>;
+  /** Settled payments queued and not yet cataloged, due or not. */
+  readonly queuedSettlements: number;
 }
 
 /** A settled payment waiting to be cataloged. */

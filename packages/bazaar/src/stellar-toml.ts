@@ -3,8 +3,8 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { parse } from "smol-toml";
 import { baseAccount } from "@rail402.dev/stellar";
-import { safeLookup } from "./origin.ts";
-import { isLoopbackHost } from "./url.ts";
+import { isLoopbackHost } from "@rail402.dev/safe-fetch";
+import { refusedLiteral, safeLookup } from "./origin.ts";
 
 export interface StellarTomlOptions {
   readonly timeoutMs?: number;
@@ -33,6 +33,8 @@ export function fetchStellarTomlAccounts(
   const loopback = options.allowLoopback === true && isLoopbackHost(hostname);
   const url = new URL(`${loopback ? "http" : "https"}://${host}/.well-known/stellar.toml`);
   const timeoutMs = options.timeoutMs ?? 3_000;
+  const refused = refusedLiteral(hostname, loopback);
+  if (refused !== undefined) return Promise.resolve({ ok: false, reason: refused });
   const send = url.protocol === "https:" ? httpsRequest : httpRequest;
 
   return new Promise((resolve) => {

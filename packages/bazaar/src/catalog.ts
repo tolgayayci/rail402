@@ -1,8 +1,16 @@
 import { randomUUID } from "node:crypto";
+import { reportCode } from "@rail402.dev/errors";
 import { CONTRACT_ADDRESS, DESTINATION_ADDRESS } from "@rail402.dev/stellar";
 import type { PaymentPayload, PaymentRequirements, PaymentRequired } from "@x402/core/types";
-import { bazaarCodes, type BazaarCode, type CatalogResultCode } from "./codes.ts";
+import {
+  bazaarCodes,
+  type BazaarCode,
+  type CatalogBackgroundCode,
+  type CatalogResultCode,
+  type QuarantineReason,
+} from "./codes.ts";
 import { baseAccount, extractCandidate, type SettledPayment } from "./extract.ts";
+import { probeMcpTool, type McpToolProbe } from "./mcp-origin.ts";
 import { fetchPaymentRequired, type OriginFetchOptions, type OriginResponse } from "./origin.ts";
 import { fetchStellarTomlAccounts, type StellarTomlResult } from "./stellar-toml.ts";
 import type { SchemaSandbox } from "./schema-sandbox.ts";
@@ -16,7 +24,6 @@ import type {
   OptionFacts,
   OriginCheck,
   PaymentOption,
-  Trust,
   VersionCause,
 } from "./types.ts";
 
@@ -36,12 +43,30 @@ export interface CatalogOutcome {
   readonly dropped?: readonly string[];
 }
 
+/** The catalog's background work: queued settlements, origin checks and Stellar facts. */
+export type CatalogPhase = "outbox" | "origin_check" | "enrich";
+
+/**
+ * Instrumentation seam of the catalog's background work. Implementations must be cheap; anything they
+ * throw is contained and never affects cataloging.
+ */
+export interface CatalogObserver {
+  outcome(
+    phase: CatalogPhase,
+    status: CatalogOutcome["status"],
+    code: CatalogResultCode | BazaarCode | CatalogBackgroundCode,
+  ): void;
+}
+
 export interface CatalogOptions {
   readonly store: CatalogStore;
   readonly sandbox: SchemaSandbox;
   /** Accept and fetch loopback resources. Conformance runs only; never on a public deployment. */
   readonly allowLoopback?: boolean;
-  /** New listings one payTo may create per hour. Listings the origin check withdrew do not count. */
+  /**
+   * New listings one payTo may create per hour. Only listings its origin confirmed count, so payers
+   * cannot use up a seller's quota with listings the seller never confirmed.
+   */
   readonly maxNewListingsPerOwnerPerHour?: number;
   /** New listings the settlements of one payer may create per hour. */
   readonly maxNewListingsPerPayerPerHour?: number;
@@ -55,10 +80,20 @@ export interface CatalogOptions {
   readonly assets?: TokenDirectory;
   /** Reads a domain's SEP-1 stellar.toml ACCOUNTS; replaces the network fetch in tests. */
   readonly stellarToml?: (host: string) => Promise<StellarTomlResult>;
+  /**
+   * Reads the SEP-1 `home_domain` an account sets on itself on a network (lower-cased, undefined when
+   * none). A domain claim counts only when it is two-way: the host's stellar.toml lists the owner and
+   * the owner's home_domain names the host. Without this reader no listing reaches `domain_verified`.
+   */
+  readonly homeDomain?: (network: string, account: string) => Promise<string | undefined>;
   readonly origin?: Omit<OriginFetchOptions, "allowLoopback">;
   /** Replaces the network fetch, for tests. */
   readonly fetchOrigin?: (url: string, method: string) => Promise<OriginResponse>;
+  /** Replaces the MCP origin check (an unpaid `tools/call` over MCP), for tests. */
+  readonly probeTool?: (url: string, tool: McpToolProbe) => Promise<OriginResponse>;
   readonly now?: () => Date;
+  /** Receives the outcome of each queued settlement, origin check and facts refresh. */
+  readonly observer?: CatalogObserver;
 }
 
 /** Retry schedule for origin checks that could not reach the resource. */
@@ -84,8 +119,10 @@ const FACTS_MAX_AGE_MS = 6 * 3_600_000;
 
 /**
  * The Stellar Bazaar catalog. Listings are created only from settled payments and are bound to the
- * payTo the settlement proved. Metadata echoed by the buyer is never allowed to change an existing
- * listing on its own: changes publish only after the resource's own 402 response confirms them.
+ * payTo the settlement proved. Metadata echoed by the buyer is never published on its own: an HTTP
+ * resource or an MCP tool at an http(s) endpoint is listed, and changed, only with what its own 402
+ * response (for a tool, its unpaid `tools/call`) says. Only an MCP tool under an `mcp://` URL, which
+ * has no origin to ask, is listed from the settlement alone, at trust `settled`.
  */
 export class Catalog {
   private readonly store: CatalogStore;
@@ -98,9 +135,13 @@ export class Catalog {
   private readonly outboxGraceMs: number;
   private readonly assets: TokenDirectory | undefined;
   private readonly stellarToml: (host: string) => Promise<StellarTomlResult>;
+  private readonly homeDomain:
+    ((network: string, account: string) => Promise<string | undefined>) | undefined;
   private readonly hostBudget = new Map<string, { since: number; count: number }>();
   private readonly fetchOrigin: (url: string, method: string) => Promise<OriginResponse>;
+  private readonly probeTool: (url: string, tool: McpToolProbe) => Promise<OriginResponse>;
   private readonly now: () => Date;
+  private readonly observer: CatalogObserver | undefined;
 
   constructor(options: CatalogOptions) {
     this.store = options.store;
@@ -115,11 +156,15 @@ export class Catalog {
     this.stellarToml =
       options.stellarToml ??
       ((host) => fetchStellarTomlAccounts(host, { allowLoopback: this.allowLoopback }));
+    this.homeDomain = options.homeDomain;
     this.now = options.now ?? (() => new Date());
+    this.observer = options.observer;
     this.fetchOrigin =
       options.fetchOrigin ??
       ((url, method) =>
         fetchPaymentRequired(url, method, { ...options.origin, allowLoopback: this.allowLoopback }));
+    this.probeTool =
+      options.probeTool ?? ((url, tool) => probeMcpTool(url, tool, { allowLoopback: this.allowLoopback }));
   }
 
   /**
@@ -151,6 +196,8 @@ export class Catalog {
    */
   async recordDurably(payment: SettledPayment): Promise<CatalogOutcome | undefined> {
     if (payment.payload.extensions?.["bazaar"] === undefined) return undefined;
+    const unproven = unprovenSettlement(payment);
+    if (unproven !== undefined) return rejected(unproven);
     let queued = true;
     try {
       await this.store.enqueueSettlement(payment, this.outboxGraceMs);
@@ -179,6 +226,7 @@ export class Catalog {
       } catch {
         outcome = rejected("bazaar_catalog_unavailable");
       }
+      if (outcome !== undefined) this.observe("outbox", outcome.status, outcome.code);
       if (outcome?.code === "bazaar_catalog_unavailable") {
         const delay = OUTBOX_RETRY_DELAYS_MS[attempts];
         if (delay !== undefined) {
@@ -194,6 +242,12 @@ export class Catalog {
 
   /** Catalogs a settled payment. Never throws: failures are reported as outcomes. */
   async record(payment: SettledPayment): Promise<CatalogOutcome | undefined> {
+    // A listing is bound to a transaction that moved value to its payTo; without one there is nothing
+    // to prove.
+    if (payment.payload.extensions?.["bazaar"] !== undefined) {
+      const unproven = unprovenSettlement(payment);
+      if (unproven !== undefined) return rejected(unproven);
+    }
     const extraction = await extractCandidate(payment, {
       sandbox: this.sandbox,
       allowLoopback: this.allowLoopback,
@@ -239,8 +293,9 @@ export class Catalog {
         );
       }
 
-      // An HTTP resource is listed only once its own 402 response confirms what the buyer echoed:
-      // until then anyone could list any public URL under their own payTo.
+      // A resource with an origin is listed only once its own 402 response confirms what the buyer
+      // echoed: until then anyone could list any public URL under their own payTo, or plant a tool
+      // description and price under a seller's payTo by paying it one base unit.
       const verifiable = this.verifiable(candidate);
       const listing: Listing = {
         id: randomUUID(),
@@ -271,7 +326,13 @@ export class Catalog {
           ...dropped(candidate),
         };
       }
-      await tx.requestOriginCheck(listing.id, "created", candidate.concreteUrl);
+      await tx.requestOriginCheck(
+        listing.id,
+        "created",
+        candidate.concreteUrl,
+        undefined,
+        settledOption(candidate),
+      );
       return {
         status: "processing",
         code: "awaiting_origin_verification",
@@ -307,13 +368,19 @@ export class Catalog {
       mergeContent(existing.content, candidate.content),
     );
     await tx.update(stats);
-    // A pending or quarantined HTTP listing is re-checked on every settlement, so a seller that fixes
-    // its 402 response gets it listed again.
+    // A pending or quarantined listing is re-checked on every settlement, so a seller that fixes its
+    // 402 response gets it listed again, and a genuine settlement replaces content a payer planted.
     const recheck =
       this.verifiable(candidate) &&
       (contentHash(proposed) !== existing.contentHash || existing.state !== "published");
     if (recheck) {
-      await tx.requestOriginCheck(existing.id, "changed", candidate.concreteUrl);
+      await tx.requestOriginCheck(
+        existing.id,
+        "changed",
+        candidate.concreteUrl,
+        undefined,
+        settledOption(candidate),
+      );
       return {
         status: "processing",
         code: "awaiting_origin_verification",
@@ -333,7 +400,7 @@ export class Catalog {
         ? {}
         : {
             reason:
-              "The settlement was recorded. MCP tools cannot be checked against an origin, so their metadata is not changed by later settlements.",
+              "The settlement was recorded. An MCP tool under an mcp:// URL has no origin to check, so its metadata is not changed by later settlements.",
           }),
       listingId: existing.id,
       version: existing.version,
@@ -344,9 +411,13 @@ export class Catalog {
   /**
    * Refreshes the Stellar facts of published listings that have none or whose facts are older than six
    * hours, and returns how many it refreshed: each option's token symbol, name and decimals and whether
-   * payTo can receive it, and whether the resource's domain claims the owner in its SEP-1 stellar.toml.
-   * A domain claim raises trust to `domain_verified`; losing it lowers trust again. Trust changes are
-   * public versions; the facts themselves are not versioned content.
+   * payTo can receive it, and whether the resource's domain claims the owner under SEP-1 both ways: the
+   * host's stellar.toml lists the owner in ACCOUNTS, and the owner's account sets the host as its
+   * home_domain. A one-way claim proves nothing (any domain can list any account), so only the two-way
+   * binding raises trust to `domain_verified`, and only for a listing whose content its origin
+   * confirmed: a domain vouches for its owner, not for what a buyer echoed. Losing the binding lowers
+   * trust to `origin_verified` again. Trust changes are public versions; the facts themselves are not
+   * versioned content.
    */
   async enrich(limit = 10): Promise<number> {
     const now = this.now();
@@ -359,7 +430,9 @@ export class Catalog {
         await this.store.transaction(listing.id, async (tx) => {
           const current = await tx.get(listing.id);
           if (current === undefined || current.state !== "published") return;
-          const trust = facts.domain?.claimsOwner === true ? "domain_verified" : checkedTrust(current);
+          const bound = facts.domain?.claimsOwner === true && facts.domain.homeDomainMatches;
+          const trust =
+            current.trust === "settled" ? "settled" : bound ? "domain_verified" : "origin_verified";
           if (trust === current.trust) {
             await tx.update({ ...current, facts });
             return;
@@ -368,8 +441,10 @@ export class Catalog {
           await tx.update(next, versionOf(next, "domain_verification", now));
         });
         refreshed++;
+        this.observe("enrich", "success", "facts_refreshed");
       } catch {
         // A listing whose facts cannot be read now keeps its old facts and is tried again next round.
+        this.observe("enrich", "processing", "facts_unavailable");
       }
     }
     return refreshed;
@@ -402,8 +477,24 @@ export class Catalog {
     return {
       checkedAt: now,
       options,
-      domain: { host: url.host, claimsOwner: toml.ok && toml.accounts.includes(listing.owner) },
+      domain: {
+        host: url.host,
+        claimsOwner: toml.ok && toml.accounts.includes(listing.owner),
+        homeDomainMatches: await this.namesHost(listing, url.hostname),
+      },
     };
+  }
+
+  /** Whether the owner's account sets `hostname` as its home_domain on a network the listing is paid on. */
+  private async namesHost(listing: Listing, hostname: string): Promise<boolean> {
+    const reader = this.homeDomain;
+    if (reader === undefined) return false;
+    const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    const networks = [...new Set(listing.content.accepts.map((option) => option.network))];
+    for (const network of networks) {
+      if ((await reader(network, listing.owner)) === host) return true;
+    }
+    return false;
   }
 
   /**
@@ -431,7 +522,10 @@ export class Catalog {
       await this.store.completeOriginCheck(check);
       return false;
     }
-    const response = await this.fetchOrigin(check.url, listing.content.method ?? "GET");
+    const response =
+      listing.identity.kind === "mcp"
+        ? await this.probeTool(check.url, toolProbe(listing))
+        : await this.fetchOrigin(check.url, listing.content.method ?? "GET");
     if (
       response.kind === "unreachable" ||
       (response.kind === "not_payment_required" && transientStatus(response.status))
@@ -441,11 +535,20 @@ export class Catalog {
     }
     const required =
       response.kind === "payment_required" ? usablePaymentRequired(response.paymentRequired) : undefined;
-    await this.store.transaction(check.listingId, (tx) =>
+    const state = await this.store.transaction(check.listingId, async (tx) => {
       // A definitive answer that is not a usable 402: the resource does not sell what is listed.
-      required === undefined ? this.withdraw(tx, check.listingId) : this.applyOrigin(tx, check, required),
-    );
+      if (required === undefined) {
+        const reason =
+          response.kind === "tool_not_listed" ? "origin_tool_not_listed" : "origin_not_payment_required";
+        await this.withdraw(tx, check.listingId, reason);
+      } else {
+        await this.applyOrigin(tx, check, required);
+      }
+      return (await tx.get(check.listingId))?.state;
+    });
     await this.store.completeOriginCheck(check);
+    if (state === "quarantined") this.observe("origin_check", "rejected", "origin_withdrawn");
+    else this.observe("origin_check", "success", "origin_confirmed");
     return true;
   }
 
@@ -473,14 +576,19 @@ export class Catalog {
   private async retryOrWithdraw(check: OriginCheck): Promise<void> {
     const delay = ORIGIN_RETRY_DELAYS_MS[check.attempts];
     if (delay !== undefined) {
+      this.observe("origin_check", "processing", "origin_retry");
       await this.store.deferOriginCheck(check, delay);
       return;
     }
-    await this.store.transaction(check.listingId, (tx) => this.withdraw(tx, check.listingId));
+    this.observe("origin_check", "rejected", "origin_withdrawn");
+    await this.store.transaction(check.listingId, (tx) =>
+      this.withdraw(tx, check.listingId, "origin_unreachable"),
+    );
     await this.store.completeOriginCheck(check);
   }
 
-  private async withdraw(tx: CatalogTransaction, listingId: string): Promise<void> {
+  /** Quarantines a listing, recording why on its new version; a quarantined listing is left as is. */
+  private async withdraw(tx: CatalogTransaction, listingId: string, reason: QuarantineReason): Promise<void> {
     const listing = await tx.get(listingId);
     if (listing === undefined || listing.state === "quarantined") return;
     const now = this.now();
@@ -490,7 +598,7 @@ export class Catalog {
       version: listing.version + 1,
       lastUpdated: now,
     };
-    await tx.update(quarantined, versionOf(quarantined, "quarantine", now));
+    await tx.update(quarantined, { ...versionOf(quarantined, "quarantine", now), reason });
   }
 
   private async applyOrigin(
@@ -511,15 +619,7 @@ export class Catalog {
         owner = check.proposedOwner;
         cause = "ownership_transfer";
       } else {
-        if (listing.state !== "quarantined") {
-          const quarantined: Listing = {
-            ...listing,
-            state: "quarantined",
-            version: listing.version + 1,
-            lastUpdated: now,
-          };
-          await tx.update(quarantined, versionOf(quarantined, "quarantine", now));
-        }
+        await this.withdraw(tx, listing.id, "origin_owner_mismatch");
         return;
       }
     }
@@ -549,16 +649,17 @@ export class Catalog {
       extraction.candidate.identity.method === listing.identity.method &&
       extraction.candidate.identity.toolName === listing.identity.toolName;
     if (extraction.kind !== "candidate" || !sameResource) {
-      if (listing.state !== "quarantined") {
-        const quarantined: Listing = {
-          ...listing,
-          state: "quarantined",
-          version: listing.version + 1,
-          lastUpdated: now,
-        };
-        await tx.update(quarantined, versionOf(quarantined, "quarantine", now));
-      }
+      await this.withdraw(tx, listing.id, "origin_metadata_mismatch");
       return;
+    }
+    // An MCP tool whose content its origin never confirmed may have been created by anyone paying the
+    // owner: it is published only if the tool itself offers the payment that was settled for it.
+    if (listing.identity.kind === "mcp" && listing.trust === "settled") {
+      const expected = check.settled === undefined ? listing.content.accepts : [check.settled];
+      if (!ownerOptions.some((option) => expected.some((settled) => samePayment(option, settled)))) {
+        await this.withdraw(tx, listing.id, "origin_payment_mismatch");
+        return;
+      }
     }
 
     const content = keepExamplePathParams(listing.content, {
@@ -591,9 +692,24 @@ export class Catalog {
     await tx.update(verified, versionOf(verified, cause, now));
   }
 
-  /** Origin checks speak HTTP: they apply to HTTP resources. MCP tools keep first-seen content. */
+  private observe(
+    phase: CatalogPhase,
+    status: CatalogOutcome["status"],
+    code: CatalogResultCode | BazaarCode | CatalogBackgroundCode,
+  ): void {
+    try {
+      this.observer?.outcome(phase, status, code);
+    } catch {
+      // Instrumentation never affects cataloging.
+    }
+  }
+
+  /**
+   * Whether a candidate has an origin to check: every HTTP resource, and every MCP tool at an http(s)
+   * endpoint. Only a tool under an `mcp://` URL has none, and keeps its first-seen content.
+   */
   private verifiable(candidate: Candidate): boolean {
-    return candidate.identity.kind === "http";
+    return candidate.identity.kind === "http" || /^https?:\/\//.test(candidate.concreteUrl);
   }
 }
 
@@ -669,9 +785,37 @@ export function boundedReason(text: string): string {
   return text.length <= MAX_REASON_LENGTH ? text : `${text.slice(0, MAX_REASON_LENGTH - 1)}…`;
 }
 
-/** The trust a published listing has without a domain claim: HTTP listings are origin-verified. */
-function checkedTrust(listing: Listing): Trust {
-  return listing.identity.kind === "http" ? "origin_verified" : "settled";
+/** The payment option a candidate's settlement paid, as its listing publishes it. */
+function settledOption(candidate: Candidate): PaymentOption | undefined {
+  return candidate.content.accepts[0];
+}
+
+/** Whether an origin's option offers the settled payment: scheme, network, asset, payTo and price. */
+function samePayment(option: PaymentOption, settled: PaymentOption): boolean {
+  return (
+    option.scheme === settled.scheme &&
+    option.network === settled.network &&
+    option.asset === settled.asset &&
+    option.payTo === settled.payTo &&
+    option.amount === settled.amount
+  );
+}
+
+/**
+ * The unpaid call an MCP origin check makes: the listed tool, over the transport the listing declares,
+ * with the listing's example arguments, so a server that validates arguments before asking for
+ * payment still answers with its 402.
+ */
+function toolProbe(listing: Listing): McpToolProbe {
+  const input = listing.content.bazaar.info["input"];
+  const declared = isRecord(input) ? input : {};
+  const transport = declared["transport"];
+  const example = declared["example"];
+  return {
+    toolName: listing.identity.toolName,
+    ...(typeof transport === "string" ? { transport } : {}),
+    ...(isRecord(example) ? { arguments: example } : {}),
+  };
 }
 
 /**
@@ -706,6 +850,7 @@ function versionOf(listing: Listing, cause: VersionCause, at: Date, transaction?
 
 function rejected(code: BazaarCode, reason?: string, listingId?: string): CatalogOutcome {
   const text = reason !== undefined && reason.trim() !== "" ? reason : bazaarCodes[code].reason;
+  reportCode(code);
   return {
     status: "rejected",
     code,
@@ -716,4 +861,20 @@ function rejected(code: BazaarCode, reason?: string, listingId?: string): Catalo
 
 function dropped(candidate: Candidate): { dropped?: readonly string[] } {
   return candidate.dropped.length === 0 ? {} : { dropped: candidate.dropped };
+}
+
+/**
+ * Why a settled payment cannot vouch for a listing, if it cannot: it settled without a transaction
+ * (an off-chain zero `upto` settlement), or it moved nothing. An `upto` settlement of zero needs no
+ * balance and no trustline, so anyone could otherwise catalog under any payTo and price for free.
+ */
+function unprovenSettlement(
+  payment: SettledPayment,
+): "bazaar_settlement_offchain" | "bazaar_settlement_zero" | undefined {
+  if (payment.transaction === "") return "bazaar_settlement_offchain";
+  const amount = payment.requirements.amount;
+  if (typeof amount !== "string" || !/^\d{1,39}$/.test(amount) || BigInt(amount) === 0n) {
+    return "bazaar_settlement_zero";
+  }
+  return undefined;
 }

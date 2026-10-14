@@ -1,10 +1,15 @@
-import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { request as httpRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
 import type { LookupFunction } from "node:net";
 import { decodePaymentRequiredHeader } from "@x402/core/http";
 import type { PaymentRequired } from "@x402/core/types";
-import { isLoopbackHost, isPublicAddress } from "./url.ts";
+import {
+  ipLiteral,
+  isLoopbackAddress,
+  isLoopbackHost,
+  isPublicAddress,
+  pinnedLookup,
+} from "@rail402.dev/safe-fetch";
 
 export interface OriginFetchOptions {
   readonly timeoutMs?: number;
@@ -17,6 +22,8 @@ export interface OriginFetchOptions {
 export type OriginResponse =
   | { readonly kind: "payment_required"; readonly paymentRequired: PaymentRequired }
   | { readonly kind: "not_payment_required"; readonly status: number }
+  /** An MCP server that does not declare the tool in `tools/list`. */
+  | { readonly kind: "tool_not_listed" }
   | { readonly kind: "unreachable"; readonly reason: string };
 
 const USER_AGENT = "rail402-bazaar-origin-check/1 (+https://rail402.dev)";
@@ -46,6 +53,8 @@ export function fetchPaymentRequired(
     return Promise.resolve({ kind: "unreachable", reason: `unsupported scheme ${url.protocol}` });
   }
   const allowLoopback = options.allowLoopback === true && isLoopbackHost(url.hostname);
+  const refused = refusedLiteral(url.hostname, allowLoopback);
+  if (refused !== undefined) return Promise.resolve({ kind: "unreachable", reason: refused });
   const verb = method.toUpperCase();
 
   return new Promise((resolve) => {
@@ -107,30 +116,21 @@ export function fetchPaymentRequired(
   });
 }
 
-/** A DNS lookup that refuses non-public answers (or anything but loopback, when that is allowed). */
+/**
+ * A DNS lookup that refuses non-public answers (or anything but loopback, when that is allowed): the
+ * shared `pinnedLookup` of @rail402.dev/safe-fetch.
+ */
 export function safeLookup(allowLoopback: boolean): LookupFunction {
-  return (hostname, options, callback) => {
-    dnsLookup(hostname, { ...options, all: true, verbatim: true }, (error, addresses: LookupAddress[]) => {
-      if (error) {
-        callback(error, "", 0);
-        return;
-      }
-      const refused = addresses.find((entry) =>
-        allowLoopback ? !isLoopbackHost(entry.address) : !isPublicAddress(entry.address),
-      );
-      if (refused !== undefined || addresses.length === 0) {
-        const failure = Object.assign(new Error(`refused to connect to ${refused?.address ?? hostname}`), {
-          code: "EREFUSED",
-        });
-        callback(failure, "", 0);
-        return;
-      }
-      if (options.all === true) {
-        callback(null, addresses);
-      } else {
-        const [first] = addresses as [LookupAddress];
-        callback(null, first.address, first.family);
-      }
-    });
-  };
+  return pinnedLookup(allowLoopback ? isLoopbackAddress : isPublicAddress);
+}
+
+/**
+ * The reason an IP-literal host must not be dialled, or undefined. Node skips `lookup` for IP
+ * literals, so they are classified before connecting.
+ */
+export function refusedLiteral(hostname: string, allowLoopback: boolean): string | undefined {
+  const literal = ipLiteral(hostname);
+  if (literal === undefined) return undefined;
+  const allowed = allowLoopback ? isLoopbackAddress(literal) : isPublicAddress(literal);
+  return allowed ? undefined : `refused to connect to ${hostname}: not a public address`;
 }

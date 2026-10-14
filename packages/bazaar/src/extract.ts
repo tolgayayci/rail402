@@ -146,12 +146,17 @@ export async function extractCandidate(
 
   const extensions = declaredExtensionKeys(payload.extensions ?? {}, dropped);
 
+  const amount = listedAmount(payload, requirements);
+  if (amount === undefined) {
+    return reject("bazaar_resource_invalid", "The payment's accepted amount is not an amount in base units.");
+  }
+
   const accept: PaymentOption = {
     scheme: requirements.scheme,
     network: requirements.network,
     asset: requirements.asset,
     payTo,
-    amount: requirements.amount,
+    amount,
     maxTimeoutSeconds: requirements.maxTimeoutSeconds,
     extra: boundedExtra(requirements.extra, dropped),
   };
@@ -191,6 +196,18 @@ export async function extractCandidate(
       dropped,
     },
   };
+}
+
+const BASE_UNITS = /^\d{1,39}$/;
+
+/**
+ * The price a listing shows. For `exact` it is the amount paid. An `upto` payment settles an amount
+ * chosen after the request, anywhere from zero to the cap the buyer signed, so its listing shows the
+ * cap (`accepted.amount`), which is also what the seller's own 402 response offers.
+ */
+function listedAmount(payload: PaymentPayload, requirements: PaymentRequirements): string | undefined {
+  const amount = requirements.scheme === "upto" ? payload.accepted.amount : requirements.amount;
+  return typeof amount === "string" && BASE_UNITS.test(amount) ? amount : undefined;
 }
 
 function cleanDescription(value: unknown): string | undefined {

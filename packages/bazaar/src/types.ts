@@ -1,12 +1,17 @@
+import type { QuarantineReason } from "./codes.ts";
+
 export type ResourceKind = "http" | "mcp";
 
 /** How far a listing's content is trusted. */
 export type Trust =
   /** Created from a settled payment; its metadata was echoed by the buyer. */
   | "settled"
-  /** Confirmed against the resource's own 402 response. */
+  /** Confirmed against the resource's own 402 response (an MCP tool's unpaid call). */
   | "origin_verified"
-  /** Also claimed by its domain: the resource host's SEP-1 stellar.toml lists the owner in ACCOUNTS. */
+  /**
+   * Origin-verified and also claimed by its domain both ways (SEP-1): the resource host's stellar.toml
+   * lists the owner in ACCOUNTS, and the owner's account sets that host as its home_domain.
+   */
   | "domain_verified";
 
 /** What the network says about one payment option of a listing. Unknown facts are left out. */
@@ -23,8 +28,20 @@ export interface ListingFacts {
   readonly checkedAt: Date;
   /** One entry per payment option, in the order of `accepts`. */
   readonly options: readonly OptionFacts[];
-  /** The resource host and whether its stellar.toml lists the owner. */
-  readonly domain?: { readonly host: string; readonly claimsOwner: boolean };
+  /** The resource host's SEP-1 claim of the owner. */
+  readonly domain?: DomainClaim;
+}
+
+/**
+ * Whether a resource host and a listing's owner name each other under SEP-1. Only both together (the
+ * two-way binding) raise an origin-verified listing to `domain_verified`.
+ */
+export interface DomainClaim {
+  readonly host: string;
+  /** The host's stellar.toml lists the owner in ACCOUNTS. */
+  readonly claimsOwner: boolean;
+  /** The owner's account sets the host as its home_domain on a network the listing is paid on. */
+  readonly homeDomainMatches: boolean;
 }
 
 /** A payment option as published in `accepts`: a PaymentRequirements object. */
@@ -95,7 +112,8 @@ export interface Candidate {
 }
 
 /**
- * `pending`: an HTTP listing created by a settlement, not yet confirmed by its resource's own 402;
+ * `pending`: an HTTP listing, or an MCP tool at an http(s) endpoint, created by a settlement and not
+ * yet confirmed by its resource's own 402;
  * `published`: listed by discovery and search; `quarantined`: withdrawn, kept with its history.
  */
 export type ListingState = "pending" | "published" | "quarantined";
@@ -140,6 +158,11 @@ export interface OriginCheck {
   readonly url: string;
   /** A different payTo that settled for this listing and claims it. */
   readonly proposedOwner?: string;
+  /**
+   * The payment option of the settlement that requested the check. An MCP tool whose content its
+   * origin never confirmed is published only if its origin offers this option.
+   */
+  readonly settled?: PaymentOption;
   readonly attempts: number;
   /** Changes with every request: a check re-requested during a fetch outlives that fetch. */
   readonly requestId: string;
@@ -155,6 +178,8 @@ export interface ListingVersion {
   readonly owner: string;
   readonly trust: Trust;
   readonly state: ListingState;
+  /** Why the origin check quarantined the listing, on `quarantine` versions. */
+  readonly reason?: QuarantineReason;
   readonly content: ListingContent;
 }
 

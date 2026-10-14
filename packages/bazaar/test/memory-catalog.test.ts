@@ -63,4 +63,18 @@ describe("EXTENSION-RESPONSES", () => {
     const header = extensionResponsesHeader(outcome);
     expect(JSON.parse(Buffer.from(header, "base64").toString())).toEqual({ bazaar: outcome });
   });
+
+  it("carries other extensions' entries next to the outcome, and without one", () => {
+    const rail402 = { settlement: { repeat: true, settledBy: "rail402" } };
+    const decode = (header: string) => JSON.parse(Buffer.from(header, "base64").toString()) as unknown;
+    const outcome = { status: "success", code: "recorded" } as const;
+    expect(decode(extensionResponsesHeader(outcome, { rail402 }))).toEqual({ rail402, bazaar: outcome });
+    expect(decode(extensionResponsesHeader(undefined, { rail402 }))).toEqual({ rail402 });
+    const reduced = extensionResponsesHeader(
+      { status: "rejected", code: "bazaar_info_unsupported", rejectedReason: "x".repeat(100_000) },
+      { rail402 },
+    );
+    expect(reduced.length).toBeLessThanOrEqual(MAX_EXTENSION_RESPONSES_BYTES);
+    expect(decode(reduced)).toMatchObject({ rail402, bazaar: { code: "bazaar_info_unsupported" } });
+  });
 });

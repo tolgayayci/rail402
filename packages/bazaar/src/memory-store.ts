@@ -3,6 +3,7 @@ import { catalogOrder, groupByResource, matchesFilter, narrowOptions, optionMatc
 import type { SettledPayment } from "./extract.ts";
 import {
   identityKey,
+  type CatalogStats,
   type CatalogStore,
   type CatalogTransaction,
   type Observation,
@@ -15,6 +16,7 @@ import type {
   ListingVersion,
   OriginCheck,
   OriginCheckReason,
+  PaymentOption,
   ResourceListings,
 } from "./types.ts";
 
@@ -67,6 +69,14 @@ export class MemoryCatalogStore implements CatalogStore {
 
   get(id: string): Promise<Listing | undefined> {
     return Promise.resolve(this.listings.get(id));
+  }
+
+  getMany(ids: readonly string[]): Promise<Listing[]> {
+    return Promise.resolve(
+      [...new Set(ids)]
+        .map((id) => this.listings.get(id))
+        .filter((listing): listing is Listing => listing !== undefined),
+    );
   }
 
   list(filter: ListFilter): Promise<{ items: ResourceListings[]; total: number }> {
@@ -175,6 +185,12 @@ export class MemoryCatalogStore implements CatalogStore {
     return Promise.resolve();
   }
 
+  stats(): Promise<CatalogStats> {
+    const listings = { pending: 0, published: 0, quarantined: 0 };
+    for (const listing of this.listings.values()) listings[listing.state]++;
+    return Promise.resolve({ listings, queuedSettlements: this.outbox.size });
+  }
+
   private createdSince(since: Date): Listing[] {
     return [...this.listings.values()].filter(
       (listing) => listing.firstCatalogedAt.getTime() >= since.getTime(),
@@ -208,7 +224,8 @@ export class MemoryCatalogStore implements CatalogStore {
       countCreatedBy: (owner, since) =>
         Promise.resolve(
           this.createdSince(since).filter(
-            (listing) => listing.owner === owner && listing.state !== "quarantined",
+            (listing) =>
+              listing.owner === owner && listing.state === "published" && listing.trust !== "settled",
           ).length,
         ),
       countCreatedByPayer: (payer, since) =>
@@ -241,6 +258,7 @@ export class MemoryCatalogStore implements CatalogStore {
         reason: OriginCheckReason,
         url: string,
         proposedOwner?: string,
+        settled?: PaymentOption,
       ) => {
         const existing = this.checks.get(listingId);
         // An ownership claim is never downgraded by a later, plainer request.
@@ -254,6 +272,7 @@ export class MemoryCatalogStore implements CatalogStore {
             attempts: 0,
             requestId: randomUUID(),
             ...(owner === undefined ? {} : { proposedOwner: owner }),
+            ...(settled === undefined ? {} : { settled }),
           },
           dueAt: this.now(),
         });

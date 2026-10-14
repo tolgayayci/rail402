@@ -21,6 +21,7 @@ import {
   tokenize,
   type Embedder,
   type SearchFilter,
+  type SearchObserver,
 } from "@rail402.dev/search";
 
 const USDC_TESTNET = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
@@ -82,21 +83,24 @@ function listing(
 
 async function storeWith(listings: Listing[]): Promise<MemoryCatalogStore> {
   const store = new MemoryCatalogStore();
-  for (const item of listings) {
-    await store.transaction(item.identity, (tx) =>
-      tx.insert(item, {
-        listingId: item.id,
-        version: 1,
-        createdAt: new Date(),
-        cause: "settlement",
-        owner: item.owner,
-        trust: item.trust,
-        state: item.state,
-        content: item.content,
-      }),
-    );
-  }
+  for (const item of listings) await insert(store, item);
   return store;
+}
+
+async function insert(store: MemoryCatalogStore, item: Listing): Promise<Listing> {
+  await store.transaction(item.identity, (tx) =>
+    tx.insert(item, {
+      listingId: item.id,
+      version: 1,
+      createdAt: new Date(),
+      cause: "settlement",
+      owner: item.owner,
+      trust: item.trust,
+      state: item.state,
+      content: item.content,
+    }),
+  );
+  return item;
 }
 
 /** Deterministic stand-in for a sentence encoder: hashed bag of stemmed words. */
@@ -687,6 +691,75 @@ describe("SearchService", () => {
     });
   });
 
+  it("reports index builds, embedding failures and search timings to its observer", async () => {
+    const events: string[] = [];
+    const timings: number[] = [];
+    const observer: SearchObserver = {
+      indexBuild: (outcome, ms) => {
+        events.push(`build:${outcome}`);
+        timings.push(ms);
+      },
+      embeddingFailure: (stage) => events.push(`embedding:${stage}`),
+      search: (method, partial, ms) => {
+        events.push(`search:${method}:${String(partial)}`);
+        timings.push(ms);
+      },
+    };
+    let failing = true;
+    const embedder: Embedder = {
+      ...hashEmbedder,
+      embed: (text) => (failing ? Promise.reject(new Error("no model")) : hashEmbedder.embed(text)),
+    };
+    const store = await storeWith([listing({ serviceName: "Weather" })]);
+    const service = new SearchService({ store, assets, embedder, cursorSecret: secret, observer });
+    expect(service.indexRevision).toBeUndefined();
+
+    // A throwing embedder degrades the index: lexical-only, reported as partial.
+    expect(await service.search({ query: "weather", filter: {}, limit: 10 })).toMatchObject({
+      method: "lexical",
+      partialResults: true,
+    });
+    expect(events.splice(0)).toEqual(["embedding:document", "build:degraded", "search:lexical:true"]);
+    expect(service.indexRevision).toBe(await store.revision());
+
+    failing = false;
+    const published = listing({ serviceName: "Maps" });
+    const next = await storeWith([published]);
+    const healthy = new SearchService({ store: next, assets, embedder, cursorSecret: secret, observer });
+    await healthy.search({ query: "maps", filter: {}, limit: 10 });
+    expect(events.splice(0)).toEqual(["build:ok", "search:hybrid:false"]);
+
+    failing = true;
+    await healthy.search({ query: "maps", filter: {}, limit: 10 });
+    expect(events.splice(0)).toEqual(["embedding:query", "search:lexical:true"]);
+
+    const unreadable = new SearchService({
+      store: Object.assign(Object.create(next) as MemoryCatalogStore, {
+        published: () => Promise.reject(new Error("database unavailable")),
+      }),
+      assets,
+      cursorSecret: secret,
+      observer,
+    });
+    await expect(unreadable.refresh()).rejects.toThrow("database unavailable");
+    expect(events.splice(0)).toEqual(["build:failed"]);
+    expect(timings.every((ms) => ms >= 0)).toBe(true);
+  });
+
+  it("never lets a throwing observer affect a search", async () => {
+    const throwing = () => {
+      throw new Error("observer failed");
+    };
+    const service = new SearchService({
+      store: await storeWith([listing({ serviceName: "Weather" })]),
+      assets,
+      cursorSecret: secret,
+      observer: { indexBuild: throwing, embeddingFailure: throwing, search: throwing },
+    });
+    const result = await service.search({ query: "weather", filter: {}, limit: 10 });
+    expect(result.resources).toHaveLength(1);
+  });
+
   it("reuses a revision read for revisionMaxAgeMs", async () => {
     let clock = 0;
     const store = await storeWith([listing({ serviceName: "Weather" })]);
@@ -704,6 +777,52 @@ describe("SearchService", () => {
     clock += 1_000;
     await service.search({ query: "weather", filter: {}, limit: 10 });
     expect(revision).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the revision on every refresh, so it indexes every change made before it", async () => {
+    const store = await storeWith([listing({ serviceName: "Weather now" })]);
+    const service = new SearchService({
+      store,
+      assets,
+      cursorSecret: secret,
+      revisionMaxAgeMs: 1_000,
+      now: () => 0,
+    });
+    await service.search({ query: "weather", filter: {}, limit: 10 });
+
+    const late = await insert(store, listing({ serviceName: "Weather later" }));
+    expect((await service.refresh()).revision).toBe(await store.revision());
+    // Searches inside revisionMaxAgeMs reuse the refreshed read, not the one before the change.
+    const result = await service.search({ query: "weather", filter: {}, limit: 10 });
+    expect(result.resources.flat().map((l) => l.id)).toContain(late.id);
+  });
+
+  it("builds again when a refresh joins a build that read the catalog before its revision", async () => {
+    const store = await storeWith([listing({ serviceName: "Weather now" })]);
+    const published = store.published.bind(store);
+    let release: (() => void) | undefined;
+    const reads = vi.spyOn(store, "published").mockImplementationOnce(async () => {
+      const early = await published();
+      await new Promise<void>((resolve) => (release = resolve));
+      return early;
+    });
+    const service = new SearchService({ store, assets, cursorSecret: secret });
+
+    const background = service.refresh();
+    await vi.waitFor(() => {
+      expect(release).toBeDefined();
+    });
+    const late = await insert(store, listing({ serviceName: "Weather later" }));
+    const joined = service.refresh();
+    // Let the second refresh read the revision and join the running build before it finishes.
+    await new Promise((resolve) => setImmediate(resolve));
+    release?.();
+
+    expect((await background).revision).toBeLessThan(await store.revision());
+    const snapshot = await joined;
+    expect(snapshot.revision).toBe(await store.revision());
+    expect(snapshot.listings.has(late.id)).toBe(true);
+    expect(reads).toHaveBeenCalledTimes(2);
   });
 
   it("expires cursors 15 minutes after the page was served", async () => {
@@ -755,6 +874,49 @@ describe("SearchService", () => {
     expect(result.revision).not.toBe(before.revision);
     expect(result.resources.flat().map((l) => l.id)).toContain(late.id);
     expect(published).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows each result's settlements, last settlement and facts as they are now", async () => {
+    const paid = listing({ serviceName: "Weather now" });
+    const store = await storeWith([paid]);
+    const service = new SearchService({ store, assets, cursorSecret: secret });
+    const first = await service.search({ query: "weather", filter: {}, limit: 10 });
+    expect(first.resources[0]?.[0]).toMatchObject({ settlements: 1 });
+
+    // A repeat settlement and a facts refresh update the listing without a version: no new revision.
+    const settledAt = new Date(paid.lastSettledAt.getTime() + 60_000);
+    const facts = { checkedAt: settledAt } as unknown as NonNullable<Listing["facts"]>;
+    await store.transaction(paid.identity, async (tx) => {
+      const current = await tx.get(paid.id);
+      if (current === undefined) throw new Error("missing listing");
+      await tx.update({ ...current, settlements: 3, lastSettledAt: settledAt, facts });
+    });
+    const published = vi.spyOn(store, "published");
+    const second = await service.search({ query: "weather", filter: {}, limit: 10 });
+    expect(second.revision).toBe(first.revision);
+    expect(published).not.toHaveBeenCalled();
+    expect(second.resources[0]?.[0]).toMatchObject({
+      id: paid.id,
+      settlements: 3,
+      lastSettledAt: settledAt,
+      facts,
+    });
+  });
+
+  it("keeps the indexed facts of a result whose options changed since its snapshot", async () => {
+    const indexed = listing({ serviceName: "Weather now" });
+    const store = await storeWith([indexed]);
+    const service = new SearchService({ store, assets, cursorSecret: secret, revisionMaxAgeMs: 60_000 });
+    await service.refresh();
+    const facts = { checkedAt: new Date() } as unknown as NonNullable<Listing["facts"]>;
+    await store.transaction(indexed.identity, async (tx) => {
+      const current = await tx.get(indexed.id);
+      if (current === undefined) throw new Error("missing listing");
+      await tx.update({ ...current, contentHash: "changed", facts, settlements: 2 });
+    });
+    const result = await service.search({ query: "weather", filter: {}, limit: 10 });
+    expect(result.resources[0]?.[0]).toMatchObject({ settlements: 2 });
+    expect(result.resources[0]?.[0]?.facts).toBeUndefined();
   });
 
   it("rejects blank and oversized queries with codes", async () => {

@@ -75,6 +75,22 @@ export interface SearchResult {
   readonly revision: number;
 }
 
+/**
+ * Instrumentation seam of the search service. Implementations must be cheap; anything they throw is
+ * contained and never affects a search.
+ */
+export interface SearchObserver {
+  /**
+   * An index snapshot was built: `ok`, `degraded` (the embedder failed, so the snapshot serves
+   * lexical-only results), or `failed` (the catalog could not be read; the previous snapshot stays).
+   */
+  indexBuild(outcome: "ok" | "degraded" | "failed", ms: number): void;
+  /** Embedding a listing (`document`) or a query (`query`) failed or ran out of time. */
+  embeddingFailure(stage: "document" | "query"): void;
+  /** A search was answered. */
+  search(method: SearchMethod, partial: boolean, ms: number): void;
+}
+
 export interface SearchServiceOptions {
   readonly store: CatalogStore;
   readonly assets: AssetRegistry;
@@ -95,6 +111,8 @@ export interface SearchServiceOptions {
   /** How long embedding a query may take before the search answers lexical-only. */
   readonly semanticBudgetMs?: number;
   readonly now?: () => number;
+  /** Receives index builds, embedding failures and search timings. */
+  readonly observer?: SearchObserver;
 }
 
 interface Snapshot {
@@ -125,6 +143,7 @@ export class SearchService {
   private readonly revisionMaxAgeMs: number;
   private readonly semanticBudgetMs: number;
   private readonly now: () => number;
+  private readonly observer: SearchObserver | undefined;
   private readonly snapshots = new Map<number, Snapshot>();
   /** Revision → when the last cursor issued on that snapshot expires. */
   private readonly cursorsUntil = new Map<number, number>();
@@ -144,29 +163,66 @@ export class SearchService {
     this.revisionMaxAgeMs = options.revisionMaxAgeMs ?? 0;
     this.semanticBudgetMs = options.semanticBudgetMs ?? 2_000;
     this.now = options.now ?? Date.now;
+    this.observer = options.observer;
   }
 
-  /** Brings the index up to the catalog's current revision. */
+  /** The catalog revision the latest index snapshot was built from; undefined before the first build. */
+  get indexRevision(): number | undefined {
+    return this.latest?.revision;
+  }
+
+  /**
+   * Brings the index up to the catalog's current revision. The revision is read from the store now,
+   * never reused from an earlier read, so every change committed before the call is searchable once
+   * it resolves.
+   */
   async refresh(): Promise<Snapshot> {
-    const revision = await this.currentRevision();
+    return this.indexAt(await this.readRevision());
+  }
+
+  /** The index at a revision read at most revisionMaxAgeMs ago: the path searches take. */
+  private async recent(): Promise<Snapshot> {
+    const now = this.now();
+    if (this.revisionRead !== undefined && now - this.revisionRead.at < this.revisionMaxAgeMs) {
+      return this.indexAt(this.revisionRead.value);
+    }
+    return this.indexAt(await this.readRevision());
+  }
+
+  private async readRevision(): Promise<number> {
+    const at = this.now();
+    const value = await this.store.revision();
+    this.revisionRead = { value, at };
+    return value;
+  }
+
+  /** A snapshot at `revision` or later, joining a build that is already running. */
+  private async indexAt(revision: number): Promise<Snapshot> {
     if (this.latest !== undefined && this.latest.revision >= revision) return this.latest;
-    this.building ??= this.build().finally(() => {
+    const snapshot = await this.build();
+    if (snapshot.revision >= revision) return snapshot;
+    // The joined build read the catalog before `revision` was committed; a build started now reads
+    // it after, so it sees that revision.
+    return this.build();
+  }
+
+  private build(): Promise<Snapshot> {
+    this.building ??= this.buildSnapshot().finally(() => {
       this.building = undefined;
     });
     return this.building;
   }
 
-  private async currentRevision(): Promise<number> {
-    const now = this.now();
-    if (this.revisionRead !== undefined && now - this.revisionRead.at < this.revisionMaxAgeMs) {
-      return this.revisionRead.value;
-    }
-    const value = await this.store.revision();
-    this.revisionRead = { value, at: now };
-    return value;
+  async search(request: SearchRequest): Promise<SearchResult> {
+    const started = performance.now();
+    const result = await this.answer(request);
+    this.observe((observer) => {
+      observer.search(result.method, result.partialResults, performance.now() - started);
+    });
+    return result;
   }
 
-  async search(request: SearchRequest): Promise<SearchResult> {
+  private async answer(request: SearchRequest): Promise<SearchResult> {
     const query = request.query.trim();
     if (query === "") throw searchError("search_query_required");
     if (query.length > MAX_QUERY_LENGTH) throw searchError("search_query_too_long");
@@ -186,14 +242,14 @@ export class SearchService {
       // is still at the cursor's revision: the snapshot is rebuilt from the same content.
       let pinned = this.snapshots.get(state.revision);
       if (pinned === undefined) {
-        const current = await this.refresh();
+        const current = await this.recent();
         if (current.revision === state.revision) pinned = current;
       }
       if (pinned === undefined) throw searchError("search_cursor_expired");
       snapshot = pinned;
       offset = state.offset;
     } else {
-      snapshot = await this.refresh();
+      snapshot = await this.recent();
     }
 
     const candidates = snapshot.order.filter((listing) => satisfies(listing, filter, this.assets));
@@ -249,12 +305,14 @@ export class SearchService {
       if (first !== undefined) resources.push([first, ...rest]);
     }
 
-    const page = resources
-      .slice(offset, offset + request.limit)
+    const slice = resources.slice(offset, offset + request.limit);
+    const current = await this.activity(slice.flat());
+    const page = slice
       .map((members) =>
         members
           // Defence in depth: nothing that violates a hard filter is ever returned.
           .filter((listing) => satisfies(listing, filter, this.assets))
+          .map((listing) => withActivity(listing, current.get(listing.id)))
           .map((listing) => narrowOptions(listing, (option) => optionSatisfies(option, filter, this.assets))),
       )
       .filter((members): members is [Listing, ...Listing[]] => members.length > 0);
@@ -288,12 +346,24 @@ export class SearchService {
     };
   }
 
+  /**
+   * The listings of a page as the store holds them now. A settlement or a facts refresh updates a
+   * listing without a new version, so without a new revision: the snapshot's copy would show the
+   * settlement count, last settlement and facts of the revision it was built at.
+   */
+  private async activity(listings: readonly Listing[]): Promise<ReadonlyMap<string, Listing>> {
+    if (listings.length === 0) return new Map();
+    const current = await this.store.getMany(listings.map((listing) => listing.id));
+    return new Map(current.map((listing) => [listing.id, listing]));
+  }
+
   /** The query's embedding, or undefined when the embedder fails or exceeds the semantic budget. */
   private async embedQuery(text: string): Promise<Float32Array | undefined> {
     if (this.embedder === undefined) return undefined;
     let timer: NodeJS.Timeout | undefined;
+    let vector: Float32Array | undefined;
     try {
-      return await Promise.race([
+      vector = await Promise.race([
         this.embedder.embed(text),
         new Promise<undefined>((resolve) => {
           timer = setTimeout(() => {
@@ -302,14 +372,30 @@ export class SearchService {
         }),
       ]);
     } catch {
-      return undefined;
+      vector = undefined;
     } finally {
       clearTimeout(timer);
     }
+    if (vector === undefined) {
+      this.observe((observer) => {
+        observer.embeddingFailure("query");
+      });
+    }
+    return vector;
   }
 
-  private async build(): Promise<Snapshot> {
-    const { revision, listings } = await this.store.published();
+  private async buildSnapshot(): Promise<Snapshot> {
+    const started = performance.now();
+    let published: { revision: number; listings: Listing[] };
+    try {
+      published = await this.store.published();
+    } catch (error) {
+      this.observe((observer) => {
+        observer.indexBuild("failed", performance.now() - started);
+      });
+      throw error;
+    }
+    const { revision, listings } = published;
     const documents = listings.map(toDocument);
     const embeddingKeys = new Set<string>();
     let vectors: Map<string, Float32Array> | undefined;
@@ -330,6 +416,9 @@ export class SearchService {
         // Without embeddings this snapshot serves lexical-only results, reported as partial.
         vectors = undefined;
         embeddingKeys.clear();
+        this.observe((observer) => {
+          observer.embeddingFailure("document");
+        });
       }
     }
     const byResource = new Map<string, string[]>();
@@ -362,8 +451,40 @@ export class SearchService {
     }
     const live = new Set([...this.snapshots.values()].flatMap((kept) => [...kept.embeddingKeys]));
     for (const key of this.embeddings.keys()) if (!live.has(key)) this.embeddings.delete(key);
+    const outcome = this.embedder !== undefined && vectors === undefined ? "degraded" : "ok";
+    this.observe((observer) => {
+      observer.indexBuild(outcome, performance.now() - started);
+    });
     return snapshot;
   }
+
+  private observe(call: (observer: SearchObserver) => void): void {
+    if (this.observer === undefined) return;
+    try {
+      call(this.observer);
+    } catch {
+      // Instrumentation never affects a search.
+    }
+  }
+}
+
+/**
+ * A snapshot listing with the settlement activity of its current row: the count and time of its
+ * settlements, and its Stellar facts while its options and owner are those the snapshot indexed.
+ * Ranking never reads these fields, so the order a snapshot gives stays stable across pages.
+ */
+function withActivity(listing: Listing, current: Listing | undefined): Listing {
+  if (current === undefined) return listing;
+  const sameRecord = current.contentHash === listing.contentHash && current.owner === listing.owner;
+  const { facts: _facts, ...rest } = listing;
+  const facts = sameRecord ? current.facts : listing.facts;
+  return {
+    ...rest,
+    settlements: Math.max(listing.settlements, current.settlements),
+    lastSettledAt:
+      current.lastSettledAt > listing.lastSettledAt ? current.lastSettledAt : listing.lastSettledAt,
+    ...(facts === undefined ? {} : { facts }),
+  };
 }
 
 /**

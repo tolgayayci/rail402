@@ -1,6 +1,6 @@
 import type { CatalogOutcome } from "./catalog.ts";
 import { bazaarCodes, type BazaarCode } from "./codes.ts";
-import type { Listing, ListingVersion, OptionFacts, ResourceListings, Trust } from "./types.ts";
+import type { DomainClaim, Listing, ListingVersion, OptionFacts, ResourceListings, Trust } from "./types.ts";
 
 /**
  * A resource as published by GET /discovery/resources (x402 v2 §8.3). One resource sold on several
@@ -43,10 +43,13 @@ export interface ListingSummary {
   readonly settlements: number;
   readonly firstCataloged: string;
   readonly lastSettled: string;
-  /** When the listing's Stellar facts were read, and whether the host's stellar.toml lists the owner. */
+  /**
+   * When the listing's Stellar facts were read, and the SEP-1 binding of its host and owner: whether
+   * the host's stellar.toml lists the owner, and whether the owner's home_domain names the host.
+   */
   readonly stellar?: {
     readonly checkedAt: string;
-    readonly domain?: { readonly host: string; readonly claimsOwner: boolean };
+    readonly domain?: DomainClaim;
   };
 }
 
@@ -135,6 +138,7 @@ export function toVersionItem(version: ListingVersion) {
     owner: version.owner,
     trust: version.trust,
     state: version.state,
+    ...(version.reason === undefined ? {} : { reason: version.reason }),
     content: version.content,
   };
 }
@@ -143,14 +147,21 @@ export function toVersionItem(version: ListingVersion) {
 export const MAX_EXTENSION_RESPONSES_BYTES = 4_096;
 
 /**
- * The `EXTENSION-RESPONSES` header value: base64 JSON keyed by extension name (x402 v2 §7.2.1). An
+ * The `EXTENSION-RESPONSES` header value: base64 JSON keyed by extension name (x402 v2 §7.2.1). The
+ * cataloging outcome goes under `bazaar`, next to any other extensions' entries in `others`. An
  * outcome too large for the budget is reduced to its status, code and a fixed reason, so the header
  * can never make an HTTP client reject the response of a settled payment.
  */
-export function extensionResponsesHeader(outcome: CatalogOutcome): string {
-  const encode = (value: CatalogOutcome) => Buffer.from(JSON.stringify({ bazaar: value })).toString("base64");
+export function extensionResponsesHeader(
+  outcome: CatalogOutcome | undefined,
+  others: Readonly<Record<string, unknown>> = {},
+): string {
+  const encode = (value: CatalogOutcome | undefined) =>
+    Buffer.from(JSON.stringify(value === undefined ? others : { ...others, bazaar: value })).toString(
+      "base64",
+    );
   const full = encode(outcome);
-  if (full.length <= MAX_EXTENSION_RESPONSES_BYTES) return full;
+  if (outcome === undefined || full.length <= MAX_EXTENSION_RESPONSES_BYTES) return full;
   const registered = outcome.code in bazaarCodes ? bazaarCodes[outcome.code as BazaarCode].reason : undefined;
   return encode({
     status: outcome.status,

@@ -1,6 +1,6 @@
 {
   "name": "@rail402.dev/bazaar",
-  "version": "0.2.1",
+  "version": "0.4.1",
   "description": "Stellar Bazaar: settlement-gated cataloging of x402 HTTP endpoints and MCP tools, with integrity controls.",
   "license": "Apache-2.0",
   "keywords": [
@@ -39,7 +39,9 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
+    "@modelcontextprotocol/client": "catalog:",
     "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/safe-fetch": "workspace:*",
     "@rail402.dev/stellar": "workspace:*",
     "@stellar/stellar-sdk": "catalog:",
     "@x402/core": "catalog:",
@@ -48,13 +50,24 @@
     "smol-toml": "1.9.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
     "vitest": "catalog:"
   },
   "engines": {
     "node": ">=24.11"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./testing": {
+        "types": "./dist/testing.d.ts",
+        "default": "./dist/testing.js"
+      }
+    }
   },
   "peerDependencies": {
     "vitest": ">=4"
