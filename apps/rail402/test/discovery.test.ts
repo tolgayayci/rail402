@@ -53,7 +53,7 @@ async function discovery(count: number) {
     ]),
     cursorSecret: Buffer.alloc(32, 1),
   });
-  return discoveryRoutes(store, search);
+  return Object.assign(discoveryRoutes(store, search), { catalog, store });
 }
 
 async function errorCode(response: Response): Promise<string | undefined> {
@@ -259,5 +259,31 @@ describe("a resource sold on two networks", () => {
       versions: unknown[];
     };
     expect(versions.versions).toHaveLength(2);
+  });
+});
+
+describe("settlement activity", () => {
+  it("is the same in search results and the catalog listing after a repeat settlement", async () => {
+    interface Item {
+      rail402: { settlements: number; listings: { settlements: number; lastSettled: string }[] };
+    }
+    const app = await discovery(1);
+    const found = async () =>
+      ((await (await app.request("/search?query=weather")).json()) as { resources: Item[] }).resources[0];
+    const listed = async () =>
+      ((await (await app.request("/resources")).json()) as { items: Item[] }).items[0];
+    expect((await found())?.rail402.settlements).toBe(1);
+
+    const [listing] = (await app.store.published()).listings;
+    await app.catalog.record(
+      settledPayment({
+        url: listing?.identity.resource ?? "",
+        payTo: listing?.owner ?? "",
+        description: "City weather",
+      }),
+    );
+    const now = await listed();
+    expect(now?.rail402.settlements).toBe(2);
+    expect((await found())?.rail402).toEqual(now?.rail402);
   });
 });

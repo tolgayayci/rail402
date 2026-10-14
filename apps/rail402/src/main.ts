@@ -3,7 +3,7 @@ import { createApp } from "./app.ts";
 import { ConfigError, loadConfig, type Config } from "./config.ts";
 import { createLogger } from "./logger.ts";
 import { Metrics } from "./metrics.ts";
-import { createRuntime } from "./runtime.ts";
+import { createRuntime, type Runtime } from "./runtime.ts";
 
 const VERSION = process.env["RAIL402_VERSION"] ?? "dev";
 
@@ -22,13 +22,24 @@ async function main(): Promise<void> {
   const log = createLogger({ level: config.logLevel, version: VERSION });
 
   const metrics = new Metrics();
-  const runtime = await createRuntime(config, metrics, log);
+  let runtime: Runtime;
+  try {
+    runtime = await createRuntime(config, metrics, log, { version: VERSION });
+  } catch (error) {
+    // A configuration the network contradicts, such as an asset's decimals, is a configuration error.
+    if (error instanceof ConfigError) {
+      process.stderr.write(`rail402: ${error.code === undefined ? "" : `${error.code}: `}${error.message}\n`);
+      process.exit(78); // EX_CONFIG
+    }
+    throw error;
+  }
   const app = createApp({
     config,
     facilitator: runtime.facilitator,
     metrics,
     log,
     readiness: () => runtime.readiness(),
+    health: () => runtime.health(),
     version: VERSION,
     ...(runtime.bazaar === undefined ? {} : { bazaar: runtime.bazaar }),
     ...(runtime.access === undefined

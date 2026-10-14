@@ -5,18 +5,28 @@
  *   node dist/channels.js provision [--network stellar:pubnet]
  *   node dist/channels.js retire    [--network stellar:pubnet] [--count N] [--force]
  *
- * `provision` creates the missing channel accounts; pubnet never does this at startup, so an
- * operator decides when the sponsor pays their reserves. `retire` merges the channel accounts back
- * into the sponsor, which returns their sponsored reserves. Run it with the service stopped, before
+ * `provision` creates the missing channel accounts and the network's `upto` settlement authority;
+ * pubnet never does this at startup, so an operator decides when the sponsor pays their reserves.
+ * The authority, like a channel, is derived from the sponsor, holds no balance and has its reserve
+ * sponsored; `status` reports its balance, which must stay zero. `retire` merges the channel accounts
+ * and the authority back into the sponsor, which returns their sponsored reserves. Run it with the service stopped, before
  * rotating the sponsor key or lowering CHANNEL_COUNT; it refuses while a settlement on the network
  * is unfinished or a channel is leased. `--count` covers channels beyond the configured count.
+ * With Postgres, `status` also lists the transaction hashes of unresolvable settlements: past their
+ * time bound, but older than the RPC's retained history, so only Horizon or a history archive can
+ * tell whether they were included.
  * Every command prints one JSON line per network.
  */
 import { parseArgs } from "node:util";
 import { Keypair, rpc } from "@stellar/stellar-sdk";
 import {
+  authorityStatus,
+  deriveAuthorityKeypair,
   deriveChannelKeypairs,
   existingAccounts,
+  historyCovers,
+  ledgerCloseSeconds,
+  provisionAuthority,
   provisionChannels,
   retireChannels,
 } from "@rail402.dev/facilitator";
@@ -69,6 +79,7 @@ async function main(): Promise<void> {
     for (const network of networks) {
       const sponsor = Keypair.fromSecret(network.sponsorSecret);
       const channels = deriveChannelKeypairs(sponsor, network.network, count ?? network.channelCount);
+      const authority = deriveAuthorityKeypair(sponsor, network.network);
       const addresses = channels.map((keypair) => keypair.publicKey());
       const server = new rpc.Server(network.rpcUrl, {
         allowHttp: new URL(network.rpcUrl).protocol === "http:",
@@ -84,17 +95,48 @@ async function main(): Promise<void> {
         return { unfinishedSettlements: unfinished.length, leasedChannels: await pool.inUse() };
       };
 
+      // Settlements the service keeps unfinished because the RPC can no longer prove their outcome.
+      const unresolvable = async () => {
+        if (db === undefined) return undefined;
+        const hashes: string[] = [];
+        for (const record of await new PostgresSettlementLedger(db).unfinished(network.network)) {
+          if (record.transactionHash === undefined || record.validUntil === undefined) continue;
+          const found = await server.getTransaction(record.transactionHash);
+          if (
+            found.status === rpc.Api.GetTransactionStatus.NOT_FOUND &&
+            ledgerCloseSeconds(found.latestLedgerCloseTime) > record.validUntil &&
+            !historyCovers(record, found.oldestLedgerCloseTime)
+          ) {
+            hashes.push(record.transactionHash);
+          }
+        }
+        return { unresolvableSettlements: hashes };
+      };
+
       if (command === "status") {
         const existing = await existingAccounts(server, addresses);
+        const status = await authorityStatus(server, authority.publicKey());
         print({
           ...report,
           present: existing.size,
           missing: addresses.filter((address) => !existing.has(address)),
+          authority: {
+            address: status.address,
+            present: status.exists,
+            balanceStroops: status.balanceStroops.toString(),
+          },
           ...(await busy()),
+          ...(await unresolvable()),
         });
       } else if (command === "provision") {
         const result = await provisionChannels({ server, passphrase, sponsor, channels });
-        print({ ...report, created: result.created, alreadyPresent: result.existing.length });
+        const authorityCreated = await provisionAuthority({ server, passphrase, sponsor, authority });
+        print({
+          ...report,
+          created: result.created,
+          alreadyPresent: result.existing.length,
+          authority: { address: authority.publicKey(), created: authorityCreated },
+        });
       } else {
         const state = await busy();
         if (state === undefined && !values.force) {
@@ -108,8 +150,22 @@ async function main(): Promise<void> {
               `${String(state.leasedChannels)} leased channel(s); stop the service and let it reconcile first`,
           );
         }
-        const result = await retireChannels({ server, passphrase, sponsor, channels });
-        print({ ...report, retired: result.retired, alreadyAbsent: result.absent.length });
+        const result = await retireChannels({
+          server,
+          passphrase,
+          sponsor,
+          channels: [...channels, authority],
+        });
+        const retired = result.retired.filter((address) => address !== authority.publicKey());
+        print({
+          ...report,
+          retired,
+          alreadyAbsent: result.absent.filter((address) => address !== authority.publicKey()).length,
+          authority: {
+            address: authority.publicKey(),
+            retired: result.retired.includes(authority.publicKey()),
+          },
+        });
       }
     }
   } finally {

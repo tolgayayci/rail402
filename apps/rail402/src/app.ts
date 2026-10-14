@@ -4,8 +4,14 @@ import { bodyLimit } from "hono/body-limit";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { z } from "zod";
 import type { PaymentPayload, PaymentRequirements, SettleResponse, VerifyResponse } from "@x402/core/types";
-import { httpError, toErrorBody, type Rail402Error } from "@rail402.dev/errors";
-import { settleFailed, verifyRejected, type Logger, type StellarFacilitator } from "@rail402.dev/facilitator";
+import { httpError, reportCode, toErrorBody, type Rail402Error } from "@rail402.dev/errors";
+import {
+  repeatOf,
+  settleFailed,
+  verifyRejected,
+  type Logger,
+  type StellarFacilitator,
+} from "@rail402.dev/facilitator";
 import { isStellarNetwork, type ExactStellarCode } from "@rail402.dev/stellar";
 import {
   extensionResponsesHeader,
@@ -16,8 +22,9 @@ import {
 import { discoveryRoutes } from "./discovery.ts";
 import type { SearchService } from "@rail402.dev/search";
 import type { Config } from "./config.ts";
-import type { Metrics } from "./metrics.ts";
-import { RateLimiter, type ClientRateLimiter } from "./rate-limit.ts";
+import type { HealthSnapshot } from "./health.ts";
+import { reasonLabel, type Metrics } from "./metrics.ts";
+import { RateLimiter, rateLimitKey, type ClientRateLimiter } from "./rate-limit.ts";
 import { MemoryUsageMeter, accruedFee, type UsageMeter } from "./metering.ts";
 
 export interface Readiness {
@@ -31,6 +38,8 @@ export interface AppDependencies {
   readonly metrics: Metrics;
   readonly log: Logger;
   readonly readiness: () => Promise<Readiness>;
+  /** The background poller's /health snapshot; without it /health reports liveness only. */
+  readonly health?: () => HealthSnapshot;
   readonly version: string;
   readonly bazaar?: {
     readonly catalog: Catalog;
@@ -84,6 +93,17 @@ export function createApp(deps: AppDependencies): Hono {
   }, 60_000);
   sweep.unref();
   const configured = new Map(config.networks.map((network) => [network.network, network]));
+  // Scheme labels come from what the facilitator serves, so a caller cannot grow the label set.
+  let served: { schemes: ReadonlySet<string>; kinds: ReadonlySet<string> } | undefined;
+  const supported = () => {
+    const { kinds } = facilitator.core.getSupported();
+    served ??= {
+      schemes: new Set(kinds.map((kind) => kind.scheme)),
+      kinds: new Set(kinds.map((kind) => `${kind.scheme}|${kind.network}`)),
+    };
+    return served;
+  };
+  const schemeLabel = (scheme: string) => (supported().schemes.has(scheme) ? scheme : "unsupported");
 
   app.use("*", async (c, next) => {
     const started = performance.now();
@@ -100,12 +120,19 @@ export function createApp(deps: AppDependencies): Hono {
   });
 
   // Operational endpoints are exempt from limits and auth.
-  app.get("/health", (c) => c.json({ status: "ok", version: deps.version }));
+  // Liveness: 200 whenever the process answers. The body is the last snapshot; building it never
+  // waits on the network or the database.
+  app.get("/health", (c) => c.json(deps.health?.() ?? { status: "ok", version: deps.version }));
   app.get("/ready", async (c) => {
     const readiness = await deps.readiness();
     return c.json(readiness, readiness.ready ? 200 : 503);
   });
+  const metricsToken = config.observability.metricsTokenSha256;
   app.get("/metrics", async (c) => {
+    if (metricsToken !== undefined && apiKeyDigest(c, new Set([metricsToken]), "bearer") === undefined) {
+      c.header("WWW-Authenticate", 'Bearer realm="metrics"');
+      return c.json(toErrorBody(httpError("unauthorized")), 401);
+    }
     c.header("Content-Type", metrics.registry.contentType);
     return c.body(await metrics.registry.metrics());
   });
@@ -115,7 +142,7 @@ export function createApp(deps: AppDependencies): Hono {
     const context = c as Context;
     let retryAfter = 0;
     try {
-      retryAfter = await limiter.take(clientAddress(context, config.http.trustedProxyHops));
+      retryAfter = await limiter.take(rateLimitKey(clientAddress(context, config.http.trustedProxyHops)));
     } catch (error) {
       // A limiter outage must not take the service down with it.
       log.warn({ err: error }, "rate limiter unavailable");
@@ -184,6 +211,17 @@ export function createApp(deps: AppDependencies): Hono {
             "invalid_payload",
           );
         }
+        // Stellar schemes are defined for x402 v2 only; the core would throw on anything else.
+        if (parsed.x402Version !== 2 || parsed.paymentPayload.x402Version !== 2) {
+          return reject(
+            c,
+            operation,
+            httpError("bad_request", {
+              reason: `x402Version ${String(parsed.x402Version === 2 ? parsed.paymentPayload.x402Version : parsed.x402Version)} is not supported; Stellar payments use x402 v2.`,
+            }),
+            "invalid_payload",
+          );
+        }
 
         const payload = parsed.paymentPayload as unknown as PaymentPayload;
         const requirements = parsed.paymentRequirements as unknown as PaymentRequirements;
@@ -191,10 +229,11 @@ export function createApp(deps: AppDependencies): Hono {
 
         // Refuse what no registered scheme can serve with a coded body instead of the core's exception.
         const networkConfig = isStellarNetwork(network) ? configured.get(network) : undefined;
+        const scheme = schemeLabel(requirements.scheme);
         if (networkConfig === undefined)
-          return outcome(c, operation, network, rejection(operation, "invalid_network", network));
-        if (requirements.scheme !== "exact") {
-          return outcome(c, operation, network, rejection(operation, "unsupported_scheme", network));
+          return outcome(c, operation, network, scheme, rejection(operation, "invalid_network", network));
+        if (!supported().kinds.has(`${requirements.scheme}|${network}`)) {
+          return outcome(c, operation, network, scheme, rejection(operation, "unsupported_scheme", network));
         }
         const digest = apiKeyDigest(c, config.auth.apiKeyHashes);
         if (networkConfig.requireApiKey && digest === undefined) {
@@ -203,21 +242,30 @@ export function createApp(deps: AppDependencies): Hono {
         const subject = digest === undefined ? "public" : subjectOf(digest);
 
         try {
-          const result =
+          const answered =
             operation === "verify"
               ? await facilitator.core.verify(payload, requirements)
               : await facilitator.core.settle(payload, requirements);
+          // Extension responses (e.g. the repeat marker) travel in EXTENSION-RESPONSES only: the body
+          // is what the resource server relays to the buyer in PAYMENT-RESPONSE.
+          const { extensionResponses, ...result } = answered;
           const cataloged = await catalogOutcome(operation, payload, requirements, result);
           if (cataloged !== undefined) {
             metrics.catalogOutcomes.inc({ phase: operation, status: cataloged.status, code: cataloged.code });
-            c.header("EXTENSION-RESPONSES", extensionResponsesHeader(cataloged));
           }
-          await meterUsage(subject, operation, requirements, result);
-          return outcome(c, operation, network, result);
+          if (cataloged !== undefined || extensionResponses !== undefined) {
+            c.header("EXTENSION-RESPONSES", extensionResponsesHeader(cataloged, extensionResponses));
+          }
+          const repeat = "success" in answered && repeatOf(answered) !== undefined;
+          await meterUsage(subject, operation, requirements, result, repeat);
+          if (!repeat && "success" in result && result.success && requirements.scheme === "upto") {
+            countUpto(network, payload, result);
+          }
+          return outcome(c, operation, network, scheme, result, 200, repeat);
         } catch (error) {
           log.error({ err: error, network, operation }, "facilitator call threw");
           const code = operation === "verify" ? "unexpected_verify_error" : "unexpected_settle_error";
-          return outcome(c, operation, network, rejection(operation, code, network), 500);
+          return outcome(c, operation, network, scheme, rejection(operation, code, network), 500);
         }
       },
     );
@@ -229,23 +277,29 @@ export function createApp(deps: AppDependencies): Hono {
     return reject(c, operationOf(c.req.path), httpError("internal_error"));
   });
 
-  /** Records one verify or settle against the caller's usage; never fails the request. */
+  /**
+   * Records one verify or settle against the caller's usage; never fails the request. A settle
+   * answered from an existing settlement is metered as `repeat`, never as another success.
+   */
   async function meterUsage(
     subject: string,
     operation: Operation,
     requirements: PaymentRequirements,
     result: VerifyResponse | SettleResponse,
+    repeat: boolean,
   ): Promise<void> {
     const outcome =
       "isValid" in result
         ? result.isValid
           ? "valid"
           : "invalid"
-        : result.success
-          ? "success"
-          : result.errorReason === "settlement_pending"
-            ? "pending"
-            : "failure";
+        : repeat
+          ? "repeat"
+          : result.success
+            ? "success"
+            : result.errorReason === "settlement_pending"
+              ? "pending"
+              : "failure";
     try {
       await meter.record({
         subject,
@@ -253,12 +307,24 @@ export function createApp(deps: AppDependencies): Hono {
         operation,
         outcome,
         asset: typeof requirements.asset === "string" ? requirements.asset.slice(0, 64) : "",
-        settledAmount:
-          outcome === "success" && /^\d{1,39}$/.test(requirements.amount) ? requirements.amount : "0",
+        settledAmount: outcome === "success" ? settledAmount(requirements, result) : "0",
       });
     } catch (error) {
       log.warn({ err: error }, "usage metering failed");
     }
+  }
+
+  /** Counts a successful `upto` settlement by the amount settled against the cap the payer signed. */
+  function countUpto(network: string, payload: PaymentPayload, result: SettleResponse): void {
+    const amount = /^\d{1,39}$/.test(result.amount ?? "") ? BigInt(result.amount ?? "0") : undefined;
+    const capText = payload.accepted.amount;
+    const cap = /^\d{1,39}$/.test(capText) ? BigInt(capText) : undefined;
+    if (amount === undefined || cap === undefined || !isStellarNetwork(network)) return;
+    metrics.uptoSettlements.inc({
+      network,
+      amount: amount === 0n ? "zero" : amount >= cap ? "max" : "partial",
+      mode: result.transaction === "" ? "offchain" : "onchain",
+    });
   }
 
   /** The Bazaar outcome for the EXTENSION-RESPONSES sidechannel; never fails the payment. */
@@ -310,32 +376,47 @@ export function createApp(deps: AppDependencies): Hono {
     }
   }
 
+  /** Counts and sends a verify or settle answer. Repeats are counted by the settlement observer instead. */
   function outcome(
     c: Context,
     operation: Operation,
     network: string,
+    scheme: string,
     result: VerifyResponse | SettleResponse,
     status: 200 | 500 = 200,
+    repeat = false,
   ) {
     const label = isStellarNetwork(network) ? network : "unknown";
     if ("isValid" in result) {
       metrics.verifications.inc({
         network: label,
+        scheme,
         outcome: result.isValid ? "valid" : "invalid",
-        reason: result.invalidReason ?? "",
+        reason: reasonLabel(result.invalidReason),
       });
-    } else {
+    } else if (!repeat) {
       const pending = result.errorReason === "settlement_pending";
       metrics.settlements.inc({
         network: label,
+        scheme,
         outcome: result.success ? "success" : pending ? "pending" : "failure",
-        reason: result.errorReason ?? "",
+        reason: reasonLabel(result.errorReason),
       });
     }
     return c.json(result, status);
   }
 
   return app;
+}
+
+/**
+ * The amount a successful settlement moved: the response's `amount` where the scheme reports one
+ * (`upto` settles at most the requirements' amount), otherwise the requirements' amount.
+ */
+function settledAmount(requirements: PaymentRequirements, result: VerifyResponse | SettleResponse): string {
+  const reported = "success" in result ? result.amount : undefined;
+  const amount = reported ?? requirements.amount;
+  return /^\d{1,39}$/.test(amount) ? amount : "0";
 }
 
 function rejection(
@@ -354,6 +435,7 @@ function reject(c: Context, operation: Operation | undefined, error: Rail402Erro
   const status = error.status as 400;
   const body = toErrorBody(error);
   const code = wireCode ?? error.code;
+  if (wireCode !== undefined) reportCode(wireCode);
   if (operation === "verify") {
     return c.json({ isValid: false, invalidReason: code, invalidMessage: error.reason, ...body }, status);
   }
@@ -384,11 +466,22 @@ function describe(error: z.ZodError): string {
   return `Malformed request: ${where}: ${issue.message}.`;
 }
 
-/** The configured hash the request's API key matches, if any (constant-time comparison). */
-function apiKeyDigest(c: Context, hashes: ReadonlySet<string>): string | undefined {
+/**
+ * The configured hash the request's key matches, if any (constant-time comparison). The key comes
+ * from `Authorization: Bearer`, or from `X-API-Key` unless only a bearer token is accepted.
+ */
+function apiKeyDigest(
+  c: Context,
+  hashes: ReadonlySet<string>,
+  accept: "bearer" | "any" = "any",
+): string | undefined {
   const header = c.req.header("authorization");
   const key =
-    header?.toLowerCase().startsWith("bearer ") === true ? header.slice(7).trim() : c.req.header("x-api-key");
+    header?.toLowerCase().startsWith("bearer ") === true
+      ? header.slice(7).trim()
+      : accept === "any"
+        ? c.req.header("x-api-key")
+        : undefined;
   if (key === undefined || key === "") return undefined;
   const digest = createHash("sha256").update(key).digest();
   let matched: string | undefined;

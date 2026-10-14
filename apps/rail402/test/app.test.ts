@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
 import type { SettleResponse, VerifyResponse } from "@x402/core/types";
@@ -10,6 +11,9 @@ import {
   accruedFee,
   createApp,
   loadConfig,
+  metricsCatalogObserver,
+  metricsObserver,
+  metricsSearchObserver,
   type AppDependencies,
   type UsageEvent,
   type UsageMeter,
@@ -25,6 +29,8 @@ function makeApp(
     env?: Record<string, string>;
     meter?: UsageMeter;
     catalog?: Pick<Catalog, "recordDurably" | "preview">;
+    /** Schemes the core serves on testnet (default `exact`). */
+    schemes?: readonly string[];
   } = {},
 ) {
   const config = loadConfig({
@@ -38,9 +44,12 @@ function makeApp(
   const facilitator = {
     core: {
       getSupported: () => ({
-        kinds: [
-          { x402Version: 2, scheme: "exact", network: "stellar:testnet", extra: { areFeesSponsored: true } },
-        ],
+        kinds: (options.schemes ?? ["exact"]).map((scheme) => ({
+          x402Version: 2,
+          scheme,
+          network: "stellar:testnet",
+          extra: { areFeesSponsored: true },
+        })),
         extensions: [],
         signers: { "stellar:*": ["GSPONSOR"] },
       }),
@@ -186,6 +195,64 @@ describe("facilitator HTTP surface", () => {
     expect(calls).toEqual([]);
   });
 
+  it("passes upto to the core where it is served, counting and metering the amount settled", async () => {
+    const { meter, events } = recordingMeter();
+    let settled: SettleResponse = {
+      success: true,
+      transaction: "b".repeat(64),
+      network: "stellar:testnet",
+      payer: "GPAYER",
+      amount: "2500",
+    };
+    const { app, calls, metrics } = makeApp({
+      schemes: ["exact", "upto"],
+      meter,
+      settle: () => Promise.resolve(settled),
+    });
+    const cap = {
+      ...requirements,
+      scheme: "upto",
+      extra: { areFeesSponsored: true, facilitatorAddress: "GF" },
+    };
+    const uptoBody = (amount: string) =>
+      body({
+        paymentPayload: { x402Version: 2, accepted: cap, payload: { authorization: "AAAA" } },
+        paymentRequirements: { ...cap, amount },
+      });
+    expect(await (await app.request("/verify", post("/verify", uptoBody("10000")))).json()).toMatchObject({
+      isValid: true,
+    });
+    expect(await (await app.request("/settle", post("/settle", uptoBody("2500")))).json()).toMatchObject({
+      success: true,
+      amount: "2500",
+    });
+    settled = { ...settled, transaction: "", amount: "0" };
+    await app.request("/settle", post("/settle", uptoBody("0")));
+    settled = { ...settled, transaction: "c".repeat(64), amount: "10000" };
+    await app.request("/settle", post("/settle", uptoBody("10000")));
+    expect(calls).toEqual(["verify", "settle", "settle", "settle"]);
+
+    const counted = (await metrics.uptoSettlements.get()).values.map((entry) => [
+      entry.labels["amount"],
+      entry.labels["mode"],
+      entry.value,
+    ]);
+    expect(counted).toEqual([
+      ["partial", "onchain", 1],
+      ["zero", "offchain", 1],
+      ["max", "onchain", 1],
+    ]);
+    expect(
+      events.filter((event) => event.operation === "settle").map((event) => event.settledAmount),
+    ).toEqual(["2500", "0", "10000"]);
+
+    // Served on another network only: refused like any scheme the network does not serve.
+    const { app: exactOnly, calls: none } = makeApp();
+    const refused = await exactOnly.request("/verify", post("/verify", uptoBody("10000")));
+    expect(await refused.json()).toMatchObject({ isValid: false, invalidReason: "unsupported_scheme" });
+    expect(none).toEqual([]);
+  });
+
   it("enforces API keys when the network requires them", async () => {
     const { app, calls } = makeApp({ env: { TESTNET_REQUIRE_API_KEY: "true" } });
     const denied = await app.request("/verify", post("/verify", body()));
@@ -218,6 +285,16 @@ describe("facilitator HTTP surface", () => {
     expect(await metrics.registry.getSingleMetricAsString("rail402_rate_limited_total")).toContain(" 1");
   });
 
+  it("rate-limits an IPv6 client by its /64 and a mapped IPv4 client as IPv4", async () => {
+    const { app } = makeApp({ env: { RATE_LIMIT_PER_MINUTE: "1", TRUSTED_PROXY_HOPS: "1" } });
+    const from = (ip: string) => post("/verify", body(), { "x-forwarded-for": ip });
+    expect((await app.request("/verify", from("2001:db8:1:2::1"))).status).toBe(200);
+    expect((await app.request("/verify", from("2001:db8:1:2:ffff::9"))).status).toBe(429);
+    expect((await app.request("/verify", from("2001:db8:1:3::1"))).status).toBe(200);
+    expect((await app.request("/verify", from("198.51.100.7"))).status).toBe(200);
+    expect((await app.request("/verify", from("::ffff:198.51.100.7"))).status).toBe(429);
+  });
+
   it("rejects oversized bodies", async () => {
     const { app } = makeApp({ env: { BODY_LIMIT_BYTES: "2048" } });
     const response = await app.request("/settle", post("/settle", body({ padding: "x".repeat(4096) })));
@@ -246,8 +323,85 @@ describe("facilitator HTTP surface", () => {
     expect((await app.request("/ready")).status).toBe(200);
     const metrics = await (await app.request("/metrics")).text();
     expect(metrics).toContain(
-      'rail402_verifications_total{network="stellar:testnet",outcome="valid",reason=""} 1',
+      'rail402_verifications_total{network="stellar:testnet",scheme="exact",outcome="valid",reason=""} 1',
     );
+  });
+});
+
+describe("repeated settlements", () => {
+  const settled = {
+    success: true,
+    transaction: "b".repeat(64),
+    network: "stellar:testnet",
+    payer: "GPAYER",
+  } as const;
+  const repeat = {
+    ...settled,
+    extensionResponses: { rail402: { settlement: { repeat: true, settledBy: "rail402" } } },
+  };
+  const headerOf = (response: Response): unknown => {
+    const header = response.headers.get("extension-responses");
+    return header === null ? undefined : JSON.parse(Buffer.from(header, "base64").toString("utf8"));
+  };
+
+  it("sends the recorded body and moves the repeat marker into EXTENSION-RESPONSES", async () => {
+    const { app } = makeApp({ settle: () => Promise.resolve(repeat) });
+    const response = await app.request("/settle", post("/settle", body()));
+    expect(await response.json()).toEqual(settled);
+    expect(headerOf(response)).toEqual({
+      rail402: { settlement: { repeat: true, settledBy: "rail402" } },
+    });
+  });
+
+  it("carries the repeat marker next to the cataloging outcome", async () => {
+    const { app } = makeApp({
+      settle: () => Promise.resolve(repeat),
+      catalog: {
+        recordDurably: () => Promise.resolve({ status: "success", code: "recorded" }),
+        preview: () => Promise.resolve(undefined),
+      },
+    });
+    const response = await app.request("/settle", post("/settle", body()));
+    expect(headerOf(response)).toEqual({
+      rail402: { settlement: { repeat: true, settledBy: "rail402" } },
+      bazaar: { status: "success", code: "recorded" },
+    });
+  });
+
+  it("meters a repeat as a repeat, never as another success, and leaves it out of the settlement count", async () => {
+    const { meter, events } = recordingMeter();
+    let answer: typeof settled | typeof repeat = settled;
+    const { app, metrics } = makeApp({ meter, settle: () => Promise.resolve(answer) });
+    await app.request("/settle", post("/settle", body()));
+    answer = repeat;
+    await app.request("/settle", post("/settle", body()));
+    await app.request("/settle", post("/settle", body()));
+
+    expect(events.map((event) => [event.outcome, event.settledAmount])).toEqual([
+      ["success", "10000"],
+      ["repeat", "0"],
+      ["repeat", "0"],
+    ]);
+    const exposition = await metrics.registry.metrics();
+    expect(exposition).toContain(
+      'rail402_settlements_total{network="stellar:testnet",scheme="exact",outcome="success",reason=""} 1',
+    );
+  });
+
+  it("accrues the service fee for the original settlement only", async () => {
+    let answer: typeof settled | typeof repeat = settled;
+    const { app } = makeApp({
+      env: { SERVICE_FEE_PER_SETTLEMENT_USD: "0.01" },
+      settle: () => Promise.resolve(answer),
+    });
+    const auth = { authorization: `Bearer ${API_KEY}` };
+    await app.request("/settle", post("/settle", body(), auth));
+    answer = repeat;
+    await app.request("/settle", post("/settle", body(), auth));
+    const usage = (await (await app.request("/usage", { headers: auth })).json()) as {
+      serviceFee: { accruedUsd: string };
+    };
+    expect(usage.serviceFee.accruedUsd).toBe("0.01");
   });
 });
 
@@ -561,18 +715,16 @@ describe("cataloging preview at /verify", () => {
 
 describe("metrics", () => {
   /** The metrics table in docs/operations.md: every name with its label set. */
-  const DOCUMENTED: Record<string, readonly string[]> = {
-    rail402_verifications_total: ["network", "outcome", "reason"],
-    rail402_settlements_total: ["network", "outcome", "reason"],
-    rail402_http_request_duration_seconds: ["method", "route", "status"],
-    rail402_sponsor_balance_stroops: ["network"],
-    rail402_channels_in_use: ["network"],
-    rail402_channels_total: ["network"],
-    rail402_settlements_reconciled_total: [],
-    rail402_background_errors_total: ["task"],
-    rail402_catalog_outcomes_total: ["phase", "status", "code"],
-    rail402_rate_limited_total: [],
-  };
+  const DOCUMENTED: Record<string, readonly string[]> = Object.fromEntries(
+    readFileSync(new URL("../../../docs/operations.md", import.meta.url), "utf8")
+      .split("\n")
+      .flatMap((line) => {
+        const match = /^\| `(rail402_\w+)`\s*\|([^|]*)\|/.exec(line);
+        if (match === null) return [];
+        const labels = [...(match[2] ?? "").matchAll(/`(\w+)`/g)].map((label) => label[1] ?? "");
+        return [[match[1] ?? "", labels]];
+      }),
+  );
 
   /** Label-name sets per metric in a Prometheus exposition, histogram series folded into their metric. */
   function labelSets(exposition: string): Map<string, Set<string>> {
@@ -607,19 +759,117 @@ describe("metrics", () => {
     metrics.sponsorBalance.set({ network: "stellar:testnet" }, 100_000_000);
     metrics.channelsInUse.set({ network: "stellar:testnet" }, 1);
     metrics.channelsTotal.set({ network: "stellar:testnet" }, 8);
-    metrics.settlementsReconciled.inc();
+    metrics.settlementsUnfinished.set({ network: "stellar:testnet" }, 0);
+    metrics.settlementsUnresolvable.set({ network: "stellar:testnet" }, 0);
     metrics.backgroundErrors.inc({ task: "poll" });
+    metrics.sponsorGuardRefusals.inc({ network: "stellar:testnet", reason: "reserve" });
+    metrics.sponsorFeesCommitted.set({ network: "stellar:testnet" }, 0);
+    metrics.rpcRequests.inc({ network: "stellar:testnet", method: "getHealth", outcome: "ok" });
+    metrics.rpcDuration.observe({ network: "stellar:testnet", method: "getHealth" }, 0.01);
+    metrics.rpcTransportErrors.inc({ network: "stellar:testnet", target: "rpc", kind: "http_5xx" });
+    metrics.rpcLatestLedger.set({ network: "stellar:testnet" }, 100);
+    metrics.rpcLedgerAge.set({ network: "stellar:testnet" }, 2);
+    metrics.contractTtl.set({ network: "stellar:testnet", contract: "USDC", entry: "instance" }, 1_000);
+    metrics.contractTtlCheckErrors.inc({ network: "stellar:testnet" });
+    // The runtime's upto poll and keeper, and the settle route for upto payments.
+    metrics.uptoSettlements.inc({ network: "stellar:testnet", amount: "partial", mode: "onchain" });
+    metrics.uptoAuthorityBalance.set({ network: "stellar:testnet" }, 0);
+    metrics.uptoTtlKeeperActions.inc({ network: "stellar:testnet", action: "extend", outcome: "ok" });
+    metrics.catalogListings.set({ state: "published" }, 1);
+    metrics.catalogOutboxPending.set(0);
+    metrics.searchIndexAge.set(1);
+    // The catalog and search own these, through their observers.
+    metricsCatalogObserver(metrics).outcome("origin_check", "success", "origin_confirmed");
+    const search = metricsSearchObserver(metrics);
+    search.indexBuild("ok", 5);
+    search.embeddingFailure("document");
+    search.search("hybrid", false, 4);
+    // The settlement engine owns these, through the metrics observer.
+    const observer = metricsObserver(metrics);
+    const network = "stellar:testnet";
+    observer.leaseWait(network, 3, true);
+    observer.leaseWait(network, 5_000, false);
+    observer.submission(network, { status: "PENDING", phase: "submit" });
+    observer.submission(network, { status: "ERROR", resultCode: "txBadSeq", phase: "rebroadcast" });
+    observer.submission(network, { status: "TRY_AGAIN_LATER", phase: "rebroadcast" });
+    observer.finalized({
+      network,
+      scheme: "exact",
+      state: "succeeded",
+      feeChargedStroops: 51_234n,
+      durationMs: 5_500,
+      onChainFailure: false,
+      settledBy: "rail402",
+    });
+    observer.finalized({
+      network,
+      scheme: "exact",
+      state: "failed",
+      reason: "insufficient_funds",
+      feeChargedStroops: 40_000n,
+      durationMs: 6_000,
+      onChainFailure: true,
+      settledBy: "rail402",
+    });
+    // Another transaction landed the payment first: settled, and our failed transaction's fee wasted.
+    observer.finalized({
+      network,
+      scheme: "exact",
+      state: "succeeded",
+      feeChargedStroops: 30_000n,
+      durationMs: 7_000,
+      onChainFailure: true,
+      settledBy: "third_party",
+    });
+    observer.reconciled(network, "succeeded");
+    observer.repeat(network, "exact");
+    observer.ledgerReadFailed(network);
 
     const response = await app.request("/metrics");
     expect(response.headers.get("content-type")).toContain("text/plain");
     const exposition = await response.text();
     const found = labelSets(exposition);
+    expect(Object.keys(DOCUMENTED).length).toBeGreaterThan(30);
     for (const [name, labels] of Object.entries(DOCUMENTED)) {
       expect(found.get(name), name).toEqual(new Set([[...labels].sort().join(",")]));
     }
+    // Nothing is exported without a row in the table.
+    const exposed = [...found.keys()].filter((name) => /^rail402_(?!process_)/.test(name));
+    expect(exposed.filter((name) => DOCUMENTED[name] === undefined)).toEqual([]);
     expect(exposition).toContain(
       'rail402_catalog_outcomes_total{phase="settle",status="success",code="recorded"} 1',
     );
     expect(exposition).toMatch(/^rail402_process_\w+/m);
+    for (const line of [
+      'rail402_channel_lease_timeouts_total{network="stellar:testnet"} 1',
+      'rail402_sequence_conflicts_total{network="stellar:testnet",kind="bad_seq"} 1',
+      'rail402_sequence_conflicts_total{network="stellar:testnet",kind="try_again_later"} 1',
+      'rail402_sponsor_fees_stroops_total{network="stellar:testnet",outcome="charged"} 51234',
+      'rail402_sponsor_fees_stroops_total{network="stellar:testnet",outcome="wasted"} 70000',
+      'rail402_settlements_third_party_total{network="stellar:testnet",scheme="exact"} 1',
+      'rail402_settlements_reconciled_total{network="stellar:testnet",outcome="succeeded"} 1',
+      'rail402_settlement_repeats_total{network="stellar:testnet",scheme="exact"} 1',
+    ]) {
+      expect(exposition).toContain(line);
+    }
+  });
+});
+
+describe("channels in use", () => {
+  it("is read from the channel pool on every scrape, keeping the last value when a read fails", async () => {
+    const metrics = new Metrics();
+    let leased: number | Error = 3;
+    metrics.readChannelsInUse("stellar:testnet", () =>
+      leased instanceof Error ? Promise.reject(leased) : Promise.resolve(leased),
+    );
+    const line = async () =>
+      (await metrics.registry.metrics())
+        .split("\n")
+        .find((entry) => entry.startsWith("rail402_channels_in_use{"));
+    expect(await line()).toBe('rail402_channels_in_use{network="stellar:testnet"} 3');
+    leased = 5;
+    expect(await line()).toBe('rail402_channels_in_use{network="stellar:testnet"} 5');
+    leased = new Error("database unavailable");
+    expect(await line()).toBe('rail402_channels_in_use{network="stellar:testnet"} 5');
   });
 });

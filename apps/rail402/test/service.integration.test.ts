@@ -105,7 +105,10 @@ describe.skipIf(!available)("service over HTTP with the stock facilitator client
     const settled = await client.settle(payload, requirements);
     expect(settled).toMatchObject({ success: true, network: "stellar:testnet", payer: payer.publicKey() });
     expect(settled.transaction).toMatch(/^[0-9a-f]{64}$/);
-    expect(await client.settle(payload, requirements)).toEqual(settled);
+    // A repeat gets the recorded result; the repeat marker arrives in EXTENSION-RESPONSES.
+    const { extensionResponses, ...again } = await client.settle(payload, requirements);
+    expect(again).toEqual(settled);
+    expect(extensionResponses).toEqual({ rail402: { settlement: { repeat: true, settledBy: "rail402" } } });
     expect(await net.tokenBalance(usdc.sac, seller.publicKey())).toBeGreaterThanOrEqual(1_000_000n);
   });
 

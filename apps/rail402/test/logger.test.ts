@@ -31,6 +31,27 @@ describe("logger", () => {
     expect(JSON.stringify(lines)).not.toMatch(/SSECRET|Bearer k|AAAAsigned/);
   });
 
+  it("logs an HTTP client error without its URL, body or headers", async () => {
+    const { lines, log } = capture();
+    const { rpc } = await import("@stellar/stellar-sdk");
+    // Port 9 refuses at once; the path carries a provider-style key, as a keyed RPC URL does.
+    const failure = await new rpc.Server("http://127.0.0.1:9/v1/APIKEY_SECRET_1234567890", {
+      allowHttp: true,
+    })
+      .getHealth()
+      .then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+    expect(failure).toBeInstanceOf(Error);
+    log.warn({ err: failure }, "rpc poll failed");
+    log.warn({ error: failure }, "under another key");
+    const text = JSON.stringify(lines);
+    expect(text).not.toContain("APIKEY_SECRET");
+    expect(text).not.toContain("getHealth");
+    expect((lines[0]?.["err"] as Record<string, unknown>)["message"]).toEqual(expect.any(String));
+  });
+
   it("keeps a top-level transaction hash visible", () => {
     const { lines, log } = capture();
     log.info({ transaction: "82844c5c" }, "settlement finished");

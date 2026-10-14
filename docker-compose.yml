@@ -2,6 +2,9 @@
 #
 #   docker compose up -d postgres            database only (unit + most integration tests)
 #   docker compose --profile stellar up -d   add a private Stellar network (1 s ledgers, Friendbot, RPC)
+#   docker compose --profile stellar-archival up -d
+#                                            a second private network on :8010 whose contracts archive
+#                                            within seconds (for contract TTL, restore and extend work)
 #   docker compose --profile service up -d   self-host: the Rail402 image against Postgres (configure .env)
 #
 # The private network is disposable: it resets whenever the container is recreated.
@@ -38,6 +41,32 @@ services:
     ports:
       # /rpc (Stellar RPC) and /friendbot
       - "127.0.0.1:8000:8000"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -sf -H "Content-Type: application/json"
+          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+          http://localhost:8000/rpc | grep -q healthy
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  # Same network with state archival sped up: test/stellar/short-ttl.json is quickstart's testnet
+  # limits with min_persistent_ttl 10 and min_temporary_ttl 16 (the smallest values core accepts), so
+  # a new contract instance is archived about 10 ledgers (10 s) after its last extension.
+  stellar-archival:
+    profiles: [stellar-archival]
+    image: stellar/quickstart:v669-b1438.1-latest
+    command: ["--local", "--limits", "short-ttl", "--enable", "core,rpc"]
+    environment:
+      NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
+      RANDOMIZE_NETWORK_PASSPHRASE: "false"
+    volumes:
+      # Protocol 28 reads its limit presets from the p26 directory.
+      - ./test/stellar/short-ttl.json:/opt/stellar-default/local/core/etc/config-settings/p26/short-ttl.json:ro
+    ports:
+      - "127.0.0.1:8010:8000"
     healthcheck:
       test:
         - CMD-SHELL
