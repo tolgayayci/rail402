@@ -1,0 +1,1461 @@
+{
+  "schemaVersion": 2,
+  "kind": "concurrency",
+  "runId": "969f9e82-4624-48d5-9eb5-58bd378059b1",
+  "startedAt": "2026-10-09T13:03:08.111Z",
+  "finishedAt": "2026-10-09T13:05:17.049Z",
+  "network": "stellar:testnet",
+  "target": {
+    "mode": "local",
+    "facilitatorUrl": "http://127.0.0.1:8801",
+    "healthVersion": "0.4.1+b9ebb87f3632",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GAFLWIFSEO45MD54DCIVNB455PBWSG5U5RAXYDJQMQIC4ACSZODJUFLU"
+          }
+        }
+      ],
+      "extensions": [
+        "bazaar"
+      ],
+      "signers": {
+        "stellar:*": [
+          "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "GB3WBOLRLBHO2WVYFTIJRZJ6SNYWYAER3ROSLDV7U5ROQCFTVFFXAHJR",
+          "GBUMX4RNOYKKPLVPUWIMC6J2RFERSTPOUGRZV4ZIV2BNBQI3JRSLLHPR",
+          "GDAHKU2XNTMX6WJSZX6T37T6N53ADISMFSDSHCWQMI7GYQ4WLSS6ALMG",
+          "GDDODQHNIA5POLNJMS37DPTRCKRLRAT35EZVJUKB3DX5UDNEVTP4BWSP",
+          "GB6DY6JIBPJI3362RSC4M2TUMH5TOR376AGDQBD4DVIZTHVT7CW52NK6",
+          "GA6WOEEAOW4XNB27NE445NSQFWBKG76QWO2RBUYNDXTHMPFLUWUYTIUG",
+          "GBK3ADGHUG55PDCTUHRIVOQD3BEKE4IP57NOLF3URJZXDIXRYWGFTVVP",
+          "GCCGXWZDLJG5L3C5PCLKDUDGPPGBKN3C3TXGZ736HSSFLN2HVMNUYVFH",
+          "GB5ZCW3RMKEYFDMJGHVY2CY7JAF75JCFECWCPNDZZTNNZFDZ6XRJQ6ZR",
+          "GDI62WZSGCFB2VKUW3CFQIBHGZEYRYVGG5MA5U4U3NGFFIBKN6YAIOPF",
+          "GDFUTOYYCF2L336IXLPMR3NC3A4HEWLWNTBOCRLJ3Y3MYTTU6EY2AXTG",
+          "GBPE2P5ESR3KCUI44OD2325JQX5HBTK4OCLDAVU5W7XRCN5ADX5ZIHFI",
+          "GAJ7YFAN3PIGBLQVPZCB2OM6AAINS5EPPT37G5NSVMZLVPU3OLTM6XIF",
+          "GA5AZMQ7V6JAJAP3ZC34RIUSEQEY3EYUDNXYJ2XWSB3FKCDLU5OFQL6T",
+          "GC26TSVL2POVCMEPGRF5D2VWOKGFCVVENK5RLZCPN6XX3NH77BGUCOBH",
+          "GA5WIP5OZDSD7YDYHXIBCU4PTCG6RXFONTHI55Z3SUI3OXDT3D4PGV25",
+          "GDKZ2E37PSF74DKF2CB7KFEYPM6SLMOTZW5FIWYQRA57TEZTCXKAYP23",
+          "GCS3CDWCJEW2NGDZLV7LQE5CM3H2JL3M4W63EMPQWAPZWRME32C6JFS2",
+          "GAFU3WCNPV6GU6U5TUABY4JBRUTVANTO3CAPBAFGDTUSFCNV6OTUA5DV",
+          "GBXCTH7MF6HGLNYCRNJC2N4AHQO33DQONYKXO4OCUT6JUW2P7SQDORY6",
+          "GBGM6KX2AUYCBBGWTNNQ575U7UJNUOXFV2TBKA4TP27Z24QXX5OGC6JG",
+          "GCB55H2E42HA63FM3C4MTWU7EITNYFC6DRTIOEYOIIGOL2GP2QIGPQUM",
+          "GDUD6VR2CGDRSLNKSUGMHSUNHIN3GBHHNJHVFU3DESRICK4A2JKSD7HO",
+          "GA72N6TMCGBXNLICYTT7L7PQOQCZGIYM73YJRYCBMLOKHMSEC5QOPRFE",
+          "GAFLWIFSEO45MD54DCIVNB455PBWSG5U5RAXYDJQMQIC4ACSZODJUFLU"
+        ]
+      }
+    }
+  },
+  "harness": {
+    "commit": "b9ebb87f3632f7e601f9f2f884cd4389deb65c20",
+    "dirty": false
+  },
+  "packages": {
+    "@x402/core": "2.27.0",
+    "@x402/stellar": "2.27.0",
+    "@stellar/stellar-sdk": "16.3.0"
+  },
+  "command": "node tools/conformance/src/concurrency.ts --facilitator http://127.0.0.1:8801,http://127.0.0.1:8802 --scheme exact --batches 3 --size 20 --duplicates 2",
+  "config": {
+    "replicas": 2,
+    "scheme": "exact",
+    "batches": 3,
+    "size": 20,
+    "duplicates": 2,
+    "amount": "10000"
+  },
+  "accounts": {
+    "payTo": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+    "treasury": "GDUPGN27SLYAYMP26OHMPFCUHMNEO7KODCMGVCYF6I4SC475SIRFX7S3"
+  },
+  "summary": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "batch-1",
+      "title": "20 concurrent exact settlements, 2 sent twice across replicas",
+      "checks": [
+        "concurrency",
+        "idempotency"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 43593,
+      "transactions": [
+        {
+          "hash": "0b02f9de25f1599edda7da58f79725709f4ba8c488073c67fb2d46d23266af72",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBPE2P5ESR3KCUI44OD2325JQX5HBTK4OCLDAVU5W7XRCN5ADX5ZIHFI",
+          "innerSequence": "21278118387908637",
+          "transfers": [
+            {
+              "from": "GAQGSNQDJIMKR3EBRPSJ64WFEGI27DTOO4YZLDHWSR3VZ4YNSTOJHXSC",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/0b02f9de25f1599edda7da58f79725709f4ba8c488073c67fb2d46d23266af72"
+        },
+        {
+          "hash": "00c7156b59d7d4fef04d055e7b8021aaf73b8367ce3bd47a92ec80b52391eb94",
+          "ledger": 5105488,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBK3ADGHUG55PDCTUHRIVOQD3BEKE4IP57NOLF3URJZXDIXRYWGFTVVP",
+          "innerSequence": "21278118387908635",
+          "transfers": [
+            {
+              "from": "GC2AWJEJAFN6AMU3DHDBRABFRDQYER3X4SURUES3XCCBMNPOP4SRB3SN",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/00c7156b59d7d4fef04d055e7b8021aaf73b8367ce3bd47a92ec80b52391eb94"
+        },
+        {
+          "hash": "77a363c7255aa3a88035835422fb74883a9bba74276a77387a0af53236744520",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDI62WZSGCFB2VKUW3CFQIBHGZEYRYVGG5MA5U4U3NGFFIBKN6YAIOPF",
+          "innerSequence": "21278118387908641",
+          "transfers": [
+            {
+              "from": "GAJGB6R77SBJ52TYPAPDGO5H4USNCOICKF76CZXWM7LQC5METZ4ZNHW3",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/77a363c7255aa3a88035835422fb74883a9bba74276a77387a0af53236744520"
+        },
+        {
+          "hash": "d7092aa1f4ac96feaa1184fe65b53e7136fdb32b87a6a57c4754eb8d883badb8",
+          "ledger": 5105488,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GA6WOEEAOW4XNB27NE445NSQFWBKG76QWO2RBUYNDXTHMPFLUWUYTIUG",
+          "innerSequence": "21278118387908636",
+          "transfers": [
+            {
+              "from": "GBNA7PDPAGXTWGHJNVEZIEY5IBJPF422XFHORIIQPH3OKGPINGONZ72T",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/d7092aa1f4ac96feaa1184fe65b53e7136fdb32b87a6a57c4754eb8d883badb8"
+        },
+        {
+          "hash": "afc1e853f997855b73d0421d189d17bd3f6d7fd39d07588fa09b3eea50b60b2a",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDFUTOYYCF2L336IXLPMR3NC3A4HEWLWNTBOCRLJ3Y3MYTTU6EY2AXTG",
+          "innerSequence": "21278118387908639",
+          "transfers": [
+            {
+              "from": "GASJWTRUXDRNQSAAGQZSDWIJKTW7IA7HPTGDUJTOSGEVUFK4WCUZKOR5",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/afc1e853f997855b73d0421d189d17bd3f6d7fd39d07588fa09b3eea50b60b2a"
+        },
+        {
+          "hash": "2eaf6d6ef902f2d672dd9a26a57f1327c83a8ba3f92a3f9791ecbe9fc6239e8f",
+          "ledger": 5105488,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GAFU3WCNPV6GU6U5TUABY4JBRUTVANTO3CAPBAFGDTUSFCNV6OTUA5DV",
+          "innerSequence": "21278118387908640",
+          "transfers": [
+            {
+              "from": "GA6EQL7CZZL3IRVBMFSITMGAOFOMJZLRQN4LT7ET446YVZYHUDV5PPFV",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/2eaf6d6ef902f2d672dd9a26a57f1327c83a8ba3f92a3f9791ecbe9fc6239e8f"
+        },
+        {
+          "hash": "fcf4edf379247bbb52df98102313e51f378ba2552e34264de1a2936ae7472086",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDUD6VR2CGDRSLNKSUGMHSUNHIN3GBHHNJHVFU3DESRICK4A2JKSD7HO",
+          "innerSequence": "21278122682875940",
+          "transfers": [
+            {
+              "from": "GC3TJ4M7RZISVFP4A6Q6UA5ZWY74F5YQLLKIPSRXFGZXQBQPOKGNGMAN",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/fcf4edf379247bbb52df98102313e51f378ba2552e34264de1a2936ae7472086"
+        },
+        {
+          "hash": "ff0ebc22d72b00d8ed1ae49ea6e59115065175a799b2e37cc54dbc517197e8d5",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDKZ2E37PSF74DKF2CB7KFEYPM6SLMOTZW5FIWYQRA57TEZTCXKAYP23",
+          "innerSequence": "21278118387908640",
+          "transfers": [
+            {
+              "from": "GCW4X2NM5RXEDRAWREVSAEYKU6YCCXVKFQXWD57DU3P7LT6XNYQTBSZP",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/ff0ebc22d72b00d8ed1ae49ea6e59115065175a799b2e37cc54dbc517197e8d5"
+        },
+        {
+          "hash": "ba901f15ba9e2ca7eb165b0e9c4fe43c3ee3a5c22c845765668f998400e54fc1",
+          "ledger": 5105488,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GA5WIP5OZDSD7YDYHXIBCU4PTCG6RXFONTHI55Z3SUI3OXDT3D4PGV25",
+          "innerSequence": "21278118387908637",
+          "transfers": [
+            {
+              "from": "GCRKMH3KDZNFYEUJ5B5Q7H5DUM574YLZ7KCKRMV7RT4WEJLUAJBXIX6G",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/ba901f15ba9e2ca7eb165b0e9c4fe43c3ee3a5c22c845765668f998400e54fc1"
+        },
+        {
+          "hash": "a48cd13fbc34845b7048e6cf46070c4a9d4ebad769cac94706826e0c67474dc1",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBUMX4RNOYKKPLVPUWIMC6J2RFERSTPOUGRZV4ZIV2BNBQI3JRSLLHPR",
+          "innerSequence": "21278118387908637",
+          "transfers": [
+            {
+              "from": "GAIPET6V4HKLAUKR3JPPV6QP4YYNUMYXXJ54BDVSOPZJWNAMHHRMG3HC",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/a48cd13fbc34845b7048e6cf46070c4a9d4ebad769cac94706826e0c67474dc1"
+        },
+        {
+          "hash": "f0d98a60dad78ba5b1662e3bfd181a9fb4b0a23575049cc4d797c089b16d0ae2",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GB6DY6JIBPJI3362RSC4M2TUMH5TOR376AGDQBD4DVIZTHVT7CW52NK6",
+          "innerSequence": "21278118387908634",
+          "transfers": [
+            {
+              "from": "GBN4IHHJDI7WNAM7LVGSUEZYSKANWMW3URGY544PZ662DZ2MG7FCXBT6",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/f0d98a60dad78ba5b1662e3bfd181a9fb4b0a23575049cc4d797c089b16d0ae2"
+        },
+        {
+          "hash": "32fb53e49859a34bc0738448c6da3d1f229d7fd8d90732754fb351648c652517",
+          "ledger": 5105488,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GB3WBOLRLBHO2WVYFTIJRZJ6SNYWYAER3ROSLDV7U5ROQCFTVFFXAHJR",
+          "innerSequence": "21278118387908633",
+          "transfers": [
+            {
+              "from": "GCLJ3ZEG2S7CHSGDB7BLFQEU6S454XWESGBPDAQTQMCU7GS7BVGRIN3L",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/32fb53e49859a34bc0738448c6da3d1f229d7fd8d90732754fb351648c652517"
+        },
+        {
+          "hash": "5f6829b32b0458e67a905e290e2720cf384d228ade0341a5616e25b5952799eb",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GCB55H2E42HA63FM3C4MTWU7EITNYFC6DRTIOEYOIIGOL2GP2QIGPQUM",
+          "innerSequence": "21278122682875932",
+          "transfers": [
+            {
+              "from": "GA6RGRJFCA52PNCKHHOFK3BBQTZJO4WIN6N3CVMCHZHKYGOOPWEW5GHP",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/5f6829b32b0458e67a905e290e2720cf384d228ade0341a5616e25b5952799eb"
+        },
+        {
+          "hash": "82c8de6e78602f04250ac1ad28a82c87266b3e258510d51f60ec75353e157cfa",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBXCTH7MF6HGLNYCRNJC2N4AHQO33DQONYKXO4OCUT6JUW2P7SQDORY6",
+          "innerSequence": "21278122682875937",
+          "transfers": [
+            {
+              "from": "GBUH3Z7WSI36OUPQNEHUMZM4XWBY5SZIUTFQ4JVAIFSC6R4HQ7U5VCH3",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/82c8de6e78602f04250ac1ad28a82c87266b3e258510d51f60ec75353e157cfa"
+        },
+        {
+          "hash": "200e6556884045a1a3191eb12c6b1f4175ca3bd4a883d1d078d4a32b30d7ad7c",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GC26TSVL2POVCMEPGRF5D2VWOKGFCVVENK5RLZCPN6XX3NH77BGUCOBH",
+          "innerSequence": "21278118387908640",
+          "transfers": [
+            {
+              "from": "GAFKGEGVN74JSY3GSKBIFXGOWQSSFSI6PVLRG7RR4T5CDJ4FPXHBAJ7I",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/200e6556884045a1a3191eb12c6b1f4175ca3bd4a883d1d078d4a32b30d7ad7c"
+        },
+        {
+          "hash": "18c6f653fc726f5e88d819f96e7c51e8516dfaecc5814e49a69f072e32ffb9de",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GAJ7YFAN3PIGBLQVPZCB2OM6AAINS5EPPT37G5NSVMZLVPU3OLTM6XIF",
+          "innerSequence": "21278118387908636",
+          "transfers": [
+            {
+              "from": "GDNIPUDZZ2LUNX72SMKCEB72TAHGC4SZVFHRGWK5LJWF3L6HT7FDOWMD",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/18c6f653fc726f5e88d819f96e7c51e8516dfaecc5814e49a69f072e32ffb9de"
+        },
+        {
+          "hash": "1e2497e06c9c4d5ccc84e015e6a3b22f7ffd6df069807adce8bdbcadf4b7d637",
+          "ledger": 5105488,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GB5ZCW3RMKEYFDMJGHVY2CY7JAF75JCFECWCPNDZZTNNZFDZ6XRJQ6ZR",
+          "innerSequence": "21278118387908633",
+          "transfers": [
+            {
+              "from": "GA6PYGFSJ53VIPDZFWYBOUCV3NR55XCPVD2XREJIVVCGLAUPXO5O3K65",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/1e2497e06c9c4d5ccc84e015e6a3b22f7ffd6df069807adce8bdbcadf4b7d637"
+        },
+        {
+          "hash": "31e60ce1364229adf08060992e1cc16759da40b6a3dbd2e50b442c398feb2238",
+          "ledger": 5105487,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBGM6KX2AUYCBBGWTNNQ575U7UJNUOXFV2TBKA4TP27Z24QXX5OGC6JG",
+          "innerSequence": "21278122682875930",
+          "transfers": [
+            {
+              "from": "GBG3HLDUYEWLDYGIFK3FOBP5Z3HUZ6E6VAUMETRNTHNDBT2QHW5DRUKP",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/31e60ce1364229adf08060992e1cc16759da40b6a3dbd2e50b442c398feb2238"
+        },
+        {
+          "hash": "d3621dd213596edb29936925e60d4ca002d9688c67a59c56e87ed61b30e82430",
+          "ledger": 5105488,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GA5AZMQ7V6JAJAP3ZC34RIUSEQEY3EYUDNXYJ2XWSB3FKCDLU5OFQL6T",
+          "innerSequence": "21278118387908639",
+          "transfers": [
+            {
+              "from": "GC5PIL3JFWU2XPBP6GGI6453ZYMBJTV6YMWTWJOBUUO4OML7P7X43KOE",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/d3621dd213596edb29936925e60d4ca002d9688c67a59c56e87ed61b30e82430"
+        },
+        {
+          "hash": "2e6a8780334cf7dc1440f0d7c91216bec3d78dff33119f6e9c883fdca34ee137",
+          "ledger": 5105488,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GA72N6TMCGBXNLICYTT7L7PQOQCZGIYM73YJRYCBMLOKHMSEC5QOPRFE",
+          "innerSequence": "21278122682875935",
+          "transfers": [
+            {
+              "from": "GAKHQ7ZHWKWHYW7OW7FGJIIN7AOCFWWBPFE57IZURRKYKU3DNN4PKXLM",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/2e6a8780334cf7dc1440f0d7c91216bec3d78dff33119f6e9c883fdca34ee137"
+        }
+      ],
+      "observations": {
+        "scheme": "exact",
+        "replicas": 2,
+        "size": 20,
+        "duplicates": 2,
+        "wallMs": 8493,
+        "settlementsCounted": 20,
+        "repeatsCounted": 2,
+        "sequenceConflicts": 0,
+        "queueFull": 0,
+        "leaseWaitP95Seconds": 0.05,
+        "leaseTimeouts": 0,
+        "maxChannelsInUse": 20
+      }
+    },
+    {
+      "id": "batch-2",
+      "title": "20 concurrent exact settlements, 2 sent twice across replicas",
+      "checks": [
+        "concurrency",
+        "idempotency"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 40090,
+      "transactions": [
+        {
+          "hash": "85c31d4f7d1125aabf8cca29be05d03ede9ad0a209c8a119b99e0a8bcfc3652a",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDDODQHNIA5POLNJMS37DPTRCKRLRAT35EZVJUKB3DX5UDNEVTP4BWSP",
+          "innerSequence": "21278118387908641",
+          "transfers": [
+            {
+              "from": "GB52DXNVSZHWWLGGMJEKNESNDY2C6HKLTXRQFGVS7NB24ZDRSGYKUHWS",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/85c31d4f7d1125aabf8cca29be05d03ede9ad0a209c8a119b99e0a8bcfc3652a"
+        },
+        {
+          "hash": "abef6f6ea4d9fdec6f23d4a9763b69942c4cbddac10b3bd792d37c1649939163",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDAHKU2XNTMX6WJSZX6T37T6N53ADISMFSDSHCWQMI7GYQ4WLSS6ALMG",
+          "innerSequence": "21278118387908639",
+          "transfers": [
+            {
+              "from": "GDBIK3U6I2SQJE6G3RDLCWKNOJSH7IFOR3DJMBVESDNHG3FWT377PIUN",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/abef6f6ea4d9fdec6f23d4a9763b69942c4cbddac10b3bd792d37c1649939163"
+        },
+        {
+          "hash": "b5e97783d461d71ba159451cf7b752aaa63261b52d5bdcefdeb8697255586f23",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GB3WBOLRLBHO2WVYFTIJRZJ6SNYWYAER3ROSLDV7U5ROQCFTVFFXAHJR",
+          "innerSequence": "21278118387908634",
+          "transfers": [
+            {
+              "from": "GCDQLOLFMNNVCPJUWK6EPX7KOSLR7BLGQJWQ5BUSWVQ3MGQOJHDHICKK",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/b5e97783d461d71ba159451cf7b752aaa63261b52d5bdcefdeb8697255586f23"
+        },
+        {
+          "hash": "37915995318dc710cbca9637f15b2295bb374c4b3a5ebdc3624f888f162a18db",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDKZ2E37PSF74DKF2CB7KFEYPM6SLMOTZW5FIWYQRA57TEZTCXKAYP23",
+          "innerSequence": "21278118387908641",
+          "transfers": [
+            {
+              "from": "GAFQ2LELJ33YFTTMZ3OT2BWIA2BMH4QRVYRPSK3VJMSTMZJ52GN62RIQ",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/37915995318dc710cbca9637f15b2295bb374c4b3a5ebdc3624f888f162a18db"
+        },
+        {
+          "hash": "30d14251d4f75d2615ec6583e0274d82adea6db64929a2414bb6d04602cedd14",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GAFU3WCNPV6GU6U5TUABY4JBRUTVANTO3CAPBAFGDTUSFCNV6OTUA5DV",
+          "innerSequence": "21278118387908641",
+          "transfers": [
+            {
+              "from": "GAWT4GSVHF5QVGA2VPYBA3XAM6DZXQQBTT6H4TVRSYPFRKRDX6I2H5GV",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/30d14251d4f75d2615ec6583e0274d82adea6db64929a2414bb6d04602cedd14"
+        },
+        {
+          "hash": "c5c0b235cefdd588c4aa3f818788ac8c872b0b5d41faf7cdf070feabc6586c77",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GA6WOEEAOW4XNB27NE445NSQFWBKG76QWO2RBUYNDXTHMPFLUWUYTIUG",
+          "innerSequence": "21278118387908637",
+          "transfers": [
+            {
+              "from": "GAASTBSIKFKK32IAZYI3BBXCBIVTMKEDNGPVYABYMNCNQ4BP46PHP7IS",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/c5c0b235cefdd588c4aa3f818788ac8c872b0b5d41faf7cdf070feabc6586c77"
+        },
+        {
+          "hash": "973a140e75dcd9f58b7bf4f61101d5e55517812703db0e05821b69a415fd8c62",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDUD6VR2CGDRSLNKSUGMHSUNHIN3GBHHNJHVFU3DESRICK4A2JKSD7HO",
+          "innerSequence": "21278122682875941",
+          "transfers": [
+            {
+              "from": "GAT5UVLLP7KBF6AF3FTC6NQAE5LJUC2KKVMVDYGYLEKBCCVS2BCMHURK",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/973a140e75dcd9f58b7bf4f61101d5e55517812703db0e05821b69a415fd8c62"
+        },
+        {
+          "hash": "1f87e64260935a9bea5aceb2fa80a7f1159234c9e1f73fa7f619452b5642887d",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBPE2P5ESR3KCUI44OD2325JQX5HBTK4OCLDAVU5W7XRCN5ADX5ZIHFI",
+          "innerSequence": "21278118387908638",
+          "transfers": [
+            {
+              "from": "GA7OPCUOLFJRK7DPJZTE3NMPSGA4MYP7YIEGGMTSOBJ5H3IKZNXLROXL",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/1f87e64260935a9bea5aceb2fa80a7f1159234c9e1f73fa7f619452b5642887d"
+        },
+        {
+          "hash": "8c3997b00827d250bf965e5420bfafe44fd71add0fc874fee38aa86a28bc68a7",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GA72N6TMCGBXNLICYTT7L7PQOQCZGIYM73YJRYCBMLOKHMSEC5QOPRFE",
+          "innerSequence": "21278122682875936",
+          "transfers": [
+            {
+              "from": "GD2EDAPZ5VWYO2LBKFV6DGH67K2G7UNXEEHAS5VVEUQ2PB73ZLYENC3X",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/8c3997b00827d250bf965e5420bfafe44fd71add0fc874fee38aa86a28bc68a7"
+        },
+        {
+          "hash": "0c5af4096dc153e209bc9cbb650d70f7a3a3a497ce916bbbfc8a04c4c284c96c",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDI62WZSGCFB2VKUW3CFQIBHGZEYRYVGG5MA5U4U3NGFFIBKN6YAIOPF",
+          "innerSequence": "21278118387908642",
+          "transfers": [
+            {
+              "from": "GATHRO4MRON3CXHFZVSXP7KWQO4FB6K4B7P2OBJWT64KIWGH5MKBUVGR",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/0c5af4096dc153e209bc9cbb650d70f7a3a3a497ce916bbbfc8a04c4c284c96c"
+        },
+        {
+          "hash": "ce76ecfddae724da42385d1ee1727ae5d2d1468cd14274d8236759fab1e3e707",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDFUTOYYCF2L336IXLPMR3NC3A4HEWLWNTBOCRLJ3Y3MYTTU6EY2AXTG",
+          "innerSequence": "21278118387908640",
+          "transfers": [
+            {
+              "from": "GAB22PG3KO5EAHPU2QVIN4OFN2MUUP7IKHHRF4WOTU7DGVQDVWTZSS5F",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/ce76ecfddae724da42385d1ee1727ae5d2d1468cd14274d8236759fab1e3e707"
+        },
+        {
+          "hash": "4611892f177aa6a28856c57851c862d2d24b8ce419fb8c58325bcb85dcba1974",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GCS3CDWCJEW2NGDZLV7LQE5CM3H2JL3M4W63EMPQWAPZWRME32C6JFS2",
+          "innerSequence": "21278118387908636",
+          "transfers": [
+            {
+              "from": "GATDKONVHOHGZOUBWPLZCU6UMHSZPKPZ4KP5RJ7HGKFSZARLVV4P3BCO",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/4611892f177aa6a28856c57851c862d2d24b8ce419fb8c58325bcb85dcba1974"
+        },
+        {
+          "hash": "1377775be94603b611b5aa09fe12ea5b7adf0515532bb7b254d4a798d6f84442",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBUMX4RNOYKKPLVPUWIMC6J2RFERSTPOUGRZV4ZIV2BNBQI3JRSLLHPR",
+          "innerSequence": "21278118387908638",
+          "transfers": [
+            {
+              "from": "GD5BWPJ247CUUOVV3H5PH6RV4QNLXRUX3XR7X57AORUQTSHOHBHSVSBF",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/1377775be94603b611b5aa09fe12ea5b7adf0515532bb7b254d4a798d6f84442"
+        },
+        {
+          "hash": "ca3525e2bded58fd1199ffcffb65d255bea4ec6fa723acf8d4dbb32dc1472ee4",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GCCGXWZDLJG5L3C5PCLKDUDGPPGBKN3C3TXGZ736HSSFLN2HVMNUYVFH",
+          "innerSequence": "21278118387908639",
+          "transfers": [
+            {
+              "from": "GCO3Y6XHHIGVQPEUU53UPOJGE5FIUPT6ZS45RX4RWSJRHEPZ6LBJL3IW",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/ca3525e2bded58fd1199ffcffb65d255bea4ec6fa723acf8d4dbb32dc1472ee4"
+        },
+        {
+          "hash": "77a98f4fdb8868395cb706d2e81234c773ce01c03460a9673c80e5a36b4708d6",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBXCTH7MF6HGLNYCRNJC2N4AHQO33DQONYKXO4OCUT6JUW2P7SQDORY6",
+          "innerSequence": "21278122682875938",
+          "transfers": [
+            {
+              "from": "GCCAFMLMTSPHZDN22PXSZF44UUERQCQRWZY4NMI6OROQCHK2VRMDVM4J",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/77a98f4fdb8868395cb706d2e81234c773ce01c03460a9673c80e5a36b4708d6"
+        },
+        {
+          "hash": "224f97d63636bd65b5604ef65d23dbb4b1d3096a4bb7e3724ce943487ca60b0a",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GAJ7YFAN3PIGBLQVPZCB2OM6AAINS5EPPT37G5NSVMZLVPU3OLTM6XIF",
+          "innerSequence": "21278118387908637",
+          "transfers": [
+            {
+              "from": "GBGT5Z5KFI3J2UT3QZHXRLRW2RG3HN54YM6WWDG4POQ6KAVZ3FXKCNTW",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/224f97d63636bd65b5604ef65d23dbb4b1d3096a4bb7e3724ce943487ca60b0a"
+        },
+        {
+          "hash": "6aaaccb38e554a7233a701bf9dac9478cd5b4f3c80c0abfc33d44706fb885d62",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GCB55H2E42HA63FM3C4MTWU7EITNYFC6DRTIOEYOIIGOL2GP2QIGPQUM",
+          "innerSequence": "21278122682875933",
+          "transfers": [
+            {
+              "from": "GDO22NYS2LYFMI7IU5NRX34DJHXJHVEICGYWFF3Y4DPEHWD6HRL7QVSV",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/6aaaccb38e554a7233a701bf9dac9478cd5b4f3c80c0abfc33d44706fb885d62"
+        },
+        {
+          "hash": "6798e2ef612fd06a9b7d12203dab4021b90e03e926b72ab420cf2587725508cb",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GC26TSVL2POVCMEPGRF5D2VWOKGFCVVENK5RLZCPN6XX3NH77BGUCOBH",
+          "innerSequence": "21278118387908641",
+          "transfers": [
+            {
+              "from": "GD3DQ6DY42FNDC62VPELGTIHVTHJ4K4JNW3R7NOAQSURPI4V5TJGJG34",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/6798e2ef612fd06a9b7d12203dab4021b90e03e926b72ab420cf2587725508cb"
+        },
+        {
+          "hash": "dd0017eb94c8507d1bfdd5130e467b040b6c1d57159fd03612eaa440bf120f70",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBGM6KX2AUYCBBGWTNNQ575U7UJNUOXFV2TBKA4TP27Z24QXX5OGC6JG",
+          "innerSequence": "21278122682875931",
+          "transfers": [
+            {
+              "from": "GBSWWPKDEULMW5RSBBRP6KZFKFA7F7V4NFYSBZ2ZCMG3MV2DFRXKE3UU",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/dd0017eb94c8507d1bfdd5130e467b040b6c1d57159fd03612eaa440bf120f70"
+        },
+        {
+          "hash": "683111359713e4d28ea53cd1c710b460e76cca0913f4a2ddef9e4de946102c08",
+          "ledger": 5105496,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GB6DY6JIBPJI3362RSC4M2TUMH5TOR376AGDQBD4DVIZTHVT7CW52NK6",
+          "innerSequence": "21278118387908635",
+          "transfers": [
+            {
+              "from": "GB6L27ZRMGMLVHR3DO7HBTCS4OWHPZI3ZIKRF3FZ3SBUOJR75YRX6VIA",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/683111359713e4d28ea53cd1c710b460e76cca0913f4a2ddef9e4de946102c08"
+        }
+      ],
+      "observations": {
+        "scheme": "exact",
+        "replicas": 2,
+        "size": 20,
+        "duplicates": 2,
+        "wallMs": 3515,
+        "settlementsCounted": 20,
+        "repeatsCounted": 2,
+        "sequenceConflicts": 0,
+        "queueFull": 0,
+        "leaseWaitP95Seconds": 0.05,
+        "leaseTimeouts": 0,
+        "maxChannelsInUse": 20
+      }
+    },
+    {
+      "id": "batch-3",
+      "title": "20 concurrent exact settlements, 2 sent twice across replicas",
+      "checks": [
+        "concurrency",
+        "idempotency"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 45255,
+      "transactions": [
+        {
+          "hash": "843874fa3759e13cb9296ee203fb81e19db6b63a584f20595d9cfc7c99ab6e38",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GA5AZMQ7V6JAJAP3ZC34RIUSEQEY3EYUDNXYJ2XWSB3FKCDLU5OFQL6T",
+          "innerSequence": "21278118387908640",
+          "transfers": [
+            {
+              "from": "GDFJL76J5KEDZLIUU75KB4VS4SRZRTCUTYD3D3IOQY4LU5TC7DFFU2K5",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/843874fa3759e13cb9296ee203fb81e19db6b63a584f20595d9cfc7c99ab6e38"
+        },
+        {
+          "hash": "88faaf51f42baee1a0b0e88cf230d0680a613de1a98bb8d9a60fa2e825cd56f1",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GB5ZCW3RMKEYFDMJGHVY2CY7JAF75JCFECWCPNDZZTNNZFDZ6XRJQ6ZR",
+          "innerSequence": "21278118387908634",
+          "transfers": [
+            {
+              "from": "GBPCQP4MOWHC7LYLGXS33FTEXE35B5KN7UCLYOVCFQA5N5FRF25OALRO",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/88faaf51f42baee1a0b0e88cf230d0680a613de1a98bb8d9a60fa2e825cd56f1"
+        },
+        {
+          "hash": "e5ebcf663dd387337fcc67dfa775d3f6f7907df35150dee1d52612a674ad6e5a",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GCB55H2E42HA63FM3C4MTWU7EITNYFC6DRTIOEYOIIGOL2GP2QIGPQUM",
+          "innerSequence": "21278122682875934",
+          "transfers": [
+            {
+              "from": "GA23X7SZJOSGODATM3OKOICJE4IPRVVA7ZNXOCCDDTMIFJD3ODUJ3DWE",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/e5ebcf663dd387337fcc67dfa775d3f6f7907df35150dee1d52612a674ad6e5a"
+        },
+        {
+          "hash": "1650df0d3f575b4b3b6a4b0d29656ac0a214b02e5ef3ac344cbe7f58a777ccc4",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GB6DY6JIBPJI3362RSC4M2TUMH5TOR376AGDQBD4DVIZTHVT7CW52NK6",
+          "innerSequence": "21278118387908636",
+          "transfers": [
+            {
+              "from": "GBIWPHLGC6I5MV6KYUCFAJGFA3E3SZMMLEG254XE3VI7TDVLWXK324CJ",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/1650df0d3f575b4b3b6a4b0d29656ac0a214b02e5ef3ac344cbe7f58a777ccc4"
+        },
+        {
+          "hash": "e31844efcdd582f572418b67c2521609d4a30eeab922ec7efc35734578602864",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GAJ7YFAN3PIGBLQVPZCB2OM6AAINS5EPPT37G5NSVMZLVPU3OLTM6XIF",
+          "innerSequence": "21278118387908638",
+          "transfers": [
+            {
+              "from": "GDXQJAE3SAJLX3J2GGD3LJVPKWYTJ5ERG264FAQHXW6JNVINQZGEANGU",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/e31844efcdd582f572418b67c2521609d4a30eeab922ec7efc35734578602864"
+        },
+        {
+          "hash": "fd3e6984c87efe9b498fa4018442bc5819a5266ac9aea0f4cf2e476c8f3fd5e1",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GAFU3WCNPV6GU6U5TUABY4JBRUTVANTO3CAPBAFGDTUSFCNV6OTUA5DV",
+          "innerSequence": "21278118387908642",
+          "transfers": [
+            {
+              "from": "GBRFW7WPSRFENBBXKKM4MYCHD676HWR52KZQ5R5ZH4JCXJUVCDKF7JJG",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/fd3e6984c87efe9b498fa4018442bc5819a5266ac9aea0f4cf2e476c8f3fd5e1"
+        },
+        {
+          "hash": "b1a36e249af3b86f857bcb3ef4e97a61ba63552e1ce7f8248eef6b89f34b793b",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GC26TSVL2POVCMEPGRF5D2VWOKGFCVVENK5RLZCPN6XX3NH77BGUCOBH",
+          "innerSequence": "21278118387908642",
+          "transfers": [
+            {
+              "from": "GDZW2V6FXVY5GGCPKREO4LXCNYDXQDWVPHMJLORQO53OUST4UZDBMQYS",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/b1a36e249af3b86f857bcb3ef4e97a61ba63552e1ce7f8248eef6b89f34b793b"
+        },
+        {
+          "hash": "2883714981a6b1d02d7bc59bc0b6fa8de5c993d6328add24e8d5c236f90f3c01",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDFUTOYYCF2L336IXLPMR3NC3A4HEWLWNTBOCRLJ3Y3MYTTU6EY2AXTG",
+          "innerSequence": "21278118387908641",
+          "transfers": [
+            {
+              "from": "GDXBGLJ27A6L3SYYAOWXUNVTTFI3WHG37OSSVIAZKVKY5APSJA6KKSZL",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/2883714981a6b1d02d7bc59bc0b6fa8de5c993d6328add24e8d5c236f90f3c01"
+        },
+        {
+          "hash": "c9c08727414dfdba3bce47c09be6041f1e746139e05d052ac1e243862d04bd4f",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDAHKU2XNTMX6WJSZX6T37T6N53ADISMFSDSHCWQMI7GYQ4WLSS6ALMG",
+          "innerSequence": "21278118387908640",
+          "transfers": [
+            {
+              "from": "GCHW5UHOPOV7OXAMLS2DBWSMUVCS6ZT7YGRBQEMTJ7FHF2SBP7FK5DHA",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/c9c08727414dfdba3bce47c09be6041f1e746139e05d052ac1e243862d04bd4f"
+        },
+        {
+          "hash": "077f1cb844284fe4bf7d635c9d19a029a7d8473ac0e59759a4c9b70669f96084",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GA72N6TMCGBXNLICYTT7L7PQOQCZGIYM73YJRYCBMLOKHMSEC5QOPRFE",
+          "innerSequence": "21278122682875937",
+          "transfers": [
+            {
+              "from": "GAMSWXFFWRLZ6H4GHBIARPVZZYZLNJFXKGZTHLLCXOLWZPJ2ZVXJAHX7",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/077f1cb844284fe4bf7d635c9d19a029a7d8473ac0e59759a4c9b70669f96084"
+        },
+        {
+          "hash": "82bb2ed41032cf5f97ef75bc425d4cf06ad6eb3c10b12abea855a3134030f0b9",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBUMX4RNOYKKPLVPUWIMC6J2RFERSTPOUGRZV4ZIV2BNBQI3JRSLLHPR",
+          "innerSequence": "21278118387908639",
+          "transfers": [
+            {
+              "from": "GBM7DXD3G6HPOMTYCF7I2FFPX33RTWUYA6RK7HCTSDJEOSJTWKEFKMNI",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/82bb2ed41032cf5f97ef75bc425d4cf06ad6eb3c10b12abea855a3134030f0b9"
+        },
+        {
+          "hash": "99a7d9efc7ef4703bb93395fa77773c794ec04d0b6b7c597ef224b03a9cc4edc",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDDODQHNIA5POLNJMS37DPTRCKRLRAT35EZVJUKB3DX5UDNEVTP4BWSP",
+          "innerSequence": "21278118387908642",
+          "transfers": [
+            {
+              "from": "GADRXEMEBD4JROZC6GKUBB7XCBHWCG7DXEQQHAL3NL23STB3WVQPKPG4",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/99a7d9efc7ef4703bb93395fa77773c794ec04d0b6b7c597ef224b03a9cc4edc"
+        },
+        {
+          "hash": "b8d93db542a3923918ad928ef96fdc93b9fdbac1a0063678c9783fb280ac02ee",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GBK3ADGHUG55PDCTUHRIVOQD3BEKE4IP57NOLF3URJZXDIXRYWGFTVVP",
+          "innerSequence": "21278118387908636",
+          "transfers": [
+            {
+              "from": "GBDTQ2MZEOJT5SMC4TH7KC4GNOABXMVMR6Q7SKMJ5GRDBDMAQEGIB5LN",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/b8d93db542a3923918ad928ef96fdc93b9fdbac1a0063678c9783fb280ac02ee"
+        },
+        {
+          "hash": "2ae9b8d295f6d57be6591497cffff3aa42569a325067011fdd302cc3db011867",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDKZ2E37PSF74DKF2CB7KFEYPM6SLMOTZW5FIWYQRA57TEZTCXKAYP23",
+          "innerSequence": "21278118387908642",
+          "transfers": [
+            {
+              "from": "GAXGHPKZBYIMENCWXB2XYXXHVKIGZWEO236NOITVFJEIOJDDYEUM5H3Y",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/2ae9b8d295f6d57be6591497cffff3aa42569a325067011fdd302cc3db011867"
+        },
+        {
+          "hash": "8c24705ac5f17ce080fca599d4ca278b59f032ac509580188030177401954e7e",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GA5WIP5OZDSD7YDYHXIBCU4PTCG6RXFONTHI55Z3SUI3OXDT3D4PGV25",
+          "innerSequence": "21278118387908638",
+          "transfers": [
+            {
+              "from": "GCYBH4KLVSTLBHYLN53J6UTVGSZTEMUTOAR25SNAX5XWHO5MQKHYJRHT",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/8c24705ac5f17ce080fca599d4ca278b59f032ac509580188030177401954e7e"
+        },
+        {
+          "hash": "79069df2a6ddf6944fc67cb76c0ec70ab5d1d23ddbeb85110fe616332a840eb0",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GB3WBOLRLBHO2WVYFTIJRZJ6SNYWYAER3ROSLDV7U5ROQCFTVFFXAHJR",
+          "innerSequence": "21278118387908635",
+          "transfers": [
+            {
+              "from": "GAMHIS4PXAQLXK7SZG5V3WUGWLHBFVBTFF3HWLCEB35SVUX7MTCVL5MU",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/79069df2a6ddf6944fc67cb76c0ec70ab5d1d23ddbeb85110fe616332a840eb0"
+        },
+        {
+          "hash": "ee3be0d57a9e3a065b2e88a61ecd7c7e5bc3d5033b9c2591219a596c47aa4e1f",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GCS3CDWCJEW2NGDZLV7LQE5CM3H2JL3M4W63EMPQWAPZWRME32C6JFS2",
+          "innerSequence": "21278118387908637",
+          "transfers": [
+            {
+              "from": "GDVL5RHWR3ABMRNINTNQQ3MVSZUI5UEA2NQSYSGNTPOQ3ZRQ34QYXT5J",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/ee3be0d57a9e3a065b2e88a61ecd7c7e5bc3d5033b9c2591219a596c47aa4e1f"
+        },
+        {
+          "hash": "b2483266a400a6cbf25c1e9f2f3ac6d38c548e6e9e2e01bf2cba38d1ae1bf2fa",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GCCGXWZDLJG5L3C5PCLKDUDGPPGBKN3C3TXGZ736HSSFLN2HVMNUYVFH",
+          "innerSequence": "21278118387908640",
+          "transfers": [
+            {
+              "from": "GD2HAJQJXGE54AMFCSL2MA2V3XUNVH73FMSKTAUDYX6AV4J3RELAM46D",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/b2483266a400a6cbf25c1e9f2f3ac6d38c548e6e9e2e01bf2cba38d1ae1bf2fa"
+        },
+        {
+          "hash": "c2ecbfaf6a81fac7a19dda4fc76bc4a5838bdf395e8ef933bdb62ca0aa2c0d76",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDI62WZSGCFB2VKUW3CFQIBHGZEYRYVGG5MA5U4U3NGFFIBKN6YAIOPF",
+          "innerSequence": "21278118387908643",
+          "transfers": [
+            {
+              "from": "GCALXVXVQR7AS62736Z4ILHZA2XR2H4YTXODMRKLHZ5YGEIFF6SLPYOI",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/c2ecbfaf6a81fac7a19dda4fc76bc4a5838bdf395e8ef933bdb62ca0aa2c0d76"
+        },
+        {
+          "hash": "661db2b72c04d3d6c7fe1b44594820e27439e9da5a2fd86dac17e55e24259496",
+          "ledger": 5105505,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23159",
+          "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "innerSource": "GDUD6VR2CGDRSLNKSUGMHSUNHIN3GBHHNJHVFU3DESRICK4A2JKSD7HO",
+          "innerSequence": "21278122682875942",
+          "transfers": [
+            {
+              "from": "GBXSW5723ZQETIMSEDJSJNJFCO7BDVMJFO57LP7Q4HBGKOQO5NIJBZYQ",
+              "to": "GDB32XOC22WT3HBAKIIS3T5GCDRADOMWVKNCD42M2SCTQNNG5DEWDD6L",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/661db2b72c04d3d6c7fe1b44594820e27439e9da5a2fd86dac17e55e24259496"
+        }
+      ],
+      "observations": {
+        "scheme": "exact",
+        "replicas": 2,
+        "size": 20,
+        "duplicates": 2,
+        "wallMs": 8247,
+        "settlementsCounted": 20,
+        "repeatsCounted": 2,
+        "sequenceConflicts": 0,
+        "queueFull": 0,
+        "leaseWaitP95Seconds": 0.05,
+        "leaseTimeouts": 0,
+        "maxChannelsInUse": 20
+      }
+    },
+    {
+      "id": "distinct-sequences",
+      "title": "no two settlement transactions share a channel account and sequence number",
+      "checks": [
+        "concurrency"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 0,
+      "observations": {
+        "transactions": 60,
+        "collisions": []
+      }
+    }
+  ]
+}

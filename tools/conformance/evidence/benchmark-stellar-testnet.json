@@ -1,434 +1,520 @@
 {
-  "run": "benchmark",
+  "schemaVersion": 2,
+  "kind": "benchmark",
+  "runId": "7b7988c0-80cf-4462-ba9c-396c11f1b2df",
+  "startedAt": "2026-10-09T13:43:33.243Z",
+  "finishedAt": "2026-10-09T14:03:33.363Z",
   "network": "stellar:testnet",
-  "window": {
-    "started": "2026-09-28T15:54:23.140Z",
-    "finished": "2026-09-28T16:08:53.310Z"
+  "target": {
+    "mode": "local",
+    "facilitatorUrl": "http://127.0.0.1:8801",
+    "healthVersion": "0.4.1+b9ebb87f3632",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GAFLWIFSEO45MD54DCIVNB455PBWSG5U5RAXYDJQMQIC4ACSZODJUFLU"
+          }
+        }
+      ],
+      "extensions": [
+        "bazaar"
+      ],
+      "signers": {
+        "stellar:*": [
+          "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "GB3WBOLRLBHO2WVYFTIJRZJ6SNYWYAER3ROSLDV7U5ROQCFTVFFXAHJR",
+          "GBUMX4RNOYKKPLVPUWIMC6J2RFERSTPOUGRZV4ZIV2BNBQI3JRSLLHPR",
+          "GDAHKU2XNTMX6WJSZX6T37T6N53ADISMFSDSHCWQMI7GYQ4WLSS6ALMG",
+          "GDDODQHNIA5POLNJMS37DPTRCKRLRAT35EZVJUKB3DX5UDNEVTP4BWSP",
+          "GB6DY6JIBPJI3362RSC4M2TUMH5TOR376AGDQBD4DVIZTHVT7CW52NK6",
+          "GA6WOEEAOW4XNB27NE445NSQFWBKG76QWO2RBUYNDXTHMPFLUWUYTIUG",
+          "GBK3ADGHUG55PDCTUHRIVOQD3BEKE4IP57NOLF3URJZXDIXRYWGFTVVP",
+          "GCCGXWZDLJG5L3C5PCLKDUDGPPGBKN3C3TXGZ736HSSFLN2HVMNUYVFH",
+          "GB5ZCW3RMKEYFDMJGHVY2CY7JAF75JCFECWCPNDZZTNNZFDZ6XRJQ6ZR",
+          "GDI62WZSGCFB2VKUW3CFQIBHGZEYRYVGG5MA5U4U3NGFFIBKN6YAIOPF",
+          "GDFUTOYYCF2L336IXLPMR3NC3A4HEWLWNTBOCRLJ3Y3MYTTU6EY2AXTG",
+          "GBPE2P5ESR3KCUI44OD2325JQX5HBTK4OCLDAVU5W7XRCN5ADX5ZIHFI",
+          "GAJ7YFAN3PIGBLQVPZCB2OM6AAINS5EPPT37G5NSVMZLVPU3OLTM6XIF",
+          "GA5AZMQ7V6JAJAP3ZC34RIUSEQEY3EYUDNXYJ2XWSB3FKCDLU5OFQL6T",
+          "GC26TSVL2POVCMEPGRF5D2VWOKGFCVVENK5RLZCPN6XX3NH77BGUCOBH",
+          "GA5WIP5OZDSD7YDYHXIBCU4PTCG6RXFONTHI55Z3SUI3OXDT3D4PGV25",
+          "GDKZ2E37PSF74DKF2CB7KFEYPM6SLMOTZW5FIWYQRA57TEZTCXKAYP23",
+          "GCS3CDWCJEW2NGDZLV7LQE5CM3H2JL3M4W63EMPQWAPZWRME32C6JFS2",
+          "GAFU3WCNPV6GU6U5TUABY4JBRUTVANTO3CAPBAFGDTUSFCNV6OTUA5DV",
+          "GBXCTH7MF6HGLNYCRNJC2N4AHQO33DQONYKXO4OCUT6JUW2P7SQDORY6",
+          "GBGM6KX2AUYCBBGWTNNQ575U7UJNUOXFV2TBKA4TP27Z24QXX5OGC6JG",
+          "GCB55H2E42HA63FM3C4MTWU7EITNYFC6DRTIOEYOIIGOL2GP2QIGPQUM",
+          "GDUD6VR2CGDRSLNKSUGMHSUNHIN3GBHHNJHVFU3DESRICK4A2JKSD7HO",
+          "GA72N6TMCGBXNLICYTT7L7PQOQCZGIYM73YJRYCBMLOKHMSEC5QOPRFE",
+          "GAFLWIFSEO45MD54DCIVNB455PBWSG5U5RAXYDJQMQIC4ACSZODJUFLU"
+        ]
+      }
+    }
   },
-  "facilitators": {
-    "https://testnet.rail402.dev": {
-      "status": "ok",
-      "version": "8ad31c8"
-    },
-    "https://x402.org/facilitator": "not reported"
+  "harness": {
+    "commit": "b9ebb87f3632f7e601f9f2f884cd4389deb65c20",
+    "dirty": false
   },
-  "harnessCommit": "fcf8850e7bcab2f42d9729f042a4837cb386c3d3",
   "packages": {
     "@x402/core": "2.27.0",
     "@x402/stellar": "2.27.0",
     "@stellar/stellar-sdk": "16.3.0"
   },
-  "command": "node tools/conformance/src/benchmark.ts --facilitator https://testnet.rail402.dev --facilitator https://x402.org/facilitator --samples 50 --smart-account-samples 10 --batches 3 --batch-size 20",
-  "workload": {
+  "command": "node tools/conformance/src/benchmark.ts --facilitator http://127.0.0.1:8801 --facilitator https://x402.org/facilitator --samples 50 --smart-account-samples 10 --batches 3 --batch-size 20",
+  "config": {
     "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
     "amountBaseUnits": "100",
     "samples": 50,
     "smartAccountSamples": 10,
-    "concurrent": {
-      "batches": 3,
-      "size": 20
-    },
+    "batches": 3,
+    "batchSize": 20,
     "latency": "client-measured wall time of each HTTP call, including the network path"
   },
-  "results": [
+  "accounts": {
+    "seller": "GCBXG6Z6H4TSWRJ5ZMFR725Q5X5DPAYFBU652ANGQGIEZL33FZTUDB3U"
+  },
+  "summary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
     {
-      "facilitator": "https://testnet.rail402.dev",
-      "networkRoundTripMs": {
-        "n": 20,
-        "p50": 182.7,
-        "p95": 311.7,
-        "mean": 189.9,
-        "min": 152,
-        "max": 446.4
-      },
-      "verify": {
-        "latencyMs": {
-          "n": 50,
-          "p50": 258,
-          "p95": 367.2,
-          "mean": 275.5,
-          "min": 224.9,
-          "max": 514.1
+      "id": "facilitator-1-127-0-0-1-8801",
+      "title": "the benchmark workload against http://127.0.0.1:8801, the facilitator under test",
+      "checks": [
+        "fees-sponsored"
+      ],
+      "status": "passed",
+      "elapsedMs": 770549,
+      "observations": {
+        "version": "0.4.1+b9ebb87f3632",
+        "result": {
+          "facilitator": "http://127.0.0.1:8801",
+          "networkRoundTripMs": {
+            "n": 20,
+            "p50": 1.5,
+            "p95": 1.6,
+            "mean": 1.4,
+            "min": 0.6,
+            "max": 1.6
+          },
+          "verify": {
+            "latencyMs": {
+              "n": 50,
+              "p50": 994.4,
+              "p95": 1477.1,
+              "mean": 1055.8,
+              "min": 804.8,
+              "max": 1580.1
+            }
+          },
+          "settle": {
+            "latencyMs": {
+              "n": 50,
+              "p50": 7800.6,
+              "p95": 8987,
+              "mean": 6769.6,
+              "min": 3103.9,
+              "max": 9075.6
+            },
+            "ledgersToConfirm": {
+              "n": 50,
+              "p50": 2,
+              "p95": 2,
+              "mean": 1.7,
+              "min": 1,
+              "max": 2
+            },
+            "sponsorFeeStroops": {
+              "n": 50,
+              "p50": 23159,
+              "p95": 23160,
+              "mean": 23159.3,
+              "min": 23159,
+              "max": 23160
+            },
+            "feePayers": [
+              "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ"
+            ],
+            "transactions": [
+              "d2be56a7cec96191747a49ac3c2c5ec5b9ec012109789a04215af3e435dce12c",
+              "ed6b90ed735817649903e6a44640ce6ed109d3447e661d4d496efd8e3622de11",
+              "4043877567ee8e9456385da76609788a2fd54a37211747cec17abe28448d9da6",
+              "37225da10a6db3c3826b2cb1c5b3aa8f7164c9b046843a6e704539cdd9f66466",
+              "b076bf7b9d0994caf8ea90869bd3f6723255911c8934d546e158587689ebe25b",
+              "34920e1a92f96bd1c002a8a1c82da836577441b677d896c9a489dbad2798fe98",
+              "c743664be815f2c0fd9da237d2e8fe9abe30d239f95619e52cd25668e9e7dd67",
+              "2f9d5b33807a6558c139c6ab2c8a2a93e76b8c23b0995eb2d81b0c1a6753f4f3",
+              "a987ecbb65ed5083975959b0a52636347af2c18c9a874dae1685106c2b66c8d2",
+              "78fa196a37bb5766a0a0b9ba63c8c5b722a4a0f50384a0143a3426d320a8af1b",
+              "4613839f83e24323157c76c41b93c5984c951d48d747b688c071678ef8b7c18e",
+              "9a578cbe54472d09e6862b6b45e6f8599f4cb71f5422a14bc87ee890f40565a8",
+              "7ce5b2520d699915dd7167385e276a0afcabd747a6a74a827267cc97607a0135",
+              "609ce4031dd8791fadac340a760ad151d444218d4fdd89b17770392288df6085",
+              "0ac91c1892f361bb8161b1325b4b0ff16068da060354136eedfa372193b21cb6",
+              "c1ca31e3aa18358735c3fdcc9d55c2a813cdbddae27a15c8e863fa8bd0095427",
+              "3edea3e4ed4489d2c2f95a839819644e978d6970a40dad50a04e50697cdfa467",
+              "fc39d3258727b0b64e1aae960248c3efeae15174eca90b3c5503b259dab8340a",
+              "2f447b3a09bc15c3ad29c3778b20d957bf73ca1baca3e9af22d9d60676cafe3a",
+              "16a3bcb2c042b23fc8323533db367156afbb155b3103ce4652de3a50b18e1bd3",
+              "5cbe933373a02e1c198711108e3d032746883c7656a9ff098c779466efcbcb1c",
+              "4fc9eb3eccee828e5f2ae37f58eb83530ff536bffd698e9ccf0485e691a5ba88",
+              "f497e8e574113015e02c968f8c5f4e46bb52ec3817614a2a58da7679e73a521b",
+              "1b69e0687c00e9f6f7a6834458ee1f75a16a72b43f410eec269becc7303832c5",
+              "96ebd5a12863002bb42272b59f5f6ee8649c94e8c16597f1902c1e678bd37d9b",
+              "833ea0c5a294a0c798805251ba024910ad194f5c2fff3be0dee468eed987ebe4",
+              "e74a5bf25e298d2fa11603e5b67ba2e9f5b908a7d211606f84cea7707613588c",
+              "ee198f525a24708eecf9ed3ada4ecf1e29e6715865c3f0d2c18f66205de38605",
+              "f3d80ee19151f59cbddfe0ea639c76b862cba1957776c1717bfe1fab2dc725fc",
+              "66deb6b967467d6e18355d7943786612d7e6ad7c235e29bbcec7194350c9bc07",
+              "476ce3c4aa1c223dd5e393dafdc1624e206fb44e5cdc1f16c6eb2cf7d1c28391",
+              "e722aaa11228268d0710a22aa8c5981613b8a7eb0c5371064d4ec9a3bd7be60c",
+              "5c221b0209f62b17d00e77f8b9b896886c8ed6b27e20aa6296df3af04cb44dea",
+              "369dab1a1edf6c4f51b0c6aa9623692b70abc6a5b81900e6f6811f4c2b1402e9",
+              "8e4abd85ef68686d2d4ca0adcebffdb8e8cc01b2ef82bc7940bdde235f99bb2a",
+              "506726b1f16d04bfa9608f973805f175356f38496883623f7788b4f1754230b0",
+              "143041e47a887c80356759caa10e8b1dfaebca8d00dce0fcaaffc6f5c3c5ebea",
+              "9e038e0adf75415ab5151f5180e4b8b42ec75f805217e7cc16f2b991bb13317f",
+              "86a4830291dd5ba2f70551913860f05f8565f9ade5cd91b01a57bad9af350fb4",
+              "8ff2c2833eae1e152e0385a8382e3c8ca6fce2354bfda5078628939c2dc5cb51",
+              "2d4ca53646b3a186171e1e731dfc82566e405f7418ab0eb669f25c26e96adbb2",
+              "7e8ac1c56a560aca1de3bc84a66c89fbe20ae1001ba62dcf66c77ef78fb58d80",
+              "c8e654530e1c8d0c8875ebb0a97a61f0a52a67fe0731a5a474a788311fc1ead6",
+              "df59a27fee1b9fe0332e6f6e5dc90fa829337a8021bcb09f6150437caf37c323",
+              "f0d1ce2597bc8203ca5acfbe01cf0ccdffee116f4f271750fc1f84d0b01d1681",
+              "5a9229ede8e10bf7606bd05a432442f4a40b1ebfa4b8f17c5800b2c8e1048df5",
+              "b56a0054e920e90f7c9c43ad1bda128f82296e8965a1a3e6ab53b051c29a1353",
+              "ce9923f61fa091e769bd06ecf02128a4704ae2215dfb70cc62eb50316c199c1b",
+              "57281858a816a20e61ec995a721641bc21cf0c9f8f1255c3b65a180ef6554282",
+              "07d52b515dd225a0b21bbc710cbf7e7a90e775b10066d523b6a06b4adeab7113"
+            ]
+          },
+          "settleSmartAccount": {
+            "latencyMs": {
+              "n": 10,
+              "p50": 4560.6,
+              "p95": 8940.2,
+              "mean": 5091.8,
+              "min": 3341.9,
+              "max": 8940.2
+            },
+            "ledgersToConfirm": {
+              "n": 10,
+              "p50": 1,
+              "p95": 2,
+              "mean": 1.2,
+              "min": 1,
+              "max": 2
+            },
+            "sponsorFeeStroops": {
+              "n": 10,
+              "p50": 20354,
+              "p95": 20354,
+              "mean": 20354,
+              "min": 20354,
+              "max": 20354
+            },
+            "feePayers": [
+              "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ"
+            ],
+            "transactions": [
+              "2d8cb34c40099806cdc31d45d5d6ec3b78e041475714d0aacf6cbfd7ba8c1666",
+              "61a8307c571dba505c05619b40e58f7199f8b63eb96f9bc1da480bd80fa347ae",
+              "51c02a5414e9f758ccf6a22739d66ce7aa2c7c4a8e2460c9db90745f5b19232b",
+              "9d58654be8a6008fdc6ec2c67b987238b205ad18b2cf441eae331392f50efab1",
+              "d3836564cd4b9af4b28600a9d8b538ca665658f97d83403c5f16d22468710bfc",
+              "3a110df3f5ec68461540edb248280714a23a973324bbc4846184f56acf06beb9",
+              "c284d096f23ea4c97b5a05a5f4867a711b17893cb00bd9fafc4e00c4a5109691",
+              "30385a0822b6f392140879c26ae127a101554682b308930dc01d8e369caf132d",
+              "736f0f7021e96b562918c065d1192f2cc937166d7ba24c1dd7c5418b349a9a8e",
+              "821add74ddd6d02309f84435e3421826be3e85506c88dcb22826014e78aa1f05"
+            ]
+          },
+          "concurrent": {
+            "batches": [
+              {
+                "size": 20,
+                "wallMs": 8806.2,
+                "succeeded": 20,
+                "uniqueTransactions": 20
+              },
+              {
+                "size": 20,
+                "wallMs": 8255.3,
+                "succeeded": 20,
+                "uniqueTransactions": 20
+              },
+              {
+                "size": 20,
+                "wallMs": 7932.6,
+                "succeeded": 20,
+                "uniqueTransactions": 20
+              }
+            ],
+            "latencyMs": {
+              "n": 60,
+              "p50": 7836.2,
+              "p95": 8456,
+              "mean": 7860.6,
+              "min": 7038.4,
+              "max": 8503.7
+            },
+            "ledgersToConfirm": {
+              "n": 60,
+              "p50": 2,
+              "p95": 2,
+              "mean": 2,
+              "min": 2,
+              "max": 2
+            },
+            "sponsorFeeStroops": {
+              "n": 60,
+              "p50": 23160,
+              "p95": 23160,
+              "mean": 23159.5,
+              "min": 23159,
+              "max": 23160
+            },
+            "feePayers": [
+              "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ"
+            ],
+            "transactions": [
+              "2d97acbc94d74f6b5007a6b4af64f94b33b28b2dbfb2a647552fcfa6febfbf5a",
+              "aecea603df89f2d40eaecc7aa2eb590aab15f5c4ea37e1a6e6f40f662671ce92",
+              "729f08157e66747bde433e47361f872789cb8b399e81f5d36ec9a1053e90b200",
+              "f1727e46f9079f1e986de8ef4f708a9556a2366e21af37d6038454307d8ca850",
+              "57eda361728e92992161387a72becf062ec640675a8f0e81aba049434e1833f3",
+              "990843ae24d4b483ac7024f55f7f08b14d27e7620264379b74ca401a13bcbf16",
+              "a127690153f20bcfe838fd01164fe4d710ff0e1e701377d1fc63bc04bb7eb8ab",
+              "5d79c90b198722748bf8779c1e3d97622d268631d35f0ed1db74ac599eb4d4e5",
+              "942423a695f0947e9ee077502d4ebd5e4224b0c3fd02ed145a86ae23d7da6495",
+              "7b4a384add5e75104eebf6daf50a5ef3be5057a5eb8c24d2f11dc04be6678067",
+              "d2c47098f7165ac37b19d9dc732eb10d6058b98797358d007fec293e29839ad1",
+              "122735e614d7dffef5a34200fe053b2d2acf06d2cb4d717fb1d71bc36b4ef8ac",
+              "2c2207510f315a0ccafeda68a9c61bc0d65cd42c28522298f87769a487e81734",
+              "c7a99c49dc771bf74482c38a673a9883ca106d05841c32b54b9e81780fed5af5",
+              "656b33f01b69107f74c050fb3009771885b8595b8efa6ee678a8661e7b146d5f",
+              "dd484f441e34899c724c38c1c768fd1d541e63d9934869737a6a4070a4444135",
+              "5c305e40bdaececf43cb5d566e7de2b238d503de24466726977f32a9c3d2d24f",
+              "49eede126566b2a573117a5cbff8aee4f4f04cc9a0f78b2cb124e9837b794c63",
+              "40f231c6beea5b48b446ea8d6d3962eda320f2f021d44644ae43344306d8cdfc",
+              "d1112a771b40d603f1db11f9560182997d21e609cdec62e9888aa4046a7fbd2d",
+              "a4b5b10609f5ce9f6d5eaf030881ad31e392b3004dd0510020ad14e22b9cc181",
+              "bb61240b4859b6f6b04cb65a7789021a04c0684cd005e3953525537b7b1aea66",
+              "ee47d9ffaaef6bf03e8dd520dfbbd06b4355d144676143f1e66dfcb3348ce078",
+              "119a609264e727794fab225ace330f85917bb12f55d969f4f7504ba5e61fadb4",
+              "c9c16f271e54c5b45fca14415e7ddb6963dedbb70a6f71b73d092f0cc4f09f08",
+              "661252875d3a8c66c53028ba5afa21c226d26412dc5397437b5eae7f689dd88d",
+              "777ca948fb0e1c892b0d053a12a0652f6904c22a5f3d1576cc5a83eeeeffe5a3",
+              "6da13bd4bf87357435bf85f00177be617836b0623fb8138c734ba2c1571623a6",
+              "8c69d78ce123b04522ef368b069cdb4207ceb3985a06f7b99166906329dad116",
+              "e2075512041383fe1c51cb84f51daa446ee11c313df38677e811e0cdb5e3d51e",
+              "852970f58e6b31d006156518eafc6cf40a406a92df7a1d8a481de15ff9904a34",
+              "6f0e68e7cfa42ef0a3e14e2a3069018dc5f7479fe207e982b84a4fcb29fe1eaf",
+              "3a8ddd7f94590fba8f12f40523f4a1e8fab3f16039d06a4372022932d01396eb",
+              "03a84915edca4575691e9a82733802ff95baaa99628369b787f113ca8a4cd27e",
+              "737ff821c829277da0b040b1c2491a12aa9679ea81d51030697269eb2eed2230",
+              "38da83e6d6c2d6b0856064bee3abbfedb2963c9b660cc5af3f7e130d4c7fd069",
+              "f1610cb0e9c35ac8d5190fc4951ac92995837724a8f5f4633d1a791b03bb62d1",
+              "0fa355329fd60ce45b43e1a5da0a21fb565e425c00663d474662f8dddf1fb648",
+              "d7dab925d071ac62da7b82dfedc101b3868587c3c095a92f6c5aead6ab06d530",
+              "bfef564d1f3803d137dbb0976481afd6ecd183908988c33a6beb00296f736723",
+              "25a904dca84ad122c2a6289b1ee777cb9df081d7edf38ad218a1062d63f217b8",
+              "55ee3008555e7afb109e9b26d28a2a11a41ac56ea2672d2bf288a486e9b104cd",
+              "696b750b4322cd111a42c6600ad2160b6d7386d4a01eb8f9e1e3390dfb133a92",
+              "87ae2d8b47e8a4f44d96b423f620747831838272b3150f6b7c5ea81a45bb0c37",
+              "cff622eb1d4464a521a796f116f77b59e44f03ec179a344551e22ba400ebdf49",
+              "f6d29d4206e123bf59efb2cce1143009db9897c58f0d837ef66505473c3c8bf1",
+              "b5c8691feaa21f48b6cc1c70ce8b1949cb0eaae1193e09c29cf89eb37591c77e",
+              "389af2159104ae08707defa5fc760d422b4f9c45038a0c847b2f1f1a20b76e32",
+              "a9422228309d60a0bae7456d4426e00cd089e43a72885bf47be5333964cc2460",
+              "6931a205130e81439aeb1fe43fdd5811959af494bf18e6e8606233736b53262a",
+              "d5dc75133c3873b4b622b4f9a580d71b9ff4c67676f079c71a567cd395096057",
+              "d5ff64435b53a671fe57929c34ec728f7250c5144ea5264aab2ca782881a94a2",
+              "36e8ae4c47a32529310c7d5b2e5312f54eb53bc1144813a3659b6835087eb7c2",
+              "9c69e916ca66309a413c5e2660c0248d013dd42c79dea385d2fc46c1152860bd",
+              "5bbb5a130d75633821e7f2f5d5b5bb9f3b5c48e77108862bcc0731f3852e5d56",
+              "4779d504087bcc3c1679819cc9deca56ced5638b4e82d0004cea0473ce77eba0",
+              "aa0028cd32973004313b9678aac7a3b72a3968f5540dc2c1a53d9af179312875",
+              "8ca388544a100e1396ccb3b2e3536a77ce7bc78f1b724a0d367459dce37eee74",
+              "9a2f5acb6e580113d6677e70725b2e6ba39c3ae16c8b456b2b263e62a686a582",
+              "ae657dd5950e119cfe10dbee28b2ed68c2bb3a2df863bbcb252e0d0a8368f332"
+            ]
+          },
+          "failures": []
         }
-      },
-      "settle": {
-        "latencyMs": {
-          "n": 50,
-          "p50": 3983.9,
-          "p95": 4652,
-          "mean": 4040.8,
-          "min": 3076.7,
-          "max": 4777.1
-        },
-        "ledgersToConfirm": {
-          "n": 50,
-          "p50": 1,
-          "p95": 1,
-          "mean": 1,
-          "min": 1,
-          "max": 1
-        },
-        "sponsorFeeStroops": {
-          "n": 50,
-          "p50": 23126,
-          "p95": 23126,
-          "mean": 23126,
-          "min": 23126,
-          "max": 23126
-        },
-        "feePayers": [
-          "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC"
-        ],
-        "transactions": [
-          "4fcad026ee19ddc3ef06da8d80ec2f13bd0b95dfeed12dcdd04b9396e7e6596d",
-          "51f6500d5502a5bc6cd0f05b83b0615af5ecf557b27cb2ab655a72fd37691447",
-          "b3a10832cbce51e5ec52b006dabab10b41c207f09dced115d40b1475be52fef1",
-          "d3135c102b8fcab83c5df287c615a5fdd9ca2b554f5933f138357fd4be49f8aa",
-          "74d6ad64fc3ed269e4acc778981ab3792982d5b8f4c23e040ef4f8817b777d16",
-          "e4cfbe5e1c6907ab9155fdc1343f4804dd0ec4048e39afa3921514674fd403ab",
-          "b474b927c212881bc17037e8f7e6ff581513379c696c3b975b3aaffb6e4b98e5",
-          "c48e4f556bc32599d2ee26b18ed3bf46c25ad6fe8af1fca0d55d5de16138cf11",
-          "0053e33de63f57415d82b33d30ef974fa8ded5dcee83002888089e574b1b82ad",
-          "4d57a8ed6983ee198e7c89a6641f9c1e12542250f53c2032072c4c3a0463e1f0",
-          "110f0925c25351fbd5175ca66df181229c6719bb0378aaceb8f6d23d6982fde1",
-          "8a9d427d9880092fda86de05049da83f8bd4cba9be569403882715854077e653",
-          "a84c7e57582714da68fa8ac81edde7c6d89f4622f033ea535eea7afe888ade71",
-          "91f0274cac89115d73006760fa8c7e1a0bf28b74c501a4b9b18b4fe456c6fe2c",
-          "6334d43eb1215b858638a8ea292bdcb6e929c4e47a42c15ef3fe165ca4da5bba",
-          "2ea8ed7b9fae01757bf47f412303ead476085393837dca0539db10af670e555b",
-          "098e00cda8f87108ab6cbf6365392ec2055518cca6a5aa32018affd7a87b3493",
-          "b04c194ac61b1d9a24b2c635f211bc7f41f5b37b0bf5954be5b5791beb82165f",
-          "08e481fceb9e9fccee3ccd3f04f49b309e1be13ec6cbb5e934c442cb11ac9d4c",
-          "1e08d619607f3c41195e6dd194ed42c68ab5f0738de8bcd1aa2df32122cc0c12",
-          "013db9f090f12c8d2027bc1dd61b38715929824d3eba6a50df7e5a7b8b7826e2",
-          "2580f1beca89ce51dc92bfcf3c9f0fccf2bc47dfc35325d4eb51780853849390",
-          "cd0a7522d492638b6952af70ddd14b537be3fc40987d1e130b39eb20a463c3c5",
-          "b33d7e3660d8aca574072fcd6fa17bd2ef5ef9da0a09ac15f824f4b685a880bd",
-          "3ea0ee2f5a3d56152b7335ab0108e05ae4e61dcd296b4471d727493f2cd9d451",
-          "682648cafcd95b1522fc11b9fd23b02609306112d5af842b82b206186cf883df",
-          "2f317a298088204f3f83596491da2d5e9b2c203c4f313ced877fb1ba8b59059d",
-          "f00edc7dc2425a5fcfd74ce11b50c239259e675224e8c6a7b8e8aa7fe69f2d39",
-          "9d54daf802929febc6aed854e9550c3f157b78dac3fa23332444a42342820d22",
-          "b2e1de6fc981a1a5b8674176345e65c79c60346c8391762f84bbb30226e24900",
-          "6e219433de9e90fd13e0ef2942677edf21d82a7222c047cac7a2dd05ca0989b3",
-          "c9be0de40825300ddbe446e4da19d1d7e05a64c5617df7e0aaabc994da4f84ce",
-          "e58f614ccd1652d3183909dfe1b869595d4e8a6ef75443856dcc6210719be655",
-          "11882813a045bd62c1d8ab92ae37da941eaf2bd703f01580c0d6c81c78166d09",
-          "5b67c2463bee0b5f719105d549151e568b00e241c32a6dfa4a7e903281354cca",
-          "6155db45679c72cade797802a23c6c76ea139120bf0d1ee650fbb218ad5307bb",
-          "30fb58cd0a84f3a6cec9f2d49c367b2d239571500d0f19cb491b46bc2f937feb",
-          "b1f4e10c75d62a5d23b513c22e2bd020ddd505fe0f098e889cdb92a37872be63",
-          "71e74af846659f7dcb2fc55958ebe87a5b42a6a33dd45276af72fd782e4b517e",
-          "2230f9605dbefb9398bd72374c73699762c646bf4b71b751af53323ebdc6c1c8",
-          "f80c7db7d934afb1db401a5d9c8887161517fd55bd3243e0559b6cf6dcb6fe3f",
-          "5029cf15e2324c5304c8c532592a1aaf1afb18477c1fe05d078a7c764e89ee5a",
-          "abf0d9cd1621b3410cb99acef3e502d0da936ff9a232b2735880ebe6425d73c7",
-          "d84105c3836817626ae8cef907e3d46df05ef9c382e806915f6563c9a32fda16",
-          "74e40aadb90f6c670135d61b9c56eb4372505fd9634e99ade8d0295d52ed129d",
-          "1d745459d5288c5e5692b0c55f44ffd38c192080d6adcd600bffeba9aa32988f",
-          "140ab79c8bc2eb3a974d74ab2d3c004ee076bb785d20034bac9c7f360cade4e4",
-          "7fb6cb3d8dcdba12d709f22999b7619b46d0d3d6c715aa8d535a181f8f783cd8",
-          "19e8926dd7be0bce68b03623caa9b132ede92212dac259ea5763148ae8205849",
-          "82d009ba75be0c5e03fd09f1bd90995f1a9dfd192cfde1ead006df105f5bf092"
-        ]
-      },
-      "settleSmartAccount": {
-        "latencyMs": {
-          "n": 10,
-          "p50": 3793,
-          "p95": 4197.7,
-          "mean": 3796.7,
-          "min": 3026.3,
-          "max": 4197.7
-        },
-        "ledgersToConfirm": {
-          "n": 10,
-          "p50": 1,
-          "p95": 1,
-          "mean": 1,
-          "min": 1,
-          "max": 1
-        },
-        "sponsorFeeStroops": {
-          "n": 10,
-          "p50": 20325,
-          "p95": 20325,
-          "mean": 20325,
-          "min": 20325,
-          "max": 20325
-        },
-        "feePayers": [
-          "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC"
-        ],
-        "transactions": [
-          "8aacfd0fc0d45bde8927512bff5f3a71555f5bef613037897c59eadb37a2778d",
-          "78514986739c74020977a1de7e9d14342b9699f973e0fd2fe0dd735184414b8f",
-          "689f03661fe9f9b6ace06572cdf975d8b39baf2306e717498d23f7428a79ab75",
-          "9418ed1553e78ecaa2af3051ab75cb0af74fef656b1a2e5c0a696c12dfb108b7",
-          "12c62cec5bd1bce6bb0e2052601682389ee35eedee07ead5e0b65b3fe9731ddf",
-          "ac0b9100c210153a1b8f3c2f7e100efa9469d383a95a4dd04685a2c598a54590",
-          "1cf57661c3a0cf7714d59696460ac4d0cba8402154283950a147c9d4cc467d75",
-          "ba5eb7b6475810ed9c6184c8de96c4c42a81ca0d53e1048abfde9e80a917a759",
-          "ae90e18b9c4366cf42b4fec7d83830249943ffa6e479dac7d95a37814d8de488",
-          "ed3b0757e95c94e3138bfeefa6cb7586f1d6c6d82b2ce1ab4055e3a2a31d84e0"
-        ]
-      },
-      "concurrent": {
-        "batches": [
-          {
-            "size": 20,
-            "wallMs": 4585.7,
-            "succeeded": 20,
-            "uniqueTransactions": 20
-          },
-          {
-            "size": 20,
-            "wallMs": 5157.2,
-            "succeeded": 20,
-            "uniqueTransactions": 20
-          },
-          {
-            "size": 20,
-            "wallMs": 3644.2,
-            "succeeded": 20,
-            "uniqueTransactions": 20
-          }
-        ],
-        "latencyMs": {
-          "n": 60,
-          "p50": 4021,
-          "p95": 4277.2,
-          "mean": 3796,
-          "min": 2899,
-          "max": 4872.4
-        },
-        "ledgersToConfirm": {
-          "n": 60,
-          "p50": 1,
-          "p95": 1,
-          "mean": 1,
-          "min": 1,
-          "max": 1
-        },
-        "sponsorFeeStroops": {
-          "n": 60,
-          "p50": 23126,
-          "p95": 23126,
-          "mean": 23126,
-          "min": 23126,
-          "max": 23126
-        },
-        "feePayers": [
-          "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC"
-        ],
-        "transactions": [
-          "df2cd8acf8ff4dda5085603eb9d1dba84254bc873558fb08cae2604756aa6263",
-          "b88524b3b1fa943efb4d3394d849039accae6a4d1811ff94535c8b1b68021741",
-          "05dfca0f0c5114b4c43d3edcd1a96779ee5111da49746820a88ca7341e50758c",
-          "ea2b41078feb3fd9e1a6f6b4d65f49014304e12f934634e55b08bbf6fa6a3f15",
-          "0562a3b35bb730ca984b0a8d4b2a0af3144815940fef8b0c3152d7f2623b49e8",
-          "3c56470811ce1ec4c9675664a7d0c11ffa29a018cc118e4a5911790a3abd024e",
-          "2ca034dfc9a608b1230ce4544e52d01ee1ffcccd1cf0f5be7137e9e2dfdf8c13",
-          "369a8e0ef6cdad294ce8110ecb91d817c2b781fcc2fc9f69651df2ff68f493d4",
-          "621553dc15fa7c962a7ea4510a841af8e7fb52671ec9cf90ea11c526c9cbbbc2",
-          "ec65147ec1cbc24c6e21683a73401df17504af395b52e9172bbe503239cc8bec",
-          "07af1048124912a0c961a66c87e7d2549386e906ccd844f943e6c850e3744506",
-          "2bdac92d6a675400d26255bac016913915ee23449ff551a734be94a357bcee09",
-          "9810e95e28f19b76f2f5befc83b75fa0103f7947be0cb014ec35162efb632985",
-          "b0a1e746269ab13cbe06bcd55fe49999553d78edf2cabeea4995f98af81786f8",
-          "85be7143c41837d7d54a46886e4de2955cd618d1f7d9791f84ba85dff91864b9",
-          "038248344e75e2569d0ef812b60615b9c0d3479566fce2cf1c30b94eb5fa9391",
-          "d797d7aba177072bcab64fa609a892ce026c1c1913cfe9f29a5ada660080f4fa",
-          "f5a8ecf8d582d68179bbe06e510f035e88243d8394ddc4725aec1e4315bd5fab",
-          "18979f59a31baf9300cf8ba81ac81d7f89aa2520a1cdb82ec81c54cc8d4f2df1",
-          "bd8630889306ce228d3e1b3b5870901762c4bbd27efda84f2e603ee1edc5f5d1",
-          "367e6c125257c925804c62c9894770311b8e988489003494b2df19cc24767478",
-          "5074f939582b9d57cd000f8fdc1f6bede27bc9c9365190167a74d527566b89b0",
-          "0cb5f1b27e534c42e80d9e0aaf39a27912772d53e3be1a650f358c02404f4319",
-          "fc4d1fd8549412f6eeef05e29c3d4b736e232f38830e9bb63588ae5ffef7b05c",
-          "93442e2cc746bd8be7a3b9cb8f6cd024b815a91e89bb60c1253c26b76483952c",
-          "7fdfdafa39ed474e6cb4f1e08e03246255c61465c27084fca82c23a099ec48a5",
-          "04d95fd426163daff605f3a6303eee564982e4649d3c3aa5c5833a4368f0c6fc",
-          "8aa66eb65264d2d05f6e5fdc10f77ea2510161c2abfdd3be19404cac676ea289",
-          "60f8b3a635a511a3446bcfdeaf6423b816c7a6ffb7552441703d48d38ee4e50a",
-          "8841d7a41377a7b34e46967c4ff699eae6665783b478a748837f3fe355953102",
-          "9a8800e956f4f43ba1453eb10b525a69d736310858987c71aafc7c8953c5b7f9",
-          "8e95a03c9c8f27b91c5d9e810dfb339517865eca2d8f88adcaef28fca9634f2c",
-          "a02f83fd718fee98ec0fb425b977a7b8eb4524e6d12db068573d6d24c676e4d8",
-          "00ee351a7c5722813dfaf89166fadc5cfea7a414587b845b295c2a8ac9c39a5f",
-          "377ea2d0e2b5cd5b27a4178b3addca02a357115b1828346eb1a7c311d44d7c58",
-          "875638ff863d640bad1cdb757782cc4aac3a6d6367bdb4c9095f6b0441727880",
-          "6c47f8bed742068c4ce0bfe9628e1c63ea26b0d6f2a812e45a9d9f9037861167",
-          "2e0abbf8f0d9f34e5241f8b525b09c9c63df4bf6d4cbc550574515406dacced8",
-          "e61bb74756ed51840df73bed622ef425f16e336bc50c0663dab86e7afe69655a",
-          "15087a1d55a6e2c90e01069e441d5d7d3f941c25f50104f57ef2adce4ba27492",
-          "fe3115b2762713af61c0a0f5b24fc081596f2fd19c4c49c43cce35972859657b",
-          "83730cb55c2358db266a351c727dc81991c1836686e5e35e8c8dc2473b8ce38e",
-          "a46a7d7353c7782e51092b5e642ff6e29e29896a613ac09cdef200c972b73088",
-          "2e67a8a07b167a9a8451c903373cd135835c607070bafb2bbc2079ec932014b6",
-          "bc48f35acd83172338ad86aed9816c6e0b9d8947155b4c5b441fce792836f33c",
-          "d498a9e95a6fbf1d12e006f40ad8f05728e9534b05011b8da0050be782190a3b",
-          "2491dddbfb897cd6205ea27c48afe3b3a11dd93e278565f09bf67f9a8f6d3c62",
-          "b77d6ac70ab107361ada43baf939aa267d1a413bbe93b438085d6b0a4d468395",
-          "668594522baf09f9368e6febd93af86f2046e1537dc1892c0d7c6f915fa2f2b1",
-          "f709a155b6e1c468193a6ac8d4236dd9e11f34218473f4751cdb8c006469bfbb",
-          "3a06465c68e5a7d7e5ddb8596eec6b3f28d8305156887157d9d43dc3444444dd",
-          "18a1695358ec8dc6cea0595acb9e2a8dc1f74bd7a85cfc9a212b4cae73d51c97",
-          "34709375ba79158d3a182b51003dbfb4038fa1f92e355b4e93e93640dffe582f",
-          "613d41b308643258992692556d0249fb6a1b0c5fc745de8fde9d01ca00b0912d",
-          "bbd073fb020daf026d5b00eb7e93d81587851189bf58bbbe2168a82775fc444b",
-          "40b761620393c387557bb68b60f6487b2ed75dbbd27f1c3b593e93ef6fa126a3",
-          "a25d8d08750a22c2dbf67f0144267df8a55902aa9713442142dc9c035746bce5",
-          "acadabf84fb9c332a0fc51f9fe62a2a18cae4af4a7e9e3bd153940cf10c74846",
-          "2c8fa311d6505efa205dc664dea7a21de986977a159e2f06e6077f08f828d2d3",
-          "deef81b05946fc7ebe6cefdf364332f8c6eb18d2b512fddfd725294cdfdc7be6"
-        ]
-      },
-      "failures": []
+      }
     },
     {
-      "facilitator": "https://x402.org/facilitator",
-      "networkRoundTripMs": {
-        "n": 20,
-        "p50": 195.2,
-        "p95": 216.9,
-        "mean": 210.1,
-        "min": 186,
-        "max": 477.2
-      },
-      "verify": {
-        "latencyMs": {
-          "n": 50,
-          "p50": 319,
-          "p95": 572,
-          "mean": 354.2,
-          "min": 270.4,
-          "max": 599.2
+      "id": "facilitator-2-x402-org-facilitator",
+      "title": "the same workload against https://x402.org/facilitator, in the same window",
+      "checks": [
+        "fees-sponsored"
+      ],
+      "status": "passed",
+      "elapsedMs": 429571,
+      "observations": {
+        "version": "not reported",
+        "result": {
+          "facilitator": "https://x402.org/facilitator",
+          "networkRoundTripMs": {
+            "n": 20,
+            "p50": 193.1,
+            "p95": 208,
+            "mean": 210,
+            "min": 178.5,
+            "max": 504.7
+          },
+          "verify": {
+            "latencyMs": {
+              "n": 50,
+              "p50": 391.1,
+              "p95": 581.2,
+              "mean": 404.9,
+              "min": 260.4,
+              "max": 781.8
+            }
+          },
+          "settle": {
+            "latencyMs": {
+              "n": 50,
+              "p50": 3430.4,
+              "p95": 4737.6,
+              "mean": 3415.3,
+              "min": 1770.8,
+              "max": 7289.1
+            },
+            "ledgersToConfirm": {
+              "n": 50,
+              "p50": 1,
+              "p95": 1,
+              "mean": 1,
+              "min": 1,
+              "max": 2
+            },
+            "sponsorFeeStroops": {
+              "n": 50,
+              "p50": 23159,
+              "p95": 23160,
+              "mean": 23159.5,
+              "min": 23159,
+              "max": 23160
+            },
+            "feePayers": [
+              "GC5OLUZ4WANPN6VT7YGTK2SRMZG762KOVKJXHWIO4K57UBASO2FMNRET"
+            ],
+            "transactions": [
+              "f35aab55356ea2023ebed82416f83251d001abc480ecc6a4f38841e7c877f988",
+              "5ee19f85106fe7c908032673b6bdbc6292ccb6cb8c9a5ceda8ad6386c2c4e924",
+              "ee2f7a1e87194b051673430e3190352221514c8df99f6c9da1fa0d01dbc3af64",
+              "9d89e8a3429b83dab502afc9ff6992139e2c3946dda43ac4ce2e3d708d64e808",
+              "962e5c69d5ae9397a4cb68a2ba74ee9fba0f1813a58d61e9419229d5a9159aa9",
+              "848894c21fe1564dcd905dbe4a26c7c3de4e06b1d4599099926796187dac0244",
+              "153df55ff83d793db524590c806ec8e7a04bc05a373e7288a7454d9f8ec3bffe",
+              "36138c9eefceccca2277beb269b18ac584083f45954a379e96c681ee7aa6ded8",
+              "ec3a19a809743ae38801809293e75adc875957fb6dda4e149d7933fb5b1ff703",
+              "b1e53ced1ef0dc58cc33998c3653d764b51f79fd3eaa60279feffe0b173245a0",
+              "b68fea8825b4f204bf9ffa2e61539510cd93c047a23f5b908a59c4db3403b268",
+              "4e90857b6b77566167fb0d22d43de84efdf7034ff0be5161b28a70c20f2910e0",
+              "a5a12ff224a7f662623e049e90e28034ba052c756bf3d6ca7d7868e1500424bf",
+              "cebb9d42235b750b8e40b82061d16b1bca29a042a5fb7fd427b62846e2aa6f4a",
+              "afc8ed9170f44155479a433c1920017313492783f44cd3a62c5b67b735e8c9be",
+              "31ecacb0c4dca84c01405df30dffa07d8bca233de71f579f5aae5896d36892eb",
+              "75654797806a47d1667541d42fd5dd5fd384e58fcfea2d9d83f0075fa3ca0ce6",
+              "70298078377b74085f105596894ad5bc12754574e1a3a7cba71a58502692db05",
+              "947cc1719c44da62759e3af0abcc4773560cd5c97913bd803759bbda6c25d584",
+              "484850383df6ef8ac1da0bfe7819f7cbf73e8d580c054dad7c862dfbf3a27d3b",
+              "bfb56a46087c10bb3b4e66daabcc01d181fa9eb75404432b05001f341aa7a5b5",
+              "3ed0c1c12a95ea08ec451e68f730c01c261dfcce4ac249dcb6b7228ddfab152c",
+              "8e19d872caadc3282947cf68ed872e4fedb55005a7ed2bf4bea08d5af3e31162",
+              "32ccad6df0b0799ffb24a2bd57d023ae66f78f336a07f32c34afb788c7f729a1",
+              "71a7b2aae6a6f65d2c61d2ebf9e538d92416132b9dffbc35dce6a0fdd9901e6a",
+              "a5f4a875ae9f7ae11ec62fde396113da6dac35f35d79525d82d118352007517b",
+              "901e1c91dc4fe92b14b1b6d478fc55396e1e5000e0e3981f2370bec0e96b4d2f",
+              "e2e31f7f1ec1f4b473df1a0ca744257c12b1ea8ece2a28c7c86836014fb7f78f",
+              "a5b13c07635298f8870cc45bb3aa2f70a90d5dd9af3363e08a765fca692c38bd",
+              "6c90feb107d133ac4c2ef9a257b5718be65b48ea073a4cd2589737c0ab748ce6",
+              "4d30112ef6b27fe3ebe33ad2da59995db552dea88b836ab02152d0b982630d81",
+              "fd6b638dd0e19153fcbe4f98a535fe064d5e7bead7313b7cd752f7dbfc7f2115",
+              "7acf982c4f5bb255ed65ab762931cc81c401adf786f499a9cdce0d610e9dabad",
+              "ef12a6b4b5bfeba1e0a94f990ac8fc583af46b88df8f1b68c92b6d8ff9af29a0",
+              "472f1ef9cc5536e635ab8c202780b17c6884d7cda49a8f7a41939c49e41239f8",
+              "e279731c466b7235b6f447b8e6d55ade7efa78264a951fb1cc724506b8250e1c",
+              "5024a3eaa2abcd10e4bca7076b8361890434efbca4d2bc3c2bbd7c31aa33a79a",
+              "dee7ded6878b3b6b08a576d3ffb61adee3def5b9647eb2d57ae35c8a3db59527",
+              "439bc0efe7ec9a44d20f76b03aaa2900490c76be9b468ae1ed5dcb6a23c91cad",
+              "fd0bf360bd21c8f49c4de0b5a734b4d3105d0d705357883e11d8504ba29e881c",
+              "98c4e9da1ccb1e497a897c8958da4005fa81fa8a3986d5b9c961954b159d489b",
+              "be2817c292fee2f24851a5c303aed4baf42e882ed5abb5a01d680d33cb53e893",
+              "f0f434d279a5cba88699e16288c53d5de3d06d61ad9cc9f92a1f1fa6355f0591",
+              "8c629948eaf8ffc1de9a5acef20b8dca44ab006f541045c635063a319f0603ed",
+              "ab8b06e790765d1b60525cb160d109cf86bd064d9d6625059d06c48c6f09a633",
+              "5c8cb782253cd98805d3c0c09ff69c7de8e48d07569ef4d39fb2129836e63fdb",
+              "6615ca95eb593fc6118052f91d4cf7658bf484534c66aaf89ffda2e73bb933d1",
+              "8ff73498437e8ed7bcc1a902a82edbf6e167e7d29012accee5660f51292973a2",
+              "1829e56b8b0e0e4cbdcb1df635808a885779ae8ff511229497637c79eb7616a6",
+              "1fe08973fa1e3b6ce9f057ca246e2b77bc849ec9e53cfead7c5d421e98243f5d"
+            ]
+          },
+          "settleSmartAccount": {
+            "latencyMs": {
+              "n": 10,
+              "p50": 3668.2,
+              "p95": 4825.8,
+              "mean": 4080.1,
+              "min": 3501.3,
+              "max": 4825.8
+            },
+            "ledgersToConfirm": {
+              "n": 10,
+              "p50": 1,
+              "p95": 1,
+              "mean": 1,
+              "min": 1,
+              "max": 1
+            },
+            "sponsorFeeStroops": {
+              "n": 10,
+              "p50": 20351,
+              "p95": 20351,
+              "mean": 20351,
+              "min": 20351,
+              "max": 20351
+            },
+            "feePayers": [
+              "GC5OLUZ4WANPN6VT7YGTK2SRMZG762KOVKJXHWIO4K57UBASO2FMNRET"
+            ],
+            "transactions": [
+              "87774a00116b860959635c3606458b5f82bc339ef57a998ab026731cc12239b8",
+              "5ebc3fa1002aac8a0cc5f205bce5f53fbe0cedc982bca4b26fa66cc8541886af",
+              "d7dda792cb19bef2574d0bffee46d913a1c3d5a2c34539626866fa57fcc9d2fe",
+              "a93cb9150a6e4908194d978ebeb12a47e082872ba68455d04c147ea4d004d256",
+              "4b14a4ee1452ac97fd514a9d216cf2077b5e57958f0db0190a00fa95d56d3295",
+              "67c0dda9ed7e90d4973730f092693550de608d1c95998669d028ef39e6deffb1",
+              "ef88a1368b1e75bd1fc71f5009809ffd47c11ce3e8f1621a2c06678bf5a06b4b",
+              "3218a915f7abe10a4af88fd75478da68fdcf30c78401d25b4431ac117846a30f",
+              "bff163d1ed09d6d867fc6cf461e1026c05cad38126ab034e58c0924c4a4a48ab",
+              "f58847d61d95d6ccbfcc97d037f9294d91df0a11178c7f3d467ee40c9a99009d"
+            ]
+          },
+          "failures": []
         }
-      },
-      "settle": {
-        "latencyMs": {
-          "n": 50,
-          "p50": 4439.1,
-          "p95": 4815.3,
-          "mean": 4161.5,
-          "min": 2815.9,
-          "max": 6783.5
-        },
-        "ledgersToConfirm": {
-          "n": 50,
-          "p50": 1,
-          "p95": 1,
-          "mean": 1,
-          "min": 1,
-          "max": 2
-        },
-        "sponsorFeeStroops": {
-          "n": 50,
-          "p50": 23126,
-          "p95": 23126,
-          "mean": 23125.9,
-          "min": 23125,
-          "max": 23126
-        },
-        "feePayers": [
-          "GC5OLUZ4WANPN6VT7YGTK2SRMZG762KOVKJXHWIO4K57UBASO2FMNRET"
-        ],
-        "transactions": [
-          "f6a054e280d5f4fb0cc2c3dfab0254d43c858135a82170b4db47b7b7944cbf68",
-          "67d0847cb623bcce89e7764fc73cf3c215bf1ecc52b311383d6eb60bc3daa3ea",
-          "9a2565132a713a874671fb18446e9d9729ce177b2d4ec214b23a5cf8cb789a7b",
-          "be38256ad1bcb19b9919eb651ff02d21eb3656d801dff2775cde61b37d08f4ba",
-          "5bdef3e1b603cf766268421361fc7fcf0e031cdcec21aa4345581fcafcb98d61",
-          "8f9e445efe7dad7c1a2819d317d3311e8e621b8813ab21161e4a5a4d5c21fc4f",
-          "4ca89c7e5a7afcae5168c6b23ce15f14a35f66a5566ad4af6a4243c1ed2eab8b",
-          "ac43060ce9b67f534af63357994a1d2eeb3d4e3690277e343431c6310f6ad7a5",
-          "0e64f1b49c460ce631324e2ea33e9034a691a645c52c297fcc266af3a49ed42e",
-          "9770cf8eef73ecda39df0d72249657b96f8e2043cd0661618414ff9056fa1be6",
-          "464b30457a2ea91bfea5e8d99ac307a04c2c1a7cdac6709e33151233ef544caa",
-          "72332d52c28781b33ac0f98dee8b17ebc908661c485cab351856edd01fa2ca2f",
-          "5dba34791d98aabeba8a63078aa5bbf3ed1af87998e8da6f5bf80f622a187d32",
-          "3166fa3240deb0521b7b49589bd0e8fecc7b2d4be77f08dd508079e1cb8a97f5",
-          "da00871ad4af77db5a9277374883ea905d4281f1519f28ec3c3e73cf329144d2",
-          "c966bf5b66f52df42b2b4693825a248cb527351335a290e7565ff77ec186a08f",
-          "0ab09a36de8b4db17f59a8d755e63a1e0c3f904d5f28a393bbe9c564a3eea830",
-          "fc76269157360ea2539aefc1ced951342bf0445bfa06590012393a20a5cab50d",
-          "4e2651db80e5ee09e9599999680dc9f4d655bd4115b667625b6c224b5a3339d6",
-          "6b3e53eb254b5aeefb72b4090f571ef8a079303d2a6dd64902847e3e89613a99",
-          "ae2f9d4ee92f0f15bf2033cda93576706150feed11c0d184d09887865ca4a6c7",
-          "7f46cf5a1b637dc3231f793f0b5a2dfd61d69a16be7a6577f7b5f985ddc483b9",
-          "d0d490b0559d87d66e9de6626285ad79b5100c824ce586f40be9f283b470fce6",
-          "c22cfb7e1762275113787a822caaac604b8f629de911fb5d38d6eacfdd00c619",
-          "c10e8b2822520bb0b42704c92fab3b83f8979676ecdee411e8b4394a4c21afd9",
-          "3703a41cddba756d88f92bb40f763d951948d8c792de49ef52f367cc801c635e",
-          "757cda8b275cfed25a4d1cf986a06baeff1394ec3cb59796cb1913277325af5e",
-          "062f5b6b28a68f1e8baaa98749eb25e63e0859678faca0d9262bfd2ba9f0b401",
-          "fc7de39d26787b6371f5de438e5f19091b805c4cde57b0d58a86c7d82cfe7aac",
-          "2a83158eb432adfb00767de2b76c5964d9f6d82eb476242207fed1ef7ad15fcf",
-          "0d1ef96a10a78eced87c226754805a22b5852e2d217d7efc53581743f8761775",
-          "f439a70305a29da63ecfbc2e5d23af743cc18c3176451b1b9175ba37ddf1144e",
-          "f78683d28b227a8cc775a7be3bf7e9208f7450345d99dea4de8405f153afca3f",
-          "4d0ad271acbe6ad1c28b7916807ee2a35b3e014364233be902684fdb379187a2",
-          "1ebfb112365574d6c905e5af431efcf6079e3dc1ee354c5ca1b896050ceef499",
-          "a5c2506c2805ec426bd9793b676a90082d8374ee277329cb5362ffbbc290e917",
-          "943b046dd05d37cf023275e98b93bcf2bf26362f2260236ef4512e32a9ac1a56",
-          "a5ebc8f0520f12585a16a69bef2a106f14ad9c11bed50a430ff67dc86a875b86",
-          "2b2c9c763d5949becb49cf751c05fad2865eeb8f3d76efa9acda1ca55ef9fe7a",
-          "a34d48ad0a2ce51f1a1e9810799cd97eab1fe0945ea1d458edeabc423a5711b0",
-          "ca8ca31a22bb7a1cfd3e6f27ea6bf55d4918f6eb37dff9e52ceb2c48011cb6f9",
-          "49818a62a30b08d228a9a9110afca14ac3fa30999414e912cbfb488bd2ba4818",
-          "3c818fa65d7262fe3651a41dffb3a4c9dce236d310d69a78c957bb8c4417252c",
-          "83c750575eeefb3d258b8d80f1fe8a5a75c711e10d4444d4fe07a6f7a6fcbc14",
-          "a73ab84def65851028d079472fb5486653806c30ebee16e15bce468cacab5331",
-          "bde00a77f5a7d5bc8e2552f6eaf07806ee4c8d9c22e07f240a429751f57ce1ab",
-          "65e0b76876a29f65e00ea41b9eef34f373aa61bb70612e5e1f60e788de6fa3ce",
-          "0816112f6525eb74e0967ed4b865ca7dd334b4ff1913d8775017ed1c2257c8ce",
-          "fb48504a1b4ff72140f341a134aa659aeae1798baab69abbc78199117870a1b9",
-          "f771fcbea4dbcd43c54b9bc37a7eb91eef9b7b59ae6c1d2bdfecc612bab47dfe"
-        ]
-      },
-      "settleSmartAccount": {
-        "latencyMs": {
-          "n": 10,
-          "p50": 3740.1,
-          "p95": 4878.1,
-          "mean": 4133.6,
-          "min": 3533.7,
-          "max": 4878.1
-        },
-        "ledgersToConfirm": {
-          "n": 10,
-          "p50": 1,
-          "p95": 1,
-          "mean": 1,
-          "min": 1,
-          "max": 1
-        },
-        "sponsorFeeStroops": {
-          "n": 10,
-          "p50": 20326,
-          "p95": 20326,
-          "mean": 20326,
-          "min": 20326,
-          "max": 20326
-        },
-        "feePayers": [
-          "GC5OLUZ4WANPN6VT7YGTK2SRMZG762KOVKJXHWIO4K57UBASO2FMNRET"
-        ],
-        "transactions": [
-          "3b8dc5f05514255ca9703a44fad8b6003e3c0a9334d2067c12f4fcf42304fc4a",
-          "69f66e5ec46c8fb28a2ec2ad775a41c3cb71265ae6c570e3f790732e6b8821ae",
-          "a673e114a978f9aa248c110306246e5f0728929d98bcd151f63ed47e976488cc",
-          "6b2b854e05e63a464a55bd2ded0abcd84e5c117a9706b8b970dcd3c20f1c9f85",
-          "502d682596e96dcc88722143e74fb83cc484b6e45d92618779f8b33be7e11fd1",
-          "313e2ebc3da423ea69558b36febf0875052a4db5cdb7b51b25925480d0e039b1",
-          "40c2e122f664d6165283e309a6f4ffb67b279f713cbacd87c44840880414dfc0",
-          "b14164f8c6abf1f9cccefaf945ccdee7cf80d4b817611102373a84d72357a246",
-          "3b9a5512fc9110f18910df50472a2d5f00e496b7512080b147a910d25f4e6eec",
-          "8a90d011d32b3709446694e763a0cc8475fc0919e922d730e3fd9420df8eab5d"
-        ]
-      },
-      "failures": []
+      }
     }
   ]
 }

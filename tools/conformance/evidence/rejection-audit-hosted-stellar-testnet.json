@@ -1,0 +1,3269 @@
+{
+  "schemaVersion": 2,
+  "kind": "rejection-audit",
+  "runId": "6ed7ff23-f78f-4500-9c10-978e84875466",
+  "startedAt": "2026-10-09T13:36:38.260Z",
+  "finishedAt": "2026-10-09T13:38:28.315Z",
+  "network": "stellar:testnet",
+  "target": {
+    "mode": "hosted",
+    "facilitatorUrl": "https://testnet.rail402.dev",
+    "healthVersion": "0.4.1+c99804586cfc",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC"
+          }
+        }
+      ],
+      "extensions": [
+        "bazaar"
+      ],
+      "signers": {
+        "stellar:*": [
+          "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
+          "GDZREJ6UXJDL7IMLRMHP4F6RM37TF3WUGRB7GPE5G4IUIXKS6ISZPVEQ",
+          "GB334JRFWHASBTLFWFDE2PUH2BJVVJNWT4TUFESSNH4IPQK5XMPD5HX7",
+          "GBMM3OEFZTPG2JWQTY2RDVNDDDONFZXBEWV6UD3L554RTJGZULR752YJ",
+          "GB64RTLBRKRSTKFEWZU5P25O2WUZBI22WQY3DBWWH2B57Y6BRSOGCYUS",
+          "GBAWKRXQ3NCGQKTW4HMD4THUVOU7F6FYOOVGNPL3V3AH3CWT7W4OA2IM",
+          "GCM75IOHE4X5T4PAWC52JQH2WC2DOCLZQFKVJB7Z7IHOMMPR2CX75EEK",
+          "GDTJKNDIENAI7AVCSIMQLPZGFJSRDRBQ4WWKEVJLP5CZVTTSSM2SV3IN",
+          "GCSBROZRQFRWMTCQYQGU5SHDML24ZVSAOP4M4Z3SJZXYIC55DL6QF2TN",
+          "GDIQHTP3KYYC7UUUEHQ5Q2KFPLMIDDDKN7DMFLLNBC7CHO7IEUCMLAYN",
+          "GDJGN273XHBYIBHBK57E323KWFTSHFES3DZXNZG3B7YGQKCT72BINB5G",
+          "GBOXYFJZEFPTLSYPGCG7QFKUI4DCHATOD6XDO4VJUUJM2YJC5SXWUE3S",
+          "GCU4VZCFCHWSIMBFGAUSRS7UGELI4YBDVDLGA7HWO2RHH65QN5JERO3W",
+          "GDTMBMFVMXC5JA4TJJBK6TQQ36ZPNPQLG6RWHMONLYP7SMFL4I7HX4O7",
+          "GCWVKGUT4W5J5CWF2PHXAAQF5TGG6NWZNSQ3FRBZWHGZGBIUETRNVT6Z",
+          "GBWH6KTFYLTIWL2Y6VOJS2DRCCW65F3ZCCMADMQ6UHSB7CBMHLRNHCT4",
+          "GC65COQZYD3QBDXXPDZP5QIYG2DEDGRANTIG27HEIGCKE6YIIV33XAG2",
+          "GAGUB7N3W5D5U2TMD4IL2ZNH4OSWI2DWJPE65VWV2G3G3BHZ4SFUYBYQ",
+          "GB7MYLE2FJ3B45QCUKSWLDXU7XOX5IB6WP4BRZ23ZBZXGOMT7OCBLZHY",
+          "GCWHGE3VITTC372HNQZ2VHIQO2UQKM6DF463JVIR7JUPNRUUHY7D4KTY",
+          "GAQZVTDNI274EAAFFGJFEUGABDXEL75AYPKYDGN437FVWJRXL3MXNT73",
+          "GB5Z6U43A7IG7XGVGRP27G2A7E2VKEPQQKUZG5NUY2YA7D4QQJ74W4Y3",
+          "GBAUIMDRVA4ZRRKMP23XMO6WVQWN7LCZPA4Q4LOUNYK2QPYKUNGPAMVY",
+          "GBXJKUO4DNWVPY4Z2YY5K5MBDBZJZA6EBOHYKUIKY2QZWNKXU5TF74E4",
+          "GAUNOKFXMYYCCAEN3RAEXJOCOBES2PWEIHMOZVQGTDF3EDDLAE3WRNVA",
+          "GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC"
+        ]
+      }
+    }
+  },
+  "harness": {
+    "commit": "b9ebb87f3632f7e601f9f2f884cd4389deb65c20",
+    "dirty": false
+  },
+  "packages": {
+    "@x402/core": "2.27.0",
+    "@x402/stellar": "2.27.0",
+    "@stellar/stellar-sdk": "16.3.0",
+    "@rail402.dev/mcp": "0.4.1",
+    "@modelcontextprotocol/client": "2.2.0"
+  },
+  "command": "node --conditions=@rail402/source tools/conformance/src/rejection-audit.ts --facilitator https://testnet.rail402.dev --mcp",
+  "config": {
+    "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "otherAsset": "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK",
+    "upto": true,
+    "smartAccount": true,
+    "mcp": true
+  },
+  "accounts": {
+    "payTo": "GAR6W3BPX7T433HW57GU6CV5BJIZ7E6R73MWMYTYBMZFLLGSYLA3SYLY",
+    "untrusted": "GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U",
+    "poor": "GDRCIED4JVX7ELZ3FSARYLCFIBLSHBCAY3D63YPAB4OUHDVR52CJHXDL",
+    "treasury": "GDKLWLIOHHSNYYOGJ5ZIH2DTI4UWUKFTZP5FUNHIH3GDJ35DAZDTPJ6N",
+    "payer1": "GBHMHZQUP6QLM2J3E6TAOVKZG7FCCS6WUZ33RPIHGSKYEOG56SKPQENB",
+    "payer2": "GA5Q52CJZXFTFVF2FUU25UTGFQDMWB2MZ3BCIDGVMP3QSVBICFEHPOOT",
+    "payer3": "GBGCA65R3FKCEFKBGVKBE7GSGI5YR6NMMD43EHNBIC4KONSU6X2IVAQB"
+  },
+  "summary": {
+    "total": 94,
+    "passed": 90,
+    "failed": 0,
+    "skipped": 4
+  },
+  "cases": [
+    {
+      "id": "body-too-large",
+      "title": "a request body over the limit is refused before parsing",
+      "checks": [
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 943,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "POST /verify",
+          "httpStatus": 413,
+          "code": "payload_too_large",
+          "reason": "The request body exceeds the size limit."
+        },
+        {
+          "surface": "http",
+          "operation": "POST /verify",
+          "httpStatus": 413,
+          "code": "payload_too_large",
+          "reason": "The request body exceeds the size limit."
+        },
+        {
+          "surface": "http",
+          "operation": "POST /settle",
+          "httpStatus": 413,
+          "code": "payload_too_large",
+          "reason": "The request body exceeds the size limit."
+        },
+        {
+          "surface": "http",
+          "operation": "POST /settle",
+          "httpStatus": 413,
+          "code": "payload_too_large",
+          "reason": "The request body exceeds the size limit."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "payload_too_large"
+        ]
+      }
+    },
+    {
+      "id": "unsupported-media-type",
+      "title": "a body that is not JSON is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 147,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "POST /verify",
+          "httpStatus": 415,
+          "code": "unsupported_media_type",
+          "reason": "The request body must be JSON (Content-Type: application/json)."
+        },
+        {
+          "surface": "http",
+          "operation": "POST /verify",
+          "httpStatus": 415,
+          "code": "unsupported_media_type",
+          "reason": "The request body must be JSON (Content-Type: application/json)."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "unsupported_media_type"
+        ]
+      }
+    },
+    {
+      "id": "malformed-json",
+      "title": "malformed JSON and a body of the wrong shape are refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 602,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "POST /verify",
+          "httpStatus": 400,
+          "code": "invalid_payload",
+          "reason": "The body is not valid JSON."
+        },
+        {
+          "surface": "http",
+          "operation": "POST /verify",
+          "httpStatus": 400,
+          "code": "bad_request",
+          "reason": "The body is not valid JSON."
+        },
+        {
+          "surface": "http",
+          "operation": "POST /verify",
+          "httpStatus": 400,
+          "code": "invalid_payload",
+          "reason": "Malformed request: body: Invalid input: expected object, received array."
+        },
+        {
+          "surface": "http",
+          "operation": "POST /verify",
+          "httpStatus": 400,
+          "code": "bad_request",
+          "reason": "Malformed request: body: Invalid input: expected object, received array."
+        },
+        {
+          "surface": "http",
+          "operation": "POST /verify",
+          "httpStatus": 400,
+          "code": "invalid_payload",
+          "reason": "Malformed request: paymentPayload: Invalid input: expected object, received undefined."
+        },
+        {
+          "surface": "http",
+          "operation": "POST /verify",
+          "httpStatus": 400,
+          "code": "bad_request",
+          "reason": "Malformed request: paymentPayload: Invalid input: expected object, received undefined."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_payload",
+          "bad_request"
+        ]
+      }
+    },
+    {
+      "id": "unknown-route",
+      "title": "unknown routes and methods are refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 470,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "GET /nope",
+          "httpStatus": 404,
+          "code": "not_found",
+          "reason": "No route matches this path."
+        },
+        {
+          "surface": "http",
+          "operation": "GET /verify",
+          "httpStatus": 404,
+          "code": "not_found",
+          "reason": "No route matches this path."
+        },
+        {
+          "surface": "http",
+          "operation": "POST /supported",
+          "httpStatus": 404,
+          "code": "not_found",
+          "reason": "No route matches this path."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "not_found"
+        ]
+      }
+    },
+    {
+      "id": "api-key-required",
+      "title": "a deployment that requires an API key refuses requests without one",
+      "checks": [
+        "rejection-codes"
+      ],
+      "status": "skipped",
+      "skipReason": "no deployment with REQUIRE_API_KEY=true was given (--keyed); pnpm evidence starts one locally",
+      "elapsedMs": 0
+    },
+    {
+      "id": "rate-limited",
+      "title": "a client over the rate limit is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "status": "skipped",
+      "skipReason": "no deployment with a small RATE_LIMIT_PER_MINUTE was given (--limited); pnpm evidence starts one locally",
+      "elapsedMs": 0
+    },
+    {
+      "id": "x402-version-1",
+      "title": "an x402 v1 request is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 466,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 400,
+          "code": "invalid_payload",
+          "reason": "x402Version 1 is not supported; Stellar payments use x402 v2."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 400,
+          "code": "bad_request",
+          "reason": "x402Version 1 is not supported; Stellar payments use x402 v2."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 400,
+          "code": "invalid_payload",
+          "reason": "x402Version 1 is not supported; Stellar payments use x402 v2."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 400,
+          "code": "bad_request",
+          "reason": "x402Version 1 is not supported; Stellar payments use x402 v2."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_payload",
+          "bad_request"
+        ]
+      }
+    },
+    {
+      "id": "unknown-network",
+      "title": "an unknown or unserved network is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 783,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_network",
+          "reason": "This facilitator does not serve the requested network."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_network",
+          "reason": "This facilitator does not serve the requested network."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_network",
+          "reason": "This facilitator does not serve the requested network."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_network",
+          "reason": "This facilitator does not serve the requested network."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_network"
+        ]
+      }
+    },
+    {
+      "id": "unknown-scheme",
+      "title": "an unknown scheme is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 854,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "unsupported_scheme",
+          "reason": "The payment scheme is not supported by this facilitator."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "unsupported_scheme",
+          "reason": "The payment scheme is not supported by this facilitator."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "unsupported_scheme",
+          "reason": "The payment scheme is not supported by this facilitator."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "unsupported_scheme",
+          "reason": "The payment scheme is not supported by this facilitator."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "unsupported_scheme"
+        ]
+      }
+    },
+    {
+      "id": "asset-not-accepted",
+      "title": "an asset the facilitator does not accept is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 502,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_asset_not_accepted",
+          "reason": "This facilitator does not settle payments in the requested asset."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_asset_not_accepted",
+          "reason": "This facilitator does not settle payments in the requested asset."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_requirements_asset_not_accepted"
+        ]
+      }
+    },
+    {
+      "id": "fees-not-sponsored",
+      "title": "requirements without areFeesSponsored are refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 480,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_fees_not_sponsored",
+          "reason": "Stellar exact payments require extra.areFeesSponsored to be true."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_fees_not_sponsored",
+          "reason": "Stellar exact payments require extra.areFeesSponsored to be true."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_requirements_fees_not_sponsored"
+        ]
+      }
+    },
+    {
+      "id": "timeout-out-of-range",
+      "title": "maxTimeoutSeconds outside the accepted range is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 830,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_timeout_out_of_range",
+          "reason": "maxTimeoutSeconds must be an integer between 10 and 300."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_timeout_out_of_range",
+          "reason": "maxTimeoutSeconds must be an integer between 10 and 300."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_timeout_out_of_range",
+          "reason": "maxTimeoutSeconds must be an integer between 10 and 300."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_timeout_out_of_range",
+          "reason": "maxTimeoutSeconds must be an integer between 10 and 300."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_requirements_timeout_out_of_range"
+        ]
+      }
+    },
+    {
+      "id": "amount-invalid",
+      "title": "a zero, negative or non-integer amount is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 1571,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_invalid_amount",
+          "reason": "amount must be a positive integer string in the asset's smallest unit."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_invalid_amount",
+          "reason": "amount must be a positive integer string in the asset's smallest unit."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_invalid_amount",
+          "reason": "amount must be a positive integer string in the asset's smallest unit."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_invalid_amount",
+          "reason": "amount must be a positive integer string in the asset's smallest unit."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_invalid_amount",
+          "reason": "amount must be a positive integer string in the asset's smallest unit."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_invalid_amount",
+          "reason": "amount must be a positive integer string in the asset's smallest unit."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_invalid_amount",
+          "reason": "amount must be a positive integer string in the asset's smallest unit."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_invalid_amount",
+          "reason": "amount must be a positive integer string in the asset's smallest unit."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_requirements_invalid_amount",
+          "invalid_exact_stellar_requirements_amount_out_of_range",
+          "invalid_payload"
+        ]
+      }
+    },
+    {
+      "id": "payto-invalid",
+      "title": "a payTo that is not a Stellar address is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 747,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_invalid_pay_to",
+          "reason": "payTo must be a Stellar account (G…) or contract (C…) address; muxed (M…) addresses are refused."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_requirements_invalid_pay_to",
+          "reason": "payTo must be a Stellar account (G…) or contract (C…) address; muxed (M…) addresses are refused."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_requirements_invalid_pay_to",
+          "invalid_payload"
+        ]
+      }
+    },
+    {
+      "id": "payload-wrong-key",
+      "title": "a payload that is not { transaction } is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 458,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_malformed",
+          "reason": "payload.transaction must be a base64 XDR string."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_malformed",
+          "reason": "payload.transaction must be a base64 XDR string."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_malformed",
+          "invalid_payload"
+        ]
+      }
+    },
+    {
+      "id": "payload-not-xdr",
+      "title": "a transaction that is not base64 XDR is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 317,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_malformed",
+          "reason": "The payload transaction is not a valid Stellar transaction envelope for this network."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_malformed",
+          "reason": "The payload transaction is not a valid Stellar transaction envelope for this network."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_malformed"
+        ]
+      }
+    },
+    {
+      "id": "payload-too-large",
+      "title": "a transaction over 64 KiB is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 513,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_too_large",
+          "reason": "The payload transaction exceeds the size limit."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_too_large",
+          "reason": "The payload transaction exceeds the size limit."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_too_large",
+          "payload_too_large"
+        ]
+      }
+    },
+    {
+      "id": "fee-bump-envelope",
+      "title": "a fee-bump envelope instead of the signed transaction is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 464,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_malformed",
+          "reason": "payload.transaction must be a v1 transaction envelope, not a fee-bump or legacy envelope."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_malformed",
+          "reason": "payload.transaction must be a v1 transaction envelope, not a fee-bump or legacy envelope."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_malformed"
+        ]
+      }
+    },
+    {
+      "id": "multiple-operations",
+      "title": "a transaction with more than one operation is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 481,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_wrong_operation",
+          "reason": "The transaction must contain exactly one invokeHostFunction operation invoking a contract."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_wrong_operation",
+          "reason": "The transaction must contain exactly one invokeHostFunction operation invoking a contract."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_wrong_operation"
+        ]
+      }
+    },
+    {
+      "id": "not-a-transfer",
+      "title": "a call other than transfer is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 471,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_wrong_function_name",
+          "reason": "The operation must call transfer(from, to, amount) with exactly three arguments."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_wrong_function_name",
+          "reason": "The operation must call transfer(from, to, amount) with exactly three arguments."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_wrong_function_name"
+        ]
+      }
+    },
+    {
+      "id": "unsigned-authorization",
+      "title": "an authorization without the payer's signature is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 475,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_missing_payer_signature",
+          "reason": "The payer has not signed an authorization entry for the transfer."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_missing_payer_signature",
+          "reason": "The payer has not signed an authorization entry for the transfer."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_missing_payer_signature",
+          "invalid_exact_stellar_payload_invalid_signature"
+        ]
+      }
+    },
+    {
+      "id": "facilitator-as-cosigner",
+      "title": "an authorization entry for a facilitator account is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 473,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_facilitator_in_auth",
+          "reason": "A facilitator account appears in an authorization entry."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_facilitator_in_auth",
+          "reason": "A facilitator account appears in an authorization entry."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_facilitator_in_auth"
+        ]
+      }
+    },
+    {
+      "id": "sub-invocations",
+      "title": "an authorization with sub-invocations is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 471,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_has_subinvocations",
+          "reason": "The authorization entry authorizes sub-invocations beyond the transfer."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_has_subinvocations",
+          "reason": "The authorization entry authorizes sub-invocations beyond the transfer."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_has_subinvocations"
+        ]
+      }
+    },
+    {
+      "id": "source-account-credential",
+      "title": "a source-account credential is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 460,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_unsupported_credential_type",
+          "reason": "Authorization entries must use address credentials (legacy or CAP-71 V2)."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_unsupported_credential_type",
+          "reason": "Authorization entries must use address credentials (legacy or CAP-71 V2)."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_unsupported_credential_type",
+          "invalid_exact_stellar_payload_missing_payer_signature"
+        ]
+      }
+    },
+    {
+      "id": "facilitator-as-source",
+      "title": "a transaction sourced from a facilitator account is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 460,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_unsafe_tx_or_op_source",
+          "reason": "The transaction or operation source is a facilitator account."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_unsafe_tx_or_op_source",
+          "reason": "The transaction or operation source is a facilitator account."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_unsafe_tx_or_op_source"
+        ]
+      }
+    },
+    {
+      "id": "facilitator-as-payer",
+      "title": "a transfer from a facilitator account is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 606,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_facilitator_is_payer",
+          "reason": "The transfer's from address is a facilitator account."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_facilitator_is_payer",
+          "reason": "The transfer's from address is a facilitator account."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_facilitator_is_payer",
+          "invalid_exact_stellar_payload_facilitator_in_auth"
+        ]
+      }
+    },
+    {
+      "id": "mismatched-requirements",
+      "title": "a payment that differs from the requirements is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 1434,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_wrong_amount",
+          "reason": "The transfer amount differs from the required amount."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_wrong_amount",
+          "reason": "The transfer amount differs from the required amount."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_accepted_mismatch",
+          "reason": "The payload's accepted requirements differ from the payment requirements."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_accepted_mismatch",
+          "reason": "The payload's accepted requirements differ from the payment requirements."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_wrong_recipient",
+          "reason": "The transfer recipient differs from the required payTo address."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_wrong_recipient",
+          "reason": "The transfer recipient differs from the required payTo address."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_accepted_mismatch",
+          "reason": "The payload's accepted requirements differ from the payment requirements."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_accepted_mismatch",
+          "reason": "The payload's accepted requirements differ from the payment requirements."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_accepted_mismatch",
+          "invalid_exact_stellar_payload_wrong_amount",
+          "invalid_exact_stellar_payload_wrong_recipient"
+        ]
+      }
+    },
+    {
+      "id": "tampered-amount",
+      "title": "a changed amount fails the payer's signed authorization",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 1897,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_invalid_signature"
+        ]
+      }
+    },
+    {
+      "id": "expired",
+      "title": "an expired authorization is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 789,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_signature_expired",
+          "reason": "The authorization expired at ledger 5105875; the network is at ledger 5105885."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_signature_expired",
+          "reason": "The authorization expired at ledger 5105875; the network is at ledger 5105885."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_signature_expired"
+        ]
+      }
+    },
+    {
+      "id": "expires-too-soon",
+      "title": "an authorization expiring at the current ledger is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 599,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_signature_expiration_too_soon",
+          "reason": "The authorization expires at ledger 5105885, within 1 ledger(s) of the current ledger 5105885."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_signature_expiration_too_soon",
+          "invalid_exact_stellar_signature_expired"
+        ]
+      }
+    },
+    {
+      "id": "expires-too-far",
+      "title": "an authorization expiring beyond maxTimeoutSeconds is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 986,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_signature_expiration_too_far",
+          "reason": "The authorization expires later than maxTimeoutSeconds allows."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_signature_expiration_too_far",
+          "reason": "The authorization expires later than maxTimeoutSeconds allows."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_signature_expiration_too_far"
+        ]
+      }
+    },
+    {
+      "id": "payer-no-trustline",
+      "title": "a payer without a trustline to the asset is named",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 669,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_payer_trustline_missing",
+          "reason": "The payer GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_payer_trustline_missing",
+          "reason": "The payer GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_payer_trustline_missing"
+        ]
+      }
+    },
+    {
+      "id": "payto-no-trustline",
+      "title": "a payTo without a trustline to the asset is named",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 593,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_recipient_trustline_missing",
+          "reason": "payTo GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset and cannot receive it."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_recipient_trustline_missing",
+          "reason": "payTo GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset and cannot receive it."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_recipient_trustline_missing"
+        ]
+      }
+    },
+    {
+      "id": "insufficient-balance",
+      "title": "a payer holding less than the amount is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 638,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "insufficient_funds",
+          "reason": "The transfer would take a balance outside its allowed range (insufficient funds or limit exceeded)."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "insufficient_funds",
+          "reason": "The transfer would take a balance outside its allowed range (insufficient funds or limit exceeded)."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "insufficient_funds"
+        ]
+      }
+    },
+    {
+      "id": "payer-account-missing",
+      "title": "a payer account that does not exist is named",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 651,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_account_missing",
+          "reason": "The payer account GBY65R3CAEBG3TD3DRDL7Q7PMDQBRHGWKASDXNVUT46NL5VMJXUEX6EP does not exist on this network."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_account_missing",
+          "reason": "The payer account GBY65R3CAEBG3TD3DRDL7Q7PMDQBRHGWKASDXNVUT46NL5VMJXUEX6EP does not exist on this network."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_account_missing"
+        ]
+      }
+    },
+    {
+      "id": "self-payment",
+      "title": "a payer paying its own account is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 1860,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_self_payment",
+          "reason": "The payer and payTo are the same account; a payment to oneself moves no funds and is not settled."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_self_payment",
+          "reason": "The payer and payTo are the same account; a payment to oneself moves no funds and is not settled."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_self_payment"
+        ]
+      }
+    },
+    {
+      "id": "c-payer-wrong-key",
+      "title": "a C… payment signed by the wrong key is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "payer": "C",
+      "status": "passed",
+      "elapsedMs": 22141,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_invalid_signature",
+          "invalid_exact_stellar_payload_smart_account_rejected"
+        ]
+      }
+    },
+    {
+      "id": "replay",
+      "title": "a settled authorization is refused in a new envelope and by verify",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "status": "passed",
+      "elapsedMs": 3068,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "settle_exact_stellar_idempotency_conflict",
+          "reason": "This authorization was already submitted for settlement with a different transaction or different payment terms; it was submitted in transaction 3aae20583f393c4893628ab2875f8bb082ddd5d0a6d13d1f5de2eb6f77aefe73."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_nonce_already_used",
+          "reason": "This authorization was already settled in transaction 3aae20583f393c4893628ab2875f8bb082ddd5d0a6d13d1f5de2eb6f77aefe73."
+        }
+      ],
+      "observations": {
+        "settledTransaction": "3aae20583f393c4893628ab2875f8bb082ddd5d0a6d13d1f5de2eb6f77aefe73",
+        "expectedCodes": [
+          "invalid_exact_stellar_payload_nonce_already_used"
+        ]
+      }
+    },
+    {
+      "id": "discovery-parameters",
+      "title": "invalid discovery parameters are refused",
+      "checks": [
+        "rejection-codes",
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 1019,
+      "rejections": [
+        {
+          "surface": "bazaar",
+          "operation": "GET /discovery/resources",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter type must be a resource type such as http or mcp."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "GET /discovery/resources",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter payTo must be a Stellar G…, C… or M… address."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "GET /discovery/resources",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter network must be a CAIP-2 network such as stellar:testnet."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "GET /discovery/resources",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter limit must be at least 1."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "GET /discovery/resources",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter limit Invalid input: expected number, received NaN."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "GET /discovery/resources",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter offset must be 0 or more."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "GET /discovery/resources",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Unsupported parameter: unknown."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "discovery_invalid_parameter"
+        ]
+      }
+    },
+    {
+      "id": "discovery-not-found",
+      "title": "an unknown listing is refused",
+      "checks": [
+        "rejection-codes",
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 445,
+      "rejections": [
+        {
+          "surface": "bazaar",
+          "operation": "GET /discovery/resources/not-an-id",
+          "httpStatus": 404,
+          "code": "discovery_listing_not_found",
+          "reason": "No listing has this identifier."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "GET /discovery/resources/00000000-0000-4000-8000-000000000000",
+          "httpStatus": 404,
+          "code": "discovery_listing_not_found",
+          "reason": "No listing has this identifier."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "GET /discovery/resources/00000000-0000-4000-8000-000000000000/versions",
+          "httpStatus": 404,
+          "code": "discovery_listing_not_found",
+          "reason": "No listing has this identifier."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "discovery_listing_not_found"
+        ]
+      }
+    },
+    {
+      "id": "bazaar-cataloging",
+      "title": "cataloging outcomes reported in EXTENSION-RESPONSES",
+      "checks": [
+        "rejection-codes",
+        "discovery"
+      ],
+      "status": "skipped",
+      "skipReason": "cataloging codes need sellers with Bazaar metadata; the live Bazaar run records them",
+      "elapsedMs": 0
+    },
+    {
+      "id": "search-query",
+      "title": "missing, blank and over-long queries are refused",
+      "checks": [
+        "rejection-codes",
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 588,
+      "rejections": [
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter query Invalid input: expected string, received undefined."
+        },
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "search_query_required",
+          "reason": "The `query` parameter is required and must not be blank."
+        },
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "search_query_too_long",
+          "reason": "The query exceeds 500 characters."
+        },
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter query must be at most 2000 characters."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "discovery_invalid_parameter"
+        ]
+      }
+    },
+    {
+      "id": "search-cursor",
+      "title": "malformed and foreign cursors are refused",
+      "checks": [
+        "rejection-codes",
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 459,
+      "rejections": [
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "search_invalid_cursor",
+          "reason": "The cursor is malformed, altered, or belongs to a different search."
+        },
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "search_invalid_cursor",
+          "reason": "The cursor is malformed, altered, or belongs to a different search."
+        },
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter cursor is too long."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "discovery_invalid_parameter"
+        ]
+      }
+    },
+    {
+      "id": "search-filters",
+      "title": "invalid search filters are refused",
+      "checks": [
+        "rejection-codes",
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 580,
+      "rejections": [
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter maxPrice must be a decimal amount, in the asset's units if asset is set, else in US dollars."
+        },
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter asset must be a C… contract address or an asset symbol."
+        },
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Parameter limit must be at least 1."
+        },
+        {
+          "surface": "search",
+          "operation": "GET /discovery/search",
+          "httpStatus": 400,
+          "code": "discovery_invalid_parameter",
+          "reason": "Unsupported parameter: sort."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "discovery_invalid_parameter"
+        ]
+      }
+    },
+    {
+      "id": "upto-fees-not-sponsored",
+      "title": "upto requirements without areFeesSponsored are refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 936,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_fees_not_sponsored",
+          "reason": "Stellar upto payments require extra.areFeesSponsored to be true."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_fees_not_sponsored",
+          "reason": "Stellar upto payments require extra.areFeesSponsored to be true."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_requirements_fees_not_sponsored"
+        ]
+      }
+    },
+    {
+      "id": "upto-authority-not-ours",
+      "title": "upto requirements naming another settlement authority are refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 871,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_facilitator_mismatch",
+          "reason": "extra.facilitatorAddress must be GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_facilitator_mismatch",
+          "reason": "extra.facilitatorAddress must be GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_requirements_facilitator_mismatch"
+        ]
+      }
+    },
+    {
+      "id": "upto-payto-invalid",
+      "title": "an upto payTo that is not a Stellar address, or is muxed, is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1127,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_invalid_pay_to",
+          "reason": "payTo must be a Stellar account (G…) or contract (C…) that is neither a facilitator account, the settlement contract nor the asset."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_invalid_pay_to",
+          "reason": "payTo must be a Stellar account (G…) or contract (C…) that is neither a facilitator account, the settlement contract nor the asset."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_unsupported_recipient",
+          "reason": "Muxed (M…) payTo addresses cannot receive upto payments; use a G… or C… address."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_unsupported_recipient",
+          "reason": "Muxed (M…) payTo addresses cannot receive upto payments; use a G… or C… address."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_unsupported_recipient",
+          "invalid_upto_stellar_requirements_invalid_pay_to"
+        ]
+      }
+    },
+    {
+      "id": "upto-amount-invalid",
+      "title": "an upto cap or settle amount that is not a non-negative integer is refused; a zero cap too",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1532,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_invalid_amount",
+          "reason": "The accepted amount (the cap) must be a positive integer string within i128."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_invalid_amount",
+          "reason": "The accepted amount (the cap) must be a positive integer string within i128."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_invalid_amount",
+          "reason": "amount must be an integer string in the asset's smallest unit: positive for the cap, zero or more to settle."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_invalid_amount",
+          "reason": "The accepted amount (the cap) must be a positive integer string within i128."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_invalid_amount",
+          "reason": "amount must be an integer string in the asset's smallest unit: positive for the cap, zero or more to settle."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_invalid_amount",
+          "reason": "The accepted amount (the cap) must be a positive integer string within i128."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_invalid_amount",
+          "reason": "amount must be an integer string in the asset's smallest unit: positive for the cap, zero or more to settle."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_requirements_invalid_amount",
+          "invalid_upto_stellar_requirements_amount_out_of_range",
+          "invalid_payload"
+        ]
+      }
+    },
+    {
+      "id": "upto-asset-not-accepted",
+      "title": "an upto payment in an asset the facilitator does not accept is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 846,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_asset_not_accepted",
+          "reason": "This facilitator does not settle payments in the requested asset."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_asset_not_accepted",
+          "reason": "This facilitator does not settle payments in the requested asset."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_requirements_asset_not_accepted"
+        ]
+      }
+    },
+    {
+      "id": "upto-timeout-out-of-range",
+      "title": "upto maxTimeoutSeconds outside the accepted range is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1104,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_timeout_out_of_range",
+          "reason": "maxTimeoutSeconds must be an integer from 1 to 300."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_timeout_out_of_range",
+          "reason": "maxTimeoutSeconds must be an integer from 1 to 300."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_timeout_out_of_range",
+          "reason": "maxTimeoutSeconds must be an integer between 10 and 300."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_requirements_timeout_out_of_range",
+          "reason": "maxTimeoutSeconds must be an integer between 10 and 300."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_requirements_timeout_out_of_range"
+        ]
+      }
+    },
+    {
+      "id": "upto-accepted-mismatch",
+      "title": "upto requirements that differ from the ones the payment accepted are refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 811,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_accepted_mismatch",
+          "reason": "The payload's accepted requirements differ from the payment requirements."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_accepted_mismatch",
+          "reason": "The payload's accepted requirements differ from the payment requirements."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_accepted_mismatch"
+        ]
+      }
+    },
+    {
+      "id": "upto-payload-malformed",
+      "title": "an upto payload that is not one base64 authorization entry is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 892,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_malformed",
+          "reason": "payload.authorization must be one base64 XDR SorobanAuthorizationEntry."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_malformed",
+          "reason": "payload.authorization must be one base64 XDR SorobanAuthorizationEntry."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_malformed",
+          "reason": "payload.authorization must be one base64 XDR SorobanAuthorizationEntry."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_malformed",
+          "reason": "payload.authorization must be one base64 XDR SorobanAuthorizationEntry."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_malformed",
+          "reason": "payload.authorization must be one base64 XDR SorobanAuthorizationEntry."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_malformed",
+          "reason": "payload.authorization must be one base64 XDR SorobanAuthorizationEntry."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_malformed",
+          "invalid_payload"
+        ]
+      }
+    },
+    {
+      "id": "upto-payload-too-large",
+      "title": "an upto authorization over the size limit is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 523,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_too_large",
+          "reason": "payload.authorization is 66000 base64 characters; the limit is 8192."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_too_large",
+          "reason": "payload.authorization is 66000 base64 characters; the limit is 8192."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_too_large",
+          "payload_too_large"
+        ]
+      }
+    },
+    {
+      "id": "upto-signer-authorizations",
+      "title": "more signer authorizations than a smart account may carry are refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 810,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_signer_authorization",
+          "reason": "signerAuthorizations are only accepted for a smart-account (C…) payer."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_signer_authorization",
+          "reason": "signerAuthorizations are only accepted for a smart-account (C…) payer."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_invalid_signer_authorization",
+          "invalid_upto_stellar_payload_malformed"
+        ]
+      }
+    },
+    {
+      "id": "upto-wrong-recipient",
+      "title": "upto requirements for another payTo than the signed recipient are refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 806,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_wrong_recipient",
+          "reason": "The authorization pays GAR6W3BPX7T433HW57GU6CV5BJIZ7E6R73MWMYTYBMZFLLGSYLA3SYLY; payTo is GAXT6QMBGGOFVBEOK24UA7REER2QECXOQMLG73JJMQG7TGDCVHWGPUEO."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_wrong_recipient",
+          "reason": "The authorization pays GAR6W3BPX7T433HW57GU6CV5BJIZ7E6R73MWMYTYBMZFLLGSYLA3SYLY; payTo is GAXT6QMBGGOFVBEOK24UA7REER2QECXOQMLG73JJMQG7TGDCVHWGPUEO."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_wrong_recipient"
+        ]
+      }
+    },
+    {
+      "id": "upto-wrong-asset",
+      "title": "upto requirements for another asset than the signed token are refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 809,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_wrong_asset",
+          "reason": "The authorization is for token CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA; the asset is CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_wrong_asset",
+          "reason": "The authorization is for token CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA; the asset is CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_wrong_asset"
+        ]
+      }
+    },
+    {
+      "id": "upto-wrong-cap",
+      "title": "upto requirements for another cap than the signed one are refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 819,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_wrong_amount",
+          "reason": "The authorized cap is 10000; the accepted amount is 20000."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_wrong_amount",
+          "reason": "The authorized cap is 10000; the accepted amount is 20000."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_wrong_amount"
+        ]
+      }
+    },
+    {
+      "id": "upto-expiration-mismatch",
+      "title": "an upto entry whose signature expiration differs from the signed terms is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 922,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_expiration_mismatch",
+          "reason": "expiration_ledger 5105907 differs from signatureExpirationLedger 5105908."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_expiration_mismatch",
+          "reason": "expiration_ledger 5105907 differs from signatureExpirationLedger 5105908."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_expiration_mismatch"
+        ]
+      }
+    },
+    {
+      "id": "upto-wrong-contract",
+      "title": "an upto entry for another contract than the settlement contract is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 963,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_wrong_contract",
+          "reason": "The authorization is for contract CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA; this network's upto settlement contract is CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_wrong_contract",
+          "reason": "The authorization is for contract CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA; this network's upto settlement contract is CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_wrong_contract"
+        ]
+      }
+    },
+    {
+      "id": "upto-wrong-function",
+      "title": "an upto entry for another function than settle is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1386,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_wrong_function",
+          "reason": "The authorization is for transfer with 1 argument(s); expected settle(terms)."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_wrong_function",
+          "reason": "The authorization is for transfer with 1 argument(s); expected settle(terms)."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_wrong_function"
+        ]
+      }
+    },
+    {
+      "id": "upto-authorization-tree",
+      "title": "an upto entry whose approve child is missing, changed, doubled or nested is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1997,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_authorization_tree",
+          "reason": "The authorization must contain exactly one child, token.approve(payer, settlement contract, cap, expiration), and nothing else."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_authorization_tree",
+          "reason": "The authorization must contain exactly one child, token.approve(payer, settlement contract, cap, expiration), and nothing else."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_authorization_tree",
+          "reason": "The authorization must contain exactly one child, token.approve(payer, settlement contract, cap, expiration), and nothing else."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_authorization_tree",
+          "reason": "The authorization must contain exactly one child, token.approve(payer, settlement contract, cap, expiration), and nothing else."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_authorization_tree",
+          "reason": "The authorization must contain exactly one child, token.approve(payer, settlement contract, cap, expiration), and nothing else."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_authorization_tree",
+          "reason": "The authorization must contain exactly one child, token.approve(payer, settlement contract, cap, expiration), and nothing else."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_authorization_tree",
+          "reason": "The authorization must contain exactly one child, token.approve(payer, settlement contract, cap, expiration), and nothing else."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_authorization_tree",
+          "reason": "The authorization must contain exactly one child, token.approve(payer, settlement contract, cap, expiration), and nothing else."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_invalid_authorization_tree"
+        ]
+      }
+    },
+    {
+      "id": "upto-credential-type",
+      "title": "an upto entry with source-account credentials is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 694,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_unsupported_credential_type",
+          "reason": "The payer's entry uses sorobanCredentialsSourceAccount credentials; only address and address V2 credentials are accepted."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_unsupported_credential_type",
+          "reason": "The payer's entry uses sorobanCredentialsSourceAccount credentials; only address and address V2 credentials are accepted."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_unsupported_credential_type"
+        ]
+      }
+    },
+    {
+      "id": "upto-missing-signature",
+      "title": "an upto entry without the payer's signature is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 702,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_missing_payer_signature",
+          "reason": "The payer's authorization entry carries no signature."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_missing_payer_signature",
+          "reason": "The payer's authorization entry carries no signature."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_missing_payer_signature"
+        ]
+      }
+    },
+    {
+      "id": "upto-terms-authority",
+      "title": "upto terms signed for another settlement authority are refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 843,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_facilitator_mismatch",
+          "reason": "The authorization names GAXT6QMBGGOFVBEOK24UA7REER2QECXOQMLG73JJMQG7TGDCVHWGPUEO as settlement authority; this facilitator's is GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_facilitator_mismatch",
+          "reason": "The authorization names GAXT6QMBGGOFVBEOK24UA7REER2QECXOQMLG73JJMQG7TGDCVHWGPUEO as settlement authority; this facilitator's is GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_facilitator_mismatch"
+        ]
+      }
+    },
+    {
+      "id": "upto-facilitator-is-payer",
+      "title": "an upto payment from the settlement authority is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 831,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_facilitator_is_payer",
+          "reason": "The payer is a facilitator account or the settlement contract."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_facilitator_is_payer",
+          "reason": "The payer is a facilitator account or the settlement contract."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_facilitator_is_payer"
+        ]
+      }
+    },
+    {
+      "id": "upto-self-payment",
+      "title": "an upto payment to the payer's own account is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 828,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_self_payment",
+          "reason": "The payer and payTo are the same address; a payment to oneself is not settled."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_self_payment",
+          "reason": "The payer and payTo are the same address; a payment to oneself is not settled."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_self_payment"
+        ]
+      }
+    },
+    {
+      "id": "upto-not-yet-valid",
+      "title": "upto terms that start at a later ledger are refused until then",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1171,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_not_yet_valid",
+          "reason": "The terms are valid from ledger 5105901; the current ledger is 5105897."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_not_yet_valid",
+          "reason": "The terms are valid from ledger 5105901; the current ledger is 5105897."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_not_yet_valid"
+        ]
+      }
+    },
+    {
+      "id": "upto-expired",
+      "title": "an expired upto authorization is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1375,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_signature_expired",
+          "reason": "The authorization expired at ledger 5105887; the current ledger is 5105897."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_signature_expired",
+          "reason": "The authorization expired at ledger 5105887; the current ledger is 5105897."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_signature_expired"
+        ]
+      }
+    },
+    {
+      "id": "upto-expires-too-far",
+      "title": "an upto authorization expiring beyond maxTimeoutSeconds is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1419,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_signature_expiration_too_far",
+          "reason": "The authorization expires at ledger 5110897; maxTimeoutSeconds allows at most ledger 5105911."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_signature_expiration_too_far",
+          "reason": "The authorization expires at ledger 5110897; maxTimeoutSeconds allows at most ledger 5105911."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_signature_expiration_too_far"
+        ]
+      }
+    },
+    {
+      "id": "upto-expires-too-soon",
+      "title": "an upto authorization expiring at the current ledger is refused, before simulating or at submission",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1260,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_signature_expiration_too_soon",
+          "reason": "The authorization expires at ledger 5105897, fewer than 1 ledgers after the current ledger 5105897."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_signature_expiration_too_soon",
+          "invalid_upto_stellar_signature_expired",
+          "settle_upto_stellar_transaction_expired"
+        ]
+      }
+    },
+    {
+      "id": "upto-settle-over-cap",
+      "title": "an upto settlement above the signed cap is refused before simulating",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 894,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_settlement_exceeds_amount",
+          "reason": "The settlement amount 10001 exceeds the authorized cap 10000."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_settlement_exceeds_amount"
+        ]
+      }
+    },
+    {
+      "id": "upto-forged-terms",
+      "title": "upto terms rebuilt for another recipient with the original signature fail the signature",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1020,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature does not verify."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature does not verify."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_invalid_signature"
+        ]
+      }
+    },
+    {
+      "id": "upto-insufficient-balance",
+      "title": "an upto settlement the payer cannot cover is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 743,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "insufficient_funds",
+          "reason": "The payer's token balance is lower than the payment amount."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "insufficient_funds"
+        ]
+      }
+    },
+    {
+      "id": "upto-payer-no-trustline",
+      "title": "an upto payer without a trustline to the asset is named",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1250,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_payer_trustline_missing",
+          "reason": "The payer GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_payer_trustline_missing",
+          "reason": "The payer GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_payer_trustline_missing"
+        ]
+      }
+    },
+    {
+      "id": "upto-payto-no-trustline",
+      "title": "an upto payTo without a trustline to the asset is named",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1204,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_recipient_trustline_missing",
+          "reason": "payTo GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset and cannot receive it."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_recipient_trustline_missing",
+          "reason": "payTo GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset and cannot receive it."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_recipient_trustline_missing"
+        ]
+      }
+    },
+    {
+      "id": "upto-payer-account-missing",
+      "title": "an upto payer account that does not exist is named",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 1098,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_account_missing",
+          "reason": "The payer account GBORFMPFDNJ2LK7W4UNY6P3E4NW63LD7TQVAAOSUJOQR6JUO7LUPL27V does not exist on this network."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_account_missing",
+          "reason": "The payer account GBORFMPFDNJ2LK7W4UNY6P3E4NW63LD7TQVAAOSUJOQR6JUO7LUPL27V does not exist on this network."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_account_missing"
+        ]
+      }
+    },
+    {
+      "id": "upto-c-payer-wrong-key",
+      "title": "an upto payment from a C… account signed by the wrong key is refused",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "payer": "C",
+      "status": "passed",
+      "elapsedMs": 20998,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_smart_account_rejected",
+          "reason": "The payer's smart account rejected the authorization: Error(Crypto, InvalidInput) from the account."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_smart_account_rejected",
+          "reason": "The payer's smart account rejected the authorization: Error(Crypto, InvalidInput) from the account."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "invalid_upto_stellar_payload_smart_account_rejected",
+          "invalid_upto_stellar_payload_invalid_signature"
+        ]
+      }
+    },
+    {
+      "id": "upto-replay",
+      "title": "a settled upto authorization is refused by verify, and settling it for another amount is a conflict",
+      "checks": [
+        "rejection-codes",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 3423,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_nonce_already_used",
+          "reason": "This authorization was already settled in transaction 62d17f4fb8ea3e68106b4d370ae6011a953d1e68ffddab73578e5b75f12f540b."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "settle_upto_stellar_idempotency_conflict",
+          "reason": "This authorization was already submitted for settlement for 100 with different payment terms; it was submitted in transaction 62d17f4fb8ea3e68106b4d370ae6011a953d1e68ffddab73578e5b75f12f540b."
+        }
+      ],
+      "observations": {
+        "settledTransaction": "62d17f4fb8ea3e68106b4d370ae6011a953d1e68ffddab73578e5b75f12f540b",
+        "expectedCodes": [
+          "settle_upto_stellar_idempotency_conflict"
+        ]
+      }
+    },
+    {
+      "id": "mcp-cap-missing",
+      "title": "MCP: a paid call without a spending cap",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 310,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "tool_input_invalid",
+          "reason": "Invalid tool arguments at spendingCap: Invalid input: expected object, received undefined"
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "tool_input_invalid",
+          "payment_cap_required"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-cap-negative",
+      "title": "MCP: a paid call with a negative spending cap",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 1,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "tool_input_invalid",
+          "reason": "Invalid tool arguments at spendingCap.amount: Invalid string: must match pattern /^(0|[1-9][0-9]{0,14})(\\.[0-9]{1,18})?$/"
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "tool_input_invalid",
+          "payment_cap_invalid"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-cap-unknown-asset",
+      "title": "MCP: a paid call capped in an asset outside the spending policy",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 1,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "payment_cap_invalid",
+          "reason": "The cap's asset is not in the spending policy (allowed: USDC)."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "tool_input_invalid",
+          "payment_cap_invalid"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-per-call-cap",
+      "title": "MCP: a price above the caller's cap is refused before signing",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 10,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "payment_per_call_cap_exceeded",
+          "reason": "The price is 0.04 USDC, above the per-call cap of 0.01."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "payment_per_call_cap_exceeded"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-over-ceiling",
+      "title": "MCP: a cap above the operator's per-call ceiling is clamped: a price above the ceiling is refused",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 2,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "payment_per_call_cap_exceeded",
+          "reason": "The price is 0.08 USDC, above the per-call cap of 0.05."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "payment_per_call_cap_exceeded"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-network-not-permitted",
+      "title": "MCP: a challenge for another network is refused",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 2,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "payment_network_not_permitted",
+          "reason": "The option is for stellar:pubnet, not stellar:testnet."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "payment_network_not_permitted",
+          "payment_no_acceptable_option"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-asset-not-permitted",
+      "title": "MCP: a challenge in an asset outside the policy is refused",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 2,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "payment_asset_not_permitted",
+          "reason": "The option's asset is not in the spending policy."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "payment_asset_not_permitted",
+          "payment_no_acceptable_option"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-recipient-not-permitted",
+      "title": "MCP: a challenge paying a denied recipient is refused",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 2,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "payment_recipient_not_permitted",
+          "reason": "The recipient is invalid, is the payer itself, or is excluded by the policy's recipient allow or deny list."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "payment_recipient_not_permitted",
+          "payment_no_acceptable_option"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-private-address",
+      "title": "MCP: a resource on a private or metadata address is refused before any request",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 1,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "egress_destination_not_allowed",
+          "reason": "The host 169.254.169.254 is a private, local or reserved destination."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "egress_destination_not_allowed"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-redirect-private",
+      "title": "MCP: a redirect to a private address is not followed",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 1,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "egress_redirect_not_allowed",
+          "reason": "The server redirected to another origin; only same-origin redirects are followed."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "egress_redirect_not_allowed",
+          "egress_destination_not_allowed"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-request-too-large",
+      "title": "MCP: a request body over 64 KiB is refused before anything is sent",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 1,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "tool_input_invalid",
+          "reason": "Invalid tool arguments at body: 70002 bytes serialized; at most 65536."
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "tool_input_invalid",
+          "egress_request_too_large"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-malformed-arguments",
+      "title": "MCP: arguments of the wrong type are refused with the failing path",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 0,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call pay_and_call",
+          "code": "tool_input_invalid",
+          "reason": "Invalid tool arguments at resource: Invalid input: expected string, received number"
+        }
+      ],
+      "observations": {
+        "expectedCodes": [
+          "tool_input_invalid"
+        ],
+        "isError": true,
+        "paid": "none"
+      }
+    },
+    {
+      "id": "mcp-session-cap",
+      "title": "MCP: a price above what is left of the session budget is refused",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "skipped",
+      "skipReason": "needs settled payments first; the live agent run refuses it through rail402-mcp after a settled payment, and the SDK's budget ledger tests prove it (packages/sdk/test/guard.test.ts)",
+      "elapsedMs": 0
+    },
+    {
+      "id": "mcp-unknown-tool",
+      "title": "MCP: An unknown tool is a JSON-RPC error carrying a code",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 2,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call",
+          "code": "tool_unknown",
+          "reason": "This server has no tool with that name. Unknown tool: withdraw_everything."
+        }
+      ],
+      "observations": {
+        "jsonRpcCode": -32602
+      }
+    },
+    {
+      "id": "mcp-params-invalid",
+      "title": "MCP: A tools/call without a tool name is a JSON-RPC error carrying a code",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 1,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "tools/call",
+          "code": "rpc_params_invalid",
+          "reason": "The request's params do not match the MCP schema of its method. At params.name: Invalid input: expected string, received undefined"
+        }
+      ],
+      "observations": {
+        "jsonRpcCode": -32602
+      }
+    },
+    {
+      "id": "mcp-method-unknown",
+      "title": "MCP: A method the server does not serve is a JSON-RPC error carrying a code",
+      "checks": [
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 0,
+      "rejections": [
+        {
+          "surface": "mcp",
+          "operation": "rail402/withdraw",
+          "code": "rpc_method_unknown",
+          "reason": "This server does not serve that MCP method; it serves tools (tools/list and tools/call). Unknown method: rail402/withdraw."
+        }
+      ],
+      "observations": {
+        "jsonRpcCode": -32601
+      }
+    }
+  ]
+}

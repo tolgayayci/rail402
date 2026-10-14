@@ -4,8 +4,8 @@
  * every evidence file records.
  */
 import { execFileSync } from "node:child_process";
+import { hkdfSync } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import {
   Asset,
   BASE_FEE,
@@ -28,6 +28,29 @@ export { USDC_TESTNET_ADDRESS };
 export const log = (message: string) => {
   process.stderr.write(`${new Date().toISOString()}  ${message}\n`);
 };
+
+/** An account a run keeps across reruns, and how it was obtained. */
+export interface OperatorAccount {
+  readonly keypair: Keypair;
+  /** `derived` from the operator's sponsor seed, or `fresh` when no seed was given. */
+  readonly origin: "derived" | "fresh";
+}
+
+/**
+ * A testnet account that stays the same across an operator's runs and that only the operator can sign
+ * for: derived with HKDF from the fee sponsor's seed in the file `RAIL402_SPONSOR_SECRET_FILE` names
+ * (the evidence run's sponsor) and `label`, as the service derives its channels. Without that file it
+ * is a fresh random account. The seed is read from the file only, never from an argument.
+ */
+export function operatorAccount(
+  label: string,
+  secretFile = process.env["RAIL402_SPONSOR_SECRET_FILE"],
+): OperatorAccount {
+  if (secretFile === undefined || secretFile === "") return { keypair: Keypair.random(), origin: "fresh" };
+  const sponsor = Keypair.fromSecret(readFileSync(secretFile, "utf8").trim());
+  const seed = hkdfSync("sha256", sponsor.rawSecretKey(), "rail402 conformance account", label, 32);
+  return { keypair: Keypair.fromRawEd25519Seed(Buffer.from(seed)), origin: "derived" };
+}
 
 export class Treasury {
   readonly net: LocalNetwork;
@@ -147,15 +170,12 @@ export async function usdcPayment(
 }
 
 export function versions(names: string[]): Record<string, string> {
-  const require = createRequire(import.meta.url);
   const found: Record<string, string> = {};
   for (const name of names) {
-    const entry = require.resolve(name);
-    const root = entry.slice(
-      0,
-      entry.lastIndexOf(`/node_modules/${name}/`) + `/node_modules/${name}/`.length,
-    );
-    found[name] = (JSON.parse(readFileSync(`${root}package.json`, "utf8")) as { version: string }).version;
+    // The package as this tool resolves it: its own dependency link, which for a workspace package
+    // points at the package's source directory.
+    const manifest = new URL(`../node_modules/${name}/package.json`, import.meta.url);
+    found[name] = (JSON.parse(readFileSync(manifest, "utf8")) as { version: string }).version;
   }
   return found;
 }

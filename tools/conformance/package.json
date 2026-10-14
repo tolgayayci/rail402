@@ -1,28 +1,51 @@
 {
   "name": "@rail402.dev/conformance",
-  "version": "0.2.1",
+  "version": "0.4.1",
   "private": true,
   "description": "Wire-level conformance runs against a Rail402 facilitator using unmodified x402 packages.",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "canonical": "node src/canonical-exact.ts",
+    "canonical": "node src/canonical.ts",
+    "rejection-audit": "node --conditions=@rail402/source src/rejection-audit.ts",
+    "forwarder": "node src/forwarder.ts",
     "upstream-e2e": "node src/upstream-e2e.ts",
     "live-matrix": "node src/live-matrix.ts",
     "benchmark": "node src/benchmark.ts",
-    "live-bazaar": "node src/live-bazaar.ts"
+    "live-bazaar": "node --conditions=@rail402/source src/live-bazaar.ts",
+    "report": "node --conditions=@rail402/source src/report.ts",
+    "codes:coverage": "node --conditions=@rail402/source src/codes-coverage.ts",
+    "concurrency": "node src/concurrency.ts",
+    "upto-contract": "node --conditions=@rail402/source src/upto-contract.ts",
+    "live-agent": "node src/live-agent.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/client": "catalog:",
+    "@rail402.dev/cli": "workspace:*",
+    "@rail402.dev/demo-seller": "workspace:*",
+    "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/mcp": "workspace:*",
+    "@rail402.dev/safe-fetch": "workspace:*",
+    "@rail402.dev/sdk": "workspace:*",
+    "@rail402.dev/service": "workspace:*",
+    "@rail402.dev/stellar": "workspace:*",
+    "@rail402.dev/store-postgres": "workspace:*",
     "@rail402.dev/testkit": "workspace:*",
+    "@rail402.dev/upto": "workspace:*",
     "@stellar/stellar-sdk": "catalog:",
     "@x402/core": "catalog:",
     "@x402/express": "catalog:",
     "@x402/extensions": "catalog:",
     "@x402/fetch": "catalog:",
     "@x402/stellar": "catalog:",
-    "express": "5.2.1"
+    "express": "5.2.1",
+    "kysely": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/express": "5.0.6"
+    "@playwright/test": "catalog:",
+    "@rail402.dev/playground": "workspace:*",
+    "@types/express": "5.0.6",
+    "prettier": "catalog:"
   }
 }

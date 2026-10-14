@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 2,
+  "kind": "upto-contract",
+  "runId": "9d12b18a-dd70-4e00-9f33-a82dbabf65cc",
+  "startedAt": "2026-10-09T13:42:54.619Z",
+  "finishedAt": "2026-10-09T13:43:14.360Z",
+  "network": "stellar:testnet",
+  "target": {
+    "mode": "local",
+    "facilitatorUrl": "http://127.0.0.1:8801",
+    "healthVersion": "0.4.1+b9ebb87f3632",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GAFLWIFSEO45MD54DCIVNB455PBWSG5U5RAXYDJQMQIC4ACSZODJUFLU"
+          }
+        }
+      ],
+      "extensions": [
+        "bazaar"
+      ],
+      "signers": {
+        "stellar:*": [
+          "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
+          "GB3WBOLRLBHO2WVYFTIJRZJ6SNYWYAER3ROSLDV7U5ROQCFTVFFXAHJR",
+          "GBUMX4RNOYKKPLVPUWIMC6J2RFERSTPOUGRZV4ZIV2BNBQI3JRSLLHPR",
+          "GDAHKU2XNTMX6WJSZX6T37T6N53ADISMFSDSHCWQMI7GYQ4WLSS6ALMG",
+          "GDDODQHNIA5POLNJMS37DPTRCKRLRAT35EZVJUKB3DX5UDNEVTP4BWSP",
+          "GB6DY6JIBPJI3362RSC4M2TUMH5TOR376AGDQBD4DVIZTHVT7CW52NK6",
+          "GA6WOEEAOW4XNB27NE445NSQFWBKG76QWO2RBUYNDXTHMPFLUWUYTIUG",
+          "GBK3ADGHUG55PDCTUHRIVOQD3BEKE4IP57NOLF3URJZXDIXRYWGFTVVP",
+          "GCCGXWZDLJG5L3C5PCLKDUDGPPGBKN3C3TXGZ736HSSFLN2HVMNUYVFH",
+          "GB5ZCW3RMKEYFDMJGHVY2CY7JAF75JCFECWCPNDZZTNNZFDZ6XRJQ6ZR",
+          "GDI62WZSGCFB2VKUW3CFQIBHGZEYRYVGG5MA5U4U3NGFFIBKN6YAIOPF",
+          "GDFUTOYYCF2L336IXLPMR3NC3A4HEWLWNTBOCRLJ3Y3MYTTU6EY2AXTG",
+          "GBPE2P5ESR3KCUI44OD2325JQX5HBTK4OCLDAVU5W7XRCN5ADX5ZIHFI",
+          "GAJ7YFAN3PIGBLQVPZCB2OM6AAINS5EPPT37G5NSVMZLVPU3OLTM6XIF",
+          "GA5AZMQ7V6JAJAP3ZC34RIUSEQEY3EYUDNXYJ2XWSB3FKCDLU5OFQL6T",
+          "GC26TSVL2POVCMEPGRF5D2VWOKGFCVVENK5RLZCPN6XX3NH77BGUCOBH",
+          "GA5WIP5OZDSD7YDYHXIBCU4PTCG6RXFONTHI55Z3SUI3OXDT3D4PGV25",
+          "GDKZ2E37PSF74DKF2CB7KFEYPM6SLMOTZW5FIWYQRA57TEZTCXKAYP23",
+          "GCS3CDWCJEW2NGDZLV7LQE5CM3H2JL3M4W63EMPQWAPZWRME32C6JFS2",
+          "GAFU3WCNPV6GU6U5TUABY4JBRUTVANTO3CAPBAFGDTUSFCNV6OTUA5DV",
+          "GBXCTH7MF6HGLNYCRNJC2N4AHQO33DQONYKXO4OCUT6JUW2P7SQDORY6",
+          "GBGM6KX2AUYCBBGWTNNQ575U7UJNUOXFV2TBKA4TP27Z24QXX5OGC6JG",
+          "GCB55H2E42HA63FM3C4MTWU7EITNYFC6DRTIOEYOIIGOL2GP2QIGPQUM",
+          "GDUD6VR2CGDRSLNKSUGMHSUNHIN3GBHHNJHVFU3DESRICK4A2JKSD7HO",
+          "GA72N6TMCGBXNLICYTT7L7PQOQCZGIYM73YJRYCBMLOKHMSEC5QOPRFE",
+          "GAFLWIFSEO45MD54DCIVNB455PBWSG5U5RAXYDJQMQIC4ACSZODJUFLU"
+        ]
+      }
+    }
+  },
+  "harness": {
+    "commit": "b9ebb87f3632f7e601f9f2f884cd4389deb65c20",
+    "dirty": false
+  },
+  "packages": {
+    "@stellar/stellar-sdk": "16.3.0",
+    "@rail402.dev/upto": "0.4.1"
+  },
+  "command": "node --conditions=@rail402/source tools/conformance/src/upto-contract.ts --facilitator http://127.0.0.1:8801",
+  "config": {
+    "rpcUrl": "https://soroban-testnet.stellar.org",
+    "stellarCli": "stellar 28.1.0 (c0f4d0da891bbf214c08b8c5035ae6db80e9a3bd)",
+    "rebuild": true
+  },
+  "accounts": {
+    "upto": "CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U",
+    "test6": "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK"
+  },
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "record",
+      "title": "the deployment record names the contract and WASM hash @rail402.dev/upto ships for stellar:testnet",
+      "checks": [
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 0,
+      "observations": {
+        "contractId": "CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U",
+        "wasmSha256": "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
+        "sourceRevision": "f107e0993e0c807e7c646a169bdc225191fa5a47",
+        "source": "contracts/stellar/upto",
+        "sourceSha256": "c783ef0838c7d2c235ded5c4e28b8303e7d7e387362ff868f0a3cc5018802343",
+        "buildImage": "docker.io/stellar/stellar-cli:28.0.0-rust1.98.0-slim-trixie-amd64-0@sha256:3901802ef2324ff9563a50995279818ca4b98938b45e1dab0e1e7c5d69adb5a9",
+        "deployTransactions": {
+          "upload": {
+            "tx": "86c3d9f7ffbe078e654a242426a266926797fe1fbc7fc05fcc2ab47779a249de",
+            "ledger": 5071398,
+            "explorer": "https://stellar.expert/explorer/testnet/tx/86c3d9f7ffbe078e654a242426a266926797fe1fbc7fc05fcc2ab47779a249de"
+          },
+          "deploy": {
+            "tx": "cf415bbdf8782de3fb429bdf0d5f6dbe8cef2c174d4a54673ea4c14fc3f90fa9",
+            "ledger": 5071399,
+            "explorer": "https://stellar.expert/explorer/testnet/tx/cf415bbdf8782de3fb429bdf0d5f6dbe8cef2c174d4a54673ea4c14fc3f90fa9"
+          }
+        }
+      }
+    },
+    {
+      "id": "on-chain",
+      "title": "the contract instance on chain runs the recorded WASM, and its instance and code are live",
+      "checks": [
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 362,
+      "observations": {
+        "latestLedger": 5105957,
+        "instanceTtlLedgers": 3075842,
+        "codeTtlLedgers": 3075843
+      }
+    },
+    {
+      "id": "contract-fetch",
+      "title": "the WASM `stellar contract fetch` downloads from the contract hashes to the recorded WASM hash",
+      "checks": [
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 553,
+      "observations": {
+        "fetchedSha256": "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
+        "stellarCli": "stellar 28.1.0 (c0f4d0da891bbf214c08b8c5035ae6db80e9a3bd)"
+      }
+    },
+    {
+      "id": "reproducible-build",
+      "title": "rebuilding the recorded source revision in the pinned build image reproduces the deployed WASM byte for byte",
+      "checks": [
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 17140,
+      "observations": {
+        "rebuiltSha256": "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
+        "deployedSha256": "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
+        "command": "scripts/contracts/verify.sh --network testnet"
+      }
+    },
+    {
+      "id": "facilitator-contract",
+      "title": "the facilitator settles upto through this contract",
+      "checks": [
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 4,
+      "observations": {
+        "health": {
+          "contract": "CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U",
+          "authority": {
+            "address": "GAFLWIFSEO45MD54DCIVNB455PBWSG5U5RAXYDJQMQIC4ACSZODJUFLU",
+            "present": true,
+            "balanceStroops": "0",
+            "spendableStroops": "0",
+            "tokens": []
+          },
+          "keeper": {
+            "enabled": true,
+            "autoRestore": true,
+            "checkedAt": "2026-10-09T13:38:54.342Z",
+            "plan": "none",
+            "lastAction": null,
+            "error": null
+          }
+        }
+      }
+    },
+    {
+      "id": "test6",
+      "title": "the TEST6 test token on chain runs the recorded WASM, is live and answers decimals() = 6",
+      "checks": [
+        "second-asset"
+      ],
+      "asset": "TEST6",
+      "status": "passed",
+      "elapsedMs": 1660,
+      "observations": {
+        "contractId": "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK",
+        "wasmSha256": "b2a8948479de732f4374a92810d2aaef365a68dab53b227ffbaba707e55ed9e0",
+        "fetchedSha256": "b2a8948479de732f4374a92810d2aaef365a68dab53b227ffbaba707e55ed9e0",
+        "sourceRevision": "9e4686ade88743a31c8ec81de212688336386490",
+        "instanceTtlLedgers": 2945777,
+        "deploy": {
+          "tx": "6091557af2daba6f7c08677ecf71dcedec2ded1c40c62b615584d07a3b0b420d",
+          "ledger": 4941338,
+          "explorer": "https://stellar.expert/explorer/testnet/tx/6091557af2daba6f7c08677ecf71dcedec2ded1c40c62b615584d07a3b0b420d"
+        }
+      }
+    }
+  ]
+}

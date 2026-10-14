@@ -1,0 +1,750 @@
+{
+  "schemaVersion": 2,
+  "kind": "live-playground",
+  "runId": "56247e6b-795d-4440-9fac-ba87388f7517",
+  "startedAt": "2026-10-09T14:41:39.547Z",
+  "finishedAt": "2026-10-09T14:43:51.651Z",
+  "network": "stellar:testnet",
+  "target": {
+    "mode": "hosted",
+    "facilitatorUrl": "https://testnet.rail402.dev",
+    "healthVersion": "0.4.1+c99804586cfc",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC"
+          }
+        }
+      ],
+      "extensions": [
+        "bazaar"
+      ],
+      "signers": {
+        "stellar:*": [
+          "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
+          "GDZREJ6UXJDL7IMLRMHP4F6RM37TF3WUGRB7GPE5G4IUIXKS6ISZPVEQ",
+          "GB334JRFWHASBTLFWFDE2PUH2BJVVJNWT4TUFESSNH4IPQK5XMPD5HX7",
+          "GBMM3OEFZTPG2JWQTY2RDVNDDDONFZXBEWV6UD3L554RTJGZULR752YJ",
+          "GB64RTLBRKRSTKFEWZU5P25O2WUZBI22WQY3DBWWH2B57Y6BRSOGCYUS",
+          "GBAWKRXQ3NCGQKTW4HMD4THUVOU7F6FYOOVGNPL3V3AH3CWT7W4OA2IM",
+          "GCM75IOHE4X5T4PAWC52JQH2WC2DOCLZQFKVJB7Z7IHOMMPR2CX75EEK",
+          "GDTJKNDIENAI7AVCSIMQLPZGFJSRDRBQ4WWKEVJLP5CZVTTSSM2SV3IN",
+          "GCSBROZRQFRWMTCQYQGU5SHDML24ZVSAOP4M4Z3SJZXYIC55DL6QF2TN",
+          "GDIQHTP3KYYC7UUUEHQ5Q2KFPLMIDDDKN7DMFLLNBC7CHO7IEUCMLAYN",
+          "GDJGN273XHBYIBHBK57E323KWFTSHFES3DZXNZG3B7YGQKCT72BINB5G",
+          "GBOXYFJZEFPTLSYPGCG7QFKUI4DCHATOD6XDO4VJUUJM2YJC5SXWUE3S",
+          "GCU4VZCFCHWSIMBFGAUSRS7UGELI4YBDVDLGA7HWO2RHH65QN5JERO3W",
+          "GDTMBMFVMXC5JA4TJJBK6TQQ36ZPNPQLG6RWHMONLYP7SMFL4I7HX4O7",
+          "GCWVKGUT4W5J5CWF2PHXAAQF5TGG6NWZNSQ3FRBZWHGZGBIUETRNVT6Z",
+          "GBWH6KTFYLTIWL2Y6VOJS2DRCCW65F3ZCCMADMQ6UHSB7CBMHLRNHCT4",
+          "GC65COQZYD3QBDXXPDZP5QIYG2DEDGRANTIG27HEIGCKE6YIIV33XAG2",
+          "GAGUB7N3W5D5U2TMD4IL2ZNH4OSWI2DWJPE65VWV2G3G3BHZ4SFUYBYQ",
+          "GB7MYLE2FJ3B45QCUKSWLDXU7XOX5IB6WP4BRZ23ZBZXGOMT7OCBLZHY",
+          "GCWHGE3VITTC372HNQZ2VHIQO2UQKM6DF463JVIR7JUPNRUUHY7D4KTY",
+          "GAQZVTDNI274EAAFFGJFEUGABDXEL75AYPKYDGN437FVWJRXL3MXNT73",
+          "GB5Z6U43A7IG7XGVGRP27G2A7E2VKEPQQKUZG5NUY2YA7D4QQJ74W4Y3",
+          "GBAUIMDRVA4ZRRKMP23XMO6WVQWN7LCZPA4Q4LOUNYK2QPYKUNGPAMVY",
+          "GBXJKUO4DNWVPY4Z2YY5K5MBDBZJZA6EBOHYKUIKY2QZWNKXU5TF74E4",
+          "GAUNOKFXMYYCCAEN3RAEXJOCOBES2PWEIHMOZVQGTDF3EDDLAE3WRNVA",
+          "GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC"
+        ]
+      }
+    }
+  },
+  "harness": {
+    "commit": "bb1cfc54bf5ad9eed9cee1a62f1e20a8b692a310",
+    "dirty": false
+  },
+  "packages": {
+    "@rail402.dev/playground": "0.4.1",
+    "@rail402.dev/sdk": "0.4.1",
+    "@rail402.dev/mcp": "0.4.1",
+    "@x402/core": "2.27.0",
+    "@x402/stellar": "2.27.0",
+    "@stellar/stellar-sdk": "16.3.0",
+    "@playwright/test": "1.63.0",
+    "chromium": "153.0.8010.12"
+  },
+  "command": "node --conditions=@rail402/source tools/conformance/src/live-playground.ts --bazaar https://testnet.rail402.dev --seller https://demo.rail402.dev --pay-to GCXS4EFFJBYHJEYKCQHY4XNUDMXOGLSTMHPFYE55SSQ5NRE672HCO5ZH",
+  "config": {
+    "mode": "hosted, local page",
+    "playground": "the Playground server from this commit, on this machine",
+    "playgroundVersion": "0.4.1",
+    "playgroundMode": "hosted",
+    "rail402": "https://testnet.rail402.dev",
+    "bazaar": "https://testnet.rail402.dev",
+    "seller": "https://demo.rail402.dev",
+    "rpc": "https://soroban-testnet.stellar.org",
+    "explorer": "https://stellar.expert/explorer/{network}/tx/{hash}",
+    "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "perCallDefault": "0.01",
+    "sessionTotal": "1",
+    "browser": "chromium 153.0.8010.12 (headless)"
+  },
+  "accounts": {
+    "payer": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+    "demoPayTo": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+    "labPayTo": "GCXS4EFFJBYHJEYKCQHY4XNUDMXOGLSTMHPFYE55SSQ5NRE672HCO5ZH",
+    "uptoContract": "CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U"
+  },
+  "summary": {
+    "total": 19,
+    "passed": 17,
+    "failed": 0,
+    "skipped": 2
+  },
+  "cases": [
+    {
+      "id": "onboarding",
+      "title": "The wallet panel imports a testnet key and sets it up: Friendbot, a USDC trustline, USDC from the testnet exchange",
+      "checks": [
+        "playground"
+      ],
+      "status": "passed",
+      "elapsedMs": 17509,
+      "observations": {
+        "payer": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+        "classicTransactions": [
+          {
+            "hash": "0e97b505e643175d41996956af7b42e22a7cce882c91ce9c24bfc4f7d5289de0",
+            "ledger": 5106664,
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/0e97b505e643175d41996956af7b42e22a7cce882c91ce9c24bfc4f7d5289de0"
+          },
+          {
+            "hash": "cec64010c0b4ea309beab00b3636a139e6378799b2dd5352a26dcfe3de1980bc",
+            "ledger": 5106665,
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/cec64010c0b4ea309beab00b3636a139e6378799b2dd5352a26dcfe3de1980bc"
+          },
+          {
+            "hash": "6075dc20703deb07418b4d4515f1dc0a42fd35ed2f57428e068861c3e3b565dd",
+            "ledger": 5106666,
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/6075dc20703deb07418b4d4515f1dc0a42fd35ed2f57428e068861c3e3b565dd"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pay-exact",
+      "title": "Lab, pay for an API: one exact payment, settled on chain and sponsored",
+      "checks": [
+        "playground",
+        "scheme-exact",
+        "fees-sponsored"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 10605,
+      "transactions": [
+        {
+          "hash": "e65c283a32ae30e1c3802fd5f89b637c8daa753a4ad623f173ca6a2f8bf0005a",
+          "ledger": 5106668,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
+          "innerSource": "GAUNOKFXMYYCCAEN3RAEXJOCOBES2PWEIHMOZVQGTDF3EDDLAE3WRNVA",
+          "innerSequence": "21108583143833625",
+          "transfers": [
+            {
+              "from": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/e65c283a32ae30e1c3802fd5f89b637c8daa753a4ad623f173ca6a2f8bf0005a"
+        }
+      ],
+      "observations": {
+        "feeSourceAdvertised": true,
+        "rows": [
+          "request 0→1 done you",
+          "quote 1→0 done seller",
+          "sign self 0 done you",
+          "paid-request 0→1 done you",
+          "settle 1→2 done seller",
+          "submit 2→3 done chain",
+          "deliver 1→0 done you"
+        ]
+      }
+    },
+    {
+      "id": "cap-below-price",
+      "title": "Lab: a per-call cap below the price is refused before anything is signed",
+      "checks": [
+        "playground",
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 1493,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "playground lab: pay with a cap below the price",
+          "code": "payment_per_call_cap_exceeded",
+          "reason": "The price is 0.001 USDC, above the per-call cap of 0.0005."
+        }
+      ],
+      "observations": {
+        "layer": "policy",
+        "balancesUnchanged": true,
+        "rows": [
+          "request 0→1 done you",
+          "quote 1→0 done seller",
+          "refused self 0 error you"
+        ]
+      }
+    },
+    {
+      "id": "replay",
+      "title": "Lab: the same payment sent twice is refused the second time and charged once",
+      "checks": [
+        "playground",
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 8361,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "playground lab: the same PAYMENT-SIGNATURE sent again",
+          "code": "invalid_exact_stellar_payload_nonce_already_used",
+          "reason": "Paid once: the same payment sent again was refused (its authorization was already used once), and your balance did not move."
+        }
+      ],
+      "transactions": [
+        {
+          "hash": "3e2b9acbda48812698c88f2ac44865a7c5c41fe2dc65420d71e9a9b5b885a34c",
+          "ledger": 5106670,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
+          "innerSource": "GDTJKNDIENAI7AVCSIMQLPZGFJSRDRBQ4WWKEVJLP5CZVTTSSM2SV3IN",
+          "innerSequence": "21101041181261870",
+          "transfers": [
+            {
+              "from": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/3e2b9acbda48812698c88f2ac44865a7c5c41fe2dc65420d71e9a9b5b885a34c"
+        }
+      ],
+      "observations": {
+        "feeSourceAdvertised": true,
+        "layer": "facilitator",
+        "rows": [
+          "request 0→1 done you",
+          "quote 1→0 done seller",
+          "sign self 0 done you",
+          "paid-request 0→1 done you",
+          "settle 1→2 done seller",
+          "submit 2→3 done chain",
+          "deliver 1→0 done you",
+          "resend 0→1 done you",
+          "replay-refused 1→0 error seller",
+          "charged-once self 0 done chain"
+        ]
+      }
+    },
+    {
+      "id": "pay-upto",
+      "title": "Lab, pay per use: an upto authorization of 0.01 settles the 0.0021 used",
+      "checks": [
+        "playground",
+        "scheme-upto",
+        "fees-sponsored"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 10087,
+      "transactions": [
+        {
+          "hash": "14c98a78ddba993af6ded79ba2064df6437903c255e0f59165edff83738cc9a4",
+          "ledger": 5106672,
+          "scheme": "upto",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "21000",
+          "payerType": "G",
+          "feeChargedStroops": "39185",
+          "feeSource": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
+          "innerSource": "GB7MYLE2FJ3B45QCUKSWLDXU7XOX5IB6WP4BRZ23ZBZXGOMT7OCBLZHY",
+          "innerSequence": "21108583143833624",
+          "transfers": [
+            {
+              "from": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "21000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/14c98a78ddba993af6ded79ba2064df6437903c255e0f59165edff83738cc9a4"
+        }
+      ],
+      "observations": {
+        "feeSourceAdvertised": true,
+        "rows": [
+          "request 0→1 done you",
+          "quote 1→0 done seller",
+          "sign self 0 done you",
+          "paid-request 0→1 done you",
+          "work self 1 done seller",
+          "settle 1→2 done seller",
+          "submit 2→3 done chain",
+          "deliver 1→0 done you"
+        ]
+      }
+    },
+    {
+      "id": "overcharge",
+      "title": "Lab: a seller asking to settle twice the authorized cap is refused, and nothing moves",
+      "checks": [
+        "playground",
+        "scheme-upto",
+        "rejection-codes"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 4412,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "playground lab: settle 0.02 against a 0.01 upto cap",
+          "code": "invalid_upto_stellar_payload_settlement_exceeds_amount",
+          "reason": "Overcharge blocked: Rail402 refused to settle more than the authorized cap, and nothing moved."
+        }
+      ],
+      "observations": {
+        "layer": "facilitator",
+        "balancesUnchanged": true,
+        "meter": "Session budget: 0.0041 spent, 0.01 held, 0.9859 of 1 USDC left",
+        "rows": [
+          "request 0→1 done you",
+          "quote 1→0 done seller",
+          "sign self 0 done you",
+          "paid-request 0→1 done you",
+          "work self 1 done seller",
+          "settle 1→2 error seller",
+          "overcharge-refused self 2 error seller",
+          "deliver 1→0 error seller"
+        ]
+      }
+    },
+    {
+      "id": "agent-mcp",
+      "title": "Lab: a scripted agent finds an MCP tool in the Bazaar, checks its budget and pays it with the rail402-mcp tools",
+      "checks": [
+        "playground",
+        "mcp",
+        "discovery",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 11363,
+      "transactions": [
+        {
+          "hash": "dbe1047c5d9991534a597c87764f300615caf10d8a6a713f3c4190f4522fe3b4",
+          "ledger": 5106675,
+          "scheme": "upto",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "12000",
+          "payerType": "G",
+          "feeChargedStroops": "36153",
+          "feeSource": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
+          "innerSource": "GBMM3OEFZTPG2JWQTY2RDVNDDDONFZXBEWV6UD3L554RTJGZULR752YJ",
+          "innerSequence": "21101041181261870",
+          "transfers": [
+            {
+              "from": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "12000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/dbe1047c5d9991534a597c87764f300615caf10d8a6a713f3c4190f4522fe3b4"
+        }
+      ],
+      "observations": {
+        "feeSourceAdvertised": true,
+        "search": {
+          "query": "hourly weather forecast",
+          "results": 1
+        },
+        "rows": [
+          "search 0→1 done you",
+          "results 1→0 done bazaar",
+          "pick self 0 done you",
+          "budget self 0 done you",
+          "call-tool 0→2 done you",
+          "tool-settle 2→3 done chain",
+          "tool-result 2→0 done you"
+        ]
+      }
+    },
+    {
+      "id": "sell-listed",
+      "title": "Lab, sell: a paid call to the sandbox route settles, is cataloged, origin-checked and found by search",
+      "checks": [
+        "playground",
+        "discovery",
+        "scheme-exact"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "skipped",
+      "skipReason": "the Playground's lab sellers listen on this machine, which a hosted catalog refuses to reach",
+      "elapsedMs": 0
+    },
+    {
+      "id": "refusal-network",
+      "title": "A 402 asking for payment on stellar:pubnet is refused",
+      "checks": [
+        "playground",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 2331,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "playground check: A 402 asking for payment on stellar:pubnet is refused",
+          "code": "payment_network_not_permitted",
+          "reason": "The option is for stellar:pubnet, not stellar:testnet."
+        }
+      ],
+      "observations": {
+        "balancesUnchanged": true,
+        "layer": "policy"
+      }
+    },
+    {
+      "id": "refusal-asset",
+      "title": "A 402 priced in an asset outside the policy is refused",
+      "checks": [
+        "playground",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 2044,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "playground check: A 402 priced in an asset outside the policy is refused",
+          "code": "payment_asset_not_permitted",
+          "reason": "The option's asset is not in the spending policy."
+        }
+      ],
+      "observations": {
+        "balancesUnchanged": true,
+        "layer": "policy"
+      }
+    },
+    {
+      "id": "refusal-amount",
+      "title": "A 402 asking for an amount of 0 is refused",
+      "checks": [
+        "playground",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 1792,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "playground check: A 402 asking for an amount of 0 is refused",
+          "code": "payment_amount_not_permitted",
+          "reason": "The payment amount must be a positive integer number of base units that fits an i128."
+        }
+      ],
+      "observations": {
+        "balancesUnchanged": true,
+        "layer": "policy"
+      }
+    },
+    {
+      "id": "refusal-recipient",
+      "title": "A payTo on the buyer's deny list is refused",
+      "checks": [
+        "playground",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 2745,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "playground check: A payTo on the buyer's deny list is refused",
+          "code": "payment_recipient_not_permitted",
+          "reason": "The recipient is invalid, is the payer itself, or is excluded by the policy's recipient allow or deny list."
+        }
+      ],
+      "observations": {
+        "balancesUnchanged": true,
+        "layer": "policy"
+      }
+    },
+    {
+      "id": "refusal-session",
+      "title": "A payment past the session budget is refused",
+      "checks": [
+        "playground",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 11795,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "playground check: A payment past the session budget is refused",
+          "code": "payment_session_cap_exceeded",
+          "reason": "The price is 0.001 USDC, but only 0 is left in the session."
+        }
+      ],
+      "transactions": [
+        {
+          "hash": "b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d",
+          "ledger": 5106679,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
+          "innerSource": "GBAUIMDRVA4ZRRKMP23XMO6WVQWN7LCZPA4Q4LOUNYK2QPYKUNGPAMVY",
+          "innerSequence": "21108583143833625",
+          "transfers": [
+            {
+              "from": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d"
+        }
+      ],
+      "observations": {
+        "feeSourceAdvertised": true,
+        "paidBeforeRefusal": {
+          "amount": "10000",
+          "transaction": "b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d"
+        },
+        "layer": "policy"
+      }
+    },
+    {
+      "id": "ssrf-literal",
+      "title": "Pay any URL: a loopback address literal is refused by the relay",
+      "checks": [
+        "playground",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 1573,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "playground pay: https://127.0.0.1/",
+          "code": "egress_destination_not_allowed",
+          "reason": "The host 127.0.0.1 is a private, local or reserved destination."
+        }
+      ],
+      "observations": {
+        "layer": "relay",
+        "balancesUnchanged": true
+      }
+    },
+    {
+      "id": "ssrf-metadata",
+      "title": "Pay any URL: the cloud metadata address is refused by the relay",
+      "checks": [
+        "playground",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 1488,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "playground pay: https://169.254.169.254/",
+          "code": "egress_destination_not_allowed",
+          "reason": "The host 169.254.169.254 is a private, local or reserved destination."
+        }
+      ],
+      "observations": {
+        "layer": "relay",
+        "balancesUnchanged": true
+      }
+    },
+    {
+      "id": "redirect",
+      "title": "Pay any URL: a seller redirecting to another origin is refused, and that origin receives nothing",
+      "checks": [
+        "playground",
+        "rejection-codes"
+      ],
+      "status": "skipped",
+      "skipReason": "the redirecting seller listens on this machine, which only a local Playground's relay may reach",
+      "elapsedMs": 0
+    },
+    {
+      "id": "overcharge-release",
+      "title": "The refused overcharge's held cap returns to the session budget once its authorization expires",
+      "checks": [
+        "playground",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 40394,
+      "observations": {
+        "meter": "Session budget: 0.0063 spent, 0 held, 0.9937 of 1 USDC left",
+        "releasedAfterMs": 40394
+      }
+    },
+    {
+      "id": "explorer",
+      "title": "Every transaction the page linked opens in stellar.expert (its API answers 200 with the hash and ledger)",
+      "checks": [
+        "playground"
+      ],
+      "status": "passed",
+      "elapsedMs": 410,
+      "observations": {
+        "transactions": [
+          {
+            "hash": "0e97b505e643175d41996956af7b42e22a7cce882c91ce9c24bfc4f7d5289de0",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/0e97b505e643175d41996956af7b42e22a7cce882c91ce9c24bfc4f7d5289de0",
+            "apiStatus": 200,
+            "ledger": 5106664,
+            "attempts": 1,
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/0e97b505e643175d41996956af7b42e22a7cce882c91ce9c24bfc4f7d5289de0"
+          },
+          {
+            "hash": "cec64010c0b4ea309beab00b3636a139e6378799b2dd5352a26dcfe3de1980bc",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/cec64010c0b4ea309beab00b3636a139e6378799b2dd5352a26dcfe3de1980bc",
+            "apiStatus": 200,
+            "ledger": 5106665,
+            "attempts": 1,
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/cec64010c0b4ea309beab00b3636a139e6378799b2dd5352a26dcfe3de1980bc"
+          },
+          {
+            "hash": "6075dc20703deb07418b4d4515f1dc0a42fd35ed2f57428e068861c3e3b565dd",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/6075dc20703deb07418b4d4515f1dc0a42fd35ed2f57428e068861c3e3b565dd",
+            "apiStatus": 200,
+            "ledger": 5106666,
+            "attempts": 1,
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/6075dc20703deb07418b4d4515f1dc0a42fd35ed2f57428e068861c3e3b565dd"
+          },
+          {
+            "hash": "e65c283a32ae30e1c3802fd5f89b637c8daa753a4ad623f173ca6a2f8bf0005a",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/e65c283a32ae30e1c3802fd5f89b637c8daa753a4ad623f173ca6a2f8bf0005a",
+            "apiStatus": 200,
+            "ledger": 5106668,
+            "attempts": 1,
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/e65c283a32ae30e1c3802fd5f89b637c8daa753a4ad623f173ca6a2f8bf0005a"
+          },
+          {
+            "hash": "3e2b9acbda48812698c88f2ac44865a7c5c41fe2dc65420d71e9a9b5b885a34c",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/3e2b9acbda48812698c88f2ac44865a7c5c41fe2dc65420d71e9a9b5b885a34c",
+            "apiStatus": 200,
+            "ledger": 5106670,
+            "attempts": 1,
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/3e2b9acbda48812698c88f2ac44865a7c5c41fe2dc65420d71e9a9b5b885a34c"
+          },
+          {
+            "hash": "14c98a78ddba993af6ded79ba2064df6437903c255e0f59165edff83738cc9a4",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/14c98a78ddba993af6ded79ba2064df6437903c255e0f59165edff83738cc9a4",
+            "apiStatus": 200,
+            "ledger": 5106672,
+            "attempts": 1,
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/14c98a78ddba993af6ded79ba2064df6437903c255e0f59165edff83738cc9a4"
+          },
+          {
+            "hash": "dbe1047c5d9991534a597c87764f300615caf10d8a6a713f3c4190f4522fe3b4",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/dbe1047c5d9991534a597c87764f300615caf10d8a6a713f3c4190f4522fe3b4",
+            "apiStatus": 200,
+            "ledger": 5106675,
+            "attempts": 1,
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/dbe1047c5d9991534a597c87764f300615caf10d8a6a713f3c4190f4522fe3b4"
+          },
+          {
+            "hash": "b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d",
+            "apiStatus": 200,
+            "ledger": 5106679,
+            "attempts": 1,
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d"
+          }
+        ]
+      }
+    },
+    {
+      "id": "secret-scan",
+      "title": "No channel the browser, the Playground server or this run produced carries the wallet's seed, a signature, a preimage or a payment",
+      "checks": [
+        "playground"
+      ],
+      "status": "passed",
+      "elapsedMs": 1765,
+      "observations": {
+        "secretScan": {
+          "channels": 1226,
+          "needles": 69,
+          "payments": 7,
+          "serverLogs": true,
+          "hits": 0,
+          "seedHits": 0,
+          "plantedLeakFound": true,
+          "plantedSeedFound": true
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,377 @@
+{
+  "schemaVersion": 2,
+  "kind": "fault-recovery",
+  "runId": "08475e97-99ef-407d-9d69-ffe356089897",
+  "startedAt": "2026-10-09T13:10:28.239Z",
+  "finishedAt": "2026-10-09T13:13:14.233Z",
+  "network": "stellar:testnet",
+  "target": {
+    "mode": "local",
+    "facilitatorUrl": "http://127.0.0.1:42229",
+    "healthVersion": "0.4.1+b9ebb87f3632",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GD5WJTSDUKSOJOHZABSAL3MKW3265VHY43PPTURCAJZFQAKY43MB3WRY"
+          }
+        }
+      ],
+      "extensions": [],
+      "signers": {
+        "stellar:*": [
+          "GDCGFMC3EBDUMKFDRZISPU3AXQIK3RU5CF7MQ6XXLFZIWWBHWMTTRH5M",
+          "GDQRDVZRAWKDMJ5NUTM6I6J2757V7OVCH7M7ZIAL3RYKDU7CDE62LS2T",
+          "GBTR25PM7EPCPNDG2TPH3NGRZ5Q4GKL25AZB5OXEH4JBRWVZEWMKV7Q4",
+          "GD5WJTSDUKSOJOHZABSAL3MKW3265VHY43PPTURCAJZFQAKY43MB3WRY"
+        ]
+      }
+    }
+  },
+  "harness": {
+    "commit": "b9ebb87f3632f7e601f9f2f884cd4389deb65c20",
+    "dirty": false
+  },
+  "packages": {
+    "@x402/core": "2.27.0",
+    "@x402/stellar": "2.27.0",
+    "@stellar/stellar-sdk": "16.3.0",
+    "@rail402.dev/upto": "0.4.1"
+  },
+  "command": "node tools/conformance/src/fault-recovery.ts --cases k0-exact,k1-exact,k3-exact,k0-upto,k1-upto",
+  "config": {
+    "store": "postgres",
+    "rpc": "https://soroban-testnet.stellar.org",
+    "rpcPath": "through the fault proxy",
+    "channels": 2,
+    "reconcileIntervalMs": 1000,
+    "amount": "100000",
+    "TESTNET_ASSETS": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA:USDC:7",
+    "TESTNET_MAX_TX_FEE_STROOPS": "1000000",
+    "TESTNET_UPTO_MAX_TX_FEE_STROOPS": "1000000",
+    "SEARCH_EMBEDDINGS": "false"
+  },
+  "accounts": {
+    "sponsor": "GDCGFMC3EBDUMKFDRZISPU3AXQIK3RU5CF7MQ6XXLFZIWWBHWMTTRH5M",
+    "payTo": "GBB2FF5ZXGQVXBOBXX4IOXLU3UFFB2PEP7DYL4SGJ2PMFVJPIXRVH374",
+    "treasury": "GCTP5OCKBUTF36GCF7YA2ZFVIE4BHHE7ZZDCXRZVYUZPM2VQD25WJVLX"
+  },
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "k0-exact",
+      "title": "K0 (exact): killed after the network accepted the transaction; the restarted process finds it",
+      "checks": [
+        "crash-recovery"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 34407,
+      "transactions": [
+        {
+          "hash": "c95127f40796e40ef2ca37c61f0ee2a7342749f6271ec42fa78a0afa187ad304",
+          "ledger": 5105576,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "100000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GDCGFMC3EBDUMKFDRZISPU3AXQIK3RU5CF7MQ6XXLFZIWWBHWMTTRH5M",
+          "innerSource": "GBTR25PM7EPCPNDG2TPH3NGRZ5Q4GKL25AZB5OXEH4JBRWVZEWMKV7Q4",
+          "innerSequence": "21928256177438721",
+          "transfers": [
+            {
+              "from": "GCGQBEXTVIX3TX2PFCGJPAX2HEXRN7BTTIZWMEV5THRNUHXELW4PM7FM",
+              "to": "GBB2FF5ZXGQVXBOBXX4IOXLU3UFFB2PEP7DYL4SGJ2PMFVJPIXRVH374",
+              "amount": "100000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/c95127f40796e40ef2ca37c61f0ee2a7342749f6271ec42fa78a0afa187ad304",
+          "envelopeXdr": "AAAABQAAAADEYrBbIEdGKKOOUSfTYLwQrcadEX7IevdZcotYJ7MnOAAAAAAAAIMUAAAAAgAAAABnHXXs+R4ntGbU3n200c9hwyl66DIeuuQ/EhjauSWYqgAAgkwATeeiAAAAAQAAAAEAAAAAAAAAAAAAAABqyOheAAAAAAAAAAEAAAAAAAAAGAAAAAAAAAABUEXNXsBymnaP1a0CUFhS308Cjc6DDlrFIgm6SEg7LwEAAAAIdHJhbnNmZXIAAAADAAAAEgAAAAAAAAAAjQCS86ovud9PKIyXgvo5Lxb8M5ozZhK9meLaHuRduPYAAAASAAAAAAAAAABDope5uaFbhcG9+IdddN0KUOnkf8eF8kZOnsLVL0XjUwAAAAoAAAAAAAAAAAAAAAAAAYagAAAAAQAAAAEAAAAAAAAAAI0AkvOqL7nfTyiMl4L6OS8W/DOaM2YSvZni2h7kXbj2ewly8hMtqqkATee+AAAAEAAAAAEAAAABAAAAEQAAAAEAAAACAAAADwAAAApwdWJsaWNfa2V5AAAAAAANAAAAII0AkvOqL7nfTyiMl4L6OS8W/DOaM2YSvZni2h7kXbj2AAAADwAAAAlzaWduYXR1cmUAAAAAAAANAAAAQMTEPqWjqvh2GZ5EmUAgFPlC8ieIn+ntj2hWaB1mLsmids6QUZWpZQRprfNF9ezNBASXG+gE8lNCCt8E52IAsgIAAAAAAAAAAVBFzV7Acpp2j9WtAlBYUt9PAo3Ogw5axSIJukhIOy8BAAAACHRyYW5zZmVyAAAAAwAAABIAAAAAAAAAAI0AkvOqL7nfTyiMl4L6OS8W/DOaM2YSvZni2h7kXbj2AAAAEgAAAAAAAAAAQ6KXubmhW4XBvfiHXXTdClDp5H/HhfJGTp7C1S9F41MAAAAKAAAAAAAAAAAAAAAAAAGGoAAAAAAAAAABAAAAAAAAAAIAAAAAAAAAAI0AkvOqL7nfTyiMl4L6OS8W/DOaM2YSvZni2h7kXbj2AAAABgAAAAFQRc1ewHKado/VrQJQWFLfTwKNzoMOWsUiCbpISDsvAQAAABQAAAABAAAAAwAAAAEAAAAAQ6KXubmhW4XBvfiHXXTdClDp5H/HhfJGTp7C1S9F41MAAAABVVNEQwAAAABCPn0F8uyvv+wZKyFaPxvpau242OcCVKvjQT4CB95WsgAAAAEAAAAAjQCS86ovud9PKIyXgvo5Lxb8M5ozZhK9meLaHuRduPYAAAABVVNEQwAAAABCPn0F8uyvv+wZKyFaPxvpau242OcCVKvjQT4CB95WsgAAAAYAAAAAAAAAAI0AkvOqL7nfTyiMl4L6OS8W/DOaM2YSvZni2h7kXbj2AAAAFXsJcvITLaqpAAAAAAALUoMAAAF4AAABNAAAAAAAAIGEAAAAAbklmKoAAABA89QEhlH3DT6Y7rK08W9fZ5NTbDyDEOycOkVejznNuA+TmwoFhP3lhbs80caz4wW6K5st1T1rvPGiNZ4/hu6dCgAAAAAAAAABJ7MnOAAAAEAocK9otN0cju+cdjiMtkMiF97rgorkg/0z9fTflMPcvf5WHxQ3tzoiFz6Fwwa0CSgCoMvaFZy7lEI+trf4c0EB",
+          "resultXdr": "AAAAAAAAWngAAAAB+aitSub9HCbThjTdsV2CBlimxvC/+nYHDZ7XOhxSU8QAAAAAAAAAAAAAAAAAAAABAAAAAAAAABgAAAAADSVAh2pz25xYjMBfw4Rk4iBVzqP6uKC9B2eqQogTdQgAAAAAAAAAAA=="
+        }
+      ],
+      "observations": {
+        "transaction": "c95127f40796e40ef2ca37c61f0ee2a7342749f6271ec42fa78a0afa187ad304",
+        "recordedBeforeKill": "submitted",
+        "killedAt": "2026-10-09T13:11:02.550Z",
+        "killSignal": "SIGKILL",
+        "request": "cut off",
+        "restartedAt": "2026-10-09T13:11:05.439Z",
+        "recoveredAt": "2026-10-09T13:11:07.947Z",
+        "state": "succeeded",
+        "distinctEnvelopes": [
+          "c95127f40796e40ef2ca37c61f0ee2a7342749f6271ec42fa78a0afa187ad304"
+        ],
+        "sendsAfterRestart": 3,
+        "reconciled": 1,
+        "repeat": {
+          "status": 200,
+          "body": {
+            "payer": "GCGQBEXTVIX3TX2PFCGJPAX2HEXRN7BTTIZWMEV5THRNUHXELW4PM7FM",
+            "network": "stellar:testnet",
+            "success": true,
+            "transaction": "c95127f40796e40ef2ca37c61f0ee2a7342749f6271ec42fa78a0afa187ad304"
+          },
+          "marked": true
+        }
+      }
+    },
+    {
+      "id": "k1-exact",
+      "title": "K1 (exact): killed before the broadcast left; the restarted process rebroadcasts the identical bytes",
+      "checks": [
+        "crash-recovery"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 24906,
+      "transactions": [
+        {
+          "hash": "daebb44e36a83106e579953130f3535a5704d962c7cb71b862026ddd665c5fa1",
+          "ledger": 5105581,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "100000",
+          "payerType": "G",
+          "feeChargedStroops": "23160",
+          "feeSource": "GDCGFMC3EBDUMKFDRZISPU3AXQIK3RU5CF7MQ6XXLFZIWWBHWMTTRH5M",
+          "innerSource": "GDQRDVZRAWKDMJ5NUTM6I6J2757V7OVCH7M7ZIAL3RYKDU7CDE62LS2T",
+          "innerSequence": "21928256177438721",
+          "transfers": [
+            {
+              "from": "GBIZ7X4DUHWWJJNNDFCXLAUWMRKLGQOXS342P6CT3XAVM3BXLLZR2QOY",
+              "to": "GBB2FF5ZXGQVXBOBXX4IOXLU3UFFB2PEP7DYL4SGJ2PMFVJPIXRVH374",
+              "amount": "100000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/daebb44e36a83106e579953130f3535a5704d962c7cb71b862026ddd665c5fa1",
+          "envelopeXdr": "AAAABQAAAADEYrBbIEdGKKOOUSfTYLwQrcadEX7IevdZcotYJ7MnOAAAAAAAAIMUAAAAAgAAAADhEdcxBZQ2J62k2eR5Ov9/X7qiP9n8oAvccKHT4hk9pQAAgkwATeeiAAAAAQAAAAEAAAAAAAAAAAAAAABqyOh2AAAAAAAAAAEAAAAAAAAAGAAAAAAAAAABUEXNXsBymnaP1a0CUFhS308Cjc6DDlrFIgm6SEg7LwEAAAAIdHJhbnNmZXIAAAADAAAAEgAAAAAAAAAAUZ/fg6HtZKWtGUV1gpZkVLNB15b5p/hT3cFWbDda8x0AAAASAAAAAAAAAABDope5uaFbhcG9+IdddN0KUOnkf8eF8kZOnsLVL0XjUwAAAAoAAAAAAAAAAAAAAAAAAYagAAAAAQAAAAEAAAAAAAAAAFGf34Oh7WSlrRlFdYKWZFSzQdeW+af4U93BVmw3WvMdca2725bqJEcATefDAAAAEAAAAAEAAAABAAAAEQAAAAEAAAACAAAADwAAAApwdWJsaWNfa2V5AAAAAAANAAAAIFGf34Oh7WSlrRlFdYKWZFSzQdeW+af4U93BVmw3WvMdAAAADwAAAAlzaWduYXR1cmUAAAAAAAANAAAAQCWyZLxHmwQiEzftimXpw5UuK0EU+2yIoTGGMWFaYRfmHDPRa+nnSgHfbkdWyyugmcQsphZ6g3BhuhpEIsRD9w4AAAAAAAAAAVBFzV7Acpp2j9WtAlBYUt9PAo3Ogw5axSIJukhIOy8BAAAACHRyYW5zZmVyAAAAAwAAABIAAAAAAAAAAFGf34Oh7WSlrRlFdYKWZFSzQdeW+af4U93BVmw3WvMdAAAAEgAAAAAAAAAAQ6KXubmhW4XBvfiHXXTdClDp5H/HhfJGTp7C1S9F41MAAAAKAAAAAAAAAAAAAAAAAAGGoAAAAAAAAAABAAAAAAAAAAIAAAAAAAAAAFGf34Oh7WSlrRlFdYKWZFSzQdeW+af4U93BVmw3WvMdAAAABgAAAAFQRc1ewHKado/VrQJQWFLfTwKNzoMOWsUiCbpISDsvAQAAABQAAAABAAAAAwAAAAEAAAAAQ6KXubmhW4XBvfiHXXTdClDp5H/HhfJGTp7C1S9F41MAAAABVVNEQwAAAABCPn0F8uyvv+wZKyFaPxvpau242OcCVKvjQT4CB95WsgAAAAEAAAAAUZ/fg6HtZKWtGUV1gpZkVLNB15b5p/hT3cFWbDda8x0AAAABVVNEQwAAAABCPn0F8uyvv+wZKyFaPxvpau242OcCVKvjQT4CB95WsgAAAAYAAAAAAAAAAFGf34Oh7WSlrRlFdYKWZFSzQdeW+af4U93BVmw3WvMdAAAAFXGtu9uW6iRHAAAAAAALUoMAAAF4AAABNAAAAAAAAIGEAAAAAeIZPaUAAABA+OevqRubIAgjMBEDovu/m5oppTRzqbEbfjOuze6zaOnDERibt0O/mNcrIDDXBf5+qp/K0Q+cWqGurFX0o6WjBgAAAAAAAAABJ7MnOAAAAECMrdQ3wYc3WxNsvJqlSvOaoK+3/Y8w4YQOjxDzD9LzM+KanBki8E23hyChC398lYvLGfRG+lX25yPUOX2orbMI",
+          "resultXdr": "AAAAAAAAWngAAAABGUbPJhhz9UCRkbUA+nZEHhV/Slax0XVK4GbH1vraS8cAAAAAAAAAAAAAAAAAAAABAAAAAAAAABgAAAAARrh5n7swLpZaRmIqckAq13filRQMLIOpmOezC3Xi+9AAAAAAAAAAAA=="
+        }
+      ],
+      "observations": {
+        "transaction": "daebb44e36a83106e579953130f3535a5704d962c7cb71b862026ddd665c5fa1",
+        "recordedBeforeKill": "submitted",
+        "killedAt": "2026-10-09T13:11:26.874Z",
+        "killSignal": "SIGKILL",
+        "request": "cut off",
+        "restartedAt": "2026-10-09T13:11:28.756Z",
+        "recoveredAt": "2026-10-09T13:11:32.767Z",
+        "state": "succeeded",
+        "distinctEnvelopes": [
+          "daebb44e36a83106e579953130f3535a5704d962c7cb71b862026ddd665c5fa1"
+        ],
+        "sendsAfterRestart": 4,
+        "reconciled": 1,
+        "repeat": {
+          "status": 200,
+          "body": {
+            "payer": "GBIZ7X4DUHWWJJNNDFCXLAUWMRKLGQOXS342P6CT3XAVM3BXLLZR2QOY",
+            "network": "stellar:testnet",
+            "success": true,
+            "transaction": "daebb44e36a83106e579953130f3535a5704d962c7cb71b862026ddd665c5fa1"
+          },
+          "marked": true
+        }
+      }
+    },
+    {
+      "id": "k3-exact",
+      "title": "K3 (exact): killed before the broadcast and down past the time bound; expired, nothing moved",
+      "checks": [
+        "crash-recovery"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 51355,
+      "observations": {
+        "transaction": "b5082a93348c6bd39393ef10b5e3fc3e5ef8287ea4614f6fa2af46b4a248f537",
+        "recordedBeforeKill": "submitted",
+        "killedAt": "2026-10-09T13:11:51.031Z",
+        "killSignal": "SIGKILL",
+        "request": "cut off",
+        "validUntil": 1791551541,
+        "restartedAt": "2026-10-09T13:12:24.281Z",
+        "recoveredAt": "2026-10-09T13:12:24.293Z",
+        "state": "expired",
+        "distinctEnvelopes": [
+          "b5082a93348c6bd39393ef10b5e3fc3e5ef8287ea4614f6fa2af46b4a248f537"
+        ],
+        "sendsAfterRestart": 0,
+        "reconciled": 1,
+        "repeat": {
+          "status": 200,
+          "body": {
+            "payer": "GCIDYDCUTQSDURHNHV3HHNGMZ42RMSH3ZILEG7DSZE2QHTBCSMZYQ6MN",
+            "network": "stellar:testnet",
+            "success": false,
+            "errorReason": "settle_exact_stellar_transaction_expired",
+            "transaction": "b5082a93348c6bd39393ef10b5e3fc3e5ef8287ea4614f6fa2af46b4a248f537",
+            "errorMessage": "The settlement transaction expired without being included in a ledger; no funds moved."
+          },
+          "marked": true
+        },
+        "onChain": "NOT_FOUND"
+      }
+    },
+    {
+      "id": "k0-upto",
+      "title": "K0 (upto): killed after the network accepted the transaction; the restarted process finds it",
+      "checks": [
+        "crash-recovery",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 24134,
+      "transactions": [
+        {
+          "hash": "8dc2af9e1066f2934bd266f5ec406d074d47183ff9108d996831d4d64a6662fd",
+          "ledger": 5105596,
+          "scheme": "upto",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "100000",
+          "payerType": "G",
+          "feeChargedStroops": "39191",
+          "feeSource": "GDCGFMC3EBDUMKFDRZISPU3AXQIK3RU5CF7MQ6XXLFZIWWBHWMTTRH5M",
+          "innerSource": "GDQRDVZRAWKDMJ5NUTM6I6J2757V7OVCH7M7ZIAL3RYKDU7CDE62LS2T",
+          "innerSequence": "21928256177438722",
+          "transfers": [
+            {
+              "from": "GAYVA3OYZUJTY6IFS4F7BIG2VMFNRIBUD77VUMC3GYFPU5MSB57UCIIN",
+              "to": "GBB2FF5ZXGQVXBOBXX4IOXLU3UFFB2PEP7DYL4SGJ2PMFVJPIXRVH374",
+              "amount": "100000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/8dc2af9e1066f2934bd266f5ec406d074d47183ff9108d996831d4d64a6662fd",
+          "envelopeXdr": "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",
+          "resultXdr": "AAAAAAAAmRcAAAABr2t44W6vA3RO09oH62nEvZd6Y9ASZcQgZ5t2AoDKXE4AAAAAAAAAAAAAAAAAAAABAAAAAAAAABgAAAAAfZCHyEXRSvsYhH43Yds4+NEfntxRTNBBTaVS/Q5hThcAAAAAAAAAAA=="
+        }
+      ],
+      "observations": {
+        "transaction": "8dc2af9e1066f2934bd266f5ec406d074d47183ff9108d996831d4d64a6662fd",
+        "recordedBeforeKill": "submitted",
+        "killedAt": "2026-10-09T13:12:44.866Z",
+        "killSignal": "SIGKILL",
+        "request": "cut off",
+        "restartedAt": "2026-10-09T13:12:47.101Z",
+        "recoveredAt": "2026-10-09T13:12:48.104Z",
+        "state": "succeeded",
+        "distinctEnvelopes": [
+          "8dc2af9e1066f2934bd266f5ec406d074d47183ff9108d996831d4d64a6662fd"
+        ],
+        "sendsAfterRestart": 1,
+        "reconciled": 1,
+        "repeat": {
+          "status": 200,
+          "body": {
+            "payer": "GAYVA3OYZUJTY6IFS4F7BIG2VMFNRIBUD77VUMC3GYFPU5MSB57UCIIN",
+            "amount": "100000",
+            "network": "stellar:testnet",
+            "success": true,
+            "transaction": "8dc2af9e1066f2934bd266f5ec406d074d47183ff9108d996831d4d64a6662fd"
+          },
+          "marked": true
+        }
+      }
+    },
+    {
+      "id": "k1-upto",
+      "title": "K1 (upto): killed before the broadcast left; the restarted process rebroadcasts the identical bytes",
+      "checks": [
+        "crash-recovery",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 25238,
+      "transactions": [
+        {
+          "hash": "091b8f5641c5c27aebd8760a367fd4bc402c454d8c50f497ea390d0ec6c816bd",
+          "ledger": 5105601,
+          "scheme": "upto",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "100000",
+          "payerType": "G",
+          "feeChargedStroops": "39191",
+          "feeSource": "GDCGFMC3EBDUMKFDRZISPU3AXQIK3RU5CF7MQ6XXLFZIWWBHWMTTRH5M",
+          "innerSource": "GBTR25PM7EPCPNDG2TPH3NGRZ5Q4GKL25AZB5OXEH4JBRWVZEWMKV7Q4",
+          "innerSequence": "21928256177438722",
+          "transfers": [
+            {
+              "from": "GDDPFBQTVN4V6UWQFM4KL4M3GDTOAXHDORWVDUGT2ZF7A6DFIQHT3A3R",
+              "to": "GBB2FF5ZXGQVXBOBXX4IOXLU3UFFB2PEP7DYL4SGJ2PMFVJPIXRVH374",
+              "amount": "100000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/091b8f5641c5c27aebd8760a367fd4bc402c454d8c50f497ea390d0ec6c816bd",
+          "envelopeXdr": "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",
+          "resultXdr": "AAAAAAAAmRcAAAABOivakH7lbrkfGlMEpt0ywXl7W+F9Wa8qEkzhAYeGb+YAAAAAAAAAAAAAAAAAAAABAAAAAAAAABgAAAAA6GzvSNmwcqGKWbOpoQ+iD65Df3bnqAKoHfro8CDMPAwAAAAAAAAAAA=="
+        }
+      ],
+      "observations": {
+        "transaction": "091b8f5641c5c27aebd8760a367fd4bc402c454d8c50f497ea390d0ec6c816bd",
+        "recordedBeforeKill": "submitted",
+        "killedAt": "2026-10-09T13:13:09.194Z",
+        "killSignal": "SIGKILL",
+        "request": "cut off",
+        "restartedAt": "2026-10-09T13:13:11.224Z",
+        "recoveredAt": "2026-10-09T13:13:13.230Z",
+        "state": "succeeded",
+        "distinctEnvelopes": [
+          "091b8f5641c5c27aebd8760a367fd4bc402c454d8c50f497ea390d0ec6c816bd"
+        ],
+        "sendsAfterRestart": 2,
+        "reconciled": 1,
+        "repeat": {
+          "status": 200,
+          "body": {
+            "payer": "GDDPFBQTVN4V6UWQFM4KL4M3GDTOAXHDORWVDUGT2ZF7A6DFIQHT3A3R",
+            "amount": "100000",
+            "network": "stellar:testnet",
+            "success": true,
+            "transaction": "091b8f5641c5c27aebd8760a367fd4bc402c454d8c50f497ea390d0ec6c816bd"
+          },
+          "marked": true
+        }
+      }
+    }
+  ]
+}

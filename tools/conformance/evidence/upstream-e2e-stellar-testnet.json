@@ -1,192 +1,969 @@
 {
-  "run": "2026-09-28T19:45:19.449Z",
-  "command": "pnpm test --testnet --families=stellar --facilitators=rail402 --extensions=bazaar",
-  "exitCode": 0,
+  "schemaVersion": 2,
+  "kind": "upstream-e2e",
+  "runId": "96c858a9-0d88-441b-91de-79f668a55c97",
+  "startedAt": "2026-10-09T14:15:07.550Z",
+  "finishedAt": "2026-10-09T14:20:23.155Z",
+  "network": "stellar:testnet",
+  "target": {
+    "mode": "local",
+    "facilitatorUrl": "http://127.0.0.1:4027",
+    "healthVersion": "0.4.1+e746a72dd70a",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GB3C3HDQZ7OFNHY52FSPXCITR4YCDDQUDDTBVB7H4XGIQGPQDRDUDSI2"
+          }
+        }
+      ],
+      "extensions": [
+        "bazaar"
+      ],
+      "signers": {
+        "stellar:*": [
+          "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "GBBKG4S33L6YA6S3L5EGZSDPFIXXGWB2IUXTWINRBQNWPQARB74LOAK6",
+          "GAV5DKYYEBTMAKBYRQ3WZYUXNUL3YAUTPGZESY66SAPHPFIRWPH3HHAL",
+          "GDPDU755V6UPRTIWDYBWF4FJ3MENWBDJRZ735LZ4JIELBQMVNR3J2LAF",
+          "GAJK4NWOYEOZIA42WFVTG6NIG3VNAENL65UMEQE52CMQM4FKW2X4CZ5F",
+          "GAEPID5AD5HNZMP6VKPYMPDXJ6JQ2FDS6XZK465OETDVMEL7VXDMTMER",
+          "GBKHOW7YLKASXUFJOVM5C4QVXT3FVLE4GZH47W4NAB3VEOBHOG3625JF",
+          "GDAATDZOZ6SHNEWNSBZC4FRCI6LCJB6GSNFA4TE7SEVEBW5RGSQ7K22M",
+          "GDHI67K6AJ2AR7QDPMILRJO3W5XHH4CGAZNXUUM5MNBEHHRY5LFW3CYR",
+          "GB3C3HDQZ7OFNHY52FSPXCITR4YCDDQUDDTBVB7H4XGIQGPQDRDUDSI2"
+        ]
+      }
+    }
+  },
+  "harness": {
+    "commit": "e746a72dd70ab0607d1eb8a7ac5d5eda4d86328c",
+    "dirty": false
+  },
   "upstream": {
     "repository": "x402-foundation/x402",
+    "ref": "npm-@x402/stellar@v2.27.0",
     "commit": "71eb9a55e081e7b81ba3046d0bd17c3eb9c7bf81",
-    "version": "2.27.0"
+    "version": "2.27.0",
+    "preMerge": false
   },
-  "rail402": {
-    "commit": "c461428df26b16164f1c6110589a04b4a52da5c4",
-    "uncommittedChanges": false
+  "packages": {
+    "@x402/core": "2.27.0",
+    "@x402/stellar": "2.27.0",
+    "@stellar/stellar-sdk": "16.3.0"
   },
-  "network": "stellar:testnet",
+  "command": "node tools/conformance/src/upstream-e2e.ts --x402 <x402 checkout> --schemes exact --target local",
+  "config": {
+    "suite": "pnpm test --testnet --families=stellar --facilitators=rail402 --extensions=bazaar",
+    "suiteExitCode": 0,
+    "suiteTotal": 18,
+    "suitePassed": 18,
+    "suiteFailed": 0,
+    "suiteMinutes": 5.17,
+    "schemes": "exact",
+    "stellarUptoUpstream": false,
+    "versionMismatch": false,
+    "sellerAccount": "fresh",
+    "bazaarMaxNewListingsPerPayerPerHour": 1000,
+    "bazaarMaxNewListingsPerOwnerPerHour": 1000
+  },
   "accounts": {
-    "sponsor": "GAG2O4OOX5LGAOMAYWO5XRVTHEAE33AYM5W56532WKI523KQMB3AYV7N",
-    "buyer": "GAJKDV6BXHV5CO6ETBRP4AMBQTV5Y6LJ4V274O5Z6B45WTCFNQFE52TD",
-    "seller": "GDSLXNPZKICKD557YGFEC7TY6AQZIZSW5E7SFS5C3WDKIL53A77G7AHV"
+    "sponsor": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+    "buyer": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+    "seller": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV"
   },
   "summary": {
-    "total": 18,
-    "passed": 18,
+    "total": 23,
+    "passed": 19,
     "failed": 0,
-    "networkMode": "testnet",
-    "durationMinutes": 4.58
+    "skipped": 4
   },
-  "bazaarDiscoveryValidation": "PASSED",
-  "results": [
+  "cases": [
     {
-      "client": "typescript/http/axios",
-      "server": "typescript/http/express",
-      "endpoint": "/exact/stellar",
-      "transport": "http",
-      "paymentFlow": "authorization",
-      "passed": true,
-      "transaction": "c1ea737767b8fa2e7d6a48554208d4cc230925faefa49cd007a91e6ebcb7412d"
+      "id": "typescript-http-axios-typescript-http-express-exact-stellar-authorization",
+      "title": "typescript/http/axios pays typescript/http/express /exact/stellar (authorization)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "6fcf6207912558f6c10fd6e4a0736e0a22ae74bf17e311b721af2d36b389e0e7",
+          "ledger": 5106351,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GBBKG4S33L6YA6S3L5EGZSDPFIXXGWB2IUXTWINRBQNWPQARB74LOAK6",
+          "innerSequence": "21931589072060417",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/6fcf6207912558f6c10fd6e4a0736e0a22ae74bf17e311b721af2d36b389e0e7"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/axios",
+        "server": "typescript/http/express",
+        "endpoint": "/exact/stellar",
+        "transport": "http",
+        "paymentFlow": "authorization"
+      }
     },
     {
-      "client": "typescript/http/axios",
-      "server": "typescript/http/express",
-      "endpoint": "/exact/stellar/upfront",
-      "transport": "http",
-      "paymentFlow": "upfront",
-      "passed": true,
-      "transaction": "7c4f9eebb2327fec40c6bff37ac30a2d962a6a1c35271010494e4b5485f1c499"
+      "id": "typescript-http-axios-typescript-http-express-exact-stellar-upfront-upfront",
+      "title": "typescript/http/axios pays typescript/http/express /exact/stellar/upfront (upfront)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "379073ca4083733b5b8eea96180471ec8ad3c1dd3f302ae41b7f10fc4349cf3b",
+          "ledger": 5106353,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GAV5DKYYEBTMAKBYRQ3WZYUXNUL3YAUTPGZESY66SAPHPFIRWPH3HHAL",
+          "innerSequence": "21931589072060417",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/379073ca4083733b5b8eea96180471ec8ad3c1dd3f302ae41b7f10fc4349cf3b"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/axios",
+        "server": "typescript/http/express",
+        "endpoint": "/exact/stellar/upfront",
+        "transport": "http",
+        "paymentFlow": "upfront"
+      }
     },
     {
-      "client": "typescript/http/fetch",
-      "server": "typescript/http/express",
-      "endpoint": "/exact/stellar",
-      "transport": "http",
-      "paymentFlow": "authorization",
-      "passed": true,
-      "transaction": "df3690bf5986c712f6593a281a216f7f32c921683809ddee3e69c1be6226e93a"
+      "id": "typescript-http-fetch-typescript-http-express-exact-stellar-authorization",
+      "title": "typescript/http/fetch pays typescript/http/express /exact/stellar (authorization)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "1a2ebaed08479684e15474f48775815ad3c8d3ec6f02659d484994e60bf886e9",
+          "ledger": 5106356,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GDPDU755V6UPRTIWDYBWF4FJ3MENWBDJRZ735LZ4JIELBQMVNR3J2LAF",
+          "innerSequence": "21931589072060417",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/1a2ebaed08479684e15474f48775815ad3c8d3ec6f02659d484994e60bf886e9"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/fetch",
+        "server": "typescript/http/express",
+        "endpoint": "/exact/stellar",
+        "transport": "http",
+        "paymentFlow": "authorization"
+      }
     },
     {
-      "client": "typescript/http/fetch",
-      "server": "typescript/http/express",
-      "endpoint": "/exact/stellar/upfront",
-      "transport": "http",
-      "paymentFlow": "upfront",
-      "passed": true,
-      "transaction": "4af289e5a335af999dbd8c90f7e70520f2540babbdc04ac1d284d51482255870"
+      "id": "typescript-http-fetch-typescript-http-express-exact-stellar-upfront-upfront",
+      "title": "typescript/http/fetch pays typescript/http/express /exact/stellar/upfront (upfront)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "669a580fc68b6a60e7978ee24adb83e860585507d123ce4ec1c3afd4d6ef7fa0",
+          "ledger": 5106358,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GAJK4NWOYEOZIA42WFVTG6NIG3VNAENL65UMEQE52CMQM4FKW2X4CZ5F",
+          "innerSequence": "21931589072060417",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/669a580fc68b6a60e7978ee24adb83e860585507d123ce4ec1c3afd4d6ef7fa0"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/fetch",
+        "server": "typescript/http/express",
+        "endpoint": "/exact/stellar/upfront",
+        "transport": "http",
+        "paymentFlow": "upfront"
+      }
     },
     {
-      "client": "typescript/http/axios",
-      "server": "typescript/http/fastify",
-      "endpoint": "/exact/stellar",
-      "transport": "http",
-      "paymentFlow": "authorization",
-      "passed": true,
-      "transaction": "12406d288b736a6b270d5d6465e36f746a09a4a25025415e40d166b4bec8f678"
+      "id": "typescript-http-axios-typescript-http-fastify-exact-stellar-authorization",
+      "title": "typescript/http/axios pays typescript/http/fastify /exact/stellar (authorization)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "c516f9ff8d5fe0b3fa135d9d5320789136b6b4fd1fcb8c0d1daa6e77042fae46",
+          "ledger": 5106364,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GAEPID5AD5HNZMP6VKPYMPDXJ6JQ2FDS6XZK465OETDVMEL7VXDMTMER",
+          "innerSequence": "21931589072060417",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/c516f9ff8d5fe0b3fa135d9d5320789136b6b4fd1fcb8c0d1daa6e77042fae46"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/axios",
+        "server": "typescript/http/fastify",
+        "endpoint": "/exact/stellar",
+        "transport": "http",
+        "paymentFlow": "authorization"
+      }
     },
     {
-      "client": "typescript/http/axios",
-      "server": "typescript/http/fastify",
-      "endpoint": "/exact/stellar/upfront",
-      "transport": "http",
-      "paymentFlow": "upfront",
-      "passed": true,
-      "transaction": "d9480c2bc84f9c03108a43070333f7a0b49e4f3bedda2e61974edf1667d7678c"
+      "id": "typescript-http-axios-typescript-http-fastify-exact-stellar-upfront-upfront",
+      "title": "typescript/http/axios pays typescript/http/fastify /exact/stellar/upfront (upfront)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "9ba7848830a558e4b4d096ebb4a015afdab4cff344b56c5e484453f66163c3f3",
+          "ledger": 5106366,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GBKHOW7YLKASXUFJOVM5C4QVXT3FVLE4GZH47W4NAB3VEOBHOG3625JF",
+          "innerSequence": "21931589072060417",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/9ba7848830a558e4b4d096ebb4a015afdab4cff344b56c5e484453f66163c3f3"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/axios",
+        "server": "typescript/http/fastify",
+        "endpoint": "/exact/stellar/upfront",
+        "transport": "http",
+        "paymentFlow": "upfront"
+      }
     },
     {
-      "client": "typescript/http/fetch",
-      "server": "typescript/http/fastify",
-      "endpoint": "/exact/stellar",
-      "transport": "http",
-      "paymentFlow": "authorization",
-      "passed": true,
-      "transaction": "d59bf86c50c37de05d99a4d080a852ad9a3f32561f961a7d265199d3eac84e47"
+      "id": "typescript-http-fetch-typescript-http-fastify-exact-stellar-authorization",
+      "title": "typescript/http/fetch pays typescript/http/fastify /exact/stellar (authorization)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "b39f0b750024961a0574763a9172c9abc65b163777c5de0dbb2d328f1a80824b",
+          "ledger": 5106369,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GDAATDZOZ6SHNEWNSBZC4FRCI6LCJB6GSNFA4TE7SEVEBW5RGSQ7K22M",
+          "innerSequence": "21931589072060417",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/b39f0b750024961a0574763a9172c9abc65b163777c5de0dbb2d328f1a80824b"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/fetch",
+        "server": "typescript/http/fastify",
+        "endpoint": "/exact/stellar",
+        "transport": "http",
+        "paymentFlow": "authorization"
+      }
     },
     {
-      "client": "typescript/http/fetch",
-      "server": "typescript/http/fastify",
-      "endpoint": "/exact/stellar/upfront",
-      "transport": "http",
-      "paymentFlow": "upfront",
-      "passed": true,
-      "transaction": "f99585f302b0f69a4c017526068aad78f0bf440e6f769242be54d45390a0810e"
+      "id": "typescript-http-fetch-typescript-http-fastify-exact-stellar-upfront-upfront",
+      "title": "typescript/http/fetch pays typescript/http/fastify /exact/stellar/upfront (upfront)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "10c2912da4e10201e5fa9104415793354ce39333aa6584051b411ce2cf98f3d0",
+          "ledger": 5106371,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GDHI67K6AJ2AR7QDPMILRJO3W5XHH4CGAZNXUUM5MNBEHHRY5LFW3CYR",
+          "innerSequence": "21931589072060417",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/10c2912da4e10201e5fa9104415793354ce39333aa6584051b411ce2cf98f3d0"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/fetch",
+        "server": "typescript/http/fastify",
+        "endpoint": "/exact/stellar/upfront",
+        "transport": "http",
+        "paymentFlow": "upfront"
+      }
     },
     {
-      "client": "typescript/http/axios",
-      "server": "typescript/http/hono",
-      "endpoint": "/exact/stellar",
-      "transport": "http",
-      "paymentFlow": "authorization",
-      "passed": true,
-      "transaction": "3e3b6d019b712e9b62383ac1301c8471f540e80f65bc9284ee4f50e8c4405a7d"
+      "id": "typescript-http-axios-typescript-http-hono-exact-stellar-authorization",
+      "title": "typescript/http/axios pays typescript/http/hono /exact/stellar (authorization)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "3d4fa752c08024dd89e92cae488a86fdbdfb9ab82e9c209ad1049abb34d7bf0f",
+          "ledger": 5106377,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GBBKG4S33L6YA6S3L5EGZSDPFIXXGWB2IUXTWINRBQNWPQARB74LOAK6",
+          "innerSequence": "21931589072060418",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/3d4fa752c08024dd89e92cae488a86fdbdfb9ab82e9c209ad1049abb34d7bf0f"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/axios",
+        "server": "typescript/http/hono",
+        "endpoint": "/exact/stellar",
+        "transport": "http",
+        "paymentFlow": "authorization"
+      }
     },
     {
-      "client": "typescript/http/axios",
-      "server": "typescript/http/hono",
-      "endpoint": "/exact/stellar/upfront",
-      "transport": "http",
-      "paymentFlow": "upfront",
-      "passed": true,
-      "transaction": "6fc50af0403fb3707a750dfcdd7b743bc49818995a132dec3ac9769f9f6cebcd"
+      "id": "typescript-http-axios-typescript-http-hono-exact-stellar-upfront-upfront",
+      "title": "typescript/http/axios pays typescript/http/hono /exact/stellar/upfront (upfront)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "5c06f130cc1fdd84563a4a9518e2f1d9a8b8af05ee083e4d9208e23839c36f12",
+          "ledger": 5106379,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GAV5DKYYEBTMAKBYRQ3WZYUXNUL3YAUTPGZESY66SAPHPFIRWPH3HHAL",
+          "innerSequence": "21931589072060418",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/5c06f130cc1fdd84563a4a9518e2f1d9a8b8af05ee083e4d9208e23839c36f12"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/axios",
+        "server": "typescript/http/hono",
+        "endpoint": "/exact/stellar/upfront",
+        "transport": "http",
+        "paymentFlow": "upfront"
+      }
     },
     {
-      "client": "typescript/http/fetch",
-      "server": "typescript/http/hono",
-      "endpoint": "/exact/stellar",
-      "transport": "http",
-      "paymentFlow": "authorization",
-      "passed": true,
-      "transaction": "3a5491e01eab89d887e110387cb2fd28ae9a58d070a68fb508a1abd7d926cc73"
+      "id": "typescript-http-fetch-typescript-http-hono-exact-stellar-authorization",
+      "title": "typescript/http/fetch pays typescript/http/hono /exact/stellar (authorization)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "e93d08f63e5993600fb569bfb0779fff6cbacf4ea057accad79f37efa49bdca1",
+          "ledger": 5106381,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GDPDU755V6UPRTIWDYBWF4FJ3MENWBDJRZ735LZ4JIELBQMVNR3J2LAF",
+          "innerSequence": "21931589072060418",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/e93d08f63e5993600fb569bfb0779fff6cbacf4ea057accad79f37efa49bdca1"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/fetch",
+        "server": "typescript/http/hono",
+        "endpoint": "/exact/stellar",
+        "transport": "http",
+        "paymentFlow": "authorization"
+      }
     },
     {
-      "client": "typescript/http/fetch",
-      "server": "typescript/http/hono",
-      "endpoint": "/exact/stellar/upfront",
-      "transport": "http",
-      "paymentFlow": "upfront",
-      "passed": true,
-      "transaction": "98e13be6f6534950344d8e9262b940e78b44697effdb45ba8126a90ffc89fb6e"
+      "id": "typescript-http-fetch-typescript-http-hono-exact-stellar-upfront-upfront",
+      "title": "typescript/http/fetch pays typescript/http/hono /exact/stellar/upfront (upfront)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "8119339a851c530d87a28d33d87bed4e93f6b7e78b1027f4de2c98bc9f8023d1",
+          "ledger": 5106384,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GAJK4NWOYEOZIA42WFVTG6NIG3VNAENL65UMEQE52CMQM4FKW2X4CZ5F",
+          "innerSequence": "21931589072060418",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/8119339a851c530d87a28d33d87bed4e93f6b7e78b1027f4de2c98bc9f8023d1"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/fetch",
+        "server": "typescript/http/hono",
+        "endpoint": "/exact/stellar/upfront",
+        "transport": "http",
+        "paymentFlow": "upfront"
+      }
     },
     {
-      "client": "typescript/http/axios",
-      "server": "typescript/http/next",
-      "endpoint": "/api/exact/stellar/withx402",
-      "transport": "http",
-      "paymentFlow": "authorization",
-      "passed": true,
-      "transaction": "461de48f8ba8d32d8d77c90a3bc541c72432d5d0ea4435764e5981c2107ae130"
+      "id": "typescript-http-axios-typescript-http-next-api-exact-stellar-withx402-authorization",
+      "title": "typescript/http/axios pays typescript/http/next /api/exact/stellar/withx402 (authorization)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "1ec0c8844fbbd44572c7ebb6ba81ea5852d12e80871c789ee76b7c910589a5b6",
+          "ledger": 5106389,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GAEPID5AD5HNZMP6VKPYMPDXJ6JQ2FDS6XZK465OETDVMEL7VXDMTMER",
+          "innerSequence": "21931589072060418",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/1ec0c8844fbbd44572c7ebb6ba81ea5852d12e80871c789ee76b7c910589a5b6"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/axios",
+        "server": "typescript/http/next",
+        "endpoint": "/api/exact/stellar/withx402",
+        "transport": "http",
+        "paymentFlow": "authorization"
+      }
     },
     {
-      "client": "typescript/http/axios",
-      "server": "typescript/http/next",
-      "endpoint": "/api/exact/stellar/upfront/withx402",
-      "transport": "http",
-      "paymentFlow": "upfront",
-      "passed": true,
-      "transaction": "76cb3a2aadc9469ff860f0de5e6c0349398e70c18baadc1ceb4e436b63b61afe"
+      "id": "typescript-http-axios-typescript-http-next-api-exact-stellar-upfront-withx402-upfront",
+      "title": "typescript/http/axios pays typescript/http/next /api/exact/stellar/upfront/withx402 (upfront)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "e2ec9c7d455ea7f61c8dacedacda156dfe50e95d75ae6b67ad6137e6ef78b643",
+          "ledger": 5106392,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GBKHOW7YLKASXUFJOVM5C4QVXT3FVLE4GZH47W4NAB3VEOBHOG3625JF",
+          "innerSequence": "21931589072060418",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/e2ec9c7d455ea7f61c8dacedacda156dfe50e95d75ae6b67ad6137e6ef78b643"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/axios",
+        "server": "typescript/http/next",
+        "endpoint": "/api/exact/stellar/upfront/withx402",
+        "transport": "http",
+        "paymentFlow": "upfront"
+      }
     },
     {
-      "client": "typescript/http/fetch",
-      "server": "typescript/http/next",
-      "endpoint": "/api/exact/stellar/withx402",
-      "transport": "http",
-      "paymentFlow": "authorization",
-      "passed": true,
-      "transaction": "67c00336d2bbc368246acf21ce36b1e1e9ffc830d940210e12586eebf8073491"
+      "id": "typescript-http-fetch-typescript-http-next-api-exact-stellar-withx402-authorization",
+      "title": "typescript/http/fetch pays typescript/http/next /api/exact/stellar/withx402 (authorization)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "db149d80fdd4e9700fdb746f6a6f3a1a70582427a919b570403a1c1e610eb6b1",
+          "ledger": 5106395,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GDAATDZOZ6SHNEWNSBZC4FRCI6LCJB6GSNFA4TE7SEVEBW5RGSQ7K22M",
+          "innerSequence": "21931589072060418",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/db149d80fdd4e9700fdb746f6a6f3a1a70582427a919b570403a1c1e610eb6b1"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/fetch",
+        "server": "typescript/http/next",
+        "endpoint": "/api/exact/stellar/withx402",
+        "transport": "http",
+        "paymentFlow": "authorization"
+      }
     },
     {
-      "client": "typescript/http/fetch",
-      "server": "typescript/http/next",
-      "endpoint": "/api/exact/stellar/upfront/withx402",
-      "transport": "http",
-      "paymentFlow": "upfront",
-      "passed": true,
-      "transaction": "edd76df233b17fd663097444c374d7a47773ea70a9fe7b0196ba6f5b2e7db07b"
+      "id": "typescript-http-fetch-typescript-http-next-api-exact-stellar-upfront-withx402-upfront",
+      "title": "typescript/http/fetch pays typescript/http/next /api/exact/stellar/upfront/withx402 (upfront)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "a2c32fe000507676421bb087a8082d4a49ed2685c332f310a2daca689962b058",
+          "ledger": 5106397,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GDHI67K6AJ2AR7QDPMILRJO3W5XHH4CGAZNXUUM5MNBEHHRY5LFW3CYR",
+          "innerSequence": "21931589072060418",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/a2c32fe000507676421bb087a8082d4a49ed2685c332f310a2daca689962b058"
+        }
+      ],
+      "observations": {
+        "client": "typescript/http/fetch",
+        "server": "typescript/http/next",
+        "endpoint": "/api/exact/stellar/upfront/withx402",
+        "transport": "http",
+        "paymentFlow": "upfront"
+      }
     },
     {
-      "client": "typescript/mcp",
-      "server": "typescript/mcp",
-      "endpoint": "exact_stellar",
-      "transport": "mcp",
-      "paymentFlow": "authorization",
-      "passed": true,
-      "transaction": "7295abb484ac05f1519a1c5e421978355680b37ebe5b7084912b3b80038aad46"
+      "id": "typescript-mcp-typescript-mcp-exact-stellar-authorization",
+      "title": "typescript/mcp pays typescript/mcp exact_stellar (authorization)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction",
+        "mcp"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "00c2537d302ed437e6bad2d130074b22bda00098fe1ab5ad8d3bcda82f93a2fa",
+          "ledger": 5106402,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GBBKG4S33L6YA6S3L5EGZSDPFIXXGWB2IUXTWINRBQNWPQARB74LOAK6",
+          "innerSequence": "21931589072060419",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/00c2537d302ed437e6bad2d130074b22bda00098fe1ab5ad8d3bcda82f93a2fa"
+        }
+      ],
+      "observations": {
+        "client": "typescript/mcp",
+        "server": "typescript/mcp",
+        "endpoint": "exact_stellar",
+        "transport": "mcp",
+        "paymentFlow": "authorization"
+      }
     },
     {
-      "client": "typescript/mcp",
-      "server": "typescript/mcp",
-      "endpoint": "exact_stellar_upfront",
-      "transport": "mcp",
-      "paymentFlow": "upfront",
-      "passed": true,
-      "transaction": "4f91a84a451e3b94864b4dc8a9bf2f641fa33f896c7700d5d6154870893129b6"
+      "id": "typescript-mcp-typescript-mcp-exact-stellar-upfront-upfront",
+      "title": "typescript/mcp pays typescript/mcp exact_stellar_upfront (upfront)",
+      "checks": [
+        "upstream-e2e",
+        "scheme-exact",
+        "payload-transaction",
+        "mcp"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0,
+      "transactions": [
+        {
+          "hash": "068a6cb327d4c9f8149a093fdcf78784e3e79e4fa5e49bf4c8e00aeb5993f2e5",
+          "ledger": 5106404,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "23158",
+          "feeSource": "GBWD6JNJPI3XCU7J5UG4PEBWFSBRGE4FXO6QLO4DXCQY2IDLL5LG67TW",
+          "innerSource": "GAV5DKYYEBTMAKBYRQ3WZYUXNUL3YAUTPGZESY66SAPHPFIRWPH3HHAL",
+          "innerSequence": "21931589072060419",
+          "transfers": [
+            {
+              "from": "GALIYF74UVCC2ZHE4TEI6QAFQRKYXAFVCZZ53G4WVYQNCPGRWKSIHL2D",
+              "to": "GCU237OMAM67GLZFEXDJZS4PNDGT4EJULJNIM4KNPU7J5UUDUEZKFTSV",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/068a6cb327d4c9f8149a093fdcf78784e3e79e4fa5e49bf4c8e00aeb5993f2e5"
+        }
+      ],
+      "observations": {
+        "client": "typescript/mcp",
+        "server": "typescript/mcp",
+        "endpoint": "exact_stellar_upfront",
+        "transport": "mcp",
+        "paymentFlow": "upfront"
+      }
+    },
+    {
+      "id": "bazaar-discovery-validation",
+      "title": "the suite's Bazaar discovery validation",
+      "checks": [
+        "discovery",
+        "upstream-e2e"
+      ],
+      "status": "passed",
+      "elapsedMs": 0,
+      "observations": {
+        "result": "PASSED",
+        "discovered": "10/10",
+        "catalogOutcomes": {
+          "verify/processing/awaiting_settlement": 9,
+          "settle/processing/awaiting_origin_verification": 8,
+          "origin_check/success/origin_confirmed": 8,
+          "enrich/success/facts_refreshed": 10,
+          "settle/success/recorded": 8,
+          "settle/success/cataloged": 2
+        }
+      }
+    },
+    {
+      "id": "go-python-components",
+      "title": "Go and Python clients, servers and facilitators",
+      "checks": [
+        "upstream-e2e"
+      ],
+      "status": "skipped",
+      "skipReason": "the upstream Go and Python SDKs have no Stellar mechanism",
+      "elapsedMs": 0
+    },
+    {
+      "id": "x402-v1-legacy",
+      "title": "x402 v1 (legacy) scenarios",
+      "checks": [
+        "upstream-e2e"
+      ],
+      "status": "skipped",
+      "skipReason": "Stellar exact is defined for x402 v2 only",
+      "elapsedMs": 0
+    },
+    {
+      "id": "escrow",
+      "title": "escrow scheme scenarios",
+      "checks": [
+        "upstream-e2e"
+      ],
+      "status": "skipped",
+      "skipReason": "the suite has no Stellar escrow mechanism",
+      "elapsedMs": 0
+    },
+    {
+      "id": "pubnet",
+      "title": "mainnet mode",
+      "checks": [
+        "upstream-e2e"
+      ],
+      "status": "skipped",
+      "skipReason": "the suite's Stellar client is built without an RPC URL, which the SDK requires on pubnet",
+      "elapsedMs": 0
     }
   ]
 }

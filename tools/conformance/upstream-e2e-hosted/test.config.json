@@ -1,0 +1,17 @@
+{
+  "name": "rail402-hosted",
+  "type": "facilitator",
+  "language": "typescript",
+  "protocolFamilies": ["stellar"],
+  "schemes": ["exact"],
+  "x402Versions": [2],
+  "extensions": [],
+  "endpoints": [
+    { "path": "/health", "health": true },
+    { "path": "/close", "close": true }
+  ],
+  "environment": {
+    "required": ["RAIL402_ROOT", "RAIL402_FACILITATOR_URL", "FACILITATOR_STELLAR_PRIVATE_KEY"],
+    "optional": []
+  }
+}

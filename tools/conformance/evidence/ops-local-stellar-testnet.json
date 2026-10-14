@@ -1,0 +1,1871 @@
+{
+  "schemaVersion": 2,
+  "kind": "ops",
+  "runId": "d648e46b-a963-4568-aca9-46cb1e33ecec",
+  "startedAt": "2026-10-09T13:38:28.959Z",
+  "finishedAt": "2026-10-09T13:42:54.332Z",
+  "network": "stellar:testnet",
+  "target": {
+    "mode": "local",
+    "facilitatorUrl": "http://127.0.0.1",
+    "healthVersion": "0.4.1",
+    "supported": null
+  },
+  "harness": {
+    "commit": "b9ebb87f3632f7e601f9f2f884cd4389deb65c20",
+    "dirty": false
+  },
+  "packages": {
+    "@x402/core": "2.27.0",
+    "@x402/stellar": "2.27.0",
+    "@stellar/stellar-sdk": "16.3.0",
+    "@rail402.dev/service": "0.4.1"
+  },
+  "command": "node --conditions=@rail402/source tools/conformance/src/ops.ts",
+  "config": {
+    "network": "private Stellar network with the testnet passphrase",
+    "rpc": "http://localhost:8000/rpc",
+    "store": "memory and Postgres, per test",
+    "testFiles": 38
+  },
+  "accounts": {},
+  "summary": {
+    "total": 45,
+    "passed": 45,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "replay-sequential",
+      "title": "A settled payment sent to /settle again",
+      "checks": [
+        "idempotency"
+      ],
+      "status": "passed",
+      "elapsedMs": 22749,
+      "observations": {
+        "threats": [
+          "R1"
+        ],
+        "environment": "Private Stellar network (1 s ledgers) and Postgres",
+        "tests": [
+          {
+            "test": "apps/rail402/test/idempotency.integration.test.ts::answers a sequential repeat with the recorded response, marked as a repeat",
+            "results": [
+              {
+                "name": "settlement idempotency on a live network with the memory ledger answers a sequential repeat with the recorded response, marked as a repeat",
+                "status": "passed",
+                "durationMs": 6423
+              },
+              {
+                "name": "settlement idempotency on a live network with the postgres ledger answers a sequential repeat with the recorded response, marked as a repeat",
+                "status": "passed",
+                "durationMs": 8929
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/settlement.integration.test.ts::answers a repeated settle with the original result and moves funds once",
+            "results": [
+              {
+                "name": "exact settlement on a live network answers a repeated settle with the original result and moves funds once",
+                "status": "passed",
+                "durationMs": 7397
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "replay-concurrent",
+      "title": "Concurrent copies of one payment",
+      "checks": [
+        "idempotency",
+        "concurrency"
+      ],
+      "status": "passed",
+      "elapsedMs": 19631,
+      "observations": {
+        "threats": [
+          "R1",
+          "S6"
+        ],
+        "environment": "Private Stellar network (1 s ledgers) and Postgres",
+        "tests": [
+          {
+            "test": "apps/rail402/test/idempotency.integration.test.ts::settles 5 concurrent repeats once: one transfer, one original, identical bodies",
+            "results": [
+              {
+                "name": "settlement idempotency on a live network with the memory ledger settles 5 concurrent repeats once: one transfer, one original, identical bodies",
+                "status": "passed",
+                "durationMs": 6284
+              },
+              {
+                "name": "settlement idempotency on a live network with the postgres ledger settles 5 concurrent repeats once: one transfer, one original, identical bodies",
+                "status": "passed",
+                "durationMs": 5854
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/settlement.integration.test.ts::settles concurrent duplicates exactly once, all callers getting the same result",
+            "results": [
+              {
+                "name": "exact settlement on a live network settles concurrent duplicates exactly once, all callers getting the same result",
+                "status": "passed",
+                "durationMs": 7493
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "replay-new-envelope",
+      "title": "A settled authorization in a new envelope",
+      "checks": [
+        "idempotency",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 20507,
+      "observations": {
+        "threats": [
+          "R2"
+        ],
+        "environment": "Private Stellar network (1 s ledgers) and Postgres",
+        "tests": [
+          {
+            "test": "apps/rail402/test/idempotency.integration.test.ts::refuses the same authorization in another envelope, naming the recorded transaction",
+            "results": [
+              {
+                "name": "settlement idempotency on a live network with the memory ledger refuses the same authorization in another envelope, naming the recorded transaction",
+                "status": "passed",
+                "durationMs": 5682
+              },
+              {
+                "name": "settlement idempotency on a live network with the postgres ledger refuses the same authorization in another envelope, naming the recorded transaction",
+                "status": "passed",
+                "durationMs": 5734
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/settlement.integration.test.ts::refuses a settled authorization in a different envelope, and verify names the replay",
+            "results": [
+              {
+                "name": "exact settlement on a live network refuses a settled authorization in a different envelope, and verify names the replay",
+                "status": "passed",
+                "durationMs": 9091
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "replay-upfront",
+      "title": "One payment signature sent twice to a seller",
+      "checks": [
+        "idempotency"
+      ],
+      "status": "passed",
+      "elapsedMs": 10461,
+      "observations": {
+        "threats": [
+          "R4"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/sdk/test/seller.integration.test.ts::does not serve a replayed payment signature again",
+            "results": [
+              {
+                "name": "seller helpers on the local network does not serve a replayed payment signature again",
+                "status": "passed",
+                "durationMs": 24
+              }
+            ]
+          },
+          {
+            "test": "packages/sdk/test/seller.integration.test.ts::serves an upfront settlement once when the facilitator answers its repeat",
+            "results": [
+              {
+                "name": "seller helpers on the local network serves an upfront settlement once when the facilitator answers its repeat",
+                "status": "passed",
+                "durationMs": 10437
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "front-run",
+      "title": "A copied exact authorization lands first",
+      "checks": [
+        "front-running"
+      ],
+      "status": "passed",
+      "elapsedMs": 8053,
+      "observations": {
+        "threats": [
+          "F1",
+          "F2"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/front-run.integration.test.ts::answers success with the attacker's hash; the payment moves once and our fee is wasted",
+            "results": [
+              {
+                "name": "front-running reconciliation for exact payments answers success with the attacker's hash; the payment moves once and our fee is wasted",
+                "status": "passed",
+                "durationMs": 8014
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/front-run.integration.test.ts::refuses an authorization consumed before the request was claimed",
+            "results": [
+              {
+                "name": "front-running reconciliation for exact payments accepts only proof from the chain refuses an authorization consumed before the request was claimed",
+                "status": "passed",
+                "durationMs": 23
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/front-run.integration.test.ts::refuses when the consuming transaction carried a different invocation for the same nonce",
+            "results": [
+              {
+                "name": "front-running reconciliation for exact payments accepts only proof from the chain refuses when the consuming transaction carried a different invocation for the same nonce",
+                "status": "passed",
+                "durationMs": 16
+              }
+            ]
+          }
+        ],
+        "recorded": [
+          {
+            "attackerTransaction": "385238d788629597b8a89bcc498866fc645cafe8e531b5ba6466f7b6ed74f045",
+            "ourFailedTransaction": "263c2aed210e13cbbd3583e54c42ddc0e22065cf9655a9705c2ccfd47d0f9dbc",
+            "answer": "success with the attacker's hash",
+            "wastedFeeStroops": "76214",
+            "payerDebitedOnce": "1000000"
+          }
+        ]
+      }
+    },
+    {
+      "id": "front-run-upto",
+      "title": "Front-running an upto settlement",
+      "checks": [
+        "front-running",
+        "scheme-upto"
+      ],
+      "status": "passed",
+      "elapsedMs": 18979,
+      "observations": {
+        "threats": [
+          "F3",
+          "F4"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/front-run.integration.test.ts::cannot be landed by an attacker without the settlement authority; Rail402's settlement proceeds",
+            "results": [
+              {
+                "name": "front-running upto settlements cannot be landed by an attacker without the settlement authority; Rail402's settlement proceeds",
+                "status": "passed",
+                "durationMs": 11277
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/front-run.integration.test.ts::answers with the authority's own earlier transaction for the same amount; our fee is wasted",
+            "results": [
+              {
+                "name": "front-running upto settlements answers with the authority's own earlier transaction for the same amount; our fee is wasted",
+                "status": "passed",
+                "durationMs": 7702
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "smart-account-signer",
+      "title": "A smart-account payment signed by a key the account does not accept",
+      "checks": [
+        "scheme-exact",
+        "scheme-upto"
+      ],
+      "status": "passed",
+      "elapsedMs": 86,
+      "observations": {
+        "threats": [
+          "A1"
+        ],
+        "environment": "Private Stellar network (1 s ledgers) and Postgres",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/settlement.integration.test.ts::rejects a smart-account payment signed by the wrong key",
+            "results": [
+              {
+                "name": "exact settlement on a live network smart accounts (C… addresses) rejects a smart-account payment signed by the wrong key",
+                "status": "passed",
+                "durationMs": 59
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/upto-payers.integration.test.ts::refuses a signature by another key as the account's own rejection",
+            "results": [
+              {
+                "name": "upto payers through the Rail402 service a simple custom account (C…) refuses a signature by another key as the account's own rejection",
+                "status": "passed",
+                "durationMs": 27
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "smart-account-budget",
+      "title": "An OpenZeppelin smart account paying with an agent key under a spending limit",
+      "checks": [
+        "scheme-upto"
+      ],
+      "status": "passed",
+      "elapsedMs": 1404,
+      "observations": {
+        "threats": [
+          "A4",
+          "A5",
+          "A6"
+        ],
+        "environment": "Private Stellar network (1 s ledgers) and Postgres",
+        "tests": [
+          {
+            "test": "apps/rail402/test/upto-payers.integration.test.ts::refuses a payment over its own spending limit, and nothing moves",
+            "results": [
+              {
+                "name": "upto payers through the Rail402 service an OpenZeppelin smart account (C…) paying with an agent key refuses a payment over its own spending limit, and nothing moves",
+                "status": "passed",
+                "durationMs": 178
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/upto-payers.integration.test.ts::has reserved the full cap of each payment against its budget",
+            "results": [
+              {
+                "name": "upto payers through the Rail402 service an OpenZeppelin smart account (C…) paying with an agent key has reserved the full cap of each payment against its budget",
+                "status": "passed",
+                "durationMs": 13
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/upto-payers.integration.test.ts::does not let the agent key use the owner's policy-free default rule",
+            "results": [
+              {
+                "name": "upto payers through the Rail402 service the smart account's limits does not let the agent key use the owner's policy-free default rule",
+                "status": "passed",
+                "durationMs": 90
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/upto-payers.integration.test.ts::pays up to its budget and refuses the cap that would exceed it",
+            "results": [
+              {
+                "name": "upto payers through the Rail402 service the smart account's limits pays up to its budget and refuses the cap that would exceed it",
+                "status": "passed",
+                "durationMs": 1123
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "smart-account-apply-failure",
+      "title": "A smart account whose __check_auth passes simulation and fails at inclusion",
+      "checks": [
+        "fees-sponsored"
+      ],
+      "status": "passed",
+      "elapsedMs": 11425,
+      "observations": {
+        "threats": [
+          "A2"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/fee-exposure.integration.test.ts::names a smart account whose __check_auth passes the settle-time simulation and fails at inclusion",
+            "results": [
+              {
+                "name": "fee sponsor exposure for exact payments names a smart account whose __check_auth passes the settle-time simulation and fails at inclusion; the fee is counted as wasted",
+                "status": "passed",
+                "durationMs": 11425
+              }
+            ]
+          }
+        ],
+        "recorded": [
+          {
+            "payer": "CDF4YGHVMZVG5GFMDGXIO2UPMQDCT32VRC33OHS7BLO6ONN5FFLOYQNJ",
+            "phase": "between the settle-time simulation and inclusion",
+            "transaction": "bab3d18712f02bd118328fddb510d7a92dd1408d251f47a04ad15b09bc50540e",
+            "ledger": 1089729,
+            "settle": "invalid_exact_stellar_payload_smart_account_rejected",
+            "wastedFeeStroops": "74145",
+            "sponsorDeltaStroops": "-74145"
+          }
+        ]
+      }
+    },
+    {
+      "id": "balance-race",
+      "title": "The payer spends the balance before settlement lands",
+      "checks": [
+        "fees-sponsored"
+      ],
+      "status": "passed",
+      "elapsedMs": 15751,
+      "observations": {
+        "threats": [
+          "S1"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/fee-exposure.integration.test.ts::refuses at settle, with nothing submitted, a payment whose balance moved after verify",
+            "results": [
+              {
+                "name": "fee sponsor exposure for exact payments refuses at settle, with nothing submitted, a payment whose balance moved after verify",
+                "status": "passed",
+                "durationMs": 9220
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/fee-exposure.integration.test.ts::names a balance spent between the settle-time simulation and inclusion; the fee is spent and counted as wasted",
+            "results": [
+              {
+                "name": "fee sponsor exposure for exact payments names a balance spent between the settle-time simulation and inclusion; the fee is spent and counted as wasted",
+                "status": "passed",
+                "durationMs": 6531
+              }
+            ]
+          }
+        ],
+        "recorded": [
+          {
+            "phase": "between verify and settle",
+            "settle": "insufficient_funds",
+            "submissions": 0,
+            "sponsorDeltaStroops": "0"
+          },
+          {
+            "phase": "between the settle-time simulation and inclusion",
+            "transaction": "dfb5fa321dc3863671ecac346952f5cdf4fd42588d11fe3c9f6d78fea216ae58",
+            "ledger": 1089718,
+            "settle": "insufficient_funds",
+            "wastedFeeStroops": "76214",
+            "sponsorDeltaStroops": "-76214"
+          }
+        ]
+      }
+    },
+    {
+      "id": "expiry-race",
+      "title": "An authorization that expires while the settlement waits",
+      "checks": [
+        "expiration"
+      ],
+      "status": "passed",
+      "elapsedMs": 27709,
+      "observations": {
+        "threats": [
+          "S2"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/expiration.integration.test.ts::names an authorization that expires between submission and inclusion; the fee is spent",
+            "results": [
+              {
+                "name": "authorization expiry for exact payments names an authorization that expires between submission and inclusion; the fee is spent",
+                "status": "passed",
+                "durationMs": 10411
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/expiration.integration.test.ts::refuses at the network an upto settlement held past expiration_ledger; no fee is spent",
+            "results": [
+              {
+                "name": "authorization expiry for upto payments refuses at the network an upto settlement held past expiration_ledger; no fee is spent",
+                "status": "passed",
+                "durationMs": 8681
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/expiration.integration.test.ts::holds the lower edge at the current ledger plus a one-ledger margin",
+            "results": [
+              {
+                "name": "authorization expiry for exact payments holds the lower edge at the current ledger plus a one-ledger margin",
+                "status": "passed",
+                "durationMs": 4207
+              },
+              {
+                "name": "authorization expiry for upto payments holds the lower edge at the current ledger plus a one-ledger margin",
+                "status": "passed",
+                "durationMs": 4410
+              }
+            ]
+          }
+        ],
+        "recorded": [
+          {
+            "scheme": "exact",
+            "expirationLedger": 1089552,
+            "transaction": "f14579ac9f707bb0550944075f56e30d950f912cdc2764badf31b8f58650f4e0",
+            "settle": "invalid_exact_stellar_signature_expired",
+            "wastedFeeStroops": "76214"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ceiling-refusal",
+      "title": "A settlement above the fee ceiling",
+      "checks": [
+        "fees-sponsored",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 5881,
+      "observations": {
+        "threats": [
+          "S3"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/fee-exposure.integration.test.ts::refuses a payment whose settlement would cost more than the fee ceiling, before signing anything",
+            "results": [
+              {
+                "name": "fee sponsor exposure for exact payments refuses a payment whose settlement would cost more than the fee ceiling, before signing anything",
+                "status": "passed",
+                "durationMs": 5875
+              }
+            ]
+          },
+          {
+            "test": "packages/upto/test/facilitator.test.ts::enforces the fee ceiling",
+            "results": [
+              {
+                "name": "upto facilitator: verify enforces the fee ceiling",
+                "status": "passed",
+                "durationMs": 6
+              }
+            ]
+          }
+        ],
+        "recorded": [
+          {
+            "ceilingStroops": 20000,
+            "verify": "invalid_exact_stellar_payload_fee_exceeds_maximum",
+            "settle": "invalid_exact_stellar_payload_fee_exceeds_maximum",
+            "submissions": 0,
+            "sponsorDeltaStroops": "0"
+          }
+        ]
+      }
+    },
+    {
+      "id": "budget-trip",
+      "title": "The hourly fee budget is reached",
+      "checks": [
+        "fees-sponsored"
+      ],
+      "status": "passed",
+      "elapsedMs": 6480,
+      "observations": {
+        "threats": [
+          "S4"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/fee-exposure.integration.test.ts::stops settling once the hourly fee budget is committed, before any RPC work",
+            "results": [
+              {
+                "name": "fee sponsor exposure for exact payments stops settling once the hourly fee budget is committed, before any RPC work",
+                "status": "passed",
+                "durationMs": 6479
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/fees.test.ts::refuses once the hourly fee budget is committed",
+            "results": [
+              {
+                "name": "SponsorBudget refuses once the hourly fee budget is committed",
+                "status": "passed",
+                "durationMs": 1
+              }
+            ]
+          }
+        ],
+        "recorded": [
+          {
+            "budgetStroops": "1",
+            "firstSettlement": "a26811eed9ced7c2f9786170502168f058bc5c8d03dcada7847dcea46d09b102",
+            "refusal": "settle_exact_stellar_sponsor_unavailable",
+            "submissionsAfterTrip": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "sponsor-floor",
+      "title": "The sponsor below its reserve",
+      "checks": [
+        "observability",
+        "fees-sponsored"
+      ],
+      "status": "passed",
+      "elapsedMs": 12136,
+      "observations": {
+        "threats": [
+          "S5"
+        ],
+        "environment": "The Rail402 service on the private network",
+        "tests": [
+          {
+            "test": "apps/rail402/test/observability.integration.test.ts::counts refusals below the reserve and reports the sponsor below its floor",
+            "results": [
+              {
+                "name": "observability: the sponsor guard counts refusals below the reserve and reports the sponsor below its floor",
+                "status": "passed",
+                "durationMs": 8570
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/runtime.integration.test.ts::fails while the sponsor holds less than MIN_SPONSOR_BALANCE_XLM",
+            "results": [
+              {
+                "name": "service runtime readiness fails while the sponsor holds less than MIN_SPONSOR_BALANCE_XLM",
+                "status": "passed",
+                "durationMs": 3566
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ssrf-origin",
+      "title": "Origin checks and SEP-1 fetches to private addresses",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 11,
+      "observations": {
+        "threats": [
+          "X1",
+          "X5"
+        ],
+        "environment": "Local sockets and a stub resolver",
+        "tests": [
+          {
+            "test": "packages/bazaar/test/origin.test.ts::refuses a host whose DNS answers are not public, before connecting",
+            "results": [
+              {
+                "name": "origin checks refuses a host whose DNS answers are not public, before connecting",
+                "status": "passed",
+                "durationMs": 3
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/test/egress.test.ts::refuses a private IP literal for origin checks unless loopback is allowed",
+            "results": [
+              {
+                "name": "catalog fetches to IP literals refuses a private IP literal for origin checks unless loopback is allowed",
+                "status": "passed",
+                "durationMs": 8
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/test/stellar-toml.test.ts::never connects to a private address unless loopback is explicitly allowed",
+            "results": [
+              {
+                "name": "stellar.toml ACCOUNTS never connects to a private address unless loopback is explicitly allowed",
+                "status": "passed",
+                "durationMs": 0
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/config.test.ts::refuses loopback discovery fetches on a service that serves pubnet",
+            "results": [
+              {
+                "name": "loadConfig refuses loopback discovery fetches on a service that serves pubnet",
+                "status": "passed",
+                "durationMs": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ssrf-rebinding",
+      "title": "DNS rebinding",
+      "checks": [
+        "discovery",
+        "mcp"
+      ],
+      "status": "passed",
+      "elapsedMs": 5,
+      "observations": {
+        "threats": [
+          "X2"
+        ],
+        "environment": "Local sockets and a stub resolver",
+        "tests": [
+          {
+            "test": "packages/safe-fetch/test/egress.integration.test.ts::checks every DNS answer, so a rebinding name cannot reach a private address",
+            "results": [
+              {
+                "name": "egress controls against local servers checks every DNS answer, so a rebinding name cannot reach a private address",
+                "status": "passed",
+                "durationMs": 5
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ssrf-redirect",
+      "title": "Redirects to private or other destinations",
+      "checks": [
+        "discovery",
+        "mcp"
+      ],
+      "status": "passed",
+      "elapsedMs": 6,
+      "observations": {
+        "threats": [
+          "X3"
+        ],
+        "environment": "Local sockets and a stub resolver",
+        "tests": [
+          {
+            "test": "packages/safe-fetch/test/egress.integration.test.ts::never follows a redirect towards a private or other destination",
+            "results": [
+              {
+                "name": "egress controls against local servers never follows a redirect towards a private or other destination",
+                "status": "passed",
+                "durationMs": 5
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/test/origin.test.ts::does not follow redirects",
+            "results": [
+              {
+                "name": "origin checks does not follow redirects",
+                "status": "passed",
+                "durationMs": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ssrf-oversized",
+      "title": "Oversized, compressed and slow answers",
+      "checks": [
+        "discovery",
+        "mcp"
+      ],
+      "status": "passed",
+      "elapsedMs": 642,
+      "observations": {
+        "threats": [
+          "X4"
+        ],
+        "environment": "Local sockets and a stub resolver",
+        "tests": [
+          {
+            "test": "packages/safe-fetch/test/egress.integration.test.ts::stops oversized and compressed-bomb answers at the decoded limit",
+            "results": [
+              {
+                "name": "egress controls against local servers stops oversized and compressed-bomb answers at the decoded limit",
+                "status": "passed",
+                "durationMs": 37
+              }
+            ]
+          },
+          {
+            "test": "packages/safe-fetch/test/fetch.test.ts::times out waiting for headers, on an idle body, and in total",
+            "results": [
+              {
+                "name": "createSafeFetch times out waiting for headers, on an idle body, and in total",
+                "status": "passed",
+                "durationMs": 605
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog-takeover",
+      "title": "Another payTo pays for a listed resource",
+      "checks": [
+        "discovery",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 9551,
+      "observations": {
+        "threats": [
+          "P2"
+        ],
+        "environment": "The Rail402 service on the private network",
+        "tests": [
+          {
+            "test": "apps/rail402/test/bazaar.integration.test.ts::refuses a different payTo for the same resource, with a coded reason",
+            "results": [
+              {
+                "name": "Bazaar: settlement-gated cataloging through a real seller refuses a different payTo for the same resource, with a coded reason",
+                "status": "passed",
+                "durationMs": 9293
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/src/testing.ts::never lets a different payTo modify a listing",
+            "results": [
+              {
+                "name": "postgres: bazaar catalog never lets a different payTo modify a listing",
+                "status": "passed",
+                "durationMs": 136
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/src/testing.ts::transfers ownership only when the origin names the new payTo",
+            "results": [
+              {
+                "name": "postgres: bazaar catalog transfers ownership only when the origin names the new payTo",
+                "status": "passed",
+                "durationMs": 122
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "forged-metadata",
+      "title": "Echoed metadata that the origin does not confirm",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 239,
+      "observations": {
+        "threats": [
+          "P1"
+        ],
+        "environment": "Postgres",
+        "tests": [
+          {
+            "test": "packages/bazaar/src/testing.ts::does not let echoed metadata change a listing until the origin confirms it",
+            "results": [
+              {
+                "name": "postgres: bazaar catalog does not let echoed metadata change a listing until the origin confirms it",
+                "status": "passed",
+                "durationMs": 130
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/src/testing.ts::never lists an HTTP resource whose own response is not a 402",
+            "results": [
+              {
+                "name": "postgres: bazaar catalog never lists an HTTP resource whose own response is not a 402",
+                "status": "passed",
+                "durationMs": 109
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mcp-tool-planting",
+      "title": "A payer plants content under a seller's MCP tool",
+      "checks": [
+        "discovery",
+        "mcp"
+      ],
+      "status": "passed",
+      "elapsedMs": 395,
+      "observations": {
+        "threats": [
+          "P9"
+        ],
+        "environment": "Postgres",
+        "tests": [
+          {
+            "test": "packages/bazaar/src/testing.ts::never publishes a tool description or price planted with",
+            "results": [
+              {
+                "name": "postgres: bazaar catalog never publishes a tool description or price planted with a one-unit exact payment under a seller's payTo",
+                "status": "passed",
+                "durationMs": 121
+              },
+              {
+                "name": "postgres: bazaar catalog never publishes a tool description or price planted with a one-unit upto settlement under a huge cap under a seller's payTo",
+                "status": "passed",
+                "durationMs": 115
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/src/testing.ts::never lets a planted settlement withdraw or change a tool its origin confirmed",
+            "results": [
+              {
+                "name": "postgres: bazaar catalog never lets a planted settlement withdraw or change a tool its origin confirmed",
+                "status": "passed",
+                "durationMs": 110
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/test/mcp-origin.test.ts::reads a tool's PaymentRequired from its unpaid call, sending the example arguments",
+            "results": [
+              {
+                "name": "MCP origin checks reads a tool's PaymentRequired from its unpaid call, sending the example arguments",
+                "status": "passed",
+                "durationMs": 49
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "schema-redos",
+      "title": "Hostile JSON Schema",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 364,
+      "observations": {
+        "threats": [
+          "P3"
+        ],
+        "environment": "In-process, with the RPC or store simulated",
+        "tests": [
+          {
+            "test": "packages/bazaar/test/security.test.ts::stops a catastrophic-backtracking pattern within its budget and keeps serving",
+            "results": [
+              {
+                "name": "SchemaSandbox stops a catastrophic-backtracking pattern within its budget and keeps serving",
+                "status": "passed",
+                "durationMs": 353
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/test/security.test.ts::stops a combinatorial uniqueItems check within its budget",
+            "results": [
+              {
+                "name": "SchemaSandbox stops a combinatorial uniqueItems check within its budget",
+                "status": "passed",
+                "durationMs": 1
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/test/security.test.ts::finds external references in every schema position, and only there",
+            "results": [
+              {
+                "name": "SchemaSandbox finds external references in every schema position, and only there",
+                "status": "passed",
+                "durationMs": 10
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "route-traversal",
+      "title": "Encoded traversal in route templates and parameters",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 166,
+      "observations": {
+        "threats": [
+          "P4"
+        ],
+        "environment": "Postgres",
+        "tests": [
+          {
+            "test": "packages/bazaar/test/security.test.ts::refuses route templates that decode to NUL, CR, LF, a backslash or an empty segment",
+            "results": [
+              {
+                "name": "resource URL safety refuses route templates that decode to NUL, CR, LF, a backslash or an empty segment",
+                "status": "passed",
+                "durationMs": 0
+              }
+            ]
+          },
+          {
+            "test": "packages/bazaar/src/testing.ts::uses a routeTemplate only when it is safe and matches the paid path",
+            "results": [
+              {
+                "name": "postgres: bazaar catalog uses a routeTemplate only when it is safe and matches the paid path",
+                "status": "passed",
+                "durationMs": 165
+              }
+            ]
+          },
+          {
+            "test": "packages/sdk/test/discovery.test.ts::fills route parameters and refuses traversal",
+            "results": [
+              {
+                "name": "discovery fills route parameters and refuses traversal",
+                "status": "passed",
+                "durationMs": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "crash-k0",
+      "title": "Killed after the network accepted the transaction",
+      "checks": [
+        "crash-recovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 15648,
+      "observations": {
+        "threats": [
+          "O1"
+        ],
+        "environment": "Rail402 service processes over Postgres on the private network, killed with SIGKILL",
+        "tests": [
+          {
+            "test": "apps/rail402/test/crash-recovery.integration.test.ts::K0: finds the transaction the network accepted before the process died",
+            "results": [
+              {
+                "name": "crash recovery of the service process (SIGKILL) exact K0: finds the transaction the network accepted before the process died",
+                "status": "passed",
+                "durationMs": 7866
+              },
+              {
+                "name": "crash recovery of the service process (SIGKILL) upto K0: finds the transaction the network accepted before the process died",
+                "status": "passed",
+                "durationMs": 7782
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "crash-k1",
+      "title": "Killed before the broadcast left",
+      "checks": [
+        "crash-recovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 18919,
+      "observations": {
+        "threats": [
+          "O1"
+        ],
+        "environment": "Rail402 service processes over Postgres on the private network, killed with SIGKILL",
+        "tests": [
+          {
+            "test": "apps/rail402/test/crash-recovery.integration.test.ts::K1: rebroadcasts the identical recorded bytes when the broadcast never left",
+            "results": [
+              {
+                "name": "crash recovery of the service process (SIGKILL) exact K1: rebroadcasts the identical recorded bytes when the broadcast never left",
+                "status": "passed",
+                "durationMs": 11108
+              },
+              {
+                "name": "crash recovery of the service process (SIGKILL) upto K1: rebroadcasts the identical recorded bytes when the broadcast never left",
+                "status": "passed",
+                "durationMs": 7811
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "crash-k2",
+      "title": "Killed after inclusion, before confirmation",
+      "checks": [
+        "crash-recovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 15887,
+      "observations": {
+        "threats": [
+          "O1"
+        ],
+        "environment": "Rail402 service processes over Postgres on the private network, killed with SIGKILL",
+        "tests": [
+          {
+            "test": "apps/rail402/test/crash-recovery.integration.test.ts::K2: finds a transaction that was included before the process saw it confirmed",
+            "results": [
+              {
+                "name": "crash recovery of the service process (SIGKILL) exact K2: finds a transaction that was included before the process saw it confirmed",
+                "status": "passed",
+                "durationMs": 7627
+              },
+              {
+                "name": "crash recovery of the service process (SIGKILL) upto K2: finds a transaction that was included before the process saw it confirmed",
+                "status": "passed",
+                "durationMs": 8260
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "crash-k3",
+      "title": "Down until the time bound passed",
+      "checks": [
+        "crash-recovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 41452,
+      "observations": {
+        "threats": [
+          "O1"
+        ],
+        "environment": "Rail402 service processes over Postgres on the private network, killed with SIGKILL",
+        "tests": [
+          {
+            "test": "apps/rail402/test/crash-recovery.integration.test.ts::K3: expires a transaction whose time bound passed while the service was down, and nothing moves",
+            "results": [
+              {
+                "name": "crash recovery of the service process (SIGKILL) K3: expires a transaction whose time bound passed while the service was down, and nothing moves",
+                "status": "passed",
+                "durationMs": 41452
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "crash-unresolvable",
+      "title": "A settlement beyond the RPC's retention",
+      "checks": [
+        "crash-recovery",
+        "observability"
+      ],
+      "status": "passed",
+      "elapsedMs": 1734,
+      "observations": {
+        "threats": [
+          "O4"
+        ],
+        "environment": "Rail402 service processes over Postgres on the private network, killed with SIGKILL",
+        "tests": [
+          {
+            "test": "apps/rail402/test/crash-recovery.integration.test.ts::keeps a settlement the RPC can no longer prove absent unresolved, and reports it",
+            "results": [
+              {
+                "name": "crash recovery of the service process (SIGKILL) keeps a settlement the RPC can no longer prove absent unresolved, and reports it",
+                "status": "passed",
+                "durationMs": 1734
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "concurrency",
+      "title": "Three batches of twenty concurrent settlements",
+      "checks": [
+        "concurrency"
+      ],
+      "status": "passed",
+      "elapsedMs": 105151,
+      "observations": {
+        "threats": [
+          "O2",
+          "S6"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/concurrency.integration.test.ts::with injected duplicates, without a collision",
+            "results": [
+              {
+                "name": "concurrent settlements on a live network settles 3 batches of 20 exact payments over 8 channels with injected duplicates, without a collision",
+                "status": "passed",
+                "durationMs": 34882
+              },
+              {
+                "name": "concurrent settlements on a live network settles 3 batches of 20 upto payments over 8 channels with injected duplicates, without a collision",
+                "status": "passed",
+                "durationMs": 33931
+              },
+              {
+                "name": "concurrent settlements on a live network settles 3 batches of 20 mixed payments over 8 channels with injected duplicates, without a collision",
+                "status": "passed",
+                "durationMs": 36338
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "replicas",
+      "title": "Two replicas on one Postgres",
+      "checks": [
+        "concurrency",
+        "idempotency"
+      ],
+      "status": "passed",
+      "elapsedMs": 35396,
+      "observations": {
+        "threats": [
+          "O2",
+          "R1"
+        ],
+        "environment": "Two Rail402 service processes over one Postgres on the private network",
+        "tests": [
+          {
+            "test": "apps/rail402/test/replicas.integration.test.ts::with every duplicate sent to the other replica",
+            "results": [
+              {
+                "name": "two service replicas on one Postgres settles 3 batches of 20 with every duplicate sent to the other replica",
+                "status": "passed",
+                "durationMs": 35396
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "seq-conflict",
+      "title": "A channel used behind the service's back",
+      "checks": [
+        "observability"
+      ],
+      "status": "passed",
+      "elapsedMs": 13113,
+      "observations": {
+        "threats": [
+          "O2"
+        ],
+        "environment": "The Rail402 service on the private network",
+        "tests": [
+          {
+            "test": "apps/rail402/test/observability.integration.test.ts::counts a sequence conflict when a channel's sequence is used behind its back",
+            "results": [
+              {
+                "name": "observability: every signal moves when its cause happens counts a sequence conflict when a channel's sequence is used behind its back",
+                "status": "passed",
+                "durationMs": 13113
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "rpc-outage",
+      "title": "The RPC stops answering",
+      "checks": [
+        "observability"
+      ],
+      "status": "passed",
+      "elapsedMs": 7884,
+      "observations": {
+        "threats": [
+          "O3"
+        ],
+        "environment": "The Rail402 service on the private network",
+        "tests": [
+          {
+            "test": "apps/rail402/test/runtime.integration.test.ts::fails while the RPC is unreachable",
+            "results": [
+              {
+                "name": "service runtime readiness fails while the RPC is unreachable",
+                "status": "passed",
+                "durationMs": 2831
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/observability.integration.test.ts::counts transport and request errors while the RPC fails, and reports it in /health",
+            "results": [
+              {
+                "name": "observability: every signal moves when its cause happens counts transport and request errors while the RPC fails, and reports it in /health",
+                "status": "passed",
+                "durationMs": 5053
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "store-outage",
+      "title": "The settlement store fails",
+      "checks": [
+        "idempotency",
+        "observability"
+      ],
+      "status": "passed",
+      "elapsedMs": 16061,
+      "observations": {
+        "threats": [
+          "O3"
+        ],
+        "environment": "Private Stellar network (1 s ledgers) and Postgres",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/settlement.integration.test.ts::broadcasts nothing when the envelope cannot be recorded first, leaving the payment retryable",
+            "results": [
+              {
+                "name": "exact settlement on a live network refuses or finishes settlements it cannot complete, and says why broadcasts nothing when the envelope cannot be recorded first, leaving the payment retryable",
+                "status": "passed",
+                "durationMs": 6376
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/idempotency.integration.test.ts::keeps verify available when the ledger cannot be read",
+            "results": [
+              {
+                "name": "settlement idempotency on a live network with the memory ledger keeps verify available when the ledger cannot be read",
+                "status": "passed",
+                "durationMs": 4654
+              },
+              {
+                "name": "settlement idempotency on a live network with the postgres ledger keeps verify available when the ledger cannot be read",
+                "status": "passed",
+                "durationMs": 4965
+              }
+            ]
+          },
+          {
+            "test": "packages/store-postgres/test/stores.integration.test.ts::survives the server closing its idle connections, as in a restart or failover",
+            "results": [
+              {
+                "name": "connection pool survives the server closing its idle connections, as in a restart or failover",
+                "status": "passed",
+                "durationMs": 66
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "channel-exhaustion",
+      "title": "Every channel busy",
+      "checks": [
+        "concurrency",
+        "observability"
+      ],
+      "status": "passed",
+      "elapsedMs": 18355,
+      "observations": {
+        "threats": [
+          "O5"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/settlement.integration.test.ts::refuses when no channel frees up in time, leaving the payment retryable",
+            "results": [
+              {
+                "name": "exact settlement on a live network refuses or finishes settlements it cannot complete, and says why refuses when no channel frees up in time, leaving the payment retryable",
+                "status": "passed",
+                "durationMs": 5574
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/observability.integration.test.ts::measures the wait for a channel when settlements outnumber channels",
+            "results": [
+              {
+                "name": "observability: every signal moves when its cause happens measures the wait for a channel when settlements outnumber channels",
+                "status": "passed",
+                "durationMs": 12781
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ttl-extend",
+      "title": "Extending the upto contract's TTL",
+      "checks": [
+        "observability",
+        "scheme-upto"
+      ],
+      "status": "passed",
+      "elapsedMs": 4879,
+      "observations": {
+        "threats": [
+          "U7"
+        ],
+        "environment": "The Rail402 service on the private network",
+        "tests": [
+          {
+            "test": "apps/rail402/test/upto.integration.test.ts::extends the contract from the keeper and the operator command, and reports its TTL",
+            "results": [
+              {
+                "name": "upto through the Rail402 service extends the contract from the keeper and the operator command, and reports its TTL",
+                "status": "passed",
+                "durationMs": 4879
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ttl-restore",
+      "title": "An archived upto contract",
+      "checks": [
+        "observability",
+        "scheme-upto"
+      ],
+      "status": "passed",
+      "elapsedMs": 54754,
+      "observations": {
+        "threats": [
+          "U7",
+          "S7"
+        ],
+        "environment": "A dedicated Stellar network with short TTLs, and the service",
+        "tests": [
+          {
+            "test": "apps/rail402/test/upto-archival.integration.test.ts::refuses payments while the contract is archived, and settles once an operator restores it",
+            "results": [
+              {
+                "name": "upto against an archived settlement contract refuses payments while the contract is archived, and settles once an operator restores it",
+                "status": "passed",
+                "durationMs": 15084
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/upto-archival.integration.test.ts::is restored by the TTL keeper where automatic restoration is allowed",
+            "results": [
+              {
+                "name": "upto against an archived settlement contract is restored by the TTL keeper where automatic restoration is allowed",
+                "status": "passed",
+                "durationMs": 39670
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "degraded-indexing",
+      "title": "The embedder fails",
+      "checks": [
+        "discovery",
+        "observability"
+      ],
+      "status": "passed",
+      "elapsedMs": 22,
+      "observations": {
+        "threats": [
+          "O7"
+        ],
+        "environment": "In-process, with the RPC or store simulated",
+        "tests": [
+          {
+            "test": "packages/search/test/search.test.ts::answers lexical-only, as partial results, when the embedder fails or runs out of time",
+            "results": [
+              {
+                "name": "SearchService answers lexical-only, as partial results, when the embedder fails or runs out of time",
+                "status": "passed",
+                "durationMs": 21
+              }
+            ]
+          },
+          {
+            "test": "packages/search/test/search.test.ts::builds a lexical-only snapshot when listings cannot be embedded",
+            "results": [
+              {
+                "name": "SearchService builds a lexical-only snapshot when listings cannot be embedded",
+                "status": "passed",
+                "durationMs": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mcp-cap",
+      "title": "Paid calls above the agent's caps",
+      "checks": [
+        "mcp"
+      ],
+      "status": "passed",
+      "elapsedMs": 80,
+      "observations": {
+        "threats": [
+          "M1"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/mcp/test/pay.integration.test.ts::refuses a price above the caller's cap before signing",
+            "results": [
+              {
+                "name": "rail402-mcp on the local network refuses a price above the caller's cap before signing",
+                "status": "passed",
+                "durationMs": 24
+              }
+            ]
+          },
+          {
+            "test": "packages/sdk/test/guard.integration.test.ts::refuses to sign a payment above the per-call cap",
+            "results": [
+              {
+                "name": "guarded signer on a Stellar network refuses to sign a payment above the per-call cap",
+                "status": "passed",
+                "durationMs": 17
+              }
+            ]
+          },
+          {
+            "test": "packages/sdk/test/guard.test.ts::never lets 20 concurrent payments exceed the session budget",
+            "results": [
+              {
+                "name": "guarded signer never lets 20 concurrent payments exceed the session budget",
+                "status": "passed",
+                "durationMs": 39
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mcp-ssrf",
+      "title": "Paid calls to private destinations",
+      "checks": [
+        "mcp"
+      ],
+      "status": "passed",
+      "elapsedMs": 3,
+      "observations": {
+        "threats": [
+          "X6"
+        ],
+        "environment": "Local sockets and a stub resolver",
+        "tests": [
+          {
+            "test": "packages/safe-fetch/test/egress.integration.test.ts::refuses IP-literal URLs to this machine in every spelling, before connecting",
+            "results": [
+              {
+                "name": "egress controls against local servers refuses IP-literal URLs to this machine in every spelling, before connecting",
+                "status": "passed",
+                "durationMs": 2
+              }
+            ]
+          },
+          {
+            "test": "packages/sdk/test/http-flow.test.ts::refuses private destinations before sending anything",
+            "results": [
+              {
+                "name": "HTTP payment flow refuses private destinations before sending anything",
+                "status": "passed",
+                "durationMs": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mcp-secret-scan",
+      "title": "Canary key scan of the MCP server, SDK and CLI",
+      "checks": [
+        "mcp"
+      ],
+      "status": "passed",
+      "elapsedMs": 220,
+      "observations": {
+        "threats": [
+          "M3"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/mcp/test/secrets.integration.test.ts::leaks nothing into frames, logs or the ledger",
+            "results": [
+              {
+                "name": "secret canary scan of rail402-mcp on the local network leaks nothing into frames, logs or the ledger",
+                "status": "passed",
+                "durationMs": 91
+              }
+            ]
+          },
+          {
+            "test": "packages/sdk/test/secrets.integration.test.ts::leaks nothing, and the payment reached only the paid origin",
+            "results": [
+              {
+                "name": "secret canary scan of the buyer on the local network leaks nothing, and the payment reached only the paid origin",
+                "status": "passed",
+                "durationMs": 69
+              }
+            ]
+          },
+          {
+            "test": "packages/cli/test/secrets.integration.test.ts::leaks nothing on stdout, stderr or in the ledger",
+            "results": [
+              {
+                "name": "secret canary scan of the rail402 CLI on the local network leaks nothing on stdout, stderr or in the ledger",
+                "status": "passed",
+                "durationMs": 60
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "upto-over-cap",
+      "title": "An upto settlement above the cap",
+      "checks": [
+        "scheme-upto",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 2,
+      "observations": {
+        "threats": [
+          "U1"
+        ],
+        "environment": "In-process, with the RPC or store simulated",
+        "tests": [
+          {
+            "test": "packages/upto/test/facilitator.test.ts::refuses an amount above the cap before simulating",
+            "results": [
+              {
+                "name": "upto facilitator: settle refuses an amount above the cap before simulating",
+                "status": "passed",
+                "durationMs": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "upto-zero",
+      "title": "Zero upto settlements",
+      "checks": [
+        "scheme-upto",
+        "idempotency"
+      ],
+      "status": "passed",
+      "elapsedMs": 9895,
+      "observations": {
+        "threats": [
+          "R5",
+          "U6"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/upto.integration.test.ts::settles zero on-chain: the nonce is consumed and no funds move",
+            "results": [
+              {
+                "name": "upto through the Rail402 facilitator settles zero on-chain: the nonce is consumed and no funds move",
+                "status": "passed",
+                "durationMs": 6561
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/upto.integration.test.ts::settles zero off-chain when configured: no transaction, the authorization used up in the ledger",
+            "results": [
+              {
+                "name": "upto through the Rail402 facilitator settles zero off-chain when configured: no transaction, the authorization used up in the ledger",
+                "status": "passed",
+                "durationMs": 3334
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "upto-concurrent",
+      "title": "Concurrent upto requests for different amounts",
+      "checks": [
+        "scheme-upto",
+        "idempotency",
+        "concurrency"
+      ],
+      "status": "passed",
+      "elapsedMs": 14034,
+      "observations": {
+        "threats": [
+          "U3",
+          "F5"
+        ],
+        "environment": "Private Stellar network (1 s ledgers) and Postgres",
+        "tests": [
+          {
+            "test": "apps/rail402/test/idempotency.integration.test.ts::settles 5 concurrent requests for different amounts once: one success, four conflicts",
+            "results": [
+              {
+                "name": "settlement idempotency on a live network with the memory ledger upto settles 5 concurrent requests for different amounts once: one success, four conflicts",
+                "status": "passed",
+                "durationMs": 4758
+              },
+              {
+                "name": "settlement idempotency on a live network with the postgres ledger upto settles 5 concurrent requests for different amounts once: one success, four conflicts",
+                "status": "passed",
+                "durationMs": 5387
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/upto-settlement.integration.test.ts::lets the first settle request fix the amount: a payload holder's zero turns the seller's settle into a conflict",
+            "results": [
+              {
+                "name": "upto settlement through the Rail402 service duplicates lets the first settle request fix the amount: a payload holder's zero turns the seller's settle into a conflict",
+                "status": "passed",
+                "durationMs": 3889
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "upto-third-party-amount",
+      "title": "An upto settlement landed first by another holder of the authority",
+      "checks": [
+        "scheme-upto",
+        "front-running"
+      ],
+      "status": "passed",
+      "elapsedMs": 14821,
+      "observations": {
+        "threats": [
+          "F4"
+        ],
+        "environment": "Private Stellar network (1 s ledgers)",
+        "tests": [
+          {
+            "test": "packages/facilitator/test/upto.integration.test.ts::succeeds with that transaction when it settled the same amount",
+            "results": [
+              {
+                "name": "upto through the Rail402 facilitator a settlement another transaction landed first succeeds with that transaction when it settled the same amount",
+                "status": "passed",
+                "durationMs": 8247
+              }
+            ]
+          },
+          {
+            "test": "packages/facilitator/test/upto.integration.test.ts::answers settled_elsewhere when it settled a different amount",
+            "results": [
+              {
+                "name": "upto through the Rail402 facilitator a settlement another transaction landed first answers settled_elsewhere when it settled a different amount",
+                "status": "passed",
+                "durationMs": 6574
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "rotation-channels",
+      "title": "The channel steps of a sponsor rotation",
+      "checks": [
+        "observability"
+      ],
+      "status": "passed",
+      "elapsedMs": 17920,
+      "observations": {
+        "threats": [
+          "O6"
+        ],
+        "environment": "Private Stellar network (1 s ledgers) and Postgres",
+        "tests": [
+          {
+            "test": "apps/rail402/test/channels.integration.test.ts::reports, provisions and retires channel accounts with STORE=memory",
+            "results": [
+              {
+                "name": "channels command on a network reports, provisions and retires channel accounts with STORE=memory",
+                "status": "passed",
+                "durationMs": 9767
+              }
+            ]
+          },
+          {
+            "test": "apps/rail402/test/channels.integration.test.ts::reports durable state and refuses to retire while a channel is leased",
+            "results": [
+              {
+                "name": "channels command on a network with Postgres reports durable state and refuses to retire while a channel is leased",
+                "status": "passed",
+                "durationMs": 8153
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
