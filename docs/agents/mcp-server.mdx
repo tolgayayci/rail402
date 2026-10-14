@@ -1,0 +1,190 @@
+---
+title: MCP server
+description: rail402-mcp gives an AI agent three tools to search the Stellar Bazaar, pay x402 resources under a spending cap and read its budget, with structured results and stable error codes.
+---
+
+`rail402-mcp` (package `@rail402.dev/mcp`) is an MCP server for agents that pay for what they use. It
+searches the Rail402 Bazaar in plain language and pays HTTP endpoints and paid MCP tools on Stellar through
+the [buyer SDK](/agents/sdk), so every payment passes the same spending policy and signing guard. It serves
+stdio by default and, optionally, Streamable HTTP on a loopback address.
+
+```sh
+npm install -g @rail402.dev/mcp@0.4.1
+rail402-mcp --help
+```
+
+The paying account's key stays in a key file that the server reads; the agent never sees it. Create one and
+fund it on the testnet with the [CLI](/agents/cli):
+
+```sh
+npm install -g @rail402.dev/cli@0.4.1
+rail402 keys new                  # ~/.config/rail402/keys/stellar-testnet.key, mode 0600
+rail402 account setup --usdc 1    # Friendbot, USDC trustline, 1 testnet USDC
+```
+
+## Add it to an MCP host
+
+The server is configured through its environment. Without a key it only searches; with one it pays under the
+caps: on `stellar:testnet` 0.10 USDC per call and 1.00 USDC per 24-hour window by default, or tighter values you
+set.
+
+<CodeGroup>
+
+```json mcpServers (JSON)
+{
+  "mcpServers": {
+    "rail402": {
+      "command": "rail402-mcp",
+      "env": {
+        "RAIL402_NETWORK": "stellar:testnet",
+        "RAIL402_SECRET_KEY_FILE": "~/.config/rail402/keys/stellar-testnet.key",
+        "RAIL402_MAX_PER_CALL": "0.05 USDC",
+        "RAIL402_MAX_TOTAL": "0.50 USDC"
+      }
+    }
+  }
+}
+```
+
+```toml Codex
+[mcp_servers.rail402]
+command = "rail402-mcp"
+env = { RAIL402_NETWORK = "stellar:testnet", RAIL402_SECRET_KEY_FILE = "~/.config/rail402/keys/stellar-testnet.key" }
+```
+
+</CodeGroup>
+
+Most hosts, including Cursor (`~/.cursor/mcp.json`) and desktop MCP clients, read an `mcpServers` object like the
+first one; Codex reads `~/.codex/config.toml`. Hosts that add servers from their own command line take the same
+command (`rail402-mcp`) and variables. A leading `~/` in `RAIL402_SECRET_KEY_FILE` is expanded by the server,
+because hosts pass values verbatim.
+
+`examples/mcp-agent` in the repository is an MCP client that starts `rail402-mcp` over stdio, searches for
+"air quality for a city", pays the first callable result within the policy through its listing and prints the
+transaction hash and explorer link. It knows no seller endpoint in advance.
+
+## Tools
+
+| Tool                       | Pays | What it does                                                                                                                                                    |
+| -------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search_stellar_resources` | no   | Natural-language search of the Bazaar, with prices in whole units and a policy verdict per result                                                               |
+| `pay_and_call`             | yes  | Pays a listing (`listingId`) or a URL (`resource`, plus `toolName` for MCP), calls it, returns the answer                                                       |
+| `get_budget`               | no   | Network, payer, spending policy and, per asset, what the budget window spent, holds pending and has left. `reconcile: true` first proves open payments on chain |
+
+Every tool declares an input and an output JSON Schema in `tools/list`. Results come back as
+`structuredContent`, and `content[0].text` carries the same JSON for clients that read text only.
+
+### `search_stellar_resources`
+
+Input: `query` (required, 1-500 characters), and optionally `type` (`http` or `mcp`), `maxPrice`
+(`{ amount, asset? }`, a hard filter), `payTo`, `limit` (1-20, default 5) and `cursor`.
+
+Each result has `listingId` (pass it to `pay_and_call`), `type`, `resource`, `method` or `toolName`,
+`prices` (decimal `amount`, `asset`, `payTo`, `feesSponsored`, `receivable`, `withinPolicy`), `callable`,
+`withinPolicy`, `trust`, `settlements`, the seller's `description`, and the listing's `input` schema and
+`example`. Seller text is marked as untrusted data in the schema.
+
+### `pay_and_call`
+
+| Field                     | Notes                                                                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `spendingCap`             | Required. `{ amount: "0.05", asset?: "USDC" }` in whole units; clamped to the per-call ceiling                                                         |
+| `listingId` or `resource` | One of the two. A listing binds the payment to its owner and, for HTTP, its price                                                                      |
+| `toolName`                | MCP only, with `resource`                                                                                                                              |
+| `method`                  | HTTP only, with `resource` (default `GET`); a listing fixes its own method                                                                             |
+| `query`, `body`           | HTTP call input; `pathParams` fills a listing's `:name` path parameters                                                                                |
+| `headers`                 | Only `accept`, `accept-language` and `x-request-id`                                                                                                    |
+| `arguments`               | MCP tool arguments                                                                                                                                     |
+| `idempotencyKey`          | 8-128 letters, digits, `_` or `-`. Repeating a call with the same key never pays twice in the window; a key used again for another resource is refused |
+
+A success has `paid`, `replayed`, the `target`, the `payment` receipt (`status`, `scheme`, `authorized` and
+`settled` amounts, `payer`, `payTo`, `transaction`, `explorerUrl`, `verifiedOnChain`), the seller's `response`
+and the `budget` after the call.
+
+`pay_and_call` pays `upto` resources too. Their price is a cap: `spendingCap` must cover it, the budget
+reserves it when the authorization is signed, and the receipt's `settled` amount is what the seller charged
+(from zero up to the cap). The rest of the cap returns to the budget once the chain proves the settlement,
+before the tool answers. `get_budget` shows the `schemes` in force, the pinned `uptoContracts` and the allowed
+`uptoFacilitators`.
+
+### Errors
+
+A refusal is a tool result with `isError: true` and
+`structuredContent: { ok: false, error: { code, reason, retryable, paid, details? } }`. `paid` tells the
+agent whether money may have moved (`none`, `not_settled`, `settled`, `unknown`).
+
+The tool descriptions tell the agent to retry anything but `none` only with the same `idempotencyKey`. Such a
+retry never pays twice:
+
+- It first checks the earlier call's own payment on chain.
+- While that payment's outcome is open, it returns the stored outcome.
+- Once the chain shows the payment was consumed, it reports it as paid (`paid: "settled"`, with the receipt).
+- Once the chain shows the authorization expired unused, it pays again.
+
+`get_budget` with `reconcile: true` settles or releases open payments from on-chain proof in the same way before
+it shows the budget. It never pays.
+
+Arguments that do not match the tool's schema are
+`tool_input_invalid`, never a protocol error. A request that never reaches a tool is a JSON-RPC error whose
+`data` carries `{ code, reason }` like a tool's error: `tool_unknown` (`-32602`) for an unknown tool,
+`rpc_params_invalid` (`-32602`) for a `tools/call` without a tool name or with arguments that are not an
+object, and `rpc_method_unknown` (`-32601`) for a method the server does not serve. Every code is in the
+[error-code reference](/reference/error-codes#client-codes).
+
+## Use the tools in your own code
+
+`@rail402.dev/mcp/tools` exports the three tools without the server around them: `createTools({ buyer })`
+returns their definitions (`definitions`, with input and output schemas) and `call(name, args)`, which returns
+the same `structuredContent` and errors the server returns. Any buyer works, including one from
+`@rail402.dev/sdk/browser`; nothing in this entry imports a Node module. The
+[Playground](/playground/overview)'s agent scenario calls these tools in the browser.
+
+```ts
+import { createTools } from "@rail402.dev/mcp/tools";
+
+const tools = createTools({ buyer });
+const found = await tools.call("search_stellar_resources", { query: "hourly weather forecast", type: "mcp" });
+```
+
+The `./tools` entry is in `@rail402.dev/mcp` from version 0.4.0 on.
+
+## Limits
+
+- One paid call runs at a time per server (`RAIL402_MAX_INFLIGHT`, 1-8); up to 4 more wait, and further calls
+  are refused with `tool_rate_limited`.
+- Per minute: 30 `pay_and_call`, 120 `search_stellar_resources`, 120 `get_budget`.
+- Request bodies and tool arguments sent to sellers are at most 64 KiB; seller responses at most 1 MiB, of
+  which 64 KiB are returned inline.
+
+## Configuration
+
+| Variable                                                                       | Meaning                                                                                                              |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `RAIL402_NETWORK`                                                              | `stellar:testnet` (default) or `stellar:pubnet`                                                                      |
+| `RAIL402_SECRET_KEY_FILE`                                                      | Key file (0600) of the paying account. `RAIL402_SECRET_KEY` also works and is removed from the environment once read |
+| `RAIL402_MAX_PER_CALL`, `RAIL402_MAX_TOTAL`                                    | Per-call ceiling and budget-window total, e.g. `0.05 USDC`; comma-separated for several assets                       |
+| `RAIL402_ASSETS`                                                               | More SEP-41 tokens as `SYMBOL:C…:DECIMALS`; decimals and symbol are verified on chain                                |
+| `RAIL402_RPC_URL`, `RAIL402_BAZAAR_URL`                                        | Endpoints; testnet has defaults, pubnet requires both                                                                |
+| `RAIL402_SESSION`, `RAIL402_SESSION_TTL`                                       | Budget window name and length (default `default`, `24h`)                                                             |
+| `RAIL402_BUDGET_STORE`, `RAIL402_LEDGER_PATH`                                  | `sqlite` (default, shared with the CLI) or `memory`; the SQLite file                                                 |
+| `RAIL402_ALLOWED_RECIPIENTS`, `RAIL402_DENIED_RECIPIENTS`                      | Comma-separated Stellar addresses                                                                                    |
+| `RAIL402_REQUIRE_LISTING`, `RAIL402_MIN_TRUST`                                 | Pay listings only; lowest listing trust paid, e.g. `http=origin_verified,mcp=domain_verified`                        |
+| `RAIL402_SCHEMES`                                                              | `exact,upto` on testnet by default (`exact` on pubnet, or when no upto contract is pinned)                           |
+| `RAIL402_UPTO_CONTRACTS`, `RAIL402_UPTO_FACILITATORS`                          | Pinned upto settlement contracts (testnet: the canonical one); allowed settlement authorities (default: any)         |
+| `RAIL402_EXPLORER`                                                             | `stellar.expert` (default) or an https template containing `{hash}`                                                  |
+| `RAIL402_LOG_LEVEL`                                                            | `info` by default; logs go to stderr only                                                                            |
+| `RAIL402_ALLOW_HTTP`, `RAIL402_ALLOW_PRIVATE_NETWORK`, `RAIL402_ALLOWED_PORTS` | Local development on testnet only: plain http, `loopback` destinations, extra ports. Refused on pubnet               |
+
+Invalid or unsafe configuration stops the server at startup with one JSON line on stderr carrying a code (for
+example `payment_policy_invalid` with `details.setting`) and exit status 1. On `stellar:pubnet` the server
+needs `RAIL402_RPC_URL`, `RAIL402_BAZAAR_URL` and, with a key, both caps; see
+[choosing the network](/agents/sdk#choose-the-network).
+
+## HTTP transport
+
+`rail402-mcp --http [--host 127.0.0.1] [--port 3402]` serves Streamable HTTP at `/mcp` for a single operator.
+It listens on a loopback address only, checks the `Host` header (DNS rebinding) and browser `Origin`s
+(`RAIL402_MCP_ALLOWED_ORIGINS`, localhost by default), and requires `Authorization: Bearer <token>` whenever a
+key is configured. The token comes from `RAIL402_MCP_TOKEN`, must be at least 43 characters of random data
+(for example `openssl rand -base64 32`), is compared in constant time and is removed from the environment
+once read. Request bodies are limited to 1 MiB.

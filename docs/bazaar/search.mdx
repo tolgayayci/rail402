@@ -145,6 +145,11 @@ the catalog revision at most once a second; one that arrives after a catalog cha
 rebuild, builds the new index itself and waits for it. An index is built from the listings and the revision
 read together, so it never carries a revision without that revision's changes.
 
+A repeat settlement or a refresh of a listing's Stellar facts changes no published version, so it starts no
+new revision. Each result is therefore read from the catalog when the page is served: its `settlements`,
+`lastSettled` and Stellar facts are those `/discovery/resources` shows at that moment, while its rank and
+content are the index's.
+
 ## Cursors
 
 Cursors are opaque and HMAC-signed. Each one pins:

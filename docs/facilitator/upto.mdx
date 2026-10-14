@@ -1,0 +1,290 @@
+---
+title: upto payments
+description: How capped, usage-based x402 upto payments work on Stellar, what goes over the wire, and how Rail402 verifies and settles them.
+---
+
+`upto` is the x402 scheme for resources whose price is known only after they are served: tokens generated,
+rows returned, seconds of compute. The buyer authorizes a cap. The seller serves the request, then settles the
+amount it actually used, anything from zero up to that cap. The buyer can never be charged more than the cap,
+by the seller, the facilitator or anyone who sees the payment.
+
+A Rail402 service serves `upto` next to `exact` on `stellar:testnet` by default (`TESTNET_UPTO_ENABLED`), with
+the canonical settlement contract. On pubnet it is off until the operator enables it and names a contract (see
+[configuration](/configuration)). Buyers pay `upto` resources with the [buyer SDK](/agents/sdk#pay-upto-resources),
+the [MCP server](/agents/mcp-server) or the `@rail402.dev/upto` client; sellers offer them with the
+[seller helpers](/sellers/helpers#charge-what-a-call-used-upto).
+
+## How it works on Stellar
+
+An `exact` payment is a signed token transfer of a fixed amount. That cannot work for `upto`: the amount is
+not known when the buyer signs. Stellar's Soroban authorization framework lets a signer authorize a contract
+call with exactly the arguments it will receive, so `upto` moves the choice of amount into a small settlement
+contract that enforces the cap.
+
+<Steps>
+  <Step title="The seller asks for payment">
+    The resource answers `402` with an `upto` option: the cap as `amount`, the token as `asset`, `payTo`, and
+    `extra.facilitatorAddress`, the facilitator's settlement authority, copied from its `/supported`.
+  </Step>
+  <Step title="The buyer signs one authorization entry">
+    The buyer signs terms naming the recipient, token, cap, settlement authority and an expiration ledger: one
+    Soroban authorization entry for `settle(terms)` on the settlement contract, with one nested call,
+    `token.approve(payer, settlement contract, cap, expiration)`. The buyer needs no XLM and submits nothing.
+  </Step>
+  <Step title="The facilitator verifies the cap">
+    `/verify` checks every rule that needs no network access, then simulates the settlement for the full cap:
+    the signature, a smart account's own checks, the buyer's balance and trustline all run as they would on
+    chain.
+  </Step>
+  <Step title="The seller serves and names the amount">
+    The seller serves the request and sets the amount it used, with `setSettlementOverrides` of the x402
+    resource server or the seller helpers' `setUptoCharge`.
+  </Step>
+  <Step title="The facilitator settles the amount">
+    `/settle` checks the payment again for that amount and submits `settle(payer, terms, amount)`. The
+    contract requires the buyer's signed terms and the settlement authority's authorization of the amount,
+    checks `0 ≤ amount ≤ cap`, and pulls exactly `amount` from the buyer to `payTo`. The facilitator's sponsor
+    pays the fee.
+  </Step>
+</Steps>
+
+The settlement contract is described in [upto contract](/reference/upto-contract). It is immutable, has no
+admin and stores nothing: single use comes from the payer's authorization nonce, which the network consumes
+when the entry is used.
+
+## What goes over the wire
+
+`GET /supported` lists an `upto` kind per network that serves it, and the settlement authority among the
+network's signers:
+
+```json
+{
+  "x402Version": 2,
+  "scheme": "upto",
+  "network": "stellar:testnet",
+  "extra": { "areFeesSponsored": true, "facilitatorAddress": "G…" }
+}
+```
+
+The payment requirements are those of any x402 scheme. `amount` is the cap at `/verify` and the amount to
+settle at `/settle`; the payer's accepted block always holds the cap. `payTo` is a `G…` or `C…` address: muxed
+`M…` addresses are refused, because the contract pulls funds with `transfer_from`, which carries no muxed id.
+
+```json
+{
+  "scheme": "upto",
+  "network": "stellar:testnet",
+  "amount": "1000000",
+  "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+  "payTo": "G…",
+  "maxTimeoutSeconds": 120,
+  "extra": { "areFeesSponsored": true, "facilitatorAddress": "G…" }
+}
+```
+
+The payment payload carries the signed entry, not a transaction:
+
+```json
+{
+  "authorization": "<base64 XDR SorobanAuthorizationEntry>",
+  "signerAuthorizations": ["<base64 XDR SorobanAuthorizationEntry>"]
+}
+```
+
+`signerAuthorizations` is optional and only for smart-account (`C…`) payers whose own authorization check
+requires entries from other signers (for example a delegated signer): at most four signed entries, each
+authorizing only the account's `__check_auth`. Rail402 places them in the settlement's authorization list
+next to the payer's entry. For an OpenZeppelin smart account whose context rule's signer is
+`Signer::Delegated(G…)`, the account's `__check_auth` calls `require_auth_for_args((auth_digest,))` on that
+address, so the delegate signs an entry for `__check_auth(auth_digest)` of the account; such a payment verifies
+and settles, and the same payment without the delegate's entry, or with one signed by another key, is refused
+with `invalid_upto_stellar_payload_smart_account_rejected` (`upto-payers` integration test).
+
+**Why `upto` does not send `{ transaction }` like `exact`.** For `exact`, the buyer can build the whole
+transaction: the transfer, its amount and its authorization are all known, so the payload is the signed
+transaction and Rail402 accepts it verbatim. For `upto`, the buyer cannot: the amount is decided after the
+resource is served, and the settlement operation's source and the settlement authority's authorization
+belong to the facilitator. Any transaction the buyer built would have to be rebuilt, so it would be dead
+weight and one more thing to validate. The buyer signs what it can sign, one authorization entry, and the
+facilitator builds and submits the invocation around it.
+
+The settle response always carries the amount settled, `"0"` included:
+
+```json
+{
+  "success": true,
+  "transaction": "<hash>",
+  "network": "stellar:testnet",
+  "payer": "G…",
+  "amount": "250000"
+}
+```
+
+## The settlement authority
+
+The amount is not part of the buyer's signature, so something else must decide who may choose it. The terms
+name a settlement authority, `extra.facilitatorAddress`, and the contract requires that address to authorize
+`settle(payer, terms, amount)`. Only that authority can settle, and only for an amount between zero and the
+cap: a copy of the payload submitted by anyone else fails the network's authorization check.
+
+That binding stops anyone but the configured facilitator from settling. It does not decide which caller of
+that facilitator's `/settle` names the amount: the authority settles the amount of the first `/settle` it
+accepts for an authorization. Anyone who holds the payload (the buyer, the seller, or whoever sees it on the
+way) can ask that facilitator to settle any amount from zero to the cap before the seller does. The first
+request wins; the seller's later request for a different amount is refused with
+`settle_upto_stellar_idempotency_conflict`, whose reason names the amount that holds the authorization. Funds
+still go only to `payTo` and never above the cap, but a buyer who settles zero first leaves the seller unpaid,
+and anyone who settles the cap first charges the buyer the full cap. What limits it:
+
+- The payload travels only from buyer to seller, over TLS. Keep it out of logs and third-party proxies.
+- Sellers settle before they release the resource. The stock Express middleware buffers the response and
+  withholds it when settlement fails.
+- Operators can require API keys for `/verify` and `/settle` (`REQUIRE_API_KEY`), so only known sellers can
+  settle. The public testnet service is keyless.
+- Conflicts carry a stable code and are counted in the settlement metrics.
+
+Rail402's authority is an account derived from the sponsor's secret (HKDF-SHA256), one per network. It holds no
+funds: it is created with a zero balance and a sponsored reserve, and never pays or receives anything. It is
+the operation source of every `upto` settlement, so its authorization is the transaction's own signature and
+needs no separate authorization entry. The transaction's source is a channel account and the sponsor pays
+through a fee bump, exactly as for `exact`.
+
+The service creates the authority at startup when it is missing; replicas starting together take turns. If
+it cannot yet (for example, an unfunded sponsor), `upto` payments are refused with
+`settle_upto_stellar_authority_unavailable` until a later poll creates it, and `exact` keeps working. `/health`
+warns if the authority holds XLM it could spend or any accepted token. When the sponsor rotates, the authority
+rotates with it; see [rotating the sponsor key](/operations#rotating-the-sponsor-key).
+
+What the authority can and cannot do: it chooses the amount, from zero to the cap, or declines to settle. It
+cannot exceed the cap, change the recipient or token, reuse an authorization, settle after the expiration, or
+move funds of its own or anyone else's.
+
+## Payment is not guaranteed after verification
+
+`upto` is post-paid: the seller serves, then settles. `/verify` proves that the signature, the balance and the
+trustline allow the full cap at that moment; nothing is locked. Until the seller's own `/settle` succeeds, the
+buyer can move its funds, use its authorization in another transaction, or settle the payload itself for
+zero (see above), and the seller's settlement then fails for work already done. The loss is one request, at
+most its cap. To keep it small:
+
+- keep `maxTimeoutSeconds` short and settle as soon as the resource is served;
+- withhold buffered output until settlement succeeds; a streaming seller cannot withhold what it already
+  sent, so stream only to payers it trusts or charge a fixed `exact` price for the first part;
+- stop serving payers whose settlements fail.
+
+## Zero, partial and maximum amounts
+
+| Amount settled | What happens on chain                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| The cap        | `approve(cap)`, then `transfer_from` of the cap to `payTo`                                                                            |
+| Part of it     | `approve(cap)`, then `transfer_from` of the amount; the rest of the allowance expires with the terms and only the contract can use it |
+| Zero           | No token call. The `upto_settled` event is emitted and the authorization is consumed                                                  |
+
+On testnet a zero settlement is submitted on chain by default, so the authorization is consumed on the
+network and the response has a transaction hash. With `UPTO_ZERO_SETTLEMENT=offchain`, the pubnet default,
+Rail402 instead records the authorization as used in its settlement ledger and answers `transaction: ""`
+without a transaction; that is safe only because no one but its own settlement authority can settle the
+authorization, and only while that record lasts until the authorization expires. The service therefore
+refuses to start with `offchain` and `STORE=memory`, and an in-process facilitator needs its settlement
+ledger set explicitly: an in-memory ledger forgets the record on restart and is not seen by other processes.
+
+The residual allowance of a partial settlement (at most `cap − amount`) cannot be spent by anyone: only the
+settlement contract is the spender, and its only way to spend requires a fresh signature from the payer and
+first overwrites the allowance.
+
+The Bazaar lists an `upto` resource at its cap, never at an amount settled. A zero settlement never catalogs
+a resource, on chain (`bazaar_settlement_zero`) or off (`bazaar_settlement_offchain`): a listing needs a
+settlement that moved value to its `payTo`, and a zero needs neither a balance nor a trustline.
+
+## Duplicates and idempotency
+
+One authorization settles at most once. Rail402's settlement ledger keys it by network, payer and nonce, the
+same key as `exact`, because a nonce is per address.
+
+- The same request again (same authorization, same amount) gets the recorded response, marked as a repeat in
+  `EXTENSION-RESPONSES`, and moves funds once.
+- The same authorization for a different amount is refused with `settle_upto_stellar_idempotency_conflict`;
+  the reason names the amount and transaction of the settlement that holds it.
+- With Postgres, this holds across replicas: an authorization settled concurrently through two replicas lands
+  one transaction.
+- Independently, the network refuses a second use of the authorization, whoever submits it.
+
+Settlement uses the same engine as `exact`: the signed envelope is recorded before it is broadcast, only the
+recorded bytes are ever resubmitted, and a settlement not final within `SETTLE_CONFIRM_TIMEOUT_MS` answers
+`settlement_pending` with its hash and is finished by the reconciler.
+
+A settlement is finished as failed or expired only on proof that it did not land: after its ledger or time
+bound has passed (or the network refused the recorded bytes for good), its inner transaction is looked up too,
+in case someone wrapped it in their own fee bump, and the payer's authorization nonce is read. A consumed nonce
+finishes the settlement only once the transaction that consumed it is found on chain; otherwise the record
+stays `settlement_pending` for an operator to resolve.
+
+## Expiration
+
+The buyer's entry expires at `latest ledger + ceil(maxTimeoutSeconds / ledger seconds)`, and the terms carry the
+same ledger. Rail402 accepts an authorization while it has at least `EXPIRATION_MARGIN_LEDGERS` ledgers left
+and expires no later than two ledgers past the window `maxTimeoutSeconds` allows. The settlement transaction's
+ledger bounds end one ledger after the expiration, so a transaction held past it is refused by the network
+before inclusion and costs the sponsor nothing.
+
+`maxTimeoutSeconds` must cover verification, the resource's own work and settlement: give it room when a
+request can take long.
+
+## Smart accounts
+
+A smart-account (`C…`) payer's `__check_auth` sees both calls it authorizes: `settle(terms)` on the settlement
+contract and `approve(payer, settlement contract, cap, expiration)` on the token. It sees them even when the
+amount settled is zero, so a spending policy reserves the full cap of every payment.
+
+OpenZeppelin's stock spending-limit policy budgets only `transfer` and refuses an `approve` context, so it
+refuses `upto` payments. Rail402's repository has a policy for OpenZeppelin smart accounts that budgets both
+`transfer` and `approve` against one rolling limit (`contracts/testing/approve-spending-limit`, a test contract
+not deployed on a public network). Configure the account's rules so the constrained key cannot get around it:
+
+| Rule                                  | Signers   | Policies                                                        |
+| ------------------------------------- | --------- | --------------------------------------------------------------- |
+| `CallContract(<token>)`               | agent key | the approve-aware spending limit                                |
+| `CallContract(<settlement contract>)` | agent key | none: `settle` is not a spend, the budget is taken on `approve` |
+| `Default`                             | owner key | none                                                            |
+
+Never put the agent key on a rule without the policy, the `Default` rule included: the signer chooses which
+rule each authorized call is checked under, so a policy-free rule would let the agent key skip the budget. The
+tests prove that payments within the budget settle, that a payment whose cap exceeds what is left of the
+budget is refused (`invalid_upto_stellar_payload_smart_account_rejected`) with nothing moved, that an amount
+over the x402 cap is refused, and that the agent key cannot use the `Default` rule
+(`contracts/testing/composition`, `apps/rail402/test/upto-payers.integration.test.ts`).
+
+## Fees
+
+The sponsor pays every `upto` settlement fee, under its own ceiling, `UPTO_MAX_TX_FEE_STROOPS` (5,000,000
+stroops on testnet, 500,000 on pubnet). A settlement runs the contract, so it costs more than an `exact`
+transfer: a partial settlement from a `G…` payer was observed to cost 134,335 stroops on a private network,
+and a smart account's first payment under a spending-limit policy 2,339,612 on testnet, because the policy
+creates its record of the account. [Fee ceilings](/configuration#fee-ceilings) lists the observed costs.
+
+An on-chain zero settlement moves no tokens but still costs a fee, and needs no token balance or trustline,
+so anyone who can sign an authorization can make the sponsor pay for settlements that move nothing. Rate
+limits, the sponsor guard (`SPONSOR_RESERVE_XLM`, `MAX_SPONSOR_SPEND_XLM_PER_HOUR`) and
+`UPTO_ZERO_SETTLEMENT=offchain` bound that. Pubnet settles zeros off-chain by default and does not start
+without `PUBNET_MAX_SPONSOR_SPEND_XLM_PER_HOUR`; the public testnet service settles them on chain, so every
+zero there has a public transaction.
+
+## Limits
+
+| Limit                          | Value                                                                                           |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `payload.authorization`        | one entry, at most 8 KiB of base64                                                              |
+| `payload.signerAuthorizations` | at most 4 entries of at most 8 KiB each, `C…` payers only                                       |
+| Credentials                    | address credentials, legacy or CAP-71 V2                                                        |
+| Cap                            | a positive integer in base units up to the `i128` maximum, within the asset's configured bounds |
+| `maxTimeoutSeconds`            | `TIMEOUT_MIN_SECONDS`–`TIMEOUT_MAX_SECONDS` (10–300 by default)                                 |
+| `payTo`                        | `G…` or `C…`; not the payer, a facilitator account, the settlement contract or the token        |
+| Assets                         | the network's accepted SEP-41 tokens, any number of decimals                                    |
+
+## Codes
+
+Every refusal has a stable code and a non-empty reason. The `upto` codes start with `invalid_upto_stellar_` or
+`settle_upto_stellar_`; the x402 standard codes (`insufficient_funds`, `settlement_pending`, …) are shared with
+`exact`. [Errors and verification rules](/verification-rules#upto-payments) lists every check in order with its
+code and the tests that prove it, and [error codes](/reference/error-codes) lists every code with its HTTP
+status and whether a retry can succeed.

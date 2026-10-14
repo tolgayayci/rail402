@@ -115,7 +115,7 @@ timestamps do not come from a recorded run.
             "lastSettled": "2026-09-28T10:05:53.162Z",
             "stellar": {
               "checkedAt": "2026-09-28T10:06:10.000Z",
-              "domain": { "host": "api.example.com", "claimsOwner": true }
+              "domain": { "host": "api.example.com", "claimsOwner": true, "homeDomainMatches": true }
             }
           }
         ],
@@ -135,21 +135,21 @@ timestamps do not come from a recorded run.
 }
 ```
 
-| Field                                                       | Meaning                                                                                                                                                                                                |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `resource`                                                  | The canonical resource URL, or origin plus route template                                                                                                                                              |
-| `type`                                                      | `http` or `mcp`                                                                                                                                                                                        |
-| `accepts`                                                   | Payment options on every listed network, as x402 `PaymentRequirements` objects; with filters, only those that matched                                                                                  |
-| `lastUpdated`                                               | When one of the resource's listings last got a new version                                                                                                                                             |
-| `description`, `mimeType`, `serviceName`, `tags`, `iconUrl` | Present when the seller supplied valid values; taken from the first listing                                                                                                                            |
-| `extensions.bazaar`                                         | The validated `info`, `schema` and, if accepted, `routeTemplate`                                                                                                                                       |
-| `extensions.<key>`                                          | An empty object for every other extension the resource declares in its 402 response, such as `payment-identifier`. Only the key is kept: the resource's 402 carries the current declaration            |
-| `rail402.method`, `rail402.toolName`                        | HTTP resources: the method. MCP tools: the tool name                                                                                                                                                   |
-| `rail402.trust`                                             | The strongest trust among the resource's listings: `settled`, `origin_verified` or `domain_verified` ([Trust](/bazaar/cataloging#trust))                                                               |
-| `rail402.settlements`                                       | Settlements recorded across the resource's listings                                                                                                                                                    |
-| `rail402.listings[]`                                        | One per network: the listing's `id` (a UUID), `network`, current `version`, `trust`, `owner` (the settled `payTo`, or its base account), `settlements`, `firstCataloged` and `lastSettled`             |
-| `rail402.listings[].stellar`                                | Once checked: `checkedAt`, and `domain` with the resource host and whether its `stellar.toml` lists the owner (`claimsOwner`). See [Stellar facts](/bazaar/cataloging#stellar-facts-and-domain-claims) |
-| `rail402.options[]`                                         | One per `accepts` entry, in the same order: the `listing` it belongs to and, once checked, the token's `symbol`, `name` and `decimals` and whether `payTo` can receive it (`receivable`)               |
+| Field                                                       | Meaning                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `resource`                                                  | The canonical resource URL, or origin plus route template                                                                                                                                                                                                                                                                            |
+| `type`                                                      | `http` or `mcp`                                                                                                                                                                                                                                                                                                                      |
+| `accepts`                                                   | Payment options on every listed network, as x402 `PaymentRequirements` objects; with filters, only those that matched                                                                                                                                                                                                                |
+| `lastUpdated`                                               | When one of the resource's listings last got a new version                                                                                                                                                                                                                                                                           |
+| `description`, `mimeType`, `serviceName`, `tags`, `iconUrl` | Present when the seller supplied valid values; taken from the first listing                                                                                                                                                                                                                                                          |
+| `extensions.bazaar`                                         | The validated `info`, `schema` and, if accepted, `routeTemplate`                                                                                                                                                                                                                                                                     |
+| `extensions.<key>`                                          | An empty object for every other extension the resource declares in its 402 response, such as `payment-identifier`. Only the key is kept: the resource's 402 carries the current declaration                                                                                                                                          |
+| `rail402.method`, `rail402.toolName`                        | HTTP resources: the method. MCP tools: the tool name                                                                                                                                                                                                                                                                                 |
+| `rail402.trust`                                             | The strongest trust among the resource's listings: `settled`, `origin_verified` or `domain_verified` ([Trust](/bazaar/cataloging#trust))                                                                                                                                                                                             |
+| `rail402.settlements`                                       | Settlements recorded across the resource's listings                                                                                                                                                                                                                                                                                  |
+| `rail402.listings[]`                                        | One per network: the listing's `id` (a UUID), `network`, current `version`, `trust`, `owner` (the settled `payTo`, or its base account), `settlements`, `firstCataloged` and `lastSettled`                                                                                                                                           |
+| `rail402.listings[].stellar`                                | Once checked: `checkedAt`, and `domain` with the resource host, whether its `stellar.toml` lists the owner (`claimsOwner`), and whether the owner's `home_domain` names the host (`homeDomainMatches`). Only both together make a listing `domain_verified`. See [Stellar facts](/bazaar/cataloging#stellar-facts-and-domain-claims) |
+| `rail402.options[]`                                         | One per `accepts` entry, in the same order: the `listing` it belongs to and, once checked, the token's `symbol`, `name` and `decimals` and whether `payTo` can receive it (`receivable`)                                                                                                                                             |
 
 ## Get a listing
 
@@ -208,7 +208,8 @@ illustrative example:
 ```
 
 `cause` is `settlement`, `origin_verification`, `ownership_transfer`, `domain_verification` or `quarantine`.
-`transaction` is present when a settlement caused the version. `content` uses the catalog's internal field
+`transaction` is present when a settlement caused the version. A `quarantine` version made by an origin check
+carries `reason`, a code saying why ([Origin verification](/bazaar/cataloging#origin-verification)). `content` uses the catalog's internal field
 names (`kind` for the type, `method` or `toolName`, `bazaar`, `accepts`, and `extensions` for the keys of
 the other declared extensions).
 

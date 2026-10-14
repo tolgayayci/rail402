@@ -12,7 +12,10 @@ pnpm install
 pnpm verify                                 # format, lint, typecheck, unit tests, licence gate
 docker compose --profile stellar up -d      # Postgres + a private Stellar network
 pnpm test:integration
+pnpm --filter @rail402.dev/playground exec playwright install chromium   # once
+pnpm --filter @rail402.dev/playground test:e2e   # the Playground in Chromium, on the private network
 pnpm eval:check                             # search quality gate, when you touch search
+pnpm pack:check                             # pack, install from the tarballs and smoke-test, when you touch a package manifest
 ```
 
 ## Pull requests

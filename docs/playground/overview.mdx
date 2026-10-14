@@ -1,0 +1,99 @@
+---
+title: Playground
+description: A browser page that makes real x402 payments on the Stellar testnet and shows every message, signature and transaction behind them, before you write any code.
+---
+
+The Playground (`apps/playground`) is a page and a small server for trying x402 on Stellar in a browser. Every
+payment it makes is real: a testnet key in your tab signs a Soroban authorization, a seller asks Rail402 to
+verify and settle it, and the transaction lands on the Stellar testnet, where its link opens in the explorer.
+Nothing is simulated, and the page draws each step from what actually happened.
+
+<Info>
+  The Playground serves `stellar:testnet` only. It refuses to start with any other network, and the page
+  refuses payment requests on another network before anything is signed.
+</Info>
+
+## The test wallet
+
+The header's wallet chip opens the test wallet. **Create** makes a fresh testnet key in the tab; **Import**
+takes an `S…` testnet seed from a password field and clears the field at once. **Set up test funds** then
+runs three transactions, each shown with its explorer link: Friendbot funds the account with testnet XLM, a
+USDC trustline is added, and 1 USDC is bought on the testnet exchange, keeping 10 XLM for reserves and fees.
+No XLM of your own is needed. If the purchase fails, the panel links to Circle's testnet faucet.
+
+The key is stored encrypted in the browser and never leaves it: [How it works](/playground/how-it-works#the-wallet)
+explains the storage, and the wallet can be downloaded as a key file for the [CLI](/agents/cli) and the
+[SDK](/agents/sdk) (import it with `rail402 keys import < <file>`, or `chmod 600` it before using
+`RAIL402_SECRET_KEY_FILE`), or forgotten. The wallet is used by one tab at a time; a
+second tab is read-only until the first one closes.
+
+Every paying run needs a **per-call cap**. It defaults to 0.01 USDC, the page clamps it at the operator's
+ceiling of 0.10 USDC, and a run does not start without one. The **session budget** is 1.00 USDC per 24 hours
+and can only be lowered. The meter in the header shows what is spent, held and left.
+
+## The lab
+
+The home page runs four scenarios against the hosted demo seller, Rail402 and the Bazaar. Each run draws a
+swimlane: one row per message, in causal order, each tagged with where its data came from (your browser, the
+seller, the chain or the Bazaar). Clicking a row opens it in the inspector; the code panel highlights the SDK
+lines that do the same step; the outcome card shows what moved, who paid the network fee and the transaction.
+A run's report can be downloaded as JSON; it is built from the run's events only and holds no key, signature
+or payment header.
+
+| Scenario            | What happens                                                                                                                                                                                                                             | Experiments                                                                                                                                                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pay for an API      | `GET /weather` answers 402 for 0.001 USDC; the buyer signs one `exact` authorization, Rail402 verifies and settles it, sponsoring the fee, and the API answers 200 with the receipt.                                                     | **Cap below the price**: refused before anything is signed. **Send it twice**: the same `PAYMENT-SIGNATURE` again is refused, and the payer is charged once. |
+| Pay per use         | `GET /history` quotes `upto` 0.01 USDC; the buyer authorizes that cap, the seller settles what the call used (0.0021 for a week), and the unused rest returns to the budget.                                                             | **Seller charges over the cap**: a Playground seller asks Rail402 to settle 0.02 against a 0.01 cap; Rail402 refuses it and nothing moves.                   |
+| Agent pays a tool   | A scripted agent calls the real `rail402-mcp` tools: it searches the Bazaar for an MCP tool, checks its budget and pays the best match from the demo seller with `pay_and_call`. It is labelled as scripted; there is no language model. | —                                                                                                                                                            |
+| Sell and get listed | A paid call to the Playground's sandbox route (0.01 USDC) settles, Rail402 catalogs the route, checks its origin, and search finds it.                                                                                                   | —                                                                                                                                                            |
+
+The sandbox route stands in for your own API: it is one listing, paid to the Playground operator's testnet
+account, shared by every visitor. The **Sell** page covers your own endpoint.
+
+## Pay, Sell, Agents and Bazaar
+
+- **Pay** pays the demo route, a Bazaar listing (an HTTP route or an MCP tool) or any URL with a method and a
+  JSON body, and shows the result with the response the seller delivered and the same swimlane underneath. A
+  payment counts as settled only when the chain proves it: the transaction consumed this payment's own nonce
+  and moved its amount, so a seller that reports some other transaction gets "not proven". Its **refusal checks** each send a payment your policy must refuse and
+  pass when it is refused with the expected code, nothing is signed and your balance does not move (the
+  session check pays once first):
+
+  | Check                  | What it sends                                      | Expected code                     |
+  | ---------------------- | -------------------------------------------------- | --------------------------------- |
+  | Wrong network          | a 402 asking for payment on `stellar:pubnet`       | `payment_network_not_permitted`   |
+  | Asset not allowed      | a 402 priced in a token the policy does not list   | `payment_asset_not_permitted`     |
+  | Amount not allowed     | a 402 asking for 0                                 | `payment_amount_not_permitted`    |
+  | Recipient blocked      | the demo route, with its `payTo` on your deny list | `payment_recipient_not_permitted` |
+  | Over the per-call cap  | the demo route with a cap below its price          | `payment_per_call_cap_exceeded`   |
+  | Session budget used up | a 0.001 USDC budget window, then a second payment  | `payment_session_cap_exceeded`    |
+  | Private address        | a loopback and a cloud-metadata address            | `egress_destination_not_allowed`  |
+
+  The session check pays once inside its window before the second payment is refused; its result links that
+  first payment's transaction, and its run report names it in the summary (`transactions`).
+
+- **Sell** shows the seller code for a paid route, then **Check your endpoint** runs the checks the catalog
+  runs against your URL (an x402 402 with a price, valid discovery metadata, a `payTo` that can receive the
+  asset, and, optionally, a `stellar.toml` that lists the `payTo` with a matching home domain), and **Your listing** shows the listings
+  of a `payTo` with their trust level and version history.
+- **Agents** shows the MCP server configuration with your caps, the tools it offers and an example run.
+- **Bazaar** searches the catalog with filters and links each result to its version history and to the Pay
+  page.
+
+## Run it yourself
+
+The Playground needs Node.js 24.11 or later and a [source checkout](/install). Build the workspace and the page,
+then start the server against the hosted testnet services:
+
+```sh
+pnpm install && pnpm build
+cd apps/playground
+PUBLIC_URL=http://localhost:8080 PLAYGROUND_PAY_TO=G… pnpm start
+```
+
+Then open `http://localhost:8080`. `PLAYGROUND_PAY_TO` is a public testnet account with a USDC trustline that
+the lab sellers are paid to; without it, set `LAB_ENABLED=false`, and the page then offers only what works
+without the lab sellers. Set `DOCS_URL` if the page should link to docs other than `https://docs.rail402.dev`.
+From a `localhost` page, **Sell and get listed** pays the sample route but the hosted Bazaar refuses to list
+a loopback URL (`bazaar_resource_unsafe`); the run says so. [Self-host](/playground/self-host) lists every
+setting, the Docker image and local mode, which lists the route with your own Rail402.

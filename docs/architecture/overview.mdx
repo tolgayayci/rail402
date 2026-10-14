@@ -5,9 +5,11 @@ description: The x402 payment loop on Stellar, where Rail402 sits in it, and the
 
 x402 has three parties. The **buyer** asks for a resource, the **seller** (the resource server) names a
 price, and the **facilitator** checks the payment and puts it on-chain. Rail402 is the facilitator. Buyers
-and sellers use the stock x402 packages and never talk to Stellar directly about fees.
+and sellers use the stock x402 packages and never talk to Stellar directly about fees. Rail402 settles two
+schemes: `exact`, a fixed price, and `upto`, a cap the buyer signs of which the seller settles what the call
+used.
 
-## The payment loop
+## The exact payment loop
 
 <Steps>
   <Step title="The seller asks for payment">
@@ -40,17 +42,50 @@ and sellers use the stock x402 packages and never talk to Stellar directly about
   </Step>
 </Steps>
 
+## The upto payment loop
+
+`upto` follows the same loop with three differences; [upto payments](/facilitator/upto) has the details.
+
+<Steps>
+  <Step title="The seller names a cap and a settlement authority">
+    The `upto` option's `amount` is the cap, and `extra.facilitatorAddress` names the facilitator's settlement
+    authority, which the seller's scheme copies from `/supported`.
+  </Step>
+  <Step title="The buyer signs terms, not a transfer">
+    The buyer signs one authorization entry for `settle(terms)` on the `upto` settlement contract: the
+    recipient, token, cap, settlement authority and an expiration ledger, with one nested
+    `token.approve(payer, settlement contract, cap, expiration)`. `/verify` simulates the settlement for the
+    full cap.
+  </Step>
+  <Step title="The seller settles what it used">
+    After serving, the seller names the amount, from zero to the cap, and calls `/settle`. Rail402 submits
+    `settle(payer, terms, amount)` with the settlement authority as the operation source; the contract checks
+    the buyer's terms, the authority's authorization and `0 ≤ amount ≤ cap`, and pulls exactly the amount from
+    the buyer to `payTo`. The sponsor pays the fee through a fee bump, as for `exact`.
+  </Step>
+</Steps>
+
+The contract is immutable, has no admin and stores nothing; single use comes from the payer's authorization
+nonce. A TTL keeper in the service keeps the contract's instance and code entries live on the network, and
+`/health` reports their remaining TTL ([upto contract](/reference/upto-contract)).
+
 ## What the facilitator can and cannot do
 
-Rail402 is non-custodial. It holds one secret per network, the **sponsor** seed, and derives its **channel
-accounts** from it.
+Rail402 is non-custodial. It holds one secret per network, the **sponsor** seed, and derives two kinds of
+account from it: its **channel accounts** and, when `upto` is served, one **settlement authority**.
 
-- The sponsor pays every settlement fee and the base reserves of the channel accounts. It needs only XLM.
+- The sponsor pays every settlement fee and the base reserves of the channel accounts and the authority. It
+  needs only XLM.
 - Channel accounts are the source accounts of settlement transactions, one settlement at a time each, so
   concurrent settlements never compete for a sequence number. They hold no balance.
-- Verification refuses any payment in which a facilitator account is the payer, a transaction or operation
-  source, or a party to an authorization.
-- The payer's signature covers the asset, recipient and amount. Changing any of them after signing fails
+- The settlement authority holds no funds either. It is the operation source of `upto` settlements, so it
+  chooses the settled amount between zero and the cap the buyer signed, or declines to settle; it cannot
+  exceed the cap, change the recipient or token, reuse an authorization or move anyone's funds.
+- Verification refuses any payment in which a facilitator account (the sponsor, a channel account or the
+  settlement authority) is the payer or a party to one of its authorizations, and an `exact` payment whose
+  transaction or operation source is one; an `upto` payment's `payTo` may not be a facilitator account either.
+- For `exact`, the payer's signature covers the asset, recipient and amount. For `upto`, it covers the
+  asset, recipient, cap, settlement authority and expiration. Changing any of them after signing fails
   signature verification.
 
 The facilitator can therefore only spend its own XLM on fees. See [Operations](/operations) for key custody
@@ -60,9 +95,12 @@ and the limits that protect the sponsor.
 
 Each settlement is keyed by the payer's authorization (network, payer, nonce).
 
-- A repeated `/settle` for the same payment returns the original result, and funds move once.
-- A different envelope for an authorization that was already settled is refused
-  (`settle_exact_stellar_idempotency_conflict`).
+- A repeated `/settle` for the same payment returns the recorded result, and funds move once. The
+  ledger is consulted first, so this holds even after the authorization expired or while the sponsor
+  guard refuses new settlements. The repeat is marked for the seller in `EXTENSION-RESPONSES`.
+- A different request for an authorization already held (another envelope, recipient, asset or
+  amount) is refused (`settle_exact_stellar_idempotency_conflict`, or `settle_upto_stellar_idempotency_conflict`
+  for an `upto` settlement asked for another amount).
 - If the transaction is not final within the confirmation window, `/settle` answers `settlement_pending`
   with the transaction hash, and a background reconciler finishes it from the recorded bytes.
 - After a crash or restart, only the recorded bytes are ever resubmitted, so there is never a second
@@ -85,6 +123,9 @@ host is public. A payment without the extension is settled normally and not cata
   resource's own `402` response confirms it.
 - **Off the payment path.** Cataloging never changes the payment result and adds no transaction. The seller
   learns the outcome from the `EXTENSION-RESPONSES` header of the facilitator's response.
+- **`upto` listings.** An `upto` resource is listed at its cap, the most a call can cost. A settlement of
+  zero, on chain or off, never creates or changes a listing: a listing needs a settlement that moved value
+  to its `payTo` ([cataloging rules](/bazaar/cataloging)).
 
 Buyers and agents read the catalog through [`GET /discovery/resources`](/bazaar/discovery) and
 [`GET /discovery/search`](/bazaar/search). The catalog lives in Postgres, not on-chain.
@@ -105,6 +146,8 @@ Rail402 is one service backed by Postgres, built from workspace packages that ca
 | ------------------------- | -------------------------------------------------------------------------------------------------- |
 | `apps/rail402`            | The HTTP service: `/supported`, `/verify`, `/settle`, `/discovery/*`, health, metrics and metering |
 | `packages/facilitator`    | The settlement engine on `@x402/stellar`: preflight checks, fee sponsorship, crash-safe settlement |
+| `packages/upto`           | The `upto` scheme for Stellar: its client, resource server and facilitator rules                   |
+| `contracts/stellar/upto`  | The `upto` settlement contract that enforces the cap on chain                                      |
 | `packages/stellar`        | Stellar payload inspection, reason codes and diagnosis of on-chain failures                        |
 | `packages/bazaar`         | The catalog: cataloging from settlements, integrity rules, origin checks and version history       |
 | `packages/search`         | Natural-language search: BM25F, local embeddings and reciprocal rank fusion                        |
@@ -112,3 +155,12 @@ Rail402 is one service backed by Postgres, built from workspace packages that ca
 
 Without Postgres (`STORE=memory`) the same service runs in one process with no durable state, which suits
 local development and tests. See [Configuration](/configuration).
+
+The service also runs background tasks: the reconciler that finishes unconfirmed settlements, the network
+poll behind `/health` and `/ready`, the `upto` settlement authority's provisioning, the contract TTL monitor
+and keeper, and the Bazaar's origin checks and search indexing.
+
+Buyers and agents can use the stock x402 clients, or the agent tools built on them: the buyer SDK
+(`packages/sdk`), the MCP server (`packages/mcp`) and the CLI (`packages/cli`). They discover resources
+through the Bazaar, pay under a spending policy, and reach sellers through `packages/safe-fetch`, which
+refuses private addresses and pins DNS ([Agents](/agents/sdk)).

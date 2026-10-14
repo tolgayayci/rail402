@@ -1,0 +1,2517 @@
+{
+  "$comment": "Threat registry. docs/security/threat-model.mdx renders its tables from this file (pnpm report); tools/conformance/test/threats.test.ts checks every citation.",
+  "assets": [
+    {
+      "id": "payer-funds",
+      "name": "Payer funds",
+      "description": "Tokens in buyers' accounts, G or C, that a payment authorizes."
+    },
+    {
+      "id": "seller-revenue",
+      "name": "Seller revenue",
+      "description": "What a seller is owed and whether it is told correctly that it was paid."
+    },
+    {
+      "id": "sponsor-xlm",
+      "name": "Sponsor XLM",
+      "description": "The fee sponsor's balance, which pays every settlement fee and the reserves of channels and the upto authority."
+    },
+    {
+      "id": "catalog-integrity",
+      "name": "Catalog and search integrity",
+      "description": "That listings describe real, paid resources owned by their payTo, and that search returns them faithfully."
+    },
+    {
+      "id": "agent-budget",
+      "name": "Agent budgets",
+      "description": "The caps an agent's owner set for the SDK, CLI and MCP server."
+    },
+    {
+      "id": "secrets",
+      "name": "Secrets",
+      "description": "The sponsor seed on the facilitator; buyer signing keys in the SDK, CLI and MCP server."
+    },
+    {
+      "id": "infrastructure",
+      "name": "Operator infrastructure",
+      "description": "Private networks and metadata services reachable from where Rail402 or an agent runs."
+    },
+    {
+      "id": "availability",
+      "name": "Availability",
+      "description": "That payments and discovery keep working, or fail with a coded, retryable answer."
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "TB1",
+      "name": "Buyer and seller",
+      "description": "HTTP or MCP between a paying client and a resource server."
+    },
+    {
+      "id": "TB2",
+      "name": "Seller and facilitator",
+      "description": "/verify, /settle, /supported and the discovery API."
+    },
+    {
+      "id": "TB3",
+      "name": "Facilitator and Stellar",
+      "description": "The RPC, the network and its pending transactions, which anyone can observe."
+    },
+    {
+      "id": "TB4",
+      "name": "Facilitator and its state",
+      "description": "Postgres, the process itself, its keys and its configuration."
+    },
+    {
+      "id": "TB5",
+      "name": "Facilitator and the open internet",
+      "description": "Origin checks and stellar.toml fetches to hosts that sellers choose."
+    },
+    {
+      "id": "TB6",
+      "name": "Agent, MCP server and paid URLs",
+      "description": "An agent runtime, the buyer SDK or MCP server holding its key, and the URLs it is asked to pay."
+    },
+    {
+      "id": "TB7",
+      "name": "Contracts",
+      "description": "The upto settlement contract, token contracts and smart accounts, on chain."
+    },
+    {
+      "id": "TB8",
+      "name": "Playground page and server",
+      "description": "The Playground page in a visitor's browser, holding a testnet key, and its server: the relay to sellers, the Bazaar and facilitator proxies, the seller check and the lab sellers."
+    }
+  ],
+  "topics": [
+    {
+      "id": "replay",
+      "title": "Replay"
+    },
+    {
+      "id": "front-running",
+      "title": "Front-running"
+    },
+    {
+      "id": "fee-sponsorship",
+      "title": "Fee sponsorship"
+    },
+    {
+      "id": "catalog-poisoning",
+      "title": "Catalog poisoning"
+    },
+    {
+      "id": "ssrf",
+      "title": "SSRF"
+    },
+    {
+      "id": "smart-accounts",
+      "title": "Smart accounts"
+    },
+    {
+      "id": "mcp-paid-calls",
+      "title": "MCP paid calls"
+    },
+    {
+      "id": "upto-contract",
+      "title": "The upto contract"
+    },
+    {
+      "id": "exact-payments",
+      "title": "exact payments"
+    },
+    {
+      "id": "operations",
+      "title": "Operations"
+    },
+    {
+      "id": "playground",
+      "title": "The Playground"
+    }
+  ],
+  "threats": [
+    {
+      "id": "R1",
+      "topic": "replay",
+      "title": "The same authorization is settled twice",
+      "boundary": "TB2",
+      "stride": ["T", "E"],
+      "asset": "payer-funds",
+      "threat": "A seller, a buyer or anyone holding a payment sends the same PAYMENT-SIGNATURE to /settle again, one after another or many at once, hoping the payer is charged more than once.",
+      "stellar": "An exact or upto authorization is a Soroban authorization entry whose nonce the host consumes when the entry is used; a second use fails on chain with Error(Auth, ExistingValue). The nonce lives under the payer's own address, for G and C accounts alike, until the signature expires. A duplicate that reaches the network is included and fails, so the sponsor still pays its fee.",
+      "preconditions": "A copy of a payment payload that was already sent to /settle.",
+      "impact": "Without protection: one wasted sponsor fee per duplicate. The payer can never be charged twice, because the host refuses the second use of the nonce.",
+      "mitigations": [
+        {
+          "text": "One settlement record per (network, payer, nonce), claimed before any RPC work; later requests answer from the record instead of submitting.",
+          "code": "packages/store-postgres/migrations/0001_settlement.sql#UNIQUE (network, payer, nonce)"
+        },
+        {
+          "text": "The settle path looks the authorization up first and answers a repeat with the recorded response, marked as a repeat.",
+          "code": "packages/facilitator/src/engine.ts#answerRepeat"
+        },
+        {
+          "text": "A request whose terms differ from the recorded request is refused, never given the stored success.",
+          "code": "packages/facilitator/src/fingerprint.ts#requestHash"
+        },
+        {
+          "text": "Verify reads the ledger and refuses an authorization that is being settled or already was.",
+          "code": "packages/facilitator/src/scheme.ts#alreadySubmitted"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/settlement.integration.test.ts::answers a repeated settle with the original result and moves funds once",
+        "packages/facilitator/test/settlement.integration.test.ts::settles concurrent duplicates exactly once, all callers getting the same result",
+        "apps/rail402/test/idempotency.integration.test.ts::settles 5 concurrent repeats once: one transfer, one original, identical bodies",
+        "apps/rail402/test/idempotency.integration.test.ts::never answers a request for different terms with the stored success",
+        "apps/rail402/test/idempotency.integration.test.ts::reports a settlement in progress to verify, then the used authorization",
+        "packages/facilitator/src/testing.ts::grants exactly one claim per authorization, even under concurrency"
+      ],
+      "evidence": [
+        "live-matrix#replay-idempotent",
+        "live-matrix#replay-concurrent",
+        "live-matrix#replay-late"
+      ],
+      "residual": "None for funds. A repeat costs a database read, and rate limits bound how often it can be asked.",
+      "status": "mitigated"
+    },
+    {
+      "id": "R2",
+      "topic": "replay",
+      "title": "The same authorization in a new envelope",
+      "boundary": "TB2",
+      "stride": ["T"],
+      "asset": "sponsor-xlm",
+      "threat": "An attacker wraps an already settled authorization entry in a transaction of different bytes (another source, sequence or fee) so it is not recognised as a repeat.",
+      "stellar": "The authorization is bound to its invocation, not to the transaction, so it can be placed in any envelope. The host refuses the consumed nonce at apply time; a facilitator that only compared envelope bytes would submit it and pay the fee.",
+      "preconditions": "A copy of a settled authorization entry.",
+      "impact": "One wasted sponsor fee per attempt if it reached the network.",
+      "mitigations": [
+        {
+          "text": "The settlement key is the payer's address and nonce, read from the authorization entry, not the envelope hash.",
+          "code": "packages/facilitator/src/engine.ts#keyOf"
+        },
+        {
+          "text": "A different envelope for a recorded authorization is refused with the idempotency conflict, naming the recorded transaction.",
+          "code": "packages/facilitator/src/engine.ts#conflict"
+        }
+      ],
+      "tests": [
+        "apps/rail402/test/idempotency.integration.test.ts::refuses the same authorization in another envelope, naming the recorded transaction",
+        "packages/facilitator/test/settlement.integration.test.ts::refuses a settled authorization in a different envelope, and verify names the replay",
+        "packages/facilitator/test/state.test.ts::reports a conflict when the same authorization arrives in a different envelope"
+      ],
+      "evidence": ["live-matrix#replay-rejected"],
+      "residual": "None: nothing is submitted.",
+      "status": "mitigated"
+    },
+    {
+      "id": "R3",
+      "topic": "replay",
+      "title": "An authorization replayed on another network",
+      "boundary": "TB2",
+      "stride": ["T"],
+      "asset": "payer-funds",
+      "threat": "A payment signed for stellar:testnet is presented for stellar:pubnet, or the reverse.",
+      "stellar": "The signed preimage (HashIdPreimageSorobanAuthorization) includes the network id, the SHA-256 of the network passphrase, so a signature is only valid on the network it was made for.",
+      "preconditions": "A signed payment for one network.",
+      "impact": "None on chain: signature verification fails on the other network.",
+      "mitigations": [
+        {
+          "text": "The network id is part of every signed preimage the buyer's guard decodes and checks.",
+          "code": "packages/stellar/src/auth.ts#networkIdForPassphrase"
+        },
+        {
+          "text": "A request is served only on the network its requirements name, and a payload for another network is refused.",
+          "code": "apps/rail402/src/app.ts#invalid_network"
+        }
+      ],
+      "tests": [
+        "packages/stellar/test/auth.test.ts::is SHA-256 of the passphrase",
+        "packages/sdk/test/decide.test.ts::refuses another network, whether in the preimage or in the requested passphrase",
+        "apps/rail402/test/app.test.ts::refuses networks and schemes it does not serve without calling the core"
+      ],
+      "evidence": ["rejection-audit#unknown-network"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "R4",
+      "topic": "replay",
+      "title": "Paid once, served many times",
+      "boundary": "TB1",
+      "stride": ["S", "E"],
+      "asset": "seller-revenue",
+      "threat": "A buyer pays once and sends the same PAYMENT-SIGNATURE several times, concurrently or later. A stock upfront seller calls /settle without /verify and serves on success, and an idempotent facilitator answers every repeat with the same success.",
+      "stellar": "Nothing Stellar-specific allows it: it follows from answering repeats with the stored result, which the x402 idempotency requirement asks for. The Stellar part is that the answer carries the one settlement transaction hash, which a seller can deduplicate on.",
+      "preconditions": "A seller that serves on a successful /settle without remembering which settlements it already served.",
+      "impact": "The seller serves a paid resource more than once for one payment. The buyer is charged once.",
+      "mitigations": [
+        {
+          "text": "Every repeated /settle answer carries a repeat marker in EXTENSION-RESPONSES (rail402.settlement.repeat).",
+          "code": "packages/facilitator/src/responses.ts#markRepeat"
+        },
+        {
+          "text": "The seller helpers refuse a second request whose settlement is a repeat or a transaction already served.",
+          "code": "packages/sdk/src/seller/dedupe.ts#withSettleDedupe"
+        },
+        {
+          "text": "In the authorization flow, verify refuses an authorization that is being settled or was.",
+          "code": "packages/facilitator/src/scheme.ts#alreadySubmitted"
+        }
+      ],
+      "tests": [
+        "apps/rail402/test/app.test.ts::sends the recorded body and moves the repeat marker into EXTENSION-RESPONSES",
+        "packages/sdk/test/seller.test.ts::trusts Rail402's repeat marker, even for a settlement it never saw",
+        "packages/sdk/test/seller.integration.test.ts::does not serve a replayed payment signature again",
+        "packages/sdk/test/seller.integration.test.ts::serves an upfront settlement once when the facilitator answers its repeat",
+        "apps/rail402/test/idempotency.integration.test.ts::marks the repeat in extension responses, and counts and meters it once"
+      ],
+      "evidence": ["live-matrix#replay-idempotent"],
+      "residual": "An upfront seller on stock middleware that does not wrap its facilitator client with withSettleDedupe, or deduplicate PAYMENT-RESPONSE.transaction itself, can serve a repeat. The seller helpers page tells upfront sellers to wrap it.",
+      "status": "accepted"
+    },
+    {
+      "id": "R5",
+      "topic": "replay",
+      "title": "An upto authorization settled for zero stays usable",
+      "boundary": "TB7",
+      "stride": ["T"],
+      "asset": "payer-funds",
+      "threat": "A seller settles an upto payment for zero, then tries to charge the same authorization again for a positive amount.",
+      "stellar": "An on-chain zero settlement still uses the payer's authorization entry, so the host consumes its nonce like any other settlement. An off-chain zero (UPTO_ZERO_SETTLEMENT=offchain) sends nothing, so the nonce stays unused on chain until the signature expires.",
+      "preconditions": "An upto payment settled for zero.",
+      "impact": "Without protection, a second settlement of the same authorization for up to the cap.",
+      "mitigations": [
+        {
+          "text": "The upto contract consumes the payer's nonce for a zero settlement too.",
+          "code": "contracts/stellar/upto/src/lib.rs#pub fn settle"
+        },
+        {
+          "text": "An off-chain zero is a terminal record in the settlement ledger, so a later request for any amount is answered from it or refused as a conflict; only the named authority can settle on chain, and it is Rail402's.",
+          "code": "packages/facilitator/src/upto-scheme.ts#offchainZero"
+        }
+      ],
+      "tests": [
+        "contracts/stellar/upto/src/test/signed.rs::a_zero_settlement_also_consumes_the_nonce",
+        "packages/facilitator/test/upto.integration.test.ts::settles zero on-chain: the nonce is consumed and no funds move",
+        "packages/facilitator/test/upto.integration.test.ts::settles zero off-chain when configured: no transaction, the authorization used up in the ledger",
+        "packages/facilitator/src/testing.ts::finishes an upto zero-amount success without an envelope, only for the claim's owner"
+      ],
+      "evidence": ["live-matrix#upto-zero"],
+      "residual": "With off-chain zeros and STORE=memory, a restart forgets the record; the authorization then stays settleable by Rail402's own authority until it expires. Use Postgres wherever off-chain zeros are enabled.",
+      "status": "mitigated"
+    },
+    {
+      "id": "F1",
+      "topic": "front-running",
+      "title": "A copied exact authorization lands first",
+      "boundary": "TB3",
+      "stride": ["D"],
+      "asset": "sponsor-xlm",
+      "threat": "Someone who sees the settlement envelope (the seller, an RPC operator, a validator's pending queue) copies the payer's authorization entry into a transaction of their own and gets it included before Rail402's.",
+      "stellar": "A Soroban authorization is a bearer instrument for exactly one invocation: whoever submits it can only make the signed transfer happen, from the payer to payTo for the signed amount. It cannot be redirected. Rail402's own transaction then fails on the consumed nonce and its fee is spent.",
+      "preconditions": "Access to the envelope between signing and inclusion, and an account to pay the copy's fee.",
+      "impact": "One wasted sponsor fee per event. The attacker pays its own fee and gains nothing; the payment settles as signed.",
+      "mitigations": [
+        {
+          "text": "Rail402 submits as soon as the settle-time simulation passes, which leaves little time to copy the entry.",
+          "code": "packages/facilitator/src/engine.ts#execute"
+        },
+        {
+          "text": "Signed envelopes and authorizations are redacted from logs.",
+          "code": "apps/rail402/src/logger.ts#REDACTED_PATHS"
+        },
+        {
+          "text": "Wasted fees are counted, so griefing is visible and bounded by the hourly budget.",
+          "code": "apps/rail402/src/metrics.ts#wasted"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/front-run.integration.test.ts::answers success with the attacker's hash; the payment moves once and our fee is wasted",
+        "apps/rail402/test/logger.test.ts::redacts secret fields at the top level and one level down"
+      ],
+      "evidence": [],
+      "residual": "The wasted fee is not recoverable. Each event costs the attacker its own fee too.",
+      "status": "accepted"
+    },
+    {
+      "id": "F2",
+      "topic": "front-running",
+      "title": "The seller is told the payment failed although it settled",
+      "boundary": "TB2",
+      "stride": ["R"],
+      "asset": "seller-revenue",
+      "threat": "After a front-run, Rail402's transaction fails with a consumed nonce and the seller is told the payment failed, although the payer was charged.",
+      "stellar": "The chain holds the proof: the nonce entry's last-modified ledger, and in that ledger a successful transaction whose address credential (payer, nonce, signature expiration) and root invocation are byte-equal to the payer's signed entry, with the matching token transfer event.",
+      "preconditions": "A front-run as in F1.",
+      "impact": "Without reconciliation the seller withholds a resource that was paid for.",
+      "mitigations": [
+        {
+          "text": "A failed settlement whose nonce was consumed is reconciled: Rail402 finds the other transaction on chain, proves it carried the same signed invocation after the request was claimed, and answers success with its hash.",
+          "code": "packages/facilitator/src/third-party.ts#findThirdPartySettlement"
+        },
+        {
+          "text": "Proof requires a byte-equal root invocation and credential; a different invocation for the same nonce stays a failure.",
+          "code": "packages/facilitator/src/third-party.ts#signedAuthorizationOf"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/front-run.integration.test.ts::answers success with the attacker's hash; the payment moves once and our fee is wasted",
+        "packages/facilitator/test/front-run.integration.test.ts::refuses an authorization consumed before the request was claimed",
+        "packages/facilitator/test/front-run.integration.test.ts::refuses when the consuming transaction carried a different invocation for the same nonce",
+        "packages/facilitator/test/front-run.integration.test.ts::refuses an authorization whose nonce was never consumed"
+      ],
+      "evidence": [],
+      "residual": "A public RPC keeps only a window of ledgers; a settlement reconciled after that window stays failed. Reconciliation runs immediately after the failure, well inside the window.",
+      "status": "mitigated"
+    },
+    {
+      "id": "F3",
+      "topic": "front-running",
+      "title": "A third party settles an upto payment for another amount by submitting it",
+      "boundary": "TB7",
+      "stride": ["T", "E"],
+      "asset": "payer-funds",
+      "threat": "Someone holding an upto payload (the buyer, the seller, a TLS-terminating proxy, a log, an RPC operator who sees the settlement envelope) submits it themselves for another amount up to the cap, such as zero or the whole cap, before or instead of the seller's settlement.",
+      "stellar": "The payer's signature covers the cap, not the amount. The upto contract therefore also requires the authorization of the settlement authority named in the signed terms, and Rail402 makes that authority the operation's source account, so its authorization is the transaction's own signature and cannot be copied into another transaction.",
+      "preconditions": "A copy of an upto payload.",
+      "impact": "None: the network refuses a settlement that the settlement authority did not authorize, and Rail402's settlement proceeds. The same request through the facilitator's own /settle is F5.",
+      "mitigations": [
+        {
+          "text": "The contract requires terms.facilitator to authorize settle(payer, terms, amount), so the authority's authorization covers one amount and nothing else.",
+          "code": "contracts/stellar/upto/src/lib.rs#terms.facilitator.require_auth()"
+        },
+        {
+          "text": "Rail402 signs as the authority through a source-account credential that exists only inside its own transaction.",
+          "code": "packages/upto/src/terms.ts#authorityEntry"
+        }
+      ],
+      "tests": [
+        "contracts/stellar/upto/src/test/auth.rs::a_different_submitter_cannot_settle",
+        "contracts/stellar/upto/src/test/auth.rs::missing_facilitator_authorization_is_rejected",
+        "contracts/stellar/upto/src/test/auth.rs::facilitator_authorization_for_another_amount_is_rejected",
+        "contracts/stellar/upto/src/test/signed.rs::another_source_account_cannot_act_as_the_authority",
+        "packages/facilitator/test/front-run.integration.test.ts::cannot be settled by a payload holder for another amount: the host refuses without the authority",
+        "packages/facilitator/test/front-run.integration.test.ts::cannot be landed by an attacker without the settlement authority; Rail402's settlement proceeds"
+      ],
+      "evidence": [],
+      "residual": "None against anyone without the settlement authority's key; a holder of that key is U10.",
+      "status": "mitigated"
+    },
+    {
+      "id": "F4",
+      "topic": "front-running",
+      "title": "Another holder of the authority settles first",
+      "boundary": "TB2",
+      "stride": ["T"],
+      "asset": "seller-revenue",
+      "threat": "Two replicas sharing the sponsor secret, or a stale process, settle the same upto payment; one lands first with a different amount than the seller asked for.",
+      "stellar": "Only a transaction signed by the authority can land; the landed amount is readable from the settle arguments and the upto_settled event.",
+      "preconditions": "Two processes that hold the same authority key.",
+      "impact": "Without reconciliation the seller gets a false failure, or a success for an amount it did not request.",
+      "mitigations": [
+        {
+          "text": "The later settlement is answered with the landed transaction when it settled the same amount, and with settle_upto_stellar_settled_elsewhere, naming both amounts, when it did not.",
+          "code": "packages/facilitator/src/engine.ts#settle_upto_stellar_settled_elsewhere"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/upto.integration.test.ts::succeeds with that transaction when it settled the same amount",
+        "packages/facilitator/test/upto.integration.test.ts::answers settled_elsewhere when it settled a different amount",
+        "packages/facilitator/test/front-run.integration.test.ts::answers with the authority's own earlier transaction for the same amount; our fee is wasted"
+      ],
+      "evidence": [],
+      "residual": "None beyond one wasted fee.",
+      "status": "mitigated"
+    },
+    {
+      "id": "F5",
+      "topic": "front-running",
+      "title": "A payload holder fixes the upto amount through the facilitator's /settle",
+      "boundary": "TB2",
+      "stride": ["T"],
+      "asset": "seller-revenue",
+      "threat": "Someone holding an upto payload asks the facilitator's own /settle to settle it for another amount up to the cap, such as zero or the whole cap, before the seller does.",
+      "stellar": "The payer's signature covers the cap, not the amount, and the facilitator is the settlement authority: whichever accepted /settle request comes first decides the amount it authorizes, and the payer's nonce then makes the authorization single-use.",
+      "preconditions": "A copy of an upto payload and access to the facilitator's /settle (keyless on the public testnet service).",
+      "impact": "The first accepted request fixes the amount anywhere in [0, cap] to payTo: a buyer who settles zero first leaves the seller unpaid for that request, and anyone who settles the cap first charges the buyer the full cap. The seller's own later request for a different amount is refused as an idempotency conflict. Funds never go elsewhere and never exceed the cap.",
+      "mitigations": [
+        {
+          "text": "The facilitator settles an authorization once: the first accepted amount wins, and a later request for a different amount is refused with settle_upto_stellar_idempotency_conflict naming the amount that holds it.",
+          "code": "packages/facilitator/src/engine.ts#idempotencyConflict"
+        },
+        {
+          "text": "Operators can require API keys for /verify and /settle per network, so only known sellers can settle; the payload travels only from buyer to seller over TLS, and sellers settle before releasing a buffered response.",
+          "code": "apps/rail402/src/app.ts#requireApiKey"
+        }
+      ],
+      "tests": [
+        "apps/rail402/test/upto-settlement.integration.test.ts::lands one transaction for 20 concurrent settlements of different amounts and refuses the rest",
+        "apps/rail402/test/upto-settlement.integration.test.ts::lets the first settle request fix the amount: a payload holder's zero turns the seller's settle into a conflict"
+      ],
+      "evidence": [],
+      "residual": "Accepted for payload holders on a keyless facilitator: a buyer or anyone who sees the payload can fix the amount through /settle before the seller (unpaid seller compute and one sponsor fee, or the buyer charged up to its own cap). Operators who need more require API keys for /settle.",
+      "status": "accepted"
+    },
+    {
+      "id": "S1",
+      "topic": "fee-sponsorship",
+      "title": "A payment passes simulation and fails at apply",
+      "boundary": "TB3",
+      "stride": ["D"],
+      "asset": "sponsor-xlm",
+      "threat": "A payer spends the balance, or changes a smart account's state, after the settle-time simulation and before inclusion, so the settlement is included and fails.",
+      "stellar": "Soroban resource fees are charged when a transaction is included, success or failure; the sponsor pays through the fee bump. Simulation runs against the latest ledger, so a change made in the ledgers between simulation and inclusion is not seen.",
+      "preconditions": "A payer (or its smart-account policy) able to act within about one ledger of the settlement.",
+      "impact": "One wasted sponsor fee per event, never more than the fee ceiling. No funds move.",
+      "mitigations": [
+        {
+          "text": "Settle simulates again with the current ledger, so a change made before settle is refused without submitting.",
+          "code": "packages/facilitator/src/scheme.ts#settle"
+        },
+        {
+          "text": "The failure is named from the transaction's diagnostic events and counted as wasted fee.",
+          "code": "packages/facilitator/src/explain.ts#explainFailedTransaction"
+        },
+        {
+          "text": "The hourly fee budget and the reserve floor bound the total a griefer can burn.",
+          "code": "packages/facilitator/src/guard.ts#SponsorBudget"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/fee-exposure.integration.test.ts::refuses at settle, with nothing submitted, a payment whose balance moved after verify",
+        "packages/facilitator/test/fee-exposure.integration.test.ts::names a balance spent between the settle-time simulation and inclusion; the fee is spent and counted as wasted",
+        "packages/facilitator/test/fee-exposure.integration.test.ts::stops settling once the hourly fee budget is committed, before any RPC work"
+      ],
+      "evidence": [],
+      "residual": "The race inside one ledger cannot be closed by a facilitator that does not hold the funds. Each event costs the payer an on-chain transaction of its own.",
+      "status": "accepted"
+    },
+    {
+      "id": "S2",
+      "topic": "fee-sponsorship",
+      "title": "An authorization expires between submission and inclusion",
+      "boundary": "TB3",
+      "stride": ["D"],
+      "asset": "sponsor-xlm",
+      "threat": "A payment is settled with an authorization whose expiration ledger passes while the transaction waits for inclusion.",
+      "stellar": "Validity runs through signatureExpirationLedger inclusive; the transaction's time bound can outlive it. An included transaction whose authorization expired fails and its fee is spent.",
+      "preconditions": "A payment settled at the very end of its validity window.",
+      "impact": "One wasted sponsor fee.",
+      "mitigations": [
+        {
+          "text": "Settle refuses an authorization that expires within a one-ledger margin of the current ledger.",
+          "code": "packages/facilitator/src/preflight.ts#invalid_exact_stellar_signature_expiration_too_soon"
+        },
+        {
+          "text": "An upto settlement's ledger bounds end at the expiration ledger, so the network refuses it before inclusion and no fee is spent.",
+          "code": "packages/upto/src/facilitator/scheme.ts#buildTransaction"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/expiration.integration.test.ts::holds the lower edge at the current ledger plus a one-ledger margin",
+        "packages/facilitator/test/expiration.integration.test.ts::names an authorization that expires between submission and inclusion; the fee is spent",
+        "packages/facilitator/test/expiration.integration.test.ts::refuses at the network an upto settlement held past expiration_ledger; no fee is spent"
+      ],
+      "evidence": ["live-matrix#expiry-window"],
+      "residual": "For exact, a transaction that waits longer than the margin in the network's queue can still fail this way; it is named and counted as wasted.",
+      "status": "accepted"
+    },
+    {
+      "id": "S3",
+      "topic": "fee-sponsorship",
+      "title": "A payment that is expensive to settle",
+      "boundary": "TB2",
+      "stride": ["D"],
+      "asset": "sponsor-xlm",
+      "threat": "A payer submits a payment whose settlement needs large resources: a heavy __check_auth, a token that writes a lot of state, or rent for entries it extends.",
+      "stellar": "Soroban fees depend on the instructions, ledger reads and writes, and rent of the invocation, which the payer's account and the token contract choose. The fee is known from simulation before anything is signed.",
+      "preconditions": "A smart account or token contract whose calls are costly.",
+      "impact": "Without a ceiling, an arbitrary fee per settlement.",
+      "mitigations": [
+        {
+          "text": "Verify and settle refuse a payment whose simulated fee exceeds MAX_TX_FEE_STROOPS (UPTO_MAX_TX_FEE_STROOPS for upto), before signing.",
+          "code": "packages/facilitator/src/policy.ts#DEFAULT_MAX_TRANSACTION_FEE_STROOPS"
+        },
+        {
+          "text": "The inclusion-fee bid is capped.",
+          "code": "packages/facilitator/src/fees.ts#InclusionFeeOracle"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/fee-exposure.integration.test.ts::refuses a payment whose settlement would cost more than the fee ceiling, before signing anything",
+        "packages/upto/test/facilitator.test.ts::enforces the fee ceiling",
+        "packages/facilitator/test/fees.test.ts::bids the configured percentile, clamped between floor and cap"
+      ],
+      "evidence": [],
+      "residual": "A payment just under the ceiling costs up to the ceiling. Operators accepting tokens that pay rent on read raise the ceiling knowingly (the TEST6 token needs about 1,000,000 stroops on testnet).",
+      "status": "mitigated"
+    },
+    {
+      "id": "S4",
+      "topic": "fee-sponsorship",
+      "title": "A flood of valid small payments",
+      "boundary": "TB2",
+      "stride": ["D"],
+      "asset": "sponsor-xlm",
+      "threat": "Someone makes many real, valid payments of the smallest amount to drain the sponsor through fees.",
+      "stellar": "Every valid settlement costs the sponsor a fee of tens of thousands of stroops, far more than a one-unit USDC payment is worth.",
+      "preconditions": "Funds for many small payments.",
+      "impact": "Sponsor XLM spent at the attacker's pace.",
+      "mitigations": [
+        {
+          "text": "An hourly fee budget, shared by replicas through the settlement ledger, stops new settlements once reached; pubnet refuses to start without one.",
+          "code": "packages/facilitator/src/guard.ts#maxSpendPerHourStroops"
+        },
+        {
+          "text": "Per-client rate limits and API keys on /verify and /settle; API keys must be decided explicitly for pubnet.",
+          "code": "apps/rail402/src/rate-limit.ts#RateLimiter"
+        },
+        {
+          "text": "Per-asset minimum amounts for exact payments and upto caps (an upto settlement may still be zero; see U6).",
+          "code": "apps/rail402/src/config.ts#parseAssets"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/fee-exposure.integration.test.ts::stops settling once the hourly fee budget is committed, before any RPC work",
+        "apps/rail402/test/app.test.ts::rate-limits per client with Retry-After and a coded body",
+        "apps/rail402/test/app.test.ts::rate-limits an IPv6 client by its /64 and a mapped IPv4 client as IPv4",
+        "apps/rail402/test/app.test.ts::enforces API keys when the network requires them",
+        "apps/rail402/test/config.test.ts::requires explicit, safe mainnet settings"
+      ],
+      "evidence": ["rejection-audit#rate-limited", "rejection-audit#api-key-required"],
+      "residual": "On a free, keyless testnet facilitator the per-client rate limit (IPv6 clients are grouped by /64) and, where configured, the hourly budget are the only bounds. A client with many addresses passes the rate limit, so the budget is the real bound: once it is spent, every settlement is refused until the hour moves on, which trades availability for the sponsor's balance. On pubnet the budget is required, and pricing, keys and minimums are an operator decision.",
+      "status": "accepted"
+    },
+    {
+      "id": "S5",
+      "topic": "fee-sponsorship",
+      "title": "The sponsor falls below its reserve",
+      "boundary": "TB3",
+      "stride": ["D"],
+      "asset": "availability",
+      "threat": "The sponsor's balance runs low, from normal use or an attack, until fee bumps start failing mid-settlement.",
+      "stellar": "The sponsor also carries the base reserves of the channel accounts and the upto authority, which it sponsors; below them it cannot pay fees at all.",
+      "preconditions": "Sustained settlement volume or an attack as in S4.",
+      "impact": "Settlements fail after signing; the service becomes unavailable.",
+      "mitigations": [
+        {
+          "text": "Settlements are refused below SPONSOR_RESERVE_XLM before any RPC work, with a retryable code.",
+          "code": "packages/facilitator/src/guard.ts#minBalanceStroops"
+        },
+        {
+          "text": "/ready fails below MIN_SPONSOR_BALANCE_XLM and /health reports it.",
+          "code": "apps/rail402/src/health.ts#sponsor_below_floor"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/fees.test.ts::refuses while the sponsor is below its reserve, admits otherwise",
+        "apps/rail402/test/observability.integration.test.ts::counts refusals below the reserve and reports the sponsor below its floor",
+        "apps/rail402/test/runtime.integration.test.ts::fails while the sponsor holds less than MIN_SPONSOR_BALANCE_XLM",
+        "packages/facilitator/test/settlement.integration.test.ts::refuses while the sponsor guard is closed, then settles once it reopens"
+      ],
+      "evidence": [],
+      "residual": "None beyond downtime until the sponsor is refunded.",
+      "status": "mitigated"
+    },
+    {
+      "id": "S6",
+      "topic": "fee-sponsorship",
+      "title": "Duplicate submissions of one settlement",
+      "boundary": "TB3",
+      "stride": ["D"],
+      "asset": "sponsor-xlm",
+      "threat": "Retries, concurrent requests or two replicas submit the same settlement more than once.",
+      "stellar": "Each submitted transaction consumes a channel sequence number and pays its own fee; the second one fails on the consumed nonce.",
+      "preconditions": "Concurrent or repeated requests for one payment.",
+      "impact": "Wasted fees and sequence conflicts.",
+      "mitigations": [
+        {
+          "text": "One claim per authorization across replicas; only the claim holder signs and submits.",
+          "code": "packages/store-postgres/src/settlement-ledger.ts#claim"
+        },
+        {
+          "text": "A crashed settlement is resumed from its recorded envelope bytes, never rebuilt.",
+          "code": "packages/facilitator/src/engine.ts#recordingSponsor"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/concurrency.integration.test.ts::with injected duplicates, without a collision",
+        "apps/rail402/test/replicas.integration.test.ts::with every duplicate sent to the other replica",
+        "packages/upto/test/facilitator.test.ts::submits one transaction for 20 concurrent identical settlements"
+      ],
+      "evidence": ["concurrency#distinct-sequences"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "S7",
+      "topic": "fee-sponsorship",
+      "title": "Restoring archived state inside a buyer's payment",
+      "boundary": "TB7",
+      "stride": ["D"],
+      "asset": "sponsor-xlm",
+      "threat": "A settlement touches an archived contract instance or entry, and the transaction would restore it, billing the restoration rent to the sponsor as part of the payment.",
+      "stellar": "Since protocol 23 a freshly simulated invocation of an archived persistent entry restores it automatically inside the transaction, and the fee payer pays the rent.",
+      "preconditions": "An archived settlement contract, token instance or balance entry.",
+      "impact": "Rent paid by the sponsor on behalf of whoever let the entry expire.",
+      "mitigations": [
+        {
+          "text": "A simulation that reports archived state is refused: the upto settlement contract with invalid_upto_stellar_settlement_contract_archived, other entries with the archived-state code; nothing is submitted.",
+          "code": "packages/upto/src/facilitator/simulation.ts#archivedStateRejection"
+        },
+        {
+          "text": "Exact payments name archived state from the simulation's restore preamble.",
+          "code": "packages/facilitator/src/explain.ts#explainSimulation"
+        }
+      ],
+      "tests": [
+        "packages/upto/test/facilitator.test.ts::refuses when the settlement contract must be restored, and names other archived state",
+        "packages/facilitator/test/upto-scheme.test.ts::refuses to pay for restoring an archived settlement contract",
+        "packages/facilitator/test/explain.test.ts::names archived ledger state when simulation asks for a restore",
+        "apps/rail402/test/upto-archival.integration.test.ts::refuses payments while the contract is archived, and settles once an operator restores it"
+      ],
+      "evidence": [],
+      "residual": "None; restoration is an operator action (U7).",
+      "status": "mitigated"
+    },
+    {
+      "id": "P1",
+      "topic": "catalog-poisoning",
+      "title": "Forged listing metadata or price",
+      "boundary": "TB2",
+      "stride": ["S", "T"],
+      "asset": "catalog-integrity",
+      "threat": "A buyer (or a seller's buggy client) echoes a resource block with a false description, price or schema in the payment, hoping the catalog publishes it.",
+      "stellar": "Nothing on chain describes the resource; the settlement proves only that a payment to payTo happened. The metadata must be confirmed at its origin.",
+      "preconditions": "One real settlement to the seller.",
+      "impact": "Misleading listings shown to buyers and agents.",
+      "mitigations": [
+        {
+          "text": "An HTTP resource, or an MCP tool at an http(s) endpoint, is published only after its own 402 (for a tool, the answer to an unpaid tools/call over MCP) confirms payTo, price and metadata; what is published always comes from that answer, so echoed metadata never changes a listing on its own.",
+          "code": "packages/bazaar/src/catalog.ts#checkOrigins"
+        },
+        {
+          "text": "MCP tools are asked through safe-fetch with the MCP client: the tool must be declared in tools/list and its unpaid call must answer with the x402 PaymentRequired.",
+          "code": "packages/bazaar/src/mcp-origin.ts#probeMcpTool"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/src/testing.ts::does not let echoed metadata change a listing until the origin confirms it",
+        "packages/bazaar/src/testing.ts::never lists an HTTP resource whose own response is not a 402",
+        "packages/bazaar/src/testing.ts::quarantines a listing whose origin does not name its owner",
+        "packages/bazaar/src/testing.ts::lists an MCP tool at an https endpoint only once its unpaid call confirms it",
+        "packages/bazaar/src/testing.ts::quarantines a tool its server does not sell to the listed payTo, with a coded reason",
+        "packages/bazaar/test/mcp-origin.test.ts::reads a tool's PaymentRequired from its unpaid call, sending the example arguments"
+      ],
+      "evidence": ["live-bazaar#forged-metadata", "live-bazaar#not-x402"],
+      "residual": "A seller can describe its own resource falsely; buyers bind the price and recipient of a listing when paying (M6). Tools under an mcp:// URL have no origin to check (P10).",
+      "status": "mitigated"
+    },
+    {
+      "id": "P2",
+      "topic": "catalog-poisoning",
+      "title": "Taking over another seller's listing",
+      "boundary": "TB2",
+      "stride": ["S", "E"],
+      "asset": "catalog-integrity",
+      "threat": "An attacker pays a URL that belongs to another seller, but to its own payTo, to take over or modify that listing.",
+      "stellar": "The settled payTo is the only identity the facilitator has proven, from a settlement that moved value to it. An upto zero moves nothing and proves nothing, so it never catalogs.",
+      "preconditions": "A settlement for the victim's URL to the attacker's account.",
+      "impact": "Payments for a listed resource redirected to the attacker.",
+      "mitigations": [
+        {
+          "text": "A listing is bound to the settled payTo; another payTo is refused with bazaar_owner_conflict, and ownership moves only when the origin names the new payTo.",
+          "code": "packages/bazaar/src/codes.ts#bazaar_owner_conflict"
+        },
+        {
+          "text": "A settlement that moved nothing (an upto zero, on-chain or off) never catalogs. A settlement that moved one base unit does not help either: a listing is published only with what its own origin answers (P1, P9).",
+          "code": "packages/bazaar/src/catalog.ts#unprovenSettlement"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/src/testing.ts::never lets a different payTo modify a listing",
+        "packages/bazaar/src/testing.ts::transfers ownership only when the origin names the new payTo",
+        "apps/rail402/test/bazaar.integration.test.ts::refuses a different payTo for the same resource, with a coded reason",
+        "packages/bazaar/src/testing.ts::does not catalog a settlement that moved nothing, however high its cap"
+      ],
+      "evidence": ["live-bazaar#owner-conflict"],
+      "residual": "None for resources with an origin. A tool under an mcp:// URL is scoped to its owner, so it cannot be taken over, but its first content is whatever its first payer echoed (P10).",
+      "status": "mitigated"
+    },
+    {
+      "id": "P3",
+      "topic": "catalog-poisoning",
+      "title": "Hostile JSON Schema in listing metadata",
+      "boundary": "TB2",
+      "stride": ["D", "I"],
+      "asset": "availability",
+      "threat": "Metadata carries a schema with a catastrophic regular expression, a combinatorial check, deep nesting or an external $ref.",
+      "stellar": "None: this is a property of the catalog, which validates schemas it receives in payments.",
+      "preconditions": "One settlement carrying the schema.",
+      "impact": "Catalog workers stalled, or the service fetching arbitrary URLs.",
+      "mitigations": [
+        {
+          "text": "Schemas compile and validate in a worker with a time budget and a bounded queue; external references are refused.",
+          "code": "packages/bazaar/src/schema-sandbox.ts#SchemaSandbox"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/test/security.test.ts::stops a catastrophic-backtracking pattern within its budget and keeps serving",
+        "packages/bazaar/test/security.test.ts::stops a combinatorial uniqueItems check within its budget",
+        "packages/bazaar/test/security.test.ts::refuses oversized and deeply nested documents before compiling them",
+        "packages/bazaar/test/security.test.ts::finds external references in every schema position, and only there",
+        "packages/bazaar/test/security.test.ts::refuses validations beyond its queue at once instead of delaying everyone"
+      ],
+      "evidence": ["live-bazaar#schema-rejected"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "P4",
+      "topic": "catalog-poisoning",
+      "title": "Encoded traversal in a route template",
+      "boundary": "TB2",
+      "stride": ["T"],
+      "asset": "catalog-integrity",
+      "threat": "A routeTemplate hides ../, NUL, CR/LF or a backslash behind percent-encoding so that a listing matches, or later fills, paths it should not.",
+      "stellar": "Nothing in the parsing is Stellar-specific. What a template changes is which paths are paid to one Stellar account: a listing and every path its template claims stay bound to the payTo proven by the settled transfer (P2), so a template can only widen a seller's own listing, and only over paths its own route matched.",
+      "preconditions": "One settlement carrying the template.",
+      "impact": "A listing that claims paths of another resource, or a buyer tool that fills a path outside the seller's route.",
+      "mitigations": [
+        {
+          "text": "Templates are percent-decoded before the safety check, and used only when they match the paid path segment by segment.",
+          "code": "packages/bazaar/src/url.ts#isSafeTemplate"
+        },
+        {
+          "text": "Buyers refuse traversal when filling route parameters.",
+          "code": "packages/sdk/src/listing.ts#expandRoute"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/test/security.test.ts::refuses route templates that decode to NUL, CR, LF, a backslash or an empty segment",
+        "packages/bazaar/src/testing.ts::uses a routeTemplate only when it is safe and matches the paid path",
+        "packages/sdk/test/discovery.test.ts::fills route parameters and refuses traversal"
+      ],
+      "evidence": ["live-bazaar#route-template"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "P5",
+      "topic": "catalog-poisoning",
+      "title": "Wash settlements to flood or rank the catalog",
+      "boundary": "TB2",
+      "stride": ["T", "D"],
+      "asset": "catalog-integrity",
+      "threat": "A seller pays itself through a second account many times to create many listings or to look popular.",
+      "stellar": "Settlements are cheap on Stellar, so volume is a weak signal of quality.",
+      "preconditions": "Two accounts and a little USDC.",
+      "impact": "Catalog spam and manipulated rankings.",
+      "mitigations": [
+        {
+          "text": "New listings are rate-limited per owner, per payer and for the whole catalog.",
+          "code": "packages/bazaar/src/catalog.ts#maxNewListingsPerPayerPerHour"
+        },
+        {
+          "text": "Search never ranks by settlement count: ties break by origin verification, then listing age.",
+          "code": "packages/bazaar/src/wire.ts#trustRank"
+        },
+        {
+          "text": "Self-payments are not cataloged.",
+          "code": "packages/bazaar/src/codes.ts#bazaar_self_payment"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/src/testing.ts::bounds how many listings one payTo may create per hour",
+        "packages/bazaar/src/testing.ts::bounds the new listings one payer's settlements may create per hour",
+        "packages/bazaar/src/testing.ts::rejects self-payments",
+        "packages/search/test/search.test.ts::serves filter-only queries by trust, then listing age, never by settlements bought"
+      ],
+      "evidence": [],
+      "residual": "A patient seller can still create listings up to the limits; each needs a working origin that answers 402.",
+      "status": "accepted"
+    },
+    {
+      "id": "P6",
+      "topic": "catalog-poisoning",
+      "title": "One payment used for many listings",
+      "boundary": "TB2",
+      "stride": ["T"],
+      "asset": "catalog-integrity",
+      "threat": "The same settled transaction is presented with different resource blocks to catalog several resources.",
+      "stellar": "A transaction hash identifies exactly one settlement on chain.",
+      "preconditions": "One settlement.",
+      "impact": "Listings without payments behind them.",
+      "mitigations": [
+        {
+          "text": "Each settlement transaction catalogs at most one resource (a unique index on the observation's transaction).",
+          "code": "packages/store-postgres/migrations/0005_catalog_integrity.sql#listing_observations_transaction"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/src/testing.ts::catalogs at most one resource per settlement",
+        "packages/bazaar/src/testing.ts::records a repeated settlement once and never duplicates the listing",
+        "packages/bazaar/src/testing.ts::does not catalog a payment settled without a transaction"
+      ],
+      "evidence": ["live-bazaar#settlement-reused", "live-bazaar#duplicate-settlement"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "P7",
+      "topic": "catalog-poisoning",
+      "title": "Injection through reasons and response headers",
+      "boundary": "TB2",
+      "stride": ["T", "D"],
+      "asset": "availability",
+      "threat": "Metadata crafted so that a rejection reason quoting it breaks headers, logs or clients, or grows EXTENSION-RESPONSES beyond what proxies accept.",
+      "stellar": "EXTENSION-RESPONSES travels in the same /settle answer as the settled transaction hash. The payment is final on the ledger whatever happens to the header, so a header that breaks the answer would hide a settled payment from the seller; the bound keeps that answer intact.",
+      "preconditions": "One settlement with crafted metadata.",
+      "impact": "Broken settle responses or log injection.",
+      "mitigations": [
+        {
+          "text": "Reasons are bounded and stripped of control characters; EXTENSION-RESPONSES stays within 4 KB.",
+          "code": "packages/bazaar/src/catalog.ts#boundedReason"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/src/testing.ts::bounds a rejection reason that quotes the buyer's input",
+        "packages/bazaar/test/memory-catalog.test.ts::stays within the header budget whatever the outcome carries"
+      ],
+      "evidence": ["live-bazaar#header-bounded"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "P8",
+      "topic": "catalog-poisoning",
+      "title": "Duplicate listings through URL spellings",
+      "boundary": "TB2",
+      "stride": ["T"],
+      "asset": "catalog-integrity",
+      "threat": "A seller or attacker lists one resource many times by varying case, ports, dot segments or percent-encoding.",
+      "stellar": "A spelling variant would be a second key with no owner, escaping the binding to the payTo proven on chain (P2). Listings are keyed by the canonical URL per network (stellar:testnet, stellar:pubnet), so one resource has one owner per network.",
+      "preconditions": "Settlements for the variant URLs.",
+      "impact": "Duplicate results, and a second listing that escapes the owner binding of the first.",
+      "mitigations": [
+        {
+          "text": "URLs are canonicalised (case, default ports, dot segments, percent-encoding, query and fragment) before they key a listing.",
+          "code": "packages/bazaar/src/url.ts#canonicalizeUrl"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/test/security.test.ts::canonicalises case, default ports, dot segments, query and fragment",
+        "packages/bazaar/test/security.test.ts::normalizes percent-encoding so equivalent paths are one resource",
+        "packages/bazaar/src/testing.ts::treats equivalent spellings of one URL as one listing"
+      ],
+      "evidence": [],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "P9",
+      "topic": "catalog-poisoning",
+      "title": "Planting a seller's MCP tool listing",
+      "boundary": "TB2",
+      "stride": ["S", "T"],
+      "asset": "catalog-integrity",
+      "threat": "A payer pays a seller's payTo one base unit (or settles one unit under an upto cap of any size) while echoing the seller's MCP endpoint and tool name with its own description, input schema or price, hoping to publish, freeze or domain-verify that content under the seller's identity, or to use up the seller's quota of new listings.",
+      "stellar": "The settlement proves a payment to payTo, not who wrote the echoed tool description. Dust costs the payer almost nothing and the sponsor pays the fee, so a settlement alone cannot vouch for content.",
+      "preconditions": "A trustline and one base unit of the asset; the seller's MCP endpoint and tool name.",
+      "impact": "Spoofed tool descriptions (prompt injection) and prices shown to agents under the seller's verified identity; the seller's own tools not cataloged.",
+      "mitigations": [
+        {
+          "text": "A tool at an http(s) endpoint stays pending until the tool itself answers an unpaid tools/call with a PaymentRequired naming the owner; until an origin check has confirmed it, the tool must also offer the settled scheme, network, asset, payTo and price (cap), or the listing is quarantined with origin_payment_mismatch.",
+          "code": "packages/bazaar/src/catalog.ts#samePayment"
+        },
+        {
+          "text": "A later settlement the tool itself asked for is checked again and replaces planted content with the tool's own; a planted settlement cannot change or withdraw a confirmed tool.",
+          "code": "packages/bazaar/src/catalog.ts#checkOrigins"
+        },
+        {
+          "text": "Domain trust is granted only to origin-verified listings, and needs the two-way SEP-1 binding.",
+          "code": "packages/bazaar/src/catalog.ts#enrich"
+        },
+        {
+          "text": "Only listings the owner's origin confirmed count toward the owner's hourly quota.",
+          "code": "packages/store-postgres/src/catalog-store.ts#countCreatedBy"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/src/testing.ts::never publishes a tool description or price planted with",
+        "packages/bazaar/src/testing.ts::never lets a planted settlement withdraw or change a tool its origin confirmed",
+        "packages/bazaar/src/testing.ts::updates an MCP tool's metadata once its origin confirms the change",
+        "packages/bazaar/src/testing.ts::lets a domain vouch for an MCP tool listed under its host",
+        "packages/bazaar/src/testing.ts::does not charge an owner's quota for listings other payers created and its origin never confirmed"
+      ],
+      "evidence": ["live-bazaar#mcp-tool"],
+      "residual": "Tools under an mcp:// URL (P10). A planted settlement can quarantine a tool that was never confirmed until the tool's next real settlement.",
+      "status": "mitigated"
+    },
+    {
+      "id": "P10",
+      "topic": "catalog-poisoning",
+      "title": "Unverifiable content of mcp:// tools",
+      "boundary": "TB2",
+      "stride": ["S", "T"],
+      "asset": "catalog-integrity",
+      "threat": "A tool under an mcp:// URL names no server, so nothing but the settlement vouches for its description, schema and price; whoever first pays its owner for it chooses them.",
+      "stellar": "As P9: a settlement proves the payment, not the content.",
+      "preconditions": "One settlement of one base unit to the owner, before the tool's first real settlement.",
+      "impact": "A misleading description or price on the owner's mcp:// tool listing.",
+      "mitigations": [
+        {
+          "text": "mcp:// tools are scoped to their owner and published at trust settled, which they never leave: no domain can vouch for them.",
+          "code": "packages/bazaar/src/catalog.ts#verifiable"
+        },
+        {
+          "text": "The Rail402 SDK does not call mcp:// resources, and its default pubnet policy pays MCP listings only at domain_verified.",
+          "code": "packages/sdk/src/policy/policy.ts#resolvePolicy"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/src/testing.ts::publishes an MCP tool under an mcp:// URL at once, at trust settled, keeping its first content"
+      ],
+      "evidence": [],
+      "residual": "The first content of an mcp:// tool is chosen by its first payer and kept. Sellers who want their own content listed serve their tools at an http(s) endpoint.",
+      "status": "accepted"
+    },
+    {
+      "id": "X1",
+      "topic": "ssrf",
+      "title": "Origin checks to private or metadata addresses",
+      "boundary": "TB5",
+      "stride": ["I", "E"],
+      "asset": "infrastructure",
+      "threat": "A listing's resource URL points at a private, loopback, link-local or cloud metadata address, so the catalog's origin check reaches the operator's internal network.",
+      "stellar": "Cataloging runs after any settlement, so anyone who can pay a cent can make the facilitator fetch a URL.",
+      "preconditions": "One settlement with a crafted resource URL.",
+      "impact": "Requests from the facilitator's network position; internal data in listing metadata.",
+      "mitigations": [
+        {
+          "text": "Hosts are resolved and every address checked against a block list at dial time, IP literals before any lookup.",
+          "code": "packages/bazaar/src/origin.ts#safeLookup"
+        },
+        {
+          "text": "Private and loopback addresses are refused unless DISCOVERY_ALLOW_LOOPBACK is set, which is refused together with pubnet.",
+          "code": "apps/rail402/src/config.ts#DISCOVERY_ALLOW_LOOPBACK"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/test/origin.test.ts::refuses a host whose DNS answers are not public, before connecting",
+        "packages/bazaar/test/egress.test.ts::refuses a private IP literal for origin checks unless loopback is allowed",
+        "packages/bazaar/test/security.test.ts::classifies public and non-public addresses",
+        "apps/rail402/test/config.test.ts::refuses loopback discovery fetches on a service that serves pubnet"
+      ],
+      "evidence": [],
+      "residual": "None known. The RPC URL is operator configuration and trusted.",
+      "status": "mitigated"
+    },
+    {
+      "id": "X2",
+      "topic": "ssrf",
+      "title": "DNS rebinding",
+      "boundary": "TB5",
+      "stride": ["I", "E"],
+      "asset": "infrastructure",
+      "threat": "A hostname answers with a public address when checked and a private one when connected.",
+      "stellar": "The SEP-1 domain check fetches stellar.toml from a host the seller names, so a seller's own DNS zone is the natural rebinding vector. That fetch uses the same pinned lookup as origin checks.",
+      "preconditions": "Control of a DNS zone.",
+      "impact": "As X1.",
+      "mitigations": [
+        {
+          "text": "The address that is checked is the address that is dialled: the lookup used by the connection validates every answer.",
+          "code": "packages/safe-fetch/src/lookup.ts#pinnedLookup"
+        }
+      ],
+      "tests": [
+        "packages/safe-fetch/test/egress.integration.test.ts::checks every DNS answer, so a rebinding name cannot reach a private address",
+        "packages/safe-fetch/test/address.test.ts::refuses an empty answer and a mixed one, without naming the address"
+      ],
+      "evidence": [],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "X3",
+      "topic": "ssrf",
+      "title": "Redirects to internal hosts",
+      "boundary": "TB5",
+      "stride": ["I", "E"],
+      "asset": "infrastructure",
+      "threat": "A public origin answers with a redirect to a private address.",
+      "stellar": "Rail402 reads stellar.toml only from the listing's own host and follows no redirect for it, so a seller cannot point the SEP-1 check at an internal address.",
+      "preconditions": "Control of a public origin.",
+      "impact": "As X1.",
+      "mitigations": [
+        {
+          "text": "Origin checks and SEP-1 fetches follow no redirects; buyers follow only same-origin redirects, re-checking each hop, and none after paying.",
+          "code": "packages/safe-fetch/src/redirect.ts#nextHop"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/test/origin.test.ts::does not follow redirects",
+        "packages/safe-fetch/test/egress.integration.test.ts::never follows a redirect towards a private or other destination",
+        "packages/sdk/test/http-flow.test.ts::never follows a redirect after paying"
+      ],
+      "evidence": ["rejection-audit#mcp-redirect-private"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "X4",
+      "topic": "ssrf",
+      "title": "Oversized or slow answers",
+      "boundary": "TB5",
+      "stride": ["D"],
+      "asset": "availability",
+      "threat": "An origin answers with a huge, compressed or endless body, or trickles bytes to hold connections open.",
+      "stellar": "SEP-1 limits stellar.toml to 100 KB; Rail402 enforces that limit on the decoded file.",
+      "preconditions": "Control of an origin.",
+      "impact": "Memory exhaustion or stalled workers.",
+      "mitigations": [
+        {
+          "text": "Body and header caps apply after decoding, with header, idle and total timeouts.",
+          "code": "packages/safe-fetch/src/limits.ts#DEFAULT_LIMITS"
+        }
+      ],
+      "tests": [
+        "packages/safe-fetch/test/egress.integration.test.ts::stops oversized and compressed-bomb answers at the decoded limit",
+        "packages/safe-fetch/test/fetch.test.ts::times out waiting for headers, on an idle body, and in total",
+        "packages/bazaar/test/stellar-toml.test.ts::refuses a file larger than SEP-1 allows"
+      ],
+      "evidence": [],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "X5",
+      "topic": "ssrf",
+      "title": "stellar.toml fetches",
+      "boundary": "TB5",
+      "stride": ["I"],
+      "asset": "infrastructure",
+      "threat": "The domain check fetches /.well-known/stellar.toml from a host the seller chose.",
+      "stellar": "SEP-1 lets a domain claim Stellar accounts; Rail402 reads ACCOUNTS, and the owner's home_domain, to raise an origin-verified listing's trust to domain_verified only when both name each other, which means fetching from the seller's host.",
+      "preconditions": "One listed resource.",
+      "impact": "As X1.",
+      "mitigations": [
+        {
+          "text": "The SEP-1 fetch uses the same dial-time address check and size cap as origin checks.",
+          "code": "packages/bazaar/src/stellar-toml.ts#fetchStellarTomlAccounts"
+        }
+      ],
+      "tests": [
+        "packages/bazaar/test/stellar-toml.test.ts::never connects to a private address unless loopback is explicitly allowed",
+        "packages/bazaar/test/egress.test.ts::refuses a private IP literal for stellar.toml"
+      ],
+      "evidence": [],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "X6",
+      "topic": "ssrf",
+      "title": "Paid calls to agent-chosen URLs",
+      "boundary": "TB6",
+      "stride": ["I", "E"],
+      "asset": "agent-budget",
+      "threat": "An agent, possibly steered by text in a listing, asks pay_and_call (or the SDK or CLI) to call a private address, sending a payment or the agent's request there.",
+      "stellar": "None: the buyer's egress runs on the agent's machine.",
+      "preconditions": "An agent that follows URLs from untrusted content.",
+      "impact": "Requests to the agent's internal network, with a payment header attached.",
+      "mitigations": [
+        {
+          "text": "Every buyer request goes through safe-fetch: public destinations only, the address pinned at dial time, redirects re-checked.",
+          "code": "packages/safe-fetch/src/fetch.ts#createSafeFetch"
+        }
+      ],
+      "tests": [
+        "packages/sdk/test/http-flow.test.ts::refuses private destinations before sending anything",
+        "packages/safe-fetch/test/egress.integration.test.ts::refuses IP-literal URLs to this machine in every spelling, before connecting",
+        "packages/safe-fetch/test/egress.integration.test.ts::refuses a name that resolves to a private address, without naming the address"
+      ],
+      "evidence": ["rejection-audit#mcp-private-address"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "A1",
+      "topic": "smart-accounts",
+      "title": "A payment signed by a key the account does not accept",
+      "boundary": "TB7",
+      "stride": ["S"],
+      "asset": "payer-funds",
+      "threat": "Someone signs a C-account payment with a key that is not one of the smart account's signers.",
+      "stellar": "A contract account authorizes through its own __check_auth; only executing it can tell whether a signature is valid. There is no signature a facilitator could check offline.",
+      "preconditions": "Knowledge of the smart account's address.",
+      "impact": "None if detected; the account's __check_auth refuses.",
+      "mitigations": [
+        {
+          "text": "Verify and settle both run an enforcing simulation, which executes __check_auth; a refusal is named smart_account_rejected.",
+          "code": "packages/stellar/src/diagnostics.ts#classifyTransferFailure"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/settlement.integration.test.ts::rejects a smart-account payment signed by the wrong key",
+        "packages/stellar/test/diagnostics.test.ts::a smart-account payer rejecting in __check_auth → smart_account_rejected",
+        "packages/upto/test/facilitator.test.ts::attributes refusals inside a smart account's __check_auth to the account"
+      ],
+      "evidence": ["live-matrix#c-payer-wrong-key", "rejection-audit#upto-c-payer-wrong-key"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "A2",
+      "topic": "smart-accounts",
+      "title": "__check_auth that passes simulation and fails at apply",
+      "boundary": "TB7",
+      "stride": ["D"],
+      "asset": "sponsor-xlm",
+      "threat": "A smart account whose __check_auth depends on state it can change (a nonce, a time, a policy budget) passes simulation and fails at inclusion, deliberately.",
+      "stellar": "__check_auth is arbitrary contract code. Its result at apply time can differ from simulation, and the included, failed transaction's fee is the sponsor's.",
+      "preconditions": "A smart account the attacker controls.",
+      "impact": "One wasted sponsor fee per payment.",
+      "mitigations": [
+        {
+          "text": "The simulation is repeated at settle, so state changed before settle is caught.",
+          "code": "packages/facilitator/src/scheme.ts#settle"
+        },
+        {
+          "text": "Wasted fees are metered; the hourly budget bounds the total.",
+          "code": "packages/facilitator/src/guard.ts#SponsorBudget"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/fee-exposure.integration.test.ts::names a smart account whose __check_auth passes the settle-time simulation and fails at inclusion; the fee is counted as wasted",
+        "packages/facilitator/test/fee-exposure.integration.test.ts::stops settling once the hourly fee budget is committed, before any RPC work"
+      ],
+      "evidence": [],
+      "residual": "Like S1, the race within one ledger cannot be closed. A per-payer limit on on-chain failures is not built; the hourly budget is the bound.",
+      "status": "accepted"
+    },
+    {
+      "id": "A3",
+      "topic": "smart-accounts",
+      "title": "Policy events refuse exact payments from policy accounts",
+      "boundary": "TB7",
+      "stride": ["D"],
+      "asset": "availability",
+      "threat": "A smart account with a policy that emits its own events (such as a spending limit recording a spend) pays with exact.",
+      "stellar": "The upstream @x402/stellar exact verifier accepts only the token's transfer event in the simulation and refuses any other contract event as invalid_exact_stellar_payload_event_not_transfer. The upto verifier accepts events other than balance changes, so policy events do not refuse upto payments.",
+      "preconditions": "A payer whose __check_auth publishes events.",
+      "impact": "Such accounts cannot pay with exact through any facilitator built on the upstream verifier; nothing moves and the sponsor pays nothing.",
+      "mitigations": [
+        {
+          "text": "The refusal is passed through with its registered code and reason.",
+          "code": "packages/stellar/src/codes.ts#invalid_exact_stellar_payload_event_not_transfer"
+        },
+        {
+          "text": "upto accepts non-balance events such as a policy's own.",
+          "code": "packages/upto/src/facilitator/simulation.ts#checkSimulationEvents"
+        }
+      ],
+      "tests": [],
+      "evidence": [],
+      "residual": "An upstream limit of the exact scheme; it fails closed. Policy accounts pay with upto.",
+      "status": "accepted"
+    },
+    {
+      "id": "A4",
+      "topic": "smart-accounts",
+      "title": "A spending limit that does not cover upto",
+      "boundary": "TB7",
+      "stride": ["E"],
+      "asset": "agent-budget",
+      "threat": "An agent key constrained by a spending-limit policy pays with upto, whose settlement reaches the account as an approve rather than a transfer, and slips past a limit that only counts transfers.",
+      "stellar": "The upto contract spends through approve(payer, contract, cap, expiration) and transfer_from, so the account's __check_auth sees an approve context for the full cap.",
+      "preconditions": "A smart account whose policy budgets transfer only.",
+      "impact": "Spending beyond the account owner's budget.",
+      "mitigations": [
+        {
+          "text": "The approve-spending-limit policy counts approve and transfer against one rolling budget and reserves the full cap of each upto payment.",
+          "code": "contracts/testing/approve-spending-limit/src/lib.rs#SpendingLimitExceeded"
+        }
+      ],
+      "tests": [
+        "contracts/testing/approve-spending-limit/src/test.rs::transfers_and_approvals_share_one_budget",
+        "contracts/testing/composition/src/test.rs::payments_within_the_budget_settle",
+        "contracts/testing/composition/src/test.rs::a_fourth_payment_after_the_budget_is_used_fails_in_the_policy",
+        "contracts/testing/composition/src/test.rs::a_cap_above_the_remaining_budget_fails_even_for_a_small_amount"
+      ],
+      "evidence": ["live-matrix#upto-c-over-limit"],
+      "residual": "OpenZeppelin's stock spending-limit policy refuses the approve context outright; accounts that use it cannot pay with upto.",
+      "status": "mitigated"
+    },
+    {
+      "id": "A5",
+      "topic": "smart-accounts",
+      "title": "Bypassing the policy through the Default rule",
+      "boundary": "TB7",
+      "stride": ["E"],
+      "asset": "agent-budget",
+      "threat": "An agent key picks a context rule without the spending policy (the Default rule, or the policy-free upto rule for the approve), or a relayer moves a signed payment to another rule.",
+      "stellar": "In OpenZeppelin smart accounts the signer chooses the rule per context, so a key that appears on a rule without the policy can spend without it.",
+      "preconditions": "An agent key listed on a rule without the policy.",
+      "impact": "Spending beyond the budget.",
+      "mitigations": [
+        {
+          "text": "The documented rule configuration keeps the agent key off every rule without the policy, and the signature covers the rule ids.",
+          "code": "contracts/testing/README.md#Rule configuration for an agent key"
+        }
+      ],
+      "tests": [
+        "contracts/testing/composition/src/test.rs::the_agent_key_cannot_use_the_default_rule",
+        "contracts/testing/composition/src/test.rs::the_agent_key_cannot_route_the_approval_around_the_policy",
+        "contracts/testing/composition/src/test.rs::the_rule_selection_is_bound_by_the_signature"
+      ],
+      "evidence": [],
+      "residual": "Depends on the account owner configuring rules as documented.",
+      "status": "mitigated"
+    },
+    {
+      "id": "A6",
+      "topic": "smart-accounts",
+      "title": "Concurrent payments beyond the account's own budget",
+      "boundary": "TB7",
+      "stride": ["D"],
+      "asset": "sponsor-xlm",
+      "threat": "Several payments from one policy account are verified at once; together they exceed the account's budget, and the later ones fail at apply.",
+      "stellar": "The policy's budget is on-chain state updated at apply time; simulations of concurrent payments each see the budget before the others.",
+      "preconditions": "A policy account paying several sellers at once.",
+      "impact": "Wasted sponsor fees for the payments that fail.",
+      "mitigations": [
+        {
+          "text": "The policy refuses on chain; the failure is named and counted as wasted, within the hourly budget.",
+          "code": "packages/facilitator/src/explain.ts#explainFailedTransaction"
+        }
+      ],
+      "tests": [
+        "contracts/testing/composition/src/test.rs::a_fourth_payment_after_the_budget_is_used_fails_in_the_policy",
+        "contracts/testing/approve-spending-limit/src/test.rs::spends_leave_the_window_after_period_ledgers"
+      ],
+      "evidence": [],
+      "residual": "As S1.",
+      "status": "accepted"
+    },
+    {
+      "id": "M1",
+      "topic": "mcp-paid-calls",
+      "title": "An agent spends beyond its caps",
+      "boundary": "TB6",
+      "stride": ["E"],
+      "asset": "agent-budget",
+      "threat": "A model, a prompt injection or a bug makes an agent pay more per call or per session than its owner allowed, including through many concurrent calls or several processes.",
+      "stellar": "A signed authorization is spendable by whoever holds it until it expires, so the cap must be enforced before signing, not after.",
+      "preconditions": "An agent with a signing key and a budget.",
+      "impact": "Loss of the agent owner's funds up to the key's balance.",
+      "mitigations": [
+        {
+          "text": "A guarded signer checks the per-call cap and reserves the session budget immediately before signing, and signs only the payment it approved.",
+          "code": "packages/sdk/src/policy/guard.ts#createGuardedSigner"
+        },
+        {
+          "text": "The budget ledger reserves atomically, also across processes sharing one SQLite file.",
+          "code": "packages/sdk/src/policy/ledger.ts#checkReservation"
+        }
+      ],
+      "tests": [
+        "packages/sdk/test/guard.test.ts::never lets 20 concurrent payments exceed the session budget",
+        "packages/sdk/test/sqlite-ledger.test.ts::never lets four processes sharing one window exceed its budget",
+        "packages/sdk/test/guard.integration.test.ts::refuses to sign a payment above the per-call cap",
+        "packages/mcp/test/pay.integration.test.ts::refuses a price above the caller's cap before signing",
+        "packages/sdk/test/guard.test.ts::refuses a second signature within one call and keeps the first one's budget pending"
+      ],
+      "evidence": ["rejection-audit#mcp-per-call-cap", "rejection-audit#mcp-over-ceiling"],
+      "residual": "The caps bound the loss; anything within them the agent may spend.",
+      "status": "mitigated"
+    },
+    {
+      "id": "M2",
+      "topic": "mcp-paid-calls",
+      "title": "Payments on networks, assets or to recipients not allowed",
+      "boundary": "TB6",
+      "stride": ["E"],
+      "asset": "agent-budget",
+      "threat": "A seller's 402 asks for another network, another asset, or a recipient outside the allow list.",
+      "stellar": "Assets are contracts; the same symbol can be issued by anyone. The policy therefore compares contract ids and network passphrases, not symbols.",
+      "preconditions": "A seller offering unexpected terms.",
+      "impact": "Payment in the wrong asset or to the wrong party.",
+      "mitigations": [
+        {
+          "text": "Spend decisions check the network in the signed preimage, the asset contract and the recipient against the policy.",
+          "code": "packages/sdk/src/policy/decide.ts#decideSpend"
+        }
+      ],
+      "tests": [
+        "packages/sdk/test/decide.test.ts::refuses another network, whether in the preimage or in the requested passphrase",
+        "packages/sdk/test/policy.test.ts::compares muxed recipients by base account and refuses self-payment",
+        "packages/sdk/test/policy.test.ts::refuses an option priced in a different asset than the cap"
+      ],
+      "evidence": [
+        "rejection-audit#mcp-network-not-permitted",
+        "rejection-audit#mcp-asset-not-permitted",
+        "rejection-audit#mcp-recipient-not-permitted"
+      ],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "M3",
+      "topic": "mcp-paid-calls",
+      "title": "Secrets in tool schemas, results, errors or logs",
+      "boundary": "TB6",
+      "stride": ["I"],
+      "asset": "secrets",
+      "threat": "The signing seed, its raw bytes, a signature or a payment header leaks into an MCP tool schema, a tool result, a protocol error, a log line, the budget ledger or the CLI's output.",
+      "stellar": "A Stellar seed (S…) or its 32 raw bytes is the whole key; a leaked signed authorization is spendable until it expires.",
+      "preconditions": "Any error or log path that echoes inputs, or a seller that echoes the payment into its answer.",
+      "impact": "Loss of the agent's funds.",
+      "mitigations": [
+        {
+          "text": "Errors and results are redacted and sanitised; loggers redact secret-like fields.",
+          "code": "packages/sdk/src/redact.ts#redactDeep"
+        },
+        {
+          "text": "Tool schemas are published without secret-like properties or header mirroring.",
+          "code": "packages/mcp/src/schemas.ts#publishedSchema"
+        },
+        {
+          "text": "A seller that echoes its request cannot hand the payment back: a paid answer is returned and stored with the call's payment header, payload, signed entries and signatures replaced.",
+          "code": "packages/sdk/src/flow/scrub.ts#scrubOutcome"
+        }
+      ],
+      "tests": [
+        "packages/mcp/test/secrets.integration.test.ts::leaks nothing into frames, logs or the ledger",
+        "packages/sdk/test/scrub.test.ts::removes the payment from an HTTP answer and its stored replay, keeping the rest",
+        "packages/sdk/test/scrub.test.ts::removes the payment from an MCP tool's content and structured content",
+        "packages/sdk/test/secrets.integration.test.ts::leaks nothing, and the payment reached only the paid origin",
+        "packages/cli/test/secrets.integration.test.ts::leaks nothing on stdout, stderr or in the ledger",
+        "packages/mcp/test/schemas.test.ts::publishes self-contained object schemas without header mirroring or secret-like fields",
+        "packages/mcp/test/logger.test.ts::writes JSON lines at or above its level, redacting secrets in the message and nested fields"
+      ],
+      "evidence": [],
+      "residual": "The key lives in the agent's process; a compromised host is out of scope.",
+      "status": "mitigated"
+    },
+    {
+      "id": "M4",
+      "topic": "mcp-paid-calls",
+      "title": "A retry pays twice",
+      "boundary": "TB6",
+      "stride": ["T"],
+      "asset": "agent-budget",
+      "threat": "An agent retries a paid call after a timeout or crash and pays again for the same work.",
+      "stellar": "Each new authorization carries a fresh nonce, so a retry signed anew is a second payment.",
+      "preconditions": "A retried tool call.",
+      "impact": "Double payment.",
+      "mitigations": [
+        {
+          "text": "Calls carry an idempotency key; a repeated key replays the stored outcome without signing, and the payment identifier travels to the seller.",
+          "code": "packages/sdk/src/flow/common.ts#replayStored"
+        },
+        {
+          "text": "A repeated key first reconciles its own payment on chain: it reports a consumed authorization as paid, and frees the key for a new payment only once the chain shows the authorization expired unused.",
+          "code": "packages/sdk/src/flow/common.ts#replayStored"
+        }
+      ],
+      "tests": [
+        "packages/mcp/test/tools.test.ts::replays a stored result for a repeated idempotency key",
+        "packages/sdk/test/http-flow.test.ts::replays a finished call for a repeated idempotency key without signing again",
+        "packages/mcp/test/pay.integration.test.ts::pays an HTTP resource by URL without custody, and replays a repeated key without paying",
+        "packages/sdk/test/http-flow.test.ts::frees an idempotency key on the retry itself, once the chain shows its authorization unused",
+        "packages/sdk/test/http-flow.test.ts::reports a keyed retry as paid once the chain shows its authorization consumed"
+      ],
+      "evidence": [],
+      "residual": "A retry without the same key is a new payment by design.",
+      "status": "mitigated"
+    },
+    {
+      "id": "M5",
+      "topic": "mcp-paid-calls",
+      "title": "Prompt-injected listings and bait-and-switch sellers",
+      "boundary": "TB6",
+      "stride": ["S", "T"],
+      "asset": "agent-budget",
+      "threat": "A listing's text steers the agent, or the seller's live 402 asks for a different recipient or a higher price than its listing.",
+      "stellar": "The listing's payTo is the account the facilitator saw settled; the live 402 is not bound to it unless the buyer checks.",
+      "preconditions": "A malicious or changed seller.",
+      "impact": "Payment to an unexpected party or at an unexpected price.",
+      "mitigations": [
+        {
+          "text": "Paying through a listing binds its recipient and its listed price (HTTP resources and MCP tools at an http(s) endpoint) before anything is signed.",
+          "code": "packages/sdk/src/policy/decide.ts#checkOption"
+        },
+        {
+          "text": "Tool results bound and strip seller content.",
+          "code": "packages/mcp/src/results.ts#sellerJson"
+        }
+      ],
+      "tests": [
+        "packages/sdk/test/http-flow.test.ts::binds a listing's recipient and its price",
+        "packages/sdk/test/mcp-flow.test.ts::binds a listing's price: a live price above the listed one is refused before signing",
+        "packages/sdk/test/policy.test.ts::binds the recipient of every listing and the price a listing carries",
+        "packages/sdk/test/discovery.test.ts::binds the listed prices of HTTP listings and of MCP tools at an http(s) endpoint",
+        "packages/sdk/test/discovery.test.ts::refuses listings that cannot be paid before anything is fetched from the seller",
+        "packages/mcp/test/tools.test.ts::strips control characters and drops oversized seller JSON"
+      ],
+      "evidence": [],
+      "residual": "An agent still reads seller-controlled text; the caps (M1) bound what it can spend.",
+      "status": "accepted"
+    },
+    {
+      "id": "M6",
+      "topic": "mcp-paid-calls",
+      "title": "A tampered payment or a false settlement report",
+      "boundary": "TB6",
+      "stride": ["T", "R"],
+      "asset": "agent-budget",
+      "threat": "A scheme client changes the payload after the guard approved it, or a seller reports a settlement that did not happen, reports another payment's transaction hash, or settles through its own contract so the transaction does not look like a direct settlement.",
+      "stellar": "The host records every authorization nonce it consumes in a temporary ledger entry keyed by the payer and the nonce, and only the entry the payer signed can consume it. A transaction used a payment's authorization exactly when it carries the payer's entry with that payment's nonce and its meta creates that nonce entry, whatever its call path: Soroban matches an entry below the top-level call, so a wrapper, router or batch contract can settle it too, and one transaction can consume several nonces. A transfer event alone says nothing about which authorization moved the money.",
+      "preconditions": "A malicious scheme client or seller.",
+      "impact": "Paying for something else, believing a payment failed or succeeded wrongly, or a session budget that under-counts what moved.",
+      "mitigations": [
+        {
+          "text": "The guard compares the payload with what it signed.",
+          "code": "packages/sdk/src/policy/guard.ts#checkGuardedPayload"
+        },
+        {
+          "text": "A payment is proven only by its own nonce: a transaction that consumed it settles the reservation whatever its shape, for the exact price, or for upto the amount the signed settlement contract recorded for the signed terms (the whole cap when that cannot be read). A consumed authorization is never released.",
+          "code": "packages/sdk/src/policy/proof.ts#reservationSettlement"
+        },
+        {
+          "text": "A reported hash is only a claim against the payment it was reported for and counts as spent; it never removes a transaction from another payment's proof. Budget returns only when the authorization has expired and no transaction in its validity range consumed it.",
+          "code": "packages/sdk/src/policy/reconcile.ts#reconcile"
+        },
+        {
+          "text": "An expired payment the RPC can no longer prove either way counts as spent at its whole amount and is no longer reconciled.",
+          "code": "packages/sdk/src/sqlite/ledger.ts#markUnprovable"
+        }
+      ],
+      "tests": [
+        "packages/sdk/test/guard.test.ts::refuses a payload whose transaction differs from the signed authorization; the budget stays pending",
+        "packages/sdk/test/http-flow.test.ts::refuses a tampering scheme client after the probe, with nothing sent to the seller",
+        "packages/sdk/test/http-flow.test.ts::verifies a reported settlement on chain",
+        "packages/sdk/test/http-flow.test.ts::counts a reused transaction hash against each payment that reports it",
+        "packages/sdk/test/reconcile.test.ts::never lets a claim of another payment's hash release that payment (%s ledger)",
+        "packages/sdk/test/reconcile.test.ts::settles every payment a batch transaction consumed (%s ledger)",
+        "packages/sdk/test/reconcile.test.ts::settles each payer's payment from one batch transaction in a shared ledger file",
+        "packages/sdk/test/reconcile.test.ts::counts an upto settlement made through another contract (%s ledger)",
+        "packages/sdk/test/reconcile.test.ts::settles a payment only from a transfer made with its own authorization",
+        "packages/sdk/test/reconcile.test.ts::never lets another payment's transfer release an upto cap early (%s ledger)",
+        "packages/sdk/test/reconcile.test.ts::does not count an authorization carried in a transaction that never consumed it",
+        "packages/sdk/test/reconcile.test.ts::counts expired rows the RPC can no longer prove as spent, and stops checking them (%s ledger)"
+      ],
+      "evidence": [],
+      "residual": "A payment that is not reconciled before the RPC's retention ends counts as spent in full, even if it never moved money.",
+      "status": "mitigated"
+    },
+    {
+      "id": "M7",
+      "topic": "mcp-paid-calls",
+      "title": "Another local process drives the MCP server over HTTP",
+      "boundary": "TB6",
+      "stride": ["S", "E"],
+      "asset": "agent-budget",
+      "threat": "A web page (DNS rebinding) or another local process reaches the MCP server's HTTP transport and spends through its tools.",
+      "stellar": "The MCP server holds the agent's Stellar signing key. Any caller that reaches its tools can make it sign Soroban authorization entries, bounded only by its per-call and session caps (M1) and its network, asset and recipient allow lists (M2); keeping other callers out is what keeps that key the agent's.",
+      "preconditions": "The HTTP transport enabled.",
+      "impact": "Spending by an unauthorised caller, within the caps.",
+      "mitigations": [
+        {
+          "text": "The HTTP transport listens on loopback, requires a bearer token and refuses foreign Host and Origin headers.",
+          "code": "packages/mcp/src/http.ts#hostHeaderValidationResponse"
+        }
+      ],
+      "tests": [
+        "packages/mcp/test/http.test.ts::refuses a Host outside the allowlist (DNS rebinding) with 403",
+        "packages/mcp/test/http.test.ts::refuses a browser Origin outside the allowlist with 403",
+        "packages/mcp/test/http.test.ts::listens on loopback and serves a client that presents the token"
+      ],
+      "evidence": [],
+      "residual": "None; stdio is the default transport.",
+      "status": "mitigated"
+    },
+    {
+      "id": "U1",
+      "topic": "upto-contract",
+      "title": "Settling more than the cap",
+      "boundary": "TB7",
+      "stride": ["T", "E"],
+      "asset": "payer-funds",
+      "threat": "The settlement authority, a bug or a hostile seller settles an amount above the cap the payer signed.",
+      "stellar": "The payer's signature covers approve(payer, contract, max_amount, expiration_ledger); the token would refuse a transfer_from above the allowance, and the contract refuses first.",
+      "preconditions": "Control of the settle arguments.",
+      "impact": "None: refused.",
+      "mitigations": [
+        {
+          "text": "The contract refuses amount > max_amount with error #3 and moves nothing.",
+          "code": "contracts/stellar/upto/src/lib.rs#AmountExceedsMax"
+        },
+        {
+          "text": "The facilitator refuses before simulating.",
+          "code": "packages/upto/src/facilitator/rules.ts#checkUptoPayment"
+        }
+      ],
+      "tests": [
+        "contracts/stellar/upto/src/test/errors.rs::rejects_an_amount_over_the_cap",
+        "contracts/stellar/upto/src/test/errors.rs::a_rejected_settlement_moves_nothing",
+        "packages/upto/test/facilitator.test.ts::refuses an amount above the cap before simulating",
+        "contracts/testing/composition/src/test.rs::an_amount_over_the_cap_is_contract_error_3"
+      ],
+      "evidence": ["live-matrix#upto-over-cap", "rejection-audit#upto-settle-over-cap"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "U2",
+      "topic": "upto-contract",
+      "title": "Changing the recipient, token, expiry, nonce or tree",
+      "boundary": "TB7",
+      "stride": ["T"],
+      "asset": "payer-funds",
+      "threat": "The terms or the authorization tree are changed after signing: another recipient, token, facilitator, expiration, nonce or an extra sub-invocation.",
+      "stellar": "Every term is an argument of the signed settle(terms) root invocation and of its approve child; the host checks the signature over the whole tree, and the network id and nonce are in the preimage.",
+      "preconditions": "A copy of the payload.",
+      "impact": "None: signature verification fails.",
+      "mitigations": [
+        {
+          "text": "The facilitator checks every bound field and the exact tree shape before simulating; the host rejects any change the facilitator missed.",
+          "code": "packages/upto/src/authorization.ts#inspectUptoAuthorization"
+        }
+      ],
+      "tests": [
+        "contracts/stellar/upto/src/test/auth.rs::mutated_terms_are_rejected",
+        "contracts/stellar/upto/src/test/signed.rs::a_signature_over_other_terms_fails",
+        "packages/upto/test/upto.integration.test.ts::refuses terms changed consistently in the entry and the requirements",
+        "packages/upto/test/upto.integration.test.ts::refuses a changed nonce",
+        "packages/upto/test/upto.integration.test.ts::refuses a signature expiration moved later than signed",
+        "packages/upto/test/vectors.test.ts::cover every bound field and tree shape"
+      ],
+      "evidence": [
+        "rejection-audit#upto-wrong-recipient",
+        "rejection-audit#upto-wrong-asset",
+        "rejection-audit#upto-authorization-tree",
+        "rejection-audit#upto-forged-terms"
+      ],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "U3",
+      "topic": "upto-contract",
+      "title": "Settling one authorization twice",
+      "boundary": "TB7",
+      "stride": ["T"],
+      "asset": "payer-funds",
+      "threat": "The same upto authorization is settled twice, for the same or different amounts.",
+      "stellar": "The payer's entry nonce is consumed by the host on first use and kept until the signature expires; a failed settlement rolls the nonce back.",
+      "preconditions": "A copy of the payload and the authority.",
+      "impact": "None: the second use fails with Error(Auth, ExistingValue); Rail402 answers repeats from its ledger.",
+      "mitigations": [
+        {
+          "text": "Host nonce consumption; Rail402's settlement ledger and request fingerprint including the settle amount.",
+          "code": "packages/facilitator/src/fingerprint.ts#uptoFingerprintOf"
+        }
+      ],
+      "tests": [
+        "contracts/stellar/upto/src/test/signed.rs::a_second_use_of_the_same_entry_fails",
+        "contracts/stellar/upto/src/test/signed.rs::a_failed_settlement_does_not_consume_the_nonce",
+        "packages/upto/test/upto.integration.test.ts::refuses a replay of a settled authorization",
+        "apps/rail402/test/idempotency.integration.test.ts::settles 5 concurrent requests for different amounts once: one success, four conflicts"
+      ],
+      "evidence": [
+        "live-matrix#upto-repeat-different-amount",
+        "rejection-audit#upto-replay",
+        "live-matrix#upto-concurrent-same-authorization"
+      ],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "U4",
+      "topic": "upto-contract",
+      "title": "Settling with an authority the payer did not name",
+      "boundary": "TB7",
+      "stride": ["S", "E"],
+      "asset": "payer-funds",
+      "threat": "A facilitator, or anyone, settles an upto payment that named another settlement authority.",
+      "stellar": "terms.facilitator is part of the signed terms and must authorize the settle call itself.",
+      "preconditions": "A copy of the payload.",
+      "impact": "None: refused.",
+      "mitigations": [
+        {
+          "text": "Requirements whose facilitatorAddress is not this facilitator's authority are refused; the contract requires terms.facilitator's authorization.",
+          "code": "packages/upto/src/errors.ts#invalid_upto_stellar_requirements_facilitator_mismatch"
+        }
+      ],
+      "tests": [
+        "packages/upto/test/upto.integration.test.ts::refuses an authority other than the one the payer named",
+        "contracts/stellar/upto/src/test/auth.rs::missing_facilitator_authorization_is_rejected",
+        "contracts/stellar/upto/src/test/auth.rs::facilitator_authorization_for_another_amount_is_rejected"
+      ],
+      "evidence": ["rejection-audit#upto-terms-authority", "rejection-audit#upto-authority-not-ours"],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "U5",
+      "topic": "upto-contract",
+      "title": "The allowance left by a partial settlement",
+      "boundary": "TB7",
+      "stride": ["E"],
+      "asset": "payer-funds",
+      "threat": "After a partial settlement, the remaining allowance (cap minus amount) is spent by someone else.",
+      "stellar": "The signed approve grants the settlement contract an allowance of the full cap until the expiration ledger; transfer_from spends only the settled amount.",
+      "preconditions": "A partial upto settlement.",
+      "impact": "None: only the contract can spend the allowance, and it spends only inside a settlement.",
+      "mitigations": [
+        {
+          "text": "The allowance's spender is the settlement contract; it expires with the terms and the next settlement's approve overwrites it.",
+          "code": "contracts/stellar/upto/src/lib.rs#transfer_from"
+        }
+      ],
+      "tests": [
+        "contracts/stellar/upto/src/test/allowance.rs::nobody_can_spend_the_residual_directly",
+        "contracts/stellar/upto/src/test/allowance.rs::another_contract_cannot_spend_the_residual",
+        "contracts/stellar/upto/src/test/allowance.rs::the_next_settlement_overwrites_the_residual",
+        "contracts/stellar/upto/src/test/allowance.rs::the_residual_expires_with_the_terms",
+        "contracts/stellar/upto/src/test/settle.rs::zero_leaves_an_existing_allowance_untouched"
+      ],
+      "evidence": [],
+      "residual": "Wallets show an allowance to the settlement contract until the expiration ledger.",
+      "status": "mitigated"
+    },
+    {
+      "id": "U6",
+      "topic": "upto-contract",
+      "title": "Zero settlements paid by the sponsor",
+      "boundary": "TB2",
+      "stride": ["D"],
+      "asset": "sponsor-xlm",
+      "threat": "Anyone settles many upto payments for zero; each on-chain zero settlement costs the sponsor a fee and moves nothing. A zero needs no token balance or trustline, so the caller needs only an account that can sign.",
+      "stellar": "An on-chain zero consumes the nonce (so the authorization cannot be reused) but costs a Soroban transaction.",
+      "preconditions": "Sellers or buyers that trigger zero settlements.",
+      "impact": "Sponsor fees for payments that earn nothing.",
+      "mitigations": [
+        {
+          "text": "UPTO_ZERO_SETTLEMENT=offchain records a zero as a terminal success without a transaction, in the durable settlement ledger (STORE=postgres is required for it). Pubnet defaults to offchain; testnet stays on-chain for a public on-chain record.",
+          "code": "apps/rail402/src/config.ts#zeroSettlement"
+        },
+        {
+          "text": "Pubnet refuses to start without an explicit hourly sponsor budget, which bounds on-chain zeros with every other settlement.",
+          "code": "apps/rail402/src/config.ts#PUBNET_MAX_SPONSOR_SPEND_XLM_PER_HOUR"
+        },
+        {
+          "text": "Zero settlements are never cataloged, on-chain or off-chain. Content planted with a settlement of one base unit is not published either: listings with an origin publish only what the origin answers (P1, P9).",
+          "code": "packages/bazaar/src/codes.ts#bazaar_settlement_zero"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/upto-scheme.test.ts::settles zero off-chain when configured: no transaction, the authorization consumed in the ledger",
+        "packages/facilitator/test/upto-scheme.test.ts::drops the claim when an off-chain zero cannot settle, so it may be retried",
+        "apps/rail402/test/upto.integration.test.ts::never catalogs an off-chain zero settlement",
+        "packages/bazaar/src/testing.ts::does not catalog a settlement that moved nothing, however high its cap",
+        "apps/rail402/test/config.test.ts::requires explicit, safe mainnet settings"
+      ],
+      "evidence": ["live-matrix#upto-zero", "live-bazaar#upto-offchain-zero"],
+      "residual": "On the keyless testnet service, zeros settle on-chain and each costs one fee, bounded by the per-client rate limit (IPv6 clients are grouped by /64) and, where configured, the hourly budget. A client with many addresses passes the rate limit, so the budget is the real bound, after which every settlement is refused for the rest of the hour. On pubnet zeros settle off-chain by default and all spend is bounded by the required hourly budget.",
+      "status": "accepted"
+    },
+    {
+      "id": "U7",
+      "topic": "upto-contract",
+      "title": "The settlement contract archived",
+      "boundary": "TB7",
+      "stride": ["D"],
+      "asset": "availability",
+      "threat": "The upto contract's instance or code entry reaches the end of its TTL and is archived, so every upto payment fails.",
+      "stellar": "Persistent entries are archived at liveUntilLedgerSeq; any invocation needs them restored. The contract keeps no storage of its own, so only the instance and code entries pay rent.",
+      "preconditions": "Nobody extends the entries for months.",
+      "impact": "upto payments unavailable; restoring inside a payment would bill the buyer's sponsor (S7).",
+      "mitigations": [
+        {
+          "text": "The TTL monitor warns at 30 days and turns critical at 7; the keeper extends both entries before they run low.",
+          "code": "apps/rail402/src/upto-keeper.ts#UptoTtlKeeper"
+        },
+        {
+          "text": "An operator command restores and extends where automatic restoration is off.",
+          "code": "packages/facilitator/src/contract-ttl.ts#restoreContract"
+        }
+      ],
+      "tests": [
+        "apps/rail402/test/upto.integration.test.ts::extends the contract from the keeper and the operator command, and reports its TTL",
+        "apps/rail402/test/upto-archival.integration.test.ts::is restored by the TTL keeper where automatic restoration is allowed",
+        "apps/rail402/test/upto-archival.integration.test.ts::refuses payments while the contract is archived, and settles once an operator restores it",
+        "packages/facilitator/test/contract-ttl.test.ts::never extends past the network's maximum TTL",
+        "contracts/stellar/upto/src/test/settle.rs::an_archived_instance_is_restored_by_the_invocation_that_uses_it"
+      ],
+      "evidence": [],
+      "residual": "None while the keeper runs; extension and restoration are permissionless, so anyone can also keep the contract live.",
+      "status": "mitigated"
+    },
+    {
+      "id": "U8",
+      "topic": "upto-contract",
+      "title": "A different or changed settlement contract",
+      "boundary": "TB7",
+      "stride": ["T", "E"],
+      "asset": "payer-funds",
+      "threat": "Requirements name a hostile contract as the settlement contract, or the canonical contract's code is replaced.",
+      "stellar": "Contract addresses derive from the deployer and a salt; the deployed WASM hash is readable from the instance. A contract without an admin or upgrade function cannot change its code.",
+      "preconditions": "A seller or configuration pointing at another contract.",
+      "impact": "A contract that spends the approved allowance differently.",
+      "mitigations": [
+        {
+          "text": "The contract has no admin, no storage and no upgrade path.",
+          "code": "contracts/stellar/upto/src/lib.rs#cannot be upgraded"
+        },
+        {
+          "text": "Payments naming another contract than the network's configured one are refused; the service refuses to start when the configured contract runs other code.",
+          "code": "packages/upto/src/errors.ts#invalid_upto_stellar_payload_wrong_contract"
+        }
+      ],
+      "tests": [
+        "packages/upto/test/deployment.test.ts::runs the committed wasm",
+        "packages/upto/test/deployment.test.ts::sits at the address derived from the deployer and the canonical salt",
+        "apps/rail402/test/upto.integration.test.ts::refuses to start with a contract running other code, and starts without its authority",
+        "packages/upto/test/codec.test.ts::resolves the settlement contract from overrides and canonical deployments"
+      ],
+      "evidence": [],
+      "residual": "An operator can configure a contract of their own (UPTO_TESTNET_DEPLOYMENT); buyers see it in /supported.",
+      "status": "mitigated"
+    },
+    {
+      "id": "U9",
+      "topic": "upto-contract",
+      "title": "Token differences between SAC and SEP-41 contracts",
+      "boundary": "TB7",
+      "stride": ["T"],
+      "asset": "payer-funds",
+      "threat": "A token whose events or allowance semantics differ from a Stellar Asset Contract is mis-read, so a wrong transfer passes the checks or a right one is refused.",
+      "stellar": "Stellar Asset Contracts publish [name, from, to, asset] topics; OpenZeppelin SEP-41 tokens publish [name, from, to] with a bare amount, and their approve data is a map with live_until_ledger. Decimals are read from the token.",
+      "preconditions": "A custom SEP-41 asset.",
+      "impact": "False acceptance or refusal of upto settlements.",
+      "mitigations": [
+        {
+          "text": "Both event shapes are accepted and checked field by field; exactly one transfer of the amount from the payer to payTo, and no balance event involving a facilitator account.",
+          "code": "packages/upto/src/facilitator/simulation.ts#checkSimulationEvents"
+        }
+      ],
+      "tests": [
+        "packages/upto/test/facilitator.test.ts::accepts SEP-41 token events (three topics, map data)",
+        "packages/upto/test/facilitator.test.ts::requires exactly one transfer of the cap from the payer to payTo",
+        "contracts/testing/test-token/src/test.rs::approve_event_has_three_topics_and_map_data",
+        "tools/conformance/test/assets.integration.test.ts::refuses a payer holding less than the amount, or none of the token, as insufficient_funds"
+      ],
+      "evidence": ["live-bazaar#second-asset"],
+      "residual": "Tokens with fees on transfer or rebasing balances are not supported; their settlements fail the event check.",
+      "status": "mitigated"
+    },
+    {
+      "id": "U10",
+      "topic": "upto-contract",
+      "title": "The settlement authority's key is compromised",
+      "boundary": "TB4",
+      "stride": ["E"],
+      "asset": "payer-funds",
+      "threat": "The authority's key, which is derived from the sponsor secret, leaks.",
+      "stellar": "The authority chooses the amount of any upto payment that names it, up to each payment's cap, within the payment's validity window; it holds no funds and cannot change recipient or token.",
+      "preconditions": "Leak of the sponsor secret.",
+      "impact": "Payloads the attacker obtains could be settled for up to their caps, to their named recipients, until they expire; the sponsor's XLM is at risk.",
+      "mitigations": [
+        {
+          "text": "The authority is derived per network with HKDF from the sponsor secret, distinct from the sponsor and the channels, and holds a zero balance.",
+          "code": "packages/facilitator/src/authority.ts#deriveAuthorityKeypair"
+        },
+        {
+          "text": "Rotation with the sponsor: payments naming the old authority are refused by the new one and expire within the maximum timeout (300 s by default).",
+          "code": "docs/operations.md#Rotating the sponsor key"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/authority.test.ts::is stable per sponsor and network, and distinct from the sponsor and every channel",
+        "packages/facilitator/test/authority.test.ts::reports whether the account exists and what it holds",
+        "packages/upto/test/upto.integration.test.ts::refuses an authority other than the one the payer named"
+      ],
+      "evidence": [],
+      "residual": "Within the maximum timeout after a leak, captured payloads can be charged up to their caps. Keep caps near expected prices and timeouts short.",
+      "status": "accepted"
+    },
+    {
+      "id": "U11",
+      "topic": "upto-contract",
+      "title": "A served buyer defaults before settlement",
+      "boundary": "TB2",
+      "stride": ["R"],
+      "asset": "seller-revenue",
+      "threat": "An upto seller serves first and settles afterwards. Between /verify and the seller's /settle the buyer moves its funds, uses its authorization nonce in another transaction, or settles the payload itself for zero, and the seller's settlement fails for work already done.",
+      "stellar": "/verify simulates the settlement for the full cap, so the signature, balance and trustline hold at that moment, but a Soroban authorization is not an escrow: nothing is locked until the settlement transaction applies.",
+      "preconditions": "A buyer willing to default, and a seller that releases output before its own settlement succeeds.",
+      "impact": "One request served unpaid. A streaming or metered seller cannot withhold what it already sent.",
+      "mitigations": [
+        {
+          "text": "Short maxTimeoutSeconds, settling immediately after serving, withholding buffered output until settlement succeeds (the stock Express middleware does), and refusing payers whose settlements fail.",
+          "code": "docs/facilitator/upto.mdx#Payment is not guaranteed after verification"
+        }
+      ],
+      "tests": [],
+      "evidence": [],
+      "residual": "Accepted: upto is post-paid by design; the loss is bounded by one request's cap.",
+      "status": "accepted"
+    },
+    {
+      "id": "E1",
+      "topic": "exact-payments",
+      "title": "Tampering with amount, recipient or asset",
+      "boundary": "TB2",
+      "stride": ["T"],
+      "asset": "payer-funds",
+      "threat": "A seller or intermediary changes the amount, payTo or asset of an exact payment after the payer signed it.",
+      "stellar": "The payer signs transfer(from, to, amount) on the asset contract; any change alters the invocation the host checks the signature against.",
+      "preconditions": "A copy of the payload.",
+      "impact": "None: refused at verify, or fails signature verification.",
+      "mitigations": [
+        {
+          "text": "The transfer must match the requirements; the payer's entry must authorize exactly the operation's invocation.",
+          "code": "packages/facilitator/src/preflight.ts#invalid_exact_stellar_payload_auth_invocation_mismatch"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/settlement.integration.test.ts::rejects tampering: a changed amount breaks the signed authorization",
+        "packages/facilitator/test/preflight.test.ts::rejects a transfer that does not match the requirements",
+        "packages/facilitator/test/preflight.test.ts::rejects an authorization signed for a different call than the operation"
+      ],
+      "evidence": [
+        "live-matrix#tamper-amount",
+        "live-matrix#tamper-recipient",
+        "rejection-audit#tampered-amount"
+      ],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "E2",
+      "topic": "exact-payments",
+      "title": "The facilitator made a party to the payment",
+      "boundary": "TB2",
+      "stride": ["E"],
+      "asset": "sponsor-xlm",
+      "threat": "A payload names a facilitator account (sponsor, channel or upto authority) as payer, transaction or operation source, or co-signer, so the facilitator's signature would move its own funds.",
+      "stellar": "The facilitator signs the envelope and the fee bump; if one of its accounts were the source of a transfer or the subject of an auth entry, its signature would authorize it.",
+      "preconditions": "Knowledge of the facilitator's public addresses (they are in /supported).",
+      "impact": "Loss of the facilitator's funds; custody.",
+      "mitigations": [
+        {
+          "text": "Any facilitator account as payer, source or authorization party is refused.",
+          "code": "packages/facilitator/src/preflight.ts#invalid_exact_stellar_payload_facilitator_in_auth"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/preflight.test.ts::protects facilitator accounts",
+        "packages/facilitator/test/preflight.test.ts::rejects a facilitator account as payer or co-signer",
+        "packages/facilitator/test/upto-scheme.test.ts::treats the authority as a facilitator account for exact payments too",
+        "test/agents.integration.test.ts::paid the seller exactly what was settled, from the payer, never from the sponsor"
+      ],
+      "evidence": [
+        "rejection-audit#facilitator-as-cosigner",
+        "rejection-audit#facilitator-as-payer",
+        "rejection-audit#facilitator-as-source"
+      ],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "E3",
+      "topic": "exact-payments",
+      "title": "Extra invocations riding on the payment",
+      "boundary": "TB2",
+      "stride": ["T", "E"],
+      "asset": "payer-funds",
+      "threat": "The authorization tree carries sub-invocations, or the transaction carries more operations or preconditions, so that settling the payment does more than one transfer.",
+      "stellar": "An authorization entry authorizes a tree of calls; a transaction may carry preconditions and several operations.",
+      "preconditions": "A crafted payload.",
+      "impact": "Side effects signed by the payer and paid for by the sponsor.",
+      "mitigations": [
+        {
+          "text": "Exactly one invokeHostFunction transfer, no sub-invocations, no unsupported preconditions, bounded size.",
+          "code": "packages/stellar/src/payload.ts#inspectExactTransaction"
+        }
+      ],
+      "tests": [
+        "packages/stellar/test/payload.test.ts::reports sub-invocations and preconditions",
+        "packages/stellar/test/payload.test.ts::rejects more than one operation",
+        "packages/stellar/test/payload.test.ts::rejects a fee-bump envelope",
+        "packages/stellar/test/payload.test.ts::rejects an oversized payload before decoding it"
+      ],
+      "evidence": [
+        "rejection-audit#sub-invocations",
+        "rejection-audit#multiple-operations",
+        "rejection-audit#fee-bump-envelope"
+      ],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "E4",
+      "topic": "exact-payments",
+      "title": "An authorization valid for too long",
+      "boundary": "TB2",
+      "stride": ["T"],
+      "asset": "payer-funds",
+      "threat": "A payload signed with a far-future expiration stays spendable long after the purchase.",
+      "stellar": "The expiration ledger is chosen by the signer; x402 derives it from maxTimeoutSeconds as ceil(T / ledger seconds) past the latest ledger.",
+      "preconditions": "A client that signs long-lived authorizations.",
+      "impact": "A payment that can be settled much later.",
+      "mitigations": [
+        {
+          "text": "Expirations beyond maxLedger plus 2 are refused; maxTimeoutSeconds outside 10 to 300 is refused.",
+          "code": "packages/stellar/src/expiration.ts#maxAcceptableExpiration"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/expiration.integration.test.ts::holds the upper edge at maxLedger plus 2, from upstream's ledger-time estimate",
+        "packages/facilitator/test/expiration.integration.test.ts::derives the expiration ledger from maxTimeoutSeconds like the stock client",
+        "packages/facilitator/test/expiration.integration.test.ts::settles before the expiration ledger and refuses the same window after it"
+      ],
+      "evidence": [
+        "rejection-audit#expires-too-far",
+        "rejection-audit#timeout-out-of-range",
+        "live-matrix#expiry-window"
+      ],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "E5",
+      "topic": "exact-payments",
+      "title": "Misreading a custom token's failures and decimals",
+      "boundary": "TB3",
+      "stride": ["T"],
+      "asset": "payer-funds",
+      "threat": "A token whose error numbers or decimals differ from a Stellar Asset Contract is priced or explained as if it were one.",
+      "stellar": "Classic assets are always 7 decimals through their SAC; SEP-41 contract tokens choose their decimals and their own error numbers.",
+      "preconditions": "A custom SEP-41 asset configured.",
+      "impact": "Wrong prices by orders of magnitude, or wrong refusal reasons.",
+      "mitigations": [
+        {
+          "text": "The service reads decimals() at startup and refuses to start on a mismatch.",
+          "code": "apps/rail402/src/asset-check.ts#checkAssets"
+        },
+        {
+          "text": "SAC error numbers are applied only to SACs; other tokens are named by number.",
+          "code": "packages/stellar/src/diagnostics.ts#classifyTransferFailure"
+        }
+      ],
+      "tests": [
+        "apps/rail402/test/asset-check.test.ts::fails for good, with a coded ConfigError naming the variable, when the decimals differ",
+        "packages/stellar/test/diagnostics.test.ts::names a custom token's own error by number, never by the Stellar Asset Contract's meaning",
+        "tools/conformance/test/assets.integration.test.ts::refuses to start when a configured asset's decimals differ from the chain's"
+      ],
+      "evidence": [],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "O1",
+      "topic": "operations",
+      "title": "A crash after submission",
+      "boundary": "TB4",
+      "stride": ["D", "R"],
+      "asset": "payer-funds",
+      "threat": "The process dies after signing or broadcasting a settlement and before recording its outcome; a restart submits a replacement and the payer is charged twice, or the seller is never told.",
+      "stellar": "A signed envelope stays valid until its time bound; the network may include it after the process died.",
+      "preconditions": "A crash, deploy or kill at the wrong moment.",
+      "impact": "Double charge (without protection) or a lost success.",
+      "mitigations": [
+        {
+          "text": "The signed envelope is recorded before broadcast; recovery re-sends the same bytes and never builds a replacement.",
+          "code": "packages/facilitator/src/engine.ts#recordingSponsor"
+        },
+        {
+          "text": "A recorded settlement is expired only when the RPC's retained history proves it absent.",
+          "code": "packages/facilitator/src/engine.ts#historyCovers"
+        }
+      ],
+      "tests": [
+        "apps/rail402/test/crash-recovery.integration.test.ts::K0: finds the transaction the network accepted before the process died",
+        "apps/rail402/test/crash-recovery.integration.test.ts::K1: rebroadcasts the identical recorded bytes when the broadcast never left",
+        "apps/rail402/test/crash-recovery.integration.test.ts::K2: finds a transaction that was included before the process saw it confirmed",
+        "apps/rail402/test/crash-recovery.integration.test.ts::K3: expires a transaction whose time bound passed while the service was down, and nothing moves",
+        "packages/facilitator/test/settlement.integration.test.ts::broadcasts nothing when the envelope cannot be recorded first, leaving the payment retryable"
+      ],
+      "evidence": [
+        "fault-recovery#k0-exact",
+        "fault-recovery#k1-exact",
+        "fault-recovery#k3-exact",
+        "fault-recovery#k0-upto",
+        "fault-recovery#k1-upto"
+      ],
+      "residual": "A settlement whose ledgers the RPC no longer retains stays unresolvable and is reported (O4).",
+      "status": "mitigated"
+    },
+    {
+      "id": "O2",
+      "topic": "operations",
+      "title": "Channel sequence collisions",
+      "boundary": "TB4",
+      "stride": ["D"],
+      "asset": "availability",
+      "threat": "Two settlements use the same channel account at once, or something else uses a channel's key, and transactions fail with a bad sequence number.",
+      "stellar": "An account's transactions are ordered by sequence number; one in-flight transaction per source is the rule.",
+      "preconditions": "Concurrency, several replicas, or external use of a channel key.",
+      "impact": "Failed settlements and wasted fees.",
+      "mitigations": [
+        {
+          "text": "Channels are leased exclusively through Postgres across replicas.",
+          "code": "packages/store-postgres/src/channel-pool.ts#PostgresChannelPool"
+        },
+        {
+          "text": "Sequence conflicts are counted so external use is visible.",
+          "code": "apps/rail402/src/metrics.ts#rail402_sequence_conflicts_total"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/concurrency.integration.test.ts::with injected duplicates, without a collision",
+        "apps/rail402/test/replicas.integration.test.ts::with every duplicate sent to the other replica",
+        "apps/rail402/test/observability.integration.test.ts::counts a sequence conflict when a channel's sequence is used behind its back",
+        "packages/facilitator/src/testing.ts::never leases one channel twice, even under concurrency"
+      ],
+      "evidence": ["concurrency#distinct-sequences"],
+      "residual": "Reusing the sponsor seed in another deployment derives the same channels; do not.",
+      "status": "mitigated"
+    },
+    {
+      "id": "O3",
+      "topic": "operations",
+      "title": "The RPC or the settlement store is unavailable",
+      "boundary": "TB3",
+      "stride": ["D"],
+      "asset": "availability",
+      "threat": "The Stellar RPC or Postgres stops answering while payments arrive.",
+      "stellar": "Without the RPC nothing can be simulated, submitted or confirmed.",
+      "preconditions": "An outage.",
+      "impact": "Payments refused, or worse, settled without a record.",
+      "mitigations": [
+        {
+          "text": "/ready fails while the RPC is unreachable; refusals carry retryable codes.",
+          "code": "apps/rail402/src/health.ts#HealthMonitor"
+        },
+        {
+          "text": "Nothing is broadcast unless its envelope was recorded; verify stays available when the ledger cannot be read.",
+          "code": "packages/facilitator/src/scheme.ts#alreadySubmitted"
+        }
+      ],
+      "tests": [
+        "apps/rail402/test/runtime.integration.test.ts::fails while the RPC is unreachable",
+        "apps/rail402/test/observability.integration.test.ts::counts transport and request errors while the RPC fails, and reports it in /health",
+        "apps/rail402/test/idempotency.integration.test.ts::keeps verify available when the ledger cannot be read",
+        "packages/facilitator/test/settlement.integration.test.ts::broadcasts nothing when the envelope cannot be recorded first, leaving the payment retryable",
+        "packages/store-postgres/test/stores.integration.test.ts::survives the server closing its idle connections, as in a restart or failover"
+      ],
+      "evidence": [],
+      "residual": "None beyond downtime.",
+      "status": "mitigated"
+    },
+    {
+      "id": "O4",
+      "topic": "operations",
+      "title": "Settlements past the RPC's retention",
+      "boundary": "TB3",
+      "stride": ["R"],
+      "asset": "seller-revenue",
+      "threat": "A recorded settlement is examined after the RPC no longer keeps the ledgers that could prove it included or absent.",
+      "stellar": "An RPC keeps only a limited window of recent ledgers and transactions; older ones cannot be read from it.",
+      "preconditions": "A long outage or a restored backup.",
+      "impact": "A payment wrongly declared expired while it did settle.",
+      "mitigations": [
+        {
+          "text": "Such settlements stay unresolved and are reported, never expired.",
+          "code": "packages/facilitator/src/engine.ts#historyCovers"
+        }
+      ],
+      "tests": [
+        "apps/rail402/test/crash-recovery.integration.test.ts::keeps a settlement the RPC can no longer prove absent unresolved, and reports it",
+        "packages/facilitator/test/recovery.test.ts::never declares one expired once the RPC no longer retains the ledgers that could hold it"
+      ],
+      "evidence": [],
+      "residual": "An operator resolves them from an archive or an indexer.",
+      "status": "mitigated"
+    },
+    {
+      "id": "O5",
+      "topic": "operations",
+      "title": "All channels busy",
+      "boundary": "TB4",
+      "stride": ["D"],
+      "asset": "availability",
+      "threat": "More settlements arrive than there are channel accounts.",
+      "stellar": "Each channel carries one in-flight transaction.",
+      "preconditions": "A burst of payments.",
+      "impact": "Slow or refused settlements.",
+      "mitigations": [
+        {
+          "text": "A request waits at most SETTLE_CHANNEL_WAIT_MS for a channel and is refused with a retryable code, leaving no record.",
+          "code": "packages/facilitator/src/channels.ts#MemoryChannelPool"
+        }
+      ],
+      "tests": [
+        "packages/facilitator/test/settlement.integration.test.ts::refuses when no channel frees up in time, leaving the payment retryable",
+        "packages/facilitator/test/upto-scheme.test.ts::answers busy channels with the upto code and keeps nothing claimed",
+        "apps/rail402/test/observability.integration.test.ts::measures the wait for a channel when settlements outnumber channels"
+      ],
+      "evidence": [],
+      "residual": "Throughput is bounded by the channel count; raise CHANNEL_COUNT.",
+      "status": "mitigated"
+    },
+    {
+      "id": "O6",
+      "topic": "operations",
+      "title": "The sponsor secret is compromised",
+      "boundary": "TB4",
+      "stride": ["E", "I"],
+      "asset": "secrets",
+      "threat": "The sponsor seed leaks from the platform, a log or a backup.",
+      "stellar": "The sponsor seed derives the channels and the upto authority; none of them can move a payer's funds.",
+      "preconditions": "A leak.",
+      "impact": "Loss of the sponsor's XLM; U10 for upto payloads in flight.",
+      "mitigations": [
+        {
+          "text": "The seed is never logged or echoed; configuration errors name the variable, not the value.",
+          "code": "apps/rail402/src/logger.ts#REDACTED_PATHS"
+        },
+        {
+          "text": "Documented rotation: retire channels, move funds, provision with the new seed.",
+          "code": "docs/operations.md#Rotating the sponsor key"
+        }
+      ],
+      "tests": [
+        "apps/rail402/test/config.test.ts::names the variable and never echoes a secret",
+        "packages/facilitator/test/state.test.ts::is deterministic per sponsor, network and index, and never collides",
+        "apps/rail402/test/channels.integration.test.ts::reports durable state and refuses to retire while a channel is leased"
+      ],
+      "evidence": [],
+      "residual": "Keep only a working balance on the sponsor.",
+      "status": "accepted"
+    },
+    {
+      "id": "O7",
+      "topic": "operations",
+      "title": "Degraded search indexing",
+      "boundary": "TB2",
+      "stride": ["D"],
+      "asset": "catalog-integrity",
+      "threat": "The embedding model fails or is slow, or its files are tampered with.",
+      "stellar": "None.",
+      "preconditions": "A model failure or a changed model file.",
+      "impact": "Wrong or missing search results.",
+      "mitigations": [
+        {
+          "text": "Model files are pinned by SHA-256; search falls back to lexical results and says so with partialResults.",
+          "code": "packages/search/src/embedder.ts#sha256"
+        }
+      ],
+      "tests": [
+        "packages/search/test/search.test.ts::answers lexical-only, as partial results, when the embedder fails or runs out of time",
+        "packages/search/test/embedder.test.ts::refuses to start when a model file does not match its pinned hash"
+      ],
+      "evidence": [],
+      "residual": "None.",
+      "status": "mitigated"
+    },
+    {
+      "id": "PG1",
+      "topic": "playground",
+      "title": "The relay used to reach private networks or as an open proxy",
+      "boundary": "TB8",
+      "stride": ["S", "I", "D"],
+      "asset": "infrastructure",
+      "threat": "A visitor, or a script calling the Playground's API, asks the relay to fetch a loopback, private or cloud-metadata address, a name that resolves to one, or a seller that redirects to one; or uses the relay to send volume to third parties from the Playground's address.",
+      "stellar": "Nothing Stellar-specific: the relay exists because Rail402 and most x402 sellers answer no CORS headers, so a page cannot call them itself. A paid request through it carries a PAYMENT-SIGNATURE the visitor's own key made.",
+      "preconditions": "Network access to the Playground server.",
+      "impact": "Without protection: requests into the server's network, or the Playground's address used for abuse.",
+      "mitigations": [
+        {
+          "text": "The relay sends with safe-fetch under a fixed policy: https on port 443 to public addresses only, DNS answers checked and pinned, redirects refused except same-origin hops for unpaid probes, request and answer size limits.",
+          "code": "apps/playground/src/relay/egress.ts#RelayEgress"
+        },
+        {
+          "text": "By host name, it never contacts the Playground itself (its public host and the platform's generated domain), the facilitator, the Bazaar or an operator-denied host.",
+          "code": "apps/playground/src/relay/egress.ts#playground_relay_loop"
+        },
+        {
+          "text": "Per-client, global, per-host, in-flight and daily byte limits, with Retry-After, and a switch to turn the relay off.",
+          "code": "apps/playground/src/limits.ts#DailyBudget"
+        },
+        {
+          "text": "Global limits are fair-shared: one network (an IPv4 address or an IPv6 /48) holds at most an eighth of a pool, or its per-client limit when that is larger; clients are keyed by IPv4 address or IPv6 /56.",
+          "code": "apps/playground/src/limits.ts#SharedRate"
+        },
+        {
+          "text": "Only a payment that decodes as an x402 payment counts against the paid limits, whether it travels in PAYMENT-SIGNATURE or in an MCP tool call's _meta; anything else is refused before a token is taken.",
+          "code": "apps/playground/src/payment-header.ts#mcpPaymentOf"
+        },
+        {
+          "text": "The demo seller has a paid pool of its own, a paid request that reached no seller gives the shared pool its token back, and the lab sellers return it when the facilitator was never asked, so payments that only have the right shape cannot use up the pools the demo flows need.",
+          "code": "apps/playground/src/relay/relay.ts#trustedPaidGlobal"
+        },
+        {
+          "text": "Unpaid requests wait no longer than the SDK's probe timeouts; bodies pass only as JSON, text or octet-stream; slots of an abandoned upload or an unread answer are released; connections to hosts other than the demo seller are closed after each answer.",
+          "code": "apps/playground/src/relay/relay.ts#timeoutsFor"
+        },
+        {
+          "text": "Unpaid requests and answer bytes are also limited per network, bytes for all clients per day, requests in flight per destination host, and each network gets at most its share of a host's budget.",
+          "code": "apps/playground/src/limits.ts#KeyedSharedRate"
+        }
+      ],
+      "tests": [
+        "apps/playground/test/ssrf.test.ts::refuses every private, local, reserved or off-policy literal before any lookup",
+        "apps/playground/test/ssrf.test.ts::refuses a public name whose DNS answers include any private address",
+        "apps/playground/test/ssrf.test.ts::does not let the relay reach the Playground, the facilitator, the Bazaar or a denied host by any spelling",
+        "apps/playground/test/ssrf.test.ts::never follows a redirect off the seller's origin, even for unpaid requests that allow redirects",
+        "apps/playground/test/relay.test.ts::limits requests per destination host across clients",
+        "apps/playground/test/relay.test.ts::stops a client past its daily transfer budget",
+        "apps/playground/test/relay.test.ts::refuses a payment header that holds no payment before any limit counts it",
+        "apps/playground/test/relay.test.ts::gives one network at most its share of the global paid budget",
+        "apps/playground/test/relay.test.ts::gives back the slots of an upload the client abandons",
+        "apps/playground/test/relay.test.ts::counts an MCP tool call carrying a payment in its body as paid",
+        "apps/playground/test/relay.test.ts::keeps a paid pool of its own for the trusted hosts",
+        "apps/playground/test/relay.test.ts::gives one network at most its share of a destination host's budget",
+        "apps/playground/test/relay.test.ts::forwards a body only as JSON, text or octet-stream",
+        "apps/playground/test/relay.test.ts::treats the platform's generated domain as the Playground itself",
+        "apps/playground/test/relay-wire.test.ts::ends a body nobody reads at its deadline and cancels the seller's stream",
+        "packages/safe-fetch/test/fetch.test.ts::closes kept connections that sit unused and caps connections across hosts",
+        "apps/playground/e2e/playground.spec.ts::never follows a redirect to another origin, and signs nothing"
+      ],
+      "evidence": [
+        "live-playground#ssrf-literal",
+        "live-playground#ssrf-metadata",
+        "live-playground#redirect"
+      ],
+      "residual": "For a client that is not a browser, the relay is an open https egress to public hosts at the Playground's address, bounded only by the limits; IP-keyed limits cannot stop a client with many addresses or networks. The payment check stops only malformed payments: a payment that merely has the right shape is counted as paid, so enough addresses can still use up a shared paid pool for a minute at a time. Loop and deny lists match host names: another name of a denied host is caught only when the operator lists it. Its user agent names the Playground, and the operator can deny hosts or switch the relay off.",
+      "status": "mitigated"
+    },
+    {
+      "id": "PG2",
+      "topic": "playground",
+      "title": "Another site drives the relay from a visitor's browser",
+      "boundary": "TB8",
+      "stride": ["S", "I"],
+      "asset": "infrastructure",
+      "threat": "A page on another origin makes a visitor's browser send requests through the Playground's relay, seller check or proxies, or reads their answers.",
+      "stellar": "The relay holds no key and no session, so a forged request carries no authority the attacker lacks; a payment needs a signature from the key in the Playground's own page.",
+      "preconditions": "A visitor with the Playground open, or not, visits the attacker's page.",
+      "impact": "Without protection: the Playground's relay used through visitors' browsers.",
+      "mitigations": [
+        {
+          "text": "The relay needs its own request headers, which a cross-site form cannot set; a browser's Sec-Fetch-Site must be same-origin and its Origin the Playground's public origin.",
+          "code": "apps/playground/src/security.ts#sameOrigin"
+        },
+        {
+          "text": "The relay answers no CORS headers, so no other origin can read an answer.",
+          "code": "apps/playground/src/shared/relay-protocol.ts#x-relay-target"
+        },
+        {
+          "text": "The Bazaar and /supported proxies refuse another site's requests the same way, so no page can spend their shared upstream budget through visitors' browsers.",
+          "code": "apps/playground/src/proxy/bazaar.ts#proxyOrigin"
+        }
+      ],
+      "tests": [
+        "apps/playground/test/relay.test.ts::answers only same-origin requests from the page",
+        "apps/playground/test/seller-check.test.ts::answers only same-origin requests from the page",
+        "apps/playground/test/proxy.test.ts::refuses requests another site's page makes, before any upstream fetch"
+      ],
+      "evidence": [],
+      "residual": "Clients that are not browsers send neither header and pass. They get nothing a browser visitor lacks, but they can use the relay as an https egress at the Playground's address, bounded only by the limits (PG1).",
+      "status": "mitigated"
+    },
+    {
+      "id": "PG3",
+      "topic": "playground",
+      "title": "Script injected into the page uses the testnet key",
+      "boundary": "TB8",
+      "stride": ["T", "E"],
+      "asset": "secrets",
+      "threat": "Seller-supplied text (a description, an error, a response body) or a third-party script runs in the page and signs with, or reads, the wallet's key.",
+      "stellar": "The key signs Soroban authorization entries through the SDK's signing guard; a script in the page could ask it to sign within the visitor's caps.",
+      "preconditions": "A seller or listing the visitor's page displays.",
+      "impact": "Without protection: testnet funds spent within the caps, or the testnet key read out.",
+      "mitigations": [
+        {
+          "text": "A content security policy without inline or third-party script, styles or frames from the Playground's origin only, and connections only to the configured Stellar endpoints.",
+          "code": "apps/playground/src/security.ts#contentSecurityPolicy"
+        },
+        {
+          "text": "Seller text is rendered as text, and an untrusted URL becomes a link only when it is https and parses; no view renders raw markup.",
+          "code": "apps/playground/web/src/ui/links.tsx#safeHttpsUrl"
+        },
+        {
+          "text": "The stored seed is encrypted under a key WebCrypto generated as non-extractable; only the wallet modules touch the key.",
+          "code": "apps/playground/web/src/wallet/keystore.ts#non-extractable"
+        }
+      ],
+      "tests": [
+        "apps/playground/test/app.test.ts::sends the security headers and a strict content security policy on every response",
+        "apps/playground/web/test/engine/dependency.test.ts::the page never renders raw markup",
+        "apps/playground/web/test/engine/dependency.test.ts::only the wallet modules touch the key itself",
+        "apps/playground/web/test/ui/lab.test.tsx::does not render HTML from seller data",
+        "apps/playground/e2e/playground.spec.ts::serves the built page with a strict CSP and starts the real engine"
+      ],
+      "evidence": ["live-playground#secret-scan"],
+      "residual": "A script that did run in the page would not be bound by the caps: it could open the page's IndexedDB, decrypt the stored seed with the stored key (non-extractable protects the key, not what it decrypts) and send the seed out. The CSP and the absence of markup sinks make that unlikely. The key is meant for testnet only, and the import field says never to paste a key that holds real funds.",
+      "status": "mitigated"
+    },
+    {
+      "id": "PG4",
+      "topic": "playground",
+      "title": "The seller check used to scan ports or private hosts",
+      "boundary": "TB8",
+      "stride": ["I", "D"],
+      "asset": "infrastructure",
+      "threat": "A visitor submits private addresses, other ports or many URLs to the seller check to map the server's network or to load third parties.",
+      "stellar": "The check runs the SDK's seller checks: the URL's 402, its discovery metadata, whether payTo can receive the asset, and the seller's stellar.toml and home domain.",
+      "preconditions": "Network access to the Playground server.",
+      "impact": "Without protection: a port scanner inside the server's network.",
+      "mitigations": [
+        {
+          "text": "The check fetches with https on port 443 to public addresses only, through the Playground's own facilitator, in the hosted configuration.",
+          "code": "apps/playground/src/seller-check.ts#sellerCheckEgress"
+        },
+        {
+          "text": "Ten checks per minute per client and sixty for all clients, and a switch to turn it off.",
+          "code": "apps/playground/src/seller-check.ts#mountSellerCheck"
+        }
+      ],
+      "tests": [
+        "apps/playground/test/seller-check.test.ts::checks the URL with an https:443, public-only policy and the Playground's own facilitator",
+        "apps/playground/test/seller-check.test.ts::refuses the same loopback seller in hosted mode before contacting it",
+        "apps/playground/test/seller-check.test.ts::limits checks per client and across clients"
+      ],
+      "evidence": [],
+      "residual": "The check reaches public https hosts on port 443 at its rate.",
+      "status": "mitigated"
+    },
+    {
+      "id": "PG5",
+      "topic": "playground",
+      "title": "The lab sellers take real payments or pollute the catalog",
+      "boundary": "TB8",
+      "stride": ["T", "D"],
+      "asset": "payer-funds",
+      "threat": "The Playground's misbehaving sellers (the offers, the greedy upto route) take a payment that sticks, or every visitor's sandbox sale adds a listing to the public Bazaar.",
+      "stellar": "An upto authorization caps what any settlement can move; Rail402 refuses a settlement above it, and the settlement contract enforces the cap on chain too.",
+      "preconditions": "A visitor running the lab.",
+      "impact": "Without protection: visitors charged more than they authorized, or a catalog flooded with sample listings.",
+      "mitigations": [
+        {
+          "text": "The offers answer a 402 only and never verify or settle.",
+          "code": "apps/playground/src/lab/offers.ts#offerHandler"
+        },
+        {
+          "text": "The greedy route asks to settle twice its cap, which Rail402's upto rules refuse; it declares no discovery metadata.",
+          "code": "packages/upto/src/facilitator/rules.ts#invalid_upto_stellar_payload_settlement_exceeds_amount"
+        },
+        {
+          "text": "The sandbox route answers the same 402 for every city and visitor, so it is one listing paid to one operator account.",
+          "code": "apps/playground/src/lab/sell.ts#declareSellRoute"
+        },
+        {
+          "text": "Its discovery metadata always carries the declared example city, never the one a request names, and a path that is not a city name gets no 402, so no payer writes text into the shared listing.",
+          "code": "apps/playground/src/lab/sell.ts#sellBazaarExtension"
+        }
+      ],
+      "tests": [
+        "apps/playground/test/lab-sellers.test.ts::answer a valid x402 version 2 402 only, never contacting the facilitator",
+        "apps/playground/test/lab-sellers.test.ts::asks the facilitator to settle twice the cap and reports the refusal",
+        "apps/playground/test/lab-sellers.test.ts::answers the same 402 every time, for any city, so the origin check always agrees",
+        "apps/playground/test/lab-sellers.test.ts::keeps the declared example in every 402, whatever city the request names",
+        "apps/playground/test/lab-sellers.test.ts::answers anything but a city name with a coded 404, before any 402",
+        "apps/playground/web/test/integration/engine.integration.test.ts::blocks a seller that charges over the cap: nothing moves, the hold returns after expiry",
+        "apps/playground/web/test/integration/engine.integration.test.ts::sells through the sandbox route: settled, cataloged, origin-checked and found by search"
+      ],
+      "evidence": [
+        "live-playground#overcharge",
+        "live-playground#overcharge-release",
+        "live-playground#refusal-network",
+        "live-playground#refusal-asset",
+        "live-playground#refusal-amount",
+        "live-playground#sell-listed"
+      ],
+      "residual": "None for funds. The sandbox listing is public and permanent, as one listing; its resource URL names the city of the payment that created it.",
+      "status": "mitigated"
+    },
+    {
+      "id": "PG6",
+      "topic": "playground",
+      "title": "The stored wallet read or overspent",
+      "boundary": "TB8",
+      "stride": ["I", "E"],
+      "asset": "agent-budget",
+      "threat": "The wallet's stored record is swapped or tampered with, or two tabs spend one session budget at the same time.",
+      "stellar": "The budget ledger reserves each payment before it is signed; two writers of one stored ledger could each see room the other already used.",
+      "preconditions": "Access to the browser profile, or two open tabs.",
+      "impact": "Without protection: a different key loaded, or the session budget exceeded.",
+      "mitigations": [
+        {
+          "text": "The stored record is bound to its address and network; a tampered or rebound record is refused.",
+          "code": "apps/playground/web/src/wallet/keystore.ts#additionalData"
+        },
+        {
+          "text": "One tab holds the wallet through a Web Lock; the others are read-only.",
+          "code": "apps/playground/web/src/wallet/tab-lock.ts#acquireTabLock"
+        },
+        {
+          "text": "A stored ledger that cannot be read is refused until it is reset, never silently emptied.",
+          "code": "packages/sdk/src/policy/storage-ledger.ts#payment_ledger_unavailable"
+        }
+      ],
+      "tests": [
+        "apps/playground/web/test/wallet/keystore.test.ts::stores the seed encrypted under a non-extractable key and loads it back",
+        "apps/playground/web/test/wallet/keystore.test.ts::refuses a tampered or rebound record instead of loading another key",
+        "apps/playground/web/test/wallet/tab-lock.test.ts::lets one tab hold the wallet; another waits until it lets go",
+        "apps/playground/e2e/playground.spec.ts::keeps the wallet in one tab: a second tab finds it locked"
+      ],
+      "evidence": ["live-playground#refusal-session"],
+      "residual": "The record is encrypted under a key kept in the same browser profile, not under a passphrase: anyone using that profile can use the wallet through the page. It is a testnet key with testnet funds.",
+      "status": "mitigated"
+    },
+    {
+      "id": "PG7",
+      "topic": "playground",
+      "title": "Payments or the key leak into logs, traces or storage",
+      "boundary": "TB8",
+      "stride": ["I"],
+      "asset": "secrets",
+      "threat": "A PAYMENT-SIGNATURE, a signed authorization or the key ends up in the server's logs or traces, an error, the page's storage, a run report or a request to a third party.",
+      "stellar": "A signed authorization is spendable by whoever holds it until it expires.",
+      "preconditions": "Any run.",
+      "impact": "Without protection: an authorization replayable by whoever reads the channel, or the key exposed.",
+      "mitigations": [
+        {
+          "text": "The relay logs the host, status and outcome only, never the target path, query, headers or body.",
+          "code": "apps/playground/src/relay/relay.ts#upstreamStatus"
+        },
+        {
+          "text": "The lab sellers' trace header carries verify and settle outcomes, never payloads.",
+          "code": "apps/playground/src/lab/trace.ts#TraceRecorder"
+        },
+        {
+          "text": "Run reports are built from the run's events, which hold no key, signature, preimage or payment header.",
+          "code": "apps/playground/web/src/engine/run-report.ts#runReport"
+        }
+      ],
+      "tests": [
+        "apps/playground/test/secret-scan.test.ts::keeps the payment and the key out of every channel but the seller and the facilitator",
+        "apps/playground/test/relay.test.ts::logs the host and outcome, never the target path, query, headers or body",
+        "apps/playground/web/test/integration/engine.integration.test.ts::keeps the key and the payments out of every other channel",
+        "apps/playground/e2e/playground.spec.ts::keeps the key and the payments out of every other channel"
+      ],
+      "evidence": ["live-playground#secret-scan"],
+      "residual": "The relay holds a payment header in memory for the one request that carries it, as any seller does.",
+      "status": "mitigated"
+    }
+  ]
+}

@@ -30,7 +30,9 @@ paths:
       summary: List supported payment kinds
       description: |
         The payment kinds this instance serves, the extensions it supports and the addresses of its fee
-        sponsor and channel accounts. A payment in which any listed signer is the payer, a transaction or
+        sponsor, channel accounts and, on networks that serve `upto`, its `upto` settlement authority. An
+        `upto` kind names that authority in `extra.facilitatorAddress`: `upto` payers sign terms naming it,
+        and only it can settle them. A payment in which any listed signer is the payer, a transaction or
         operation source, or a party to an authorization is refused.
       responses:
         "200":
@@ -46,11 +48,18 @@ paths:
                     network: stellar:testnet
                     extra:
                       areFeesSponsored: true
+                  - x402Version: 2
+                    scheme: upto
+                    network: stellar:testnet
+                    extra:
+                      areFeesSponsored: true
+                      facilitatorAddress: GCO2IP3MJNUOKS4PUDI4C7LGGMQDJGXG3COYX3WSB4HHNAHKYV5YL3VC
                 extensions: [bazaar]
                 signers:
                   stellar:*:
                     - GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC
                     - GDZREJ6UXJDL7IMLRMHP4F6RM37TF3WUGRB7GPE5G4IUIXKS6ISZPVEQ
+                    - GCO2IP3MJNUOKS4PUDI4C7LGGMQDJGXG3COYX3WSB4HHNAHKYV5YL3VC
         "429":
           $ref: "#/components/responses/RateLimited"
   /verify:
@@ -146,7 +155,11 @@ paths:
       description: |
         Verifies the payment again and settles it on-chain: a channel account is the transaction source and
         the fee sponsor pays the fee through a fee bump. Settlement is idempotent per authorization: a repeated
-        request returns the original result and moves funds once.
+        request returns the recorded result, marked in `EXTENSION-RESPONSES`, and moves funds once. A different
+        request for the same authorization (another envelope, `payTo`, asset or amount) is refused with
+        `settle_exact_stellar_idempotency_conflict` (`settle_upto_stellar_idempotency_conflict` for `upto`).
+        For `upto`, `paymentRequirements.amount` is the amount to settle, from zero up to the cap the payer
+        accepted, and the response carries it in `amount`.
 
         Rejections are HTTP 200 with `success: false`, a stable `errorReason` code and a non-empty
         `errorMessage`. `settlement_pending` carries the transaction hash; the settlement is finished in the
@@ -404,26 +417,54 @@ paths:
     get:
       tags: [Operations]
       operationId: getHealth
-      summary: Liveness
-      description: Answers while the process is up. Never rate-limited.
+      summary: Liveness and operational snapshot
+      description: |
+        Answers 200 whenever the process is up, whatever its state; the Docker `HEALTHCHECK` uses it. The
+        body is the snapshot the background poll rebuilds every 15 seconds, so answering never waits on the
+        network or the database. `state` is `degraded` while any warning is `critical`. Never rate-limited.
       responses:
         "200":
           description: The process is up.
           content:
             application/json:
               schema:
-                type: object
-                required: [status, version]
-                properties:
-                  status:
-                    type: string
-                    const: ok
-                  version:
-                    type: string
-                    description: The `RAIL402_VERSION` the image was built with, `dev` by default.
+                $ref: "#/components/schemas/Health"
               example:
                 status: ok
-                version: 0.2.1
+                version: 0.4.1
+                state: healthy
+                checkedAt: "2026-09-30T12:00:00.000Z"
+                warnings: []
+                networks:
+                  stellar:testnet:
+                    rpc: { ok: true, latestLedger: 4941750, ledgerAgeSeconds: 3, transportErrors1h: 0 }
+                    sponsor:
+                      address: GBHEGW3KWOY2OFH767EDALFGCUTBOEVBDQMCKU4APMDLQNBW5QV3W3KO
+                      balanceStroops: "99875000000"
+                      committed1hStroops: "1200000"
+                      wasted1hStroops: "0"
+                    channels: { total: 8, inUse: 0, leaseWaitP95Ms: 4.8, leaseTimeouts1h: 0 }
+                    settlements:
+                      last1h: { succeeded: 12, failed: 0, expired: 0, pending: 0 }
+                      unfinished: 0
+                      unresolvable: 0
+                      repeats1h: 1
+                    sequenceConflicts1h: 0
+                    contracts:
+                      USDC:
+                        id: CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA
+                        instanceTtlLedgers: 2245736
+                catalog:
+                  listings: { pending: 0, published: 14, quarantined: 1 }
+                  outboxPending: 0
+                  outcomes1h: { settle: { success: 3 }, origin_check: { success: 3 } }
+                search:
+                  indexRevision: 42
+                  indexAgeSeconds: 4
+                  lastBuild: ok
+                  embeddingFailures1h: 0
+                  p50Ms: 3.1
+                  p95Ms: 9.4
   /ready:
     get:
       tags: [Operations]
@@ -431,8 +472,8 @@ paths:
       summary: Readiness
       description: |
         Ready when the database is reachable, and for every network the RPC is healthy, the sponsor holds at
-        least `MIN_SPONSOR_BALANCE_XLM` and every channel account exists, and the first search index is
-        built. Never rate-limited.
+        least `MIN_SPONSOR_BALANCE_XLM`, every accepted asset is deployed with its configured decimals and
+        every channel account exists, and the first search index is built. Never rate-limited.
       responses:
         "200":
           description: Every check passes.
@@ -450,6 +491,9 @@ paths:
                   stellar:testnet:sponsor:
                     ok: true
                     detail: 99999974478 stroops
+                  stellar:testnet:assets:
+                    ok: true
+                    detail: USDC:7
                   stellar:testnet:channels:
                     ok: true
                     detail: 24 channels
@@ -466,7 +510,12 @@ paths:
       tags: [Operations]
       operationId: getMetrics
       summary: Prometheus metrics
-      description: Metrics in the Prometheus text format. Never rate-limited.
+      description: |
+        Metrics in the Prometheus text format. Never rate-limited. Public unless `METRICS_TOKEN_SHA256` is
+        set; then the matching bearer token is required.
+      security:
+        - {}
+        - metricsToken: []
       responses:
         "200":
           description: The metrics.
@@ -474,6 +523,12 @@ paths:
             text/plain:
               schema:
                 type: string
+        "401":
+          description: "`METRICS_TOKEN_SHA256` is set and the request carries no matching bearer token (`unauthorized`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
   /usage:
     get:
       tags: [Operations]
@@ -507,6 +562,10 @@ paths:
           $ref: "#/components/responses/RateLimited"
 components:
   securitySchemes:
+    metricsToken:
+      type: http
+      scheme: bearer
+      description: A token whose SHA-256 digest is `METRICS_TOKEN_SHA256`.
     bearerKey:
       type: http
       scheme: bearer
@@ -519,8 +578,10 @@ components:
   headers:
     ExtensionResponses:
       description: |
-        Base64-encoded JSON keyed by extension name, present when the payment carries a `bazaar` extension:
-        `{"bazaar": CatalogOutcome}`.
+        Base64-encoded JSON keyed by extension name. `bazaar` is present when the payment carries a `bazaar`
+        extension (`CatalogOutcome`). On `/settle`, `rail402` is present when the response was answered from
+        an earlier settlement of the same payment: `{"rail402": {"settlement": {"repeat": true, "settledBy":
+        "rail402"}}}`.
       schema:
         type: string
     RetryAfter:
@@ -631,10 +692,12 @@ components:
           description: The SEP-41 token's contract address (`C…`).
         payTo:
           type: string
-          description: The recipient, a `G…`, `C…` or `M…` address.
+          description: The recipient, a `G…`, `C…` or `M…` address (`upto`, `G…` or `C…` only).
         amount:
           type: string
-          description: The amount in the asset's base units.
+          description: |
+            The amount in the asset's base units. For `upto`: the cap in the accepted block and at `/verify`,
+            the amount to settle at `/settle`.
         maxTimeoutSeconds:
           type: integer
         extra:
@@ -643,10 +706,15 @@ components:
           properties:
             areFeesSponsored:
               type: boolean
+            facilitatorAddress:
+              type: string
+              description: "`upto`: the settlement authority from `/supported`, named in the terms the payer signs."
       additionalProperties: true
     PaymentPayload:
       type: object
-      description: An x402 version 2 payment payload. For `exact` on Stellar, `payload` is `{ transaction }`.
+      description: |
+        An x402 version 2 payment payload. For `exact` on Stellar, `payload` is `{ transaction }`; for `upto`,
+        `{ authorization, signerAuthorizations? }` (see the upto payments page).
       required: [x402Version, accepted, payload]
       properties:
         x402Version:
@@ -659,7 +727,16 @@ components:
           properties:
             transaction:
               type: string
-              description: A base64 transaction envelope with the payer's signed authorization entry.
+              description: "`exact`: a base64 transaction envelope with the payer's signed authorization entry."
+            authorization:
+              type: string
+              description: "`upto`: the payer's signed `SorobanAuthorizationEntry` for `settle(terms)`, base64 XDR, at most 8 KiB."
+            signerAuthorizations:
+              type: array
+              maxItems: 4
+              description: "`upto`, smart-account payers only: signed entries of other signers the account's `__check_auth` requires."
+              items:
+                type: string
           additionalProperties: true
         resource:
           type: object
@@ -714,6 +791,9 @@ components:
           description: The settlement transaction hash; empty when nothing was broadcast.
         network:
           type: string
+        amount:
+          type: string
+          description: '`upto`: the amount settled in base units, `"0"` included; always present for `upto`.'
     ErrorBody:
       type: object
       required: [error]
@@ -766,7 +846,7 @@ components:
             type: string
         signers:
           type: object
-          description: Facilitator addresses by CAIP family (`stellar:*`), sponsor first, then channel accounts.
+          description: Facilitator addresses by CAIP family (`stellar:*`), sponsor first, then channel accounts, then the `upto` settlement authority where `upto` is served.
           additionalProperties:
             type: array
             items:
@@ -803,6 +883,195 @@ components:
           type: array
           items:
             type: string
+    Health:
+      type: object
+      required: [status, version, state, checkedAt, warnings, networks]
+      properties:
+        status:
+          type: string
+          const: ok
+        version:
+          type: string
+          description: The `RAIL402_VERSION` the image was built with, `dev` by default.
+        state:
+          type: string
+          enum: [starting, healthy, degraded]
+          description: "`starting` until the first poll finished; `degraded` while any warning is `critical`."
+        checkedAt:
+          type: [string, "null"]
+          format: date-time
+        warnings:
+          type: array
+          items:
+            type: object
+            required: [code, severity, message]
+            properties:
+              code:
+                type: string
+                enum:
+                  - rpc_unhealthy
+                  - ledger_stale
+                  - sponsor_below_floor
+                  - settlement_ledger_unreadable
+                  - settlements_unresolvable
+                  - contract_missing
+                  - contract_archived
+                  - contract_ttl_critical
+                  - contract_ttl_low
+                  - contract_ttl_unchecked
+                  - catalog_unreadable
+                  - search_index_failed
+                  - search_index_degraded
+                  - upto_authority_missing
+                  - upto_authority_funded
+                  - upto_authority_holds_tokens
+                  - upto_contract_restore_required
+                  - upto_ttl_keeper_failed
+              severity:
+                type: string
+                enum: [critical, warning]
+              message:
+                type: string
+                minLength: 1
+              network:
+                type: string
+              contract:
+                type: string
+                description: The watched contract's alias.
+        networks:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/NetworkHealth"
+        catalog:
+          type: object
+          description: Present when the Bazaar is enabled.
+          required: [listings, outboxPending, outcomes1h]
+          properties:
+            listings:
+              type: [object, "null"]
+              properties:
+                pending: { type: integer }
+                published: { type: integer }
+                quarantined: { type: integer }
+            outboxPending:
+              type: [integer, "null"]
+            outcomes1h:
+              type: object
+              description: Cataloging outcomes in the last hour, by phase, then by status.
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: integer
+        search:
+          type: object
+          description: Present when the Bazaar is enabled.
+          required: [indexRevision, indexAgeSeconds, lastBuild, embeddingFailures1h, p50Ms, p95Ms]
+          properties:
+            indexRevision: { type: [integer, "null"] }
+            indexAgeSeconds: { type: [integer, "null"] }
+            lastBuild:
+              type: [string, "null"]
+              enum: [ok, degraded, failed, null]
+            embeddingFailures1h: { type: integer }
+            p50Ms: { type: [number, "null"] }
+            p95Ms: { type: [number, "null"] }
+    NetworkHealth:
+      type: object
+      required: [rpc, sponsor, channels, settlements, sequenceConflicts1h, contracts]
+      properties:
+        rpc:
+          type: object
+          required: [ok, latestLedger, ledgerAgeSeconds, transportErrors1h]
+          properties:
+            ok: { type: boolean }
+            latestLedger: { type: [integer, "null"] }
+            ledgerAgeSeconds: { type: [integer, "null"] }
+            transportErrors1h: { type: integer }
+        sponsor:
+          type: object
+          required: [address, balanceStroops, committed1hStroops, wasted1hStroops]
+          properties:
+            address: { type: string }
+            balanceStroops: { type: [string, "null"] }
+            committed1hStroops: { type: [string, "null"] }
+            wasted1hStroops: { type: string }
+        channels:
+          type: object
+          required: [total, inUse, leaseWaitP95Ms, leaseTimeouts1h]
+          properties:
+            total: { type: integer }
+            inUse: { type: [integer, "null"] }
+            leaseWaitP95Ms: { type: [number, "null"] }
+            leaseTimeouts1h: { type: integer }
+        settlements:
+          type: object
+          required: [last1h, unfinished, unresolvable, repeats1h]
+          properties:
+            last1h:
+              type: [object, "null"]
+              description: Settlements claimed in the last hour, by their current state.
+              properties:
+                succeeded: { type: integer }
+                failed: { type: integer }
+                expired: { type: integer }
+                pending: { type: integer }
+            unfinished: { type: [integer, "null"] }
+            unresolvable: { type: integer }
+            repeats1h: { type: integer }
+        sequenceConflicts1h:
+          type: integer
+        contracts:
+          type: object
+          description: Watched contracts by alias; TTLs in ledgers, negative once archived, null when missing.
+          additionalProperties:
+            type: object
+            required: [id, instanceTtlLedgers]
+            properties:
+              id: { type: string }
+              instanceTtlLedgers: { type: [integer, "null"] }
+              codeTtlLedgers: { type: integer }
+        upto:
+          type: object
+          description: Present on networks that serve `upto`. Its problems degrade `/health` but never fail `/ready`.
+          required: [contract, authority, keeper]
+          properties:
+            contract: { type: string }
+            authority:
+              type: object
+              description: The settlement authority; it should exist and hold nothing it can spend.
+              required: [address, present, balanceStroops, spendableStroops, tokens]
+              properties:
+                address: { type: string }
+                present: { type: [boolean, "null"] }
+                balanceStroops: { type: [string, "null"] }
+                spendableStroops:
+                  type: [string, "null"]
+                  description: XLM beyond the account's locked minimum balance.
+                tokens:
+                  type: [array, "null"]
+                  description: Accepted tokens the authority holds a positive balance of.
+                  items:
+                    type: object
+                    required: [symbol, contract, balance]
+                    properties:
+                      symbol: { type: string }
+                      contract: { type: string }
+                      balance: { type: string }
+            keeper:
+              type: object
+              required: [enabled, autoRestore, checkedAt, plan, lastAction, error]
+              properties:
+                enabled: { type: boolean }
+                autoRestore: { type: boolean }
+                checkedAt: { type: [string, "null"], format: date-time }
+                plan: { type: [string, "null"] }
+                lastAction:
+                  type: [object, "null"]
+                  properties:
+                    action: { type: string }
+                    transaction: { type: string }
+                    at: { type: string, format: date-time }
+                error: { type: [string, "null"] }
     Readiness:
       type: object
       required: [ready, checks]
@@ -919,13 +1188,19 @@ components:
                         format: date-time
                       domain:
                         type: object
-                        required: [host, claimsOwner]
+                        description: >-
+                          The SEP-1 binding of the resource host and the owner. Trust is `domain_verified` only
+                          while both fields are true and the listing's content was confirmed by its origin.
+                        required: [host, claimsOwner, homeDomainMatches]
                         properties:
                           host:
                             type: string
                           claimsOwner:
                             type: boolean
                             description: Whether the host's SEP-1 stellar.toml lists the owner in ACCOUNTS.
+                          homeDomainMatches:
+                            type: boolean
+                            description: Whether the owner's account sets the host as its home_domain.
             options:
               type: array
               description: One entry per `accepts` option, in the same order.
@@ -1006,6 +1281,18 @@ components:
               state:
                 type: string
                 enum: [pending, published, quarantined]
+              reason:
+                type: string
+                description: On a `quarantine` version made by an origin check, why the listing was withdrawn.
+                enum:
+                  [
+                    origin_unreachable,
+                    origin_not_payment_required,
+                    origin_tool_not_listed,
+                    origin_owner_mismatch,
+                    origin_metadata_mismatch,
+                    origin_payment_mismatch,
+                  ]
               content:
                 type: object
                 description: The published content, with the catalog's field names (`kind`, `method` or `toolName`, `bazaar`, `accepts`).

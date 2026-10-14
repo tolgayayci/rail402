@@ -13,14 +13,14 @@ payments, and read its Bazaar catalog without an account.
 | Property   | Value                                                                                                |
 | ---------- | ---------------------------------------------------------------------------------------------------- |
 | Network    | `stellar:testnet` only                                                                               |
-| Scheme     | `exact`, x402 version 2                                                                              |
+| Scheme     | `exact` and [`upto`](/facilitator/upto), x402 version 2                                              |
 | Asset      | Circle testnet USDC, contract `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`, 7 decimals |
 | Fees       | Sponsored: `extra.areFeesSponsored` is `true`; the payer pays no network fee                         |
 | Access     | Free, no API key                                                                                     |
 | Extensions | `bazaar`                                                                                             |
 
 It runs the repository's Docker image on [Railway](/facilitator/railway), with Postgres, and `/health` reports
-the commit it was built from. It does not serve `stellar:pubnet`.
+the version it was deployed with (`RAIL402_VERSION`). It does not serve `stellar:pubnet`.
 
 ## Check it
 
@@ -36,6 +36,15 @@ curl {{facilitatorUrl}}/supported
       "scheme": "exact",
       "network": "stellar:testnet",
       "extra": { "areFeesSponsored": true }
+    },
+    {
+      "x402Version": 2,
+      "scheme": "upto",
+      "network": "stellar:testnet",
+      "extra": {
+        "areFeesSponsored": true,
+        "facilitatorAddress": "GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC"
+      }
     }
   ],
   "extensions": ["bazaar"],
@@ -49,16 +58,26 @@ curl {{facilitatorUrl}}/supported
 }
 ```
 
-`signers` lists the fee sponsor followed by the channel accounts. A payment in which any of them is the payer,
-a transaction or operation source, or a party to an authorization is refused.
+`signers` lists the fee sponsor, the channel accounts and the `upto` settlement authority
+(`facilitatorAddress`). A payment in which any of them is the payer, a transaction or operation source, or a
+party to an authorization is refused.
 
 ```sh
 curl {{facilitatorUrl}}/health
 ```
 
 ```json
-{ "status": "ok", "version": "0.2.1" }
+{
+  "status": "ok",
+  "version": "0.4.1+c99804586cfc",
+  "state": "healthy",
+  "checkedAt": "…",
+  "networks": { "…": "…" }
+}
 ```
+
+`version` is the release and the commit the service was built from; the rest of the snapshot is described in
+[Operations](/operations#health-readiness-and-metrics).
 
 ```sh
 curl {{facilitatorUrl}}/ready
@@ -71,6 +90,7 @@ curl {{facilitatorUrl}}/ready
     "database": { "ok": true },
     "stellar:testnet:rpc": { "ok": true },
     "stellar:testnet:sponsor": { "ok": true, "detail": "99993241283 stroops" },
+    "stellar:testnet:assets": { "ok": true, "detail": "USDC:7" },
     "stellar:testnet:channels": { "ok": true, "detail": "24 channels" },
     "search": { "ok": true }
   }
@@ -82,16 +102,20 @@ The version and balance above are examples; the live values differ.
 ## Pay through it
 
 The quickest end-to-end check is the canonical client run from a [source checkout](/install). It creates and
-funds a fresh buyer and seller with Friendbot, buys 1 testnet USDC for the buyer, starts a stock
-`@x402/express` seller on `127.0.0.1` that uses the hosted facilitator, and pays it with stock `@x402/fetch`:
+funds a fresh buyer and seller with Friendbot, buys testnet USDC for the buyer, starts a stock
+`@x402/express` seller on `127.0.0.1` that uses the hosted facilitator, and pays it with stock `@x402/fetch`.
+`--payer g` keeps the run to the stock client alone; by default it also pays from a smart account (C…),
+which Rail402's test client signs because the stock client signs for G… accounts only:
 
 ```sh
-node tools/conformance/src/canonical-exact.ts --facilitator {{facilitatorUrl}}
+node --conditions=@rail402/source tools/conformance/src/canonical.ts --facilitator {{facilitatorUrl}} --payer g
 ```
 
-It prints the settlement transaction, a Stellar Expert link and the buyer's and seller's USDC balances before
-and after, and it fails unless the transaction succeeded on-chain and the buyer's loss equals the seller's
-gain. Recorded runs are on the [Conformance evidence](/reference/conformance) page.
+It prints one evidence document: each payment's settlement transaction with its Stellar Expert link, the
+fee, the transfer read back from the chain and the bytes the seller forwarded, and it exits non-zero unless
+every settlement succeeded on-chain with the payer debited and the seller credited the amount. Recorded runs
+are on the [Conformance evidence](/reference/conformance) page: the runs recorded against a local Rail402 at
+the tested commit, and a run against this service once one is recorded after its latest deployment.
 
 To build your own, follow the [buyer](/quickstart/buyers) and [seller](/quickstart/sellers) quickstarts.
 

@@ -1,0 +1,102 @@
+---
+title: Run your own Playground
+sidebarTitle: Self-host
+description: Build the Playground's page and server from source or as a Docker image, configure them, and run them against the hosted testnet services or your own.
+---
+
+The Playground server (`apps/playground`) serves the built page and runs the relay, the proxies and the lab
+sellers. It is stateless and holds no secret: every setting below is public, and most of it is published to the
+page at `GET /api/config`. It serves `stellar:testnet` only.
+
+## From source
+
+From a [source checkout](/install) with Node.js 24.11 or later:
+
+```sh
+pnpm install && pnpm build
+cd apps/playground
+PUBLIC_URL=http://localhost:8080 PLAYGROUND_PAY_TO=G… pnpm start
+```
+
+`pnpm build` builds the workspace packages and the page (`web/dist`). By default the server uses the SDF
+testnet RPC, Horizon and Friendbot, Rail402 at `https://testnet.rail402.dev` as facilitator and Bazaar, the
+demo seller at `https://demo.rail402.dev`, and Circle's testnet USDC.
+
+`PLAYGROUND_PAY_TO` is the public `G…` testnet account the lab sellers are paid to. It needs a trustline for
+the asset; create it with the [CLI](/agents/cli) (`rail402 keys new`, then `rail402 account setup`) and keep
+its key to yourself: the Playground never takes one. Without an account, set `LAB_ENABLED=false`: the lab
+sellers (the sandbox route, the greedy route and the offers) then answer `playground_feature_disabled`, and
+the page shows what needs them ("Sell and get listed", "Seller charges over the cap" and the network, asset
+and amount checks) as turned off.
+
+`GET /health` reports the version and commit; `GET /ready` passes once the page is built and the facilitator
+answers `/supported`.
+
+## Docker
+
+The image holds the server and the built page, runs as the `node` user and listens on port 8080. Build it from
+the repository root:
+
+```sh
+docker build -f apps/playground/Dockerfile -t rail402-playground .
+docker run --rm -p 8080:8080 -e PUBLIC_URL=http://localhost:8080 -e PLAYGROUND_PAY_TO=G… rail402-playground
+```
+
+Behind a TLS proxy, set `PUBLIC_URL` to the public `https` origin and `TRUSTED_PROXY_HOPS` to the number of
+proxies that set `X-Forwarded-For`, so the per-client limits see the client's address. Run one replica: the
+limits are kept in memory.
+
+## Local mode
+
+`PLAYGROUND_MODE=local` lets the relay and the seller check reach sellers on loopback over plain `http` on their
+own port, for a Rail402 and sellers running on the same machine. It is allowed only with a loopback
+`PUBLIC_URL`, and the server then listens on loopback only: `HOST` defaults to `127.0.0.1`, and any other
+address than `127.0.0.1`, `::1` or `localhost` is refused, since anyone who could reach the server could use the
+relay to call the services on your machine. Point `FACILITATOR_URL`, `BAZAAR_URL`, `DEMO_SELLER_URL`, `RPC_URL`
+and the asset settings at your own services; the [conformance run](/reference/conformance#playground) does
+exactly that on the public testnet.
+
+The "Sell and get listed" scenario lists the sandbox route under `PUBLIC_URL`. A Bazaar lists only routes it can
+call back, so the listing needs a public `https` `PUBLIC_URL`, or local mode with your own Rail402 started with
+`DISCOVERY_ALLOW_LOOPBACK=true`. Against the hosted Bazaar from a loopback `PUBLIC_URL`, the payment settles but
+the Bazaar refuses the listing (`bazaar_resource_unsafe`), and the run says so.
+
+## Configuration
+
+The server reads its environment once at startup and refuses to start (exit code 78,
+`playground_config_invalid`) on any invalid value, naming the variable, and when any value is a Stellar secret
+seed.
+
+| Variable                                               | Default                                                         | Notes                                                                                                                                         |
+| ------------------------------------------------------ | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUBLIC_URL`                                           | required                                                        | The page's origin: `https` unless loopback. Used for the origin check, the CSP and lab resource URLs.                                         |
+| `PORT`, `HOST`                                         | `8080`, `::` (`127.0.0.1` in local mode)                        | In local mode `HOST` must be a loopback address.                                                                                              |
+| `PLAYGROUND_MODE`                                      | `hosted`                                                        | `local`: see above.                                                                                                                           |
+| `NETWORK`                                              | `stellar:testnet`                                               | The only value accepted.                                                                                                                      |
+| `RPC_URL`, `HORIZON_URL`, `FRIENDBOT_URL`              | the SDF testnet endpoints                                       | Called by the page directly, and allowed by its CSP.                                                                                          |
+| `FACILITATOR_URL`, `BAZAAR_URL`                        | `https://testnet.rail402.dev`                                   | The facilitator the lab sellers settle through; the Bazaar the page searches.                                                                 |
+| `DEMO_SELLER_URL`                                      | `https://demo.rail402.dev`                                      | The seller the lab's pay, upto and agent scenarios use.                                                                                       |
+| `DOCS_URL`                                             | `https://docs.rail402.dev`                                      | Where the page's documentation links point.                                                                                                   |
+| `ASSET_CONTRACT`, `ASSET_SYMBOL`, `ASSET_DECIMALS`     | Circle testnet USDC, `USDC`, `7`                                | The asset the page's policy allows.                                                                                                           |
+| `ASSET_CLASSIC`                                        | `USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5` | `CODE:issuer` behind `ASSET_CONTRACT`, for the trustline and the purchase; checked against the contract.                                      |
+| `UPTO_CONTRACT`                                        | the canonical testnet `upto` contract                           | The settlement contract the page's policy pins.                                                                                               |
+| `PLAYGROUND_PAY_TO`                                    | required while the lab is on                                    | A public `G…` account.                                                                                                                        |
+| `EXPLORER_TEMPLATE`                                    | `https://stellar.expert/explorer/{network}/tx/{hash}`           | Transaction links; `https` with `{hash}`.                                                                                                     |
+| `FAUCET_URL`                                           | `https://faucet.circle.com`                                     | Offered when the test-funds purchase fails.                                                                                                   |
+| `RELAY_ENABLED`, `LAB_ENABLED`, `SELLER_CHECK_ENABLED` | `true`                                                          | Switch a feature off (`playground_feature_disabled`).                                                                                         |
+| `RELAY_DENY_HOSTS`                                     | none                                                            | Comma-separated hosts the relay never calls, besides the Playground, facilitator and Bazaar hosts. List every other name of these hosts here. |
+| `RELAY_TRUSTED_HOSTS`                                  | the demo seller's host                                          | Hosts allowed the higher per-host rate, a paid pool of their own and reused connections.                                                      |
+| `RAILWAY_PUBLIC_DOMAIN`                                | set by Railway                                                  | The service's generated domain: another name of the Playground, which the relay refuses as a loop.                                            |
+| `TRUSTED_PROXY_HOPS`                                   | `0`                                                             | Proxies whose `X-Forwarded-For` is trusted.                                                                                                   |
+| `LOG_LEVEL`                                            | `info`                                                          | `fatal` to `trace`.                                                                                                                           |
+| `METRICS_TOKEN_SHA256`                                 | unset                                                           | SHA-256 of the bearer token `/metrics` requires; public when unset.                                                                           |
+| `RAIL402_VERSION`, `RAIL402_COMMIT`                    | the package version, empty                                      | Reported by `/health` and the page.                                                                                                           |
+
+The limits in [How it works](/playground/how-it-works#limits) are set with `RELAY_UNPAID_PER_MINUTE`,
+`RELAY_UNPAID_BURST`, `RELAY_UNPAID_PER_NETWORK_PER_MINUTE`, `RELAY_PAID_PER_MINUTE`,
+`RELAY_PAID_GLOBAL_PER_MINUTE`, `RELAY_TRUSTED_PAID_GLOBAL_PER_MINUTE`, `RELAY_IN_FLIGHT_PER_IP`,
+`RELAY_IN_FLIGHT_PER_HOST`, `RELAY_IN_FLIGHT_GLOBAL`, `RELAY_STREAMS_PER_IP`, `RELAY_STREAM_MAX_MS`,
+`RELAY_HOST_PER_MINUTE`, `RELAY_TRUSTED_HOST_PER_MINUTE`, `RELAY_BYTES_PER_IP_PER_DAY`,
+`RELAY_BYTES_PER_NETWORK_PER_DAY`, `RELAY_BYTES_GLOBAL_PER_DAY`, `SELLER_CHECK_PER_MINUTE`,
+`SELLER_CHECK_GLOBAL_PER_MINUTE`, `PROXY_PER_MINUTE`, `PROXY_GLOBAL_PER_MINUTE`, `LAB_UNPAID_PER_MINUTE`,
+`LAB_PAID_PER_MINUTE` and `LAB_PAID_GLOBAL_PER_MINUTE`.

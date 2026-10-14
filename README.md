@@ -11,15 +11,26 @@ developers can find it with filters or plain-language search.
 
 - Works with the stock x402 packages (`@x402/fetch`, `@x402/express`, `@x402/stellar`); nothing
   Rail402-specific to install in your client or server.
-- Non-custodial: the buyer signs the transfer, the seller receives it directly, Rail402 only sponsors the fee.
+- Two schemes: `exact` (a fixed price) and `upto` (the buyer signs a cap, the seller settles what the call
+  used, through a Soroban settlement contract).
+- Non-custodial: the buyer signs the payment, the seller receives it directly, Rail402 only sponsors the fee.
+- Agent tools: a buyer SDK, an MCP server (`rail402-mcp`) and a CLI (`rail402`) that find and pay resources
+  under a spending cap.
 - Hosted testnet instance, free and without an API key; or run your own with one command.
 - Apache-2.0.
+
+**Release state.** The npm packages are at **0.4.1** (2026-10-09): the facilitator, the Bazaar and search,
+`upto`, the agent tools (`@rail402.dev/sdk`, `@rail402.dev/mcp`, `@rail402.dev/cli`) and their browser
+entries. The hosted testnet service runs 0.4.1 with `exact` and `upto`. The latest container image and GitHub
+release is **0.2.1** (`exact` only); later versions of the service run from a checkout. The
+[changelog](CHANGELOG.md) lists what each release adds. The sections below say which release each command
+uses.
 
 Documentation: **[docs.rail402.dev](https://docs.rail402.dev)**
 
 ## Try it in a minute
 
-The hosted testnet facilitator is public:
+The hosted testnet facilitator (0.4.1, `exact` and `upto`) is public:
 
 ```sh
 curl https://testnet.rail402.dev/supported
@@ -95,7 +106,7 @@ The buyer needs testnet USDC and no XLM for fees. Creating a funded account take
 
 ## Run your own facilitator
 
-With the container image, a testnet facilitator is three commands. Create a fee sponsor, fund it with
+With the released container image (0.2.1, `exact` only), a testnet facilitator is three commands. Create a fee sponsor, fund it with
 Friendbot, and start the service (`STORE=memory` keeps state in the process; use Postgres for anything
 that must survive a restart):
 
@@ -110,8 +121,8 @@ docker run -p 8080:8080 -e STORE=memory \
 
 `curl localhost:8080/ready` answers `200` once the channel accounts exist, within seconds.
 
-For a durable setup with Postgres, one command each from a clone; both create a fee sponsor funded by
-Friendbot and wait until the service is ready:
+For a durable setup with Postgres, one command each from a clone (this builds the checked-out source, so it
+includes everything below); both create a fee sponsor funded by Friendbot and wait until the service is ready:
 
 ```sh
 git clone https://github.com/tolgayayci/rail402.git && cd rail402
@@ -126,11 +137,14 @@ Configuration, keys and operations: [Configuration](https://docs.rail402.dev/con
 
 ## What's inside
 
-| Feature     | Endpoint                           | Details                                                                                          |
+| Feature     | Endpoint or command                | Details                                                                                          |
 | ----------- | ---------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Facilitator | `/supported`, `/verify`, `/settle` | x402 v2 `exact` scheme on `@x402/stellar`; G… and C… accounts; crash-safe, idempotent settlement |
+| `upto`      | `/verify`, `/settle`               | Capped payments settled for the amount used through the Soroban `upto` contract                  |
 | Bazaar      | `GET /discovery/resources`         | Listings created from settled payments, bound to the paid `payTo`, with version history          |
 | Search      | `GET /discovery/search`            | BM25F plus local embeddings, fused with RRF; filters and constraints read from the query         |
+| Agent tools | SDK, `rail402-mcp`, `rail402`      | Find, pay and call resources under a spending cap, with SSRF-safe egress                         |
+| Playground  | `apps/playground`                  | A browser page that pays on the testnet and shows every message, signature and transaction       |
 
 Every rejection has a stable code and a reason: [Verification rules](https://docs.rail402.dev/verification-rules).
 The upstream x402 e2e suite passes against Rail402 on the Stellar testnet
@@ -141,14 +155,19 @@ public dataset with one command, `pnpm eval` ([search evaluation](https://docs.r
 
 ## Packages
 
-| Package                                                                                    | What it is                                                        |
-| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator)       | The settlement engine, usable in-process as an x402 facilitator   |
-| [`@rail402.dev/bazaar`](https://www.npmjs.com/package/@rail402.dev/bazaar)                 | The Bazaar catalog built from settled payments                    |
-| [`@rail402.dev/search`](https://www.npmjs.com/package/@rail402.dev/search)                 | Natural-language search over the catalog                          |
-| [`@rail402.dev/store-postgres`](https://www.npmjs.com/package/@rail402.dev/store-postgres) | Postgres stores for settlements, channel accounts and the catalog |
-| [`@rail402.dev/stellar`](https://www.npmjs.com/package/@rail402.dev/stellar)               | Stellar payload inspection and failure diagnosis                  |
-| [`@rail402.dev/errors`](https://www.npmjs.com/package/@rail402.dev/errors)                 | Stable error codes and reasons                                    |
+| Package                                                                                    | What it is                                                        | On npm |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ------ |
+| [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator)       | The settlement engine, usable in-process as an x402 facilitator   | 0.4.1  |
+| [`@rail402.dev/bazaar`](https://www.npmjs.com/package/@rail402.dev/bazaar)                 | The Bazaar catalog built from settled payments                    | 0.4.1  |
+| [`@rail402.dev/search`](https://www.npmjs.com/package/@rail402.dev/search)                 | Natural-language search over the catalog                          | 0.4.1  |
+| [`@rail402.dev/store-postgres`](https://www.npmjs.com/package/@rail402.dev/store-postgres) | Postgres stores for settlements, channel accounts and the catalog | 0.4.1  |
+| [`@rail402.dev/stellar`](https://www.npmjs.com/package/@rail402.dev/stellar)               | Stellar payload inspection and failure diagnosis                  | 0.4.1  |
+| [`@rail402.dev/errors`](https://www.npmjs.com/package/@rail402.dev/errors)                 | Stable error codes and reasons                                    | 0.4.1  |
+| [`@rail402.dev/upto`](https://www.npmjs.com/package/@rail402.dev/upto)                     | The `upto` scheme: client, resource server and facilitator        | 0.4.1  |
+| [`@rail402.dev/sdk`](https://www.npmjs.com/package/@rail402.dev/sdk)                       | Buyer SDK: pay under a spending cap, discover through the Bazaar  | 0.4.1  |
+| [`@rail402.dev/mcp`](https://www.npmjs.com/package/@rail402.dev/mcp)                       | MCP server (`rail402-mcp`) for AI agents                          | 0.4.1  |
+| [`@rail402.dev/cli`](https://www.npmjs.com/package/@rail402.dev/cli)                       | Command-line tool (`rail402`)                                     | 0.4.1  |
+| [`@rail402.dev/safe-fetch`](https://www.npmjs.com/package/@rail402.dev/safe-fetch)         | Outbound HTTP for untrusted URLs, SSRF-safe                       | 0.4.1  |
 
 ## Develop
 
@@ -166,11 +185,20 @@ pnpm test:integration
 | ------------------------- | ----------------------------------------------------------------------------- |
 | `apps/rail402`            | The HTTP service                                                              |
 | `apps/demo-seller`        | A public example seller built only from the stock x402 packages               |
+| `apps/playground`         | The Playground: a page and server for trying x402 payments in a browser       |
 | `packages/facilitator`    | Settlement engine on `@x402/stellar`: preflight, idempotent crash-safe settle |
+| `packages/upto`           | The `upto` scheme for Stellar: client, resource server and facilitator        |
 | `packages/stellar`        | Stellar payload inspection, reason codes, diagnosis of on-chain failures      |
 | `packages/bazaar`         | The catalog: integrity rules, origin verification, version history            |
 | `packages/search`         | Natural-language search                                                       |
 | `packages/store-postgres` | Durable ledger, channel leases, catalog, rate limits and metering             |
+| `packages/sdk`            | Buyer SDK: spending policy, budget ledger, discovery and paid calls           |
+| `packages/mcp`            | MCP server for agents                                                         |
+| `packages/cli`            | Command-line tool                                                             |
+| `packages/safe-fetch`     | SSRF-safe outbound HTTP                                                       |
+| `contracts/stellar`       | The `upto` settlement contract, its deployment records and reproducible build |
+| `contracts/testing`       | Test contracts: the TEST6 token, a spending-limit policy, composition tests   |
+| `examples`                | An SDK buyer and an MCP agent                                                 |
 | `tools/conformance`       | Conformance runs against a live facilitator, with recorded results            |
 | `tools/search-eval`       | Search evaluation dataset, harness and CI gate                                |
 

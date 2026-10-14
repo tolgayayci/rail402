@@ -3,6 +3,13 @@ title: Quickstart for buyers
 description: Pay a Rail402-backed seller on the Stellar testnet with the stock @x402/fetch client.
 ---
 
+<Tip>
+  Paying from an agent or a script? The [buyer SDK](/agents/sdk), the [MCP server](/agents/mcp-server) and the
+  [CLI](/agents/cli) wrap the same stock client in a spending cap, search the Bazaar and pay a listing in one
+  step. `rail402 keys new`, `rail402 account setup --usdc 1` and `rail402 pay <url> --max 0.01` replace steps 2
+  and 3 below.
+</Tip>
+
 A buyer needs nothing from Rail402 directly. The seller picks the facilitator; the buyer only signs an
 authorization for the exact amount the seller asks for. This page sets up a testnet buyer and pays a seller
 with unmodified x402 packages.

@@ -44,15 +44,23 @@ and a stock client paid through the result.
 - **Health check on `/ready`.** A new deployment receives traffic only once the database is reachable, the
   RPC is healthy, the sponsor is funded, every channel account exists and the search index is built.
   `healthcheckTimeout` gives it 300 seconds; the first start also applies migrations and creates the channel
-  accounts.
+  accounts and the `upto` settlement authority.
 - **Overlap and draining.** `overlapSeconds` is set to 30 and `drainingSeconds` to 40; Railway's
   documentation describes how it applies them. The service's own `SHUTDOWN_GRACE_MS`, the time it gives
   in-flight settlements after `SIGTERM`, defaults to 30 seconds.
 - **Restarts.** Railway's default policy applies: a crashed deployment restarts up to 10 times.
 - **Variables.** `DATABASE_URL` references the database; `NETWORKS`, `TESTNET_RPC_URL` and
   `TRUSTED_PROXY_HOPS=1` (Railway's edge proxy sets `X-Forwarded-For`) are fixed. `TESTNET_SPONSOR_SECRET`,
-  `SEARCH_CURSOR_SECRET`, `TESTNET_CHANNEL_COUNT` and `RAIL402_VERSION` keep whatever value the environment
-  already has.
+  `SEARCH_CURSOR_SECRET`, `TESTNET_CHANNEL_COUNT`, `RAIL402_VERSION`, `TESTNET_MAX_TX_FEE_STROOPS`,
+  `METRICS_TOKEN_SHA256` and every other setting of the [configuration](/configuration) (rate limits, API
+  keys, listing quotas, TTL thresholds, …) keep whatever value the environment already has; unset, they mean
+  their defaults. Only `PORT`, `HOST`, `STORE`, `DISCOVERY_ALLOW_LOOPBACK`, `SEARCH_MODEL_DIR`,
+  `SEARCH_MODEL_DOWNLOAD` and the `PUBNET_*` settings are left unmanaged: Railway or the image sets them, or a
+  hosted testnet service must not use them. `TESTNET_ASSETS` accepts Circle's
+  testnet USDC and the 6-decimal TEST6 token ([Accepted assets](/facilitator/assets)), and
+  `TESTNET_MAX_SPONSOR_SPEND_XLM_PER_HOUR=100` bounds what the keyless service's sponsor spends in an hour. [`upto`](/facilitator/upto) is on (`TESTNET_UPTO_ENABLED=true`, zero settlements on chain, the
+  contract TTL keeper on); the other `TESTNET_UPTO_*` settings keep their value, and unset they mean the
+  canonical settlement contract and the [documented defaults](/configuration).
 
 <Warning>
   `railway config apply` deletes every variable the file does not declare. To add one, declare it in

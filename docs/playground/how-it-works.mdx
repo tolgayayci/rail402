@@ -1,0 +1,164 @@
+---
+title: How the Playground works
+sidebarTitle: How it works
+description: Where the Playground keeps its testnet key, what it can sign, how caps are enforced, what its server relays and sees, and what each swimlane row is based on.
+---
+
+The Playground is two parts. The **page** holds the testnet key and runs the [buyer SDK](/agents/sdk) in the
+browser (`@rail402.dev/sdk/browser`), with the same spending policy, signing guard and budget ledger as the
+Node SDK. The **server** (`apps/playground/src`) serves the page, relays seller requests the browser cannot
+make itself, proxies the Bazaar and the facilitator's `/supported`, and runs a few lab sellers. The server
+holds no secret and stores nothing.
+
+## The wallet
+
+- **Storage.** The seed is encrypted with AES-GCM under a 256-bit key generated with `extractable: false`,
+  and both are kept in the browser's IndexedDB (database `rail402-playground`). The record is bound to the
+  wallet's address and network, so a tampered or swapped record is refused instead of loaded. The seed is
+  decrypted once per page load into the signer and never reaches the page's state, events, storage, logs or
+  text. A browser without IndexedDB or WebCrypto keeps the wallet in the tab's memory only and says so
+  (`playground_wallet_storage_unavailable`).
+- **One tab.** The wallet is held through a Web Lock; another tab of the same origin is read-only
+  (`playground_wallet_locked`) until the first lets go, so two tabs cannot spend one budget twice.
+- **Export and forget.** The key leaves the page only as a downloaded key file, after a confirmation that names
+  the testnet; it is never shown on screen or copied to the clipboard. A browser saves the file readable by
+  others, which the CLI, the SDK and the MCP server refuse (`key_file_insecure`): `rail402 keys import < <file>`
+  makes it the default testnet key (mode 0600, at the path the page's code uses), after which the download can
+  be deleted; or `chmod 600 <file>` before pointing `RAIL402_SECRET_KEY_FILE` at it. Forgetting deletes the
+  wallet and its budget ledger.
+
+### What the key can sign
+
+| What                                      | How                                                                                                                                                |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A payment authorization (`exact`, `upto`) | Only through the SDK's [signing guard](/reference/spending-policy#4-the-signing-guard), one per call, after the policy and the budget approved it. |
+| The trustline                             | One `changeTrust` adding the configured asset's trustline at the default limit, from the wallet's own account.                                     |
+| The test funds                            | One `pathPaymentStrictReceive` from XLM to the configured asset, direct (no path), paid to the wallet itself, of at most the onboarding amount.    |
+
+The setup signer is bound to the configured asset: it signs a transaction from the wallet's own account with
+exactly one of these two operations and a fee of at most 100,000 stroops, and refuses any other (removing or
+capping a trustline, another asset, several operations). There is no other signing path.
+
+## Caps and the budget
+
+- A per-call cap is required before a run starts: 0.01 USDC by default, and at most the operator's ceiling of
+  0.10 USDC (a higher value is shown clamped). Exceeding it is refused at option selection, before anything is
+  signed, and again by the guard on the exact amount.
+- The session budget is 1.00 USDC per 24-hour window. The page can only lower it.
+- The budget ledger is kept in the browser's localStorage, so a reload keeps what was spent and what is held.
+  A corrupt ledger is refused (`payment_ledger_unavailable`) until it is reset, never silently emptied.
+- A payment whose outcome is still open (a held `upto` cap, a payment whose answer was lost) is checked
+  against the chain every 20 seconds, when the tab regains focus and on load, and released or settled from
+  on-chain proof. The wallet panel can ask for that check at once.
+- One run at a time: a second one is refused with `playground_run_in_progress`. Each run's payments use the
+  idempotency key `pg_<run id>`.
+
+## The relay
+
+Rail402 and most sellers send no CORS headers, so the page cannot call them itself. Seller requests go through
+the server's relay, `POST /api/relay`, which sends exactly what a stock client would and returns the seller's
+answer:
+
+- Other sites cannot use it through their visitors' browsers: the request needs the relay's own headers, and a
+  browser's `Sec-Fetch-Site` must be `same-origin` and its `Origin` the Playground's own
+  (`playground_origin_not_allowed`). The relay answers no CORS headers. A client that is not a browser sends
+  neither header and can use the relay as an `https` egress to public hosts, bounded only by the limits below.
+- It sends with [`@rail402.dev/safe-fetch`](/reference/egress): `https` on port 443 to public addresses only,
+  DNS answers checked and pinned, redirects refused except same-origin ones (at most 3) for unpaid probes,
+  a request body of at most 64 KiB and an answer of at most 1 MiB, and the SDK's timeouts. A request without a
+  payment waits no longer than the SDK's probe timeouts (15 s for the headers, 60 s in total) unless it is an
+  event stream. A body is forwarded only as `application/json`, `text/plain` or `application/octet-stream`, the
+  types the SDK and MCP send. A connection to a host other than the demo seller is closed after its answer.
+- It does not call, by host name, the Playground itself (its public host and the platform's generated domain),
+  the facilitator or the Bazaar (those are read through the server's fixed proxies), or a host the operator
+  denies. Another name for one of these hosts is not recognized unless the operator lists it in
+  `RELAY_DENY_HOSTS`.
+- Only allowlisted headers pass, both ways: `PAYMENT-SIGNATURE`, the MCP session headers, `accept` and
+  `content-type` go out; `PAYMENT-REQUIRED`, `PAYMENT-RESPONSE`, `EXTENSION-RESPONSES`, `content-type` and a
+  few others come back. Cookies, `authorization` and `location` never pass.
+- A request is paid when it carries `PAYMENT-SIGNATURE`, or when its JSON-RPC body is an MCP tool call with a
+  payment in `params._meta["x402/payment"]`. It holds a payment in memory for one request only. Its logs record the host, the status and the
+  outcome code, never the path, query, headers or body.
+
+The Playground's own lab sellers and the Bazaar and `/supported` proxies are on the page's origin, so they need
+no relay. RPC, Horizon and Friendbot are called by the page directly; the page's content security policy
+allows exactly those origins.
+
+### Limits
+
+Every limit is per client address (IPv6 by its /56) unless it says otherwise, and every value is a
+[setting](/playground/self-host#configuration). A limit "for all clients" is fair-shared: one network (an IPv4
+address or an IPv6 /48) gets at most an eighth of it, or its per-client limit when that is larger. A refusal
+carries a code and `Retry-After`. A payment counts against the paid limits only when it decodes as an x402
+payment; anything else is refused with `playground_request_invalid` before any limit counts it. That check stops
+only malformed payments: anyone can write a payment that merely has the right shape, and it is then counted as
+paid. So the demo seller has a paid pool of its own, a payment refused before it reached a seller (or, at the
+lab sellers, before the facilitator was asked) gives the pool every visitor shares its token back, and a client
+spends its own paid limit either way. The Bazaar and `/supported` proxies refuse another site's requests the
+same way the relay does.
+
+| Control                            | Default                                                                                      | Code                         |
+| ---------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------- |
+| Relayed requests without a payment | 60 per minute, bursts of 20; 240 per minute per network                                      | `playground_rate_limited`    |
+| Relayed requests with a payment    | 20 per minute; 120 per minute for all clients, and another 120 for the demo seller           | `playground_rate_limited`    |
+| Relayed requests in flight         | 4; 32 to one host; 128 for all clients                                                       | `playground_relay_busy`      |
+| Relayed requests to one host       | 300 per minute for all clients (the demo seller: 1,200), of which one network gets its share | `playground_relay_host_busy` |
+| Relayed answer bytes               | 100 MiB per day; 400 MiB per network; 10 GiB for all clients                                 | `playground_rate_limited`    |
+| Seller checks                      | 10 per minute; 60 per minute for all clients                                                 | `playground_rate_limited`    |
+| Bazaar and `/supported` proxies    | 120 per minute; 240 upstream fetches per minute for all clients                              | `playground_rate_limited`    |
+| Lab sellers                        | 120 unpaid and 20 paid per minute; 60 paid per minute for all clients                        | `playground_rate_limited`    |
+
+`RELAY_ENABLED`, `LAB_ENABLED` and `SELLER_CHECK_ENABLED` switch each feature off
+(`playground_feature_disabled`). The page then shows the scenarios, experiments and checks that need it as
+turned off, with that code, instead of offering them.
+
+## The lab sellers
+
+The server runs three kinds of sellers of its own, with the stock `@x402/hono` middleware and the configured
+facilitator. They are never part of the public demo seller.
+
+- **The sandbox route**, `GET /lab/sell/forecast/:city`: `exact`, 0.01 USDC, with Bazaar discovery metadata,
+  paid to the operator's account (`PLAYGROUND_PAY_TO`). Its 402 is the same for every city and every visitor, so
+  it is one listing, and Rail402's origin check always agrees with it; the example in its discovery metadata is
+  always the declared city, never the one a request names. A path that is not a city name (letters, spaces,
+  dots, apostrophes and hyphens, up to 40) gets a coded 404 instead of a 402. The server's
+  `/.well-known/stellar.toml` names that account.
+- **The greedy route**, `GET /lab/greedy/history`: `upto` with a 0.01 USDC cap and a one-minute authorization,
+  which asks the facilitator to settle 0.02. Rail402 refuses it
+  (`invalid_upto_stellar_payload_settlement_exceeds_amount`) and nothing moves; the held cap returns to the
+  budget once the authorization expires.
+- **Offers**, `/lab/offers/{pubnet,asset,zero}`: 402 answers only, asking for payment on `stellar:pubnet`, in
+  a token outside the policy, or for 0. They never verify or settle.
+
+Each lab answer carries a `Rail402-Trace` header with what the facilitator answered (verify and settle
+outcomes and codes, the settled and requested amounts, the catalog's outcome) and a `Server-Timing` header.
+The trace never holds a payment payload.
+
+## What a row is based on
+
+Each swimlane row and inspector field is tagged with its source, and claims no more than that source shows:
+
+| Source     | What it is                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------------ |
+| **you**    | what your browser sent or your signer signed                                                     |
+| **seller** | what the seller answered: its 402, `PAYMENT-RESPONSE`, a lab seller's `Rail402-Trace`, an error  |
+| **chain**  | what the page read from the Stellar RPC: the transaction, its fee source, transfers and balances |
+| **bazaar** | what the page read from the Bazaar: search results, listings and their versions                  |
+
+A seller that sends no trace (the demo seller) does not report its calls to Rail402, so that row says what the
+`PAYMENT-RESPONSE` and the chain show instead. The inspector never shows XDR, signatures, preimages or payment
+headers.
+
+## What the server sees
+
+- Its configuration has no field for a secret, and it refuses to start when any environment value is a Stellar
+  secret seed (`playground_config_invalid`).
+- It sees the payment headers it relays, for the length of one request, as any seller would. It sees no key.
+- It sends no telemetry. Its logs are JSON lines with the route, status, duration, outcome code and a daily
+  salted hash of the client address.
+- The page is served with `default-src 'self'` and `script-src 'self'`, no inline script, no third-party code,
+  `frame-ancestors 'none'`, and `connect-src` limited to the server and the configured RPC, Horizon and
+  Friendbot. Seller text is rendered as text, never as markup.
+
+[Secret handling](/reference/secret-handling#in-the-playground) lists every channel the browser tests scan for the
+key and the payments.

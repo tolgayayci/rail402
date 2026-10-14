@@ -1,0 +1,153 @@
+---
+title: Accepted assets
+description: Accept USDC or any other SEP-41 token, with any number of decimals, and how Rail402 checks them.
+---
+
+A Rail402 facilitator settles `exact` payments in the tokens its operator accepts. By default that is Circle
+USDC on each network. Any other SEP-41 token can be added: a classic asset through its Stellar Asset
+Contract, or a custom token contract, with any number of decimals the configuration accepts (0 to 38). The
+tests below cover 6, 7 and 18 decimals.
+
+## Accepting another SEP-41 token
+
+List every accepted token in `ASSETS` for the network, as `CONTRACT:SYMBOL:DECIMALS[:MIN:MAX]`, comma-separated.
+Listing assets replaces the default, so keep USDC in the list if you still accept it:
+
+```sh
+TESTNET_ASSETS=CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA:USDC:7,CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK:TEST6:6
+```
+
+- `CONTRACT` is the token's `C…` address.
+- `SYMBOL` labels the token in metrics, `/health` and search filters (`asset=TEST6`).
+- `DECIMALS` must equal the token's own `decimals()`. It never changes an amount: x402 amounts are always base
+  units, and the facilitator compares them exactly. It turns a search's `maxPrice` in whole units into base
+  units.
+- `MIN` and `MAX` bound the accepted amount in base units. Amounts up to the `i128` maximum are accepted, so
+  an 18-decimal token's amounts beyond the 64-bit range settle like any other.
+
+## What the service checks at startup
+
+Before it provisions channels, the service reads every configured token from the network: whether its
+contract instance exists, whether it is a Stellar Asset Contract or another contract, and its `decimals()`.
+
+| Finding                                                                                    | Result                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The token's `decimals()` differs from `DECIMALS`                                           | The service stops with exit code 78: `rail402: asset_decimals_mismatch: TESTNET_ASSETS: TEST6 (C…) has 6 decimals on stellar:testnet, but 7 are configured` |
+| The contract has no `decimals()` function, or answers it with something other than a `u32` | The service stops with exit code 78 and `asset_not_a_token`                                                                                                 |
+| The contract is not deployed                                                               | The service starts; `/ready` fails with `stellar:testnet:assets` naming the contract                                                                        |
+| The RPC does not answer the reads, or `decimals()` fails in any other way                  | The service starts; `/ready` fails with `stellar:testnet:assets` naming the read that failed, and the read is retried                                       |
+| Every token matches                                                                        | `stellar:testnet:assets` passes with the tokens and their decimals, e.g. `USDC:7, TEST6:6`                                                                  |
+
+Until the check passes, the background poll (every 15 seconds) reads the tokens again, and `/ready` passes
+once they match. A mismatch found then keeps `/ready` failing and is logged as an error; fix the
+configuration and restart. Every accepted token's contract TTL is watched too (see
+[Operations](/operations)).
+
+## Classic assets and custom tokens
+
+Both kinds settle the same way: one `transfer(from, to, amount)` signed by the payer, submitted by the
+facilitator, which only pays the fee. They differ in what a payment needs and in how a failure is named.
+
+|                                         | Stellar Asset Contract (e.g. USDC)                                          | Custom SEP-41 token (e.g. TEST6)                                                                          |
+| --------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Holding the token                       | A `G…` account needs a trustline; a `C…` account does not                   | No trustline; any account can hold it                                                                     |
+| A payer holding less than the amount    | `insufficient_funds`                                                        | `insufficient_funds`, confirmed by reading the payer's `balance()`                                        |
+| Other token errors                      | Named from the contract's error number (trustline missing, not authorized…) | `invalid_exact_stellar_payload_token_rejected`: "The token contract rejected the transfer with error #N." |
+| Bazaar listing: can `payTo` receive it? | Decided from the trustline                                                  | Left unknown for a `G…` account; always yes for a `C…` account                                            |
+
+The rules are listed with the other failure causes in
+[Errors and verification rules](/verification-rules#7-why-a-simulation-failed).
+
+### Fees and the fee ceiling
+
+A custom token runs its own WASM and keeps its own storage, so a payment in it can cost far more network fee
+than one in a Stellar Asset Contract, mostly as rent for the token's storage entries. The test token, built on
+OpenZeppelin's fungible token, extends a holder's balance entry to 30 days whenever it reads one with less than
+29 days left, and the payment whose transfer reads it pays that rent. Measured on `stellar:testnet` in a
+rehearsal of the [canonical run](/reference/conformance) (`--asset usdc,test6 --payer g,c`) against a Rail402
+facilitator; the recorded canonical run lists the fee charged for each of its transactions, which varies with
+network conditions:
+
+| Payment                                               | Fee charged (stroops) |
+| ----------------------------------------------------- | --------------------- |
+| USDC, `G…` payer                                      | 23,131                |
+| USDC, `C…` payer                                      | 20,327                |
+| TEST6, `G…` payer, the payee's first TEST6            | 315,702               |
+| TEST6, `C…` payer, to a payee that already held TEST6 | 463,067               |
+
+The fee a simulation asks for is higher than the fee finally charged, because it includes refundable rent:
+361,384 stroops for a smart-account payer's first TEST6 payment to a new holder, and 539,505 for one to a
+payee that already held TEST6.
+
+The facilitator compares the fee the simulation asks for with `MAX_TX_FEE_STROOPS` and refuses a payment
+above it with `invalid_exact_stellar_payload_fee_exceeds_maximum`, before anything is submitted. The default
+is 1,000,000 stroops on testnet, which covers every TEST6 payment above, and 300,000 on pubnet. When you accept
+a custom token on pubnet, set the ceiling for that token's costliest payments. `upto` settlements have their
+own ceiling, `UPTO_MAX_TX_FEE_STROOPS` (default 5,000,000 on testnet, 500,000 on pubnet): a smart-account
+payer's `upto` payment in TEST6 to a payee that already held TEST6 was refused under a 500,000 ceiling and
+settled with 1,000,000. See [fee ceilings](/configuration#fee-ceilings) for the measured costs behind the
+defaults.
+On a local network with default settings the same test-token payments cost about 160,000 stroops.
+
+## Pricing in a token
+
+A stock x402 seller prices a resource in a custom token with an asset amount in base units, for example 0.25
+TEST6 as `{ amount: "250000", asset: "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK" }`. The
+`exact()` helper of `@rail402.dev/sdk/seller` converts a price in whole units with the token's decimals, which
+`assetDecimals()` reads from the network:
+
+```ts
+import { assetDecimals, exact } from "@rail402.dev/sdk/seller";
+
+const asset = "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK";
+const decimals = await assetDecimals(asset, {
+  network: "stellar:testnet",
+  rpcUrl: "https://soroban-testnet.stellar.org",
+});
+const option = exact({
+  network: "stellar:testnet",
+  payTo: "G...",
+  price: { amount: "0.25", asset, decimals },
+});
+// option.price is { amount: "250000", asset }: 0.25 with 6 decimals
+```
+
+The same 0.25 is `2500000` base units of a 7-decimal token and `250000000000000000` of an 18-decimal one.
+
+## The TEST6 test token
+
+`TEST6` is a SEP-41 test token with 6 decimals on `stellar:testnet`, at
+[`CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK`](https://stellar.expert/explorer/testnet/contract/CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK).
+It has no value, no admin and an open faucet: anyone can mint 100 `TEST6` to any address.
+
+```sh
+stellar contract invoke --id CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK --network testnet \
+  --source <your account> -- faucet --to <address>
+```
+
+Its source is `contracts/testing/test-token` in the repository, and its deployment record, with the
+transactions and the WASM hash, is `contracts/testing/deployments/test6-testnet.json`.
+
+## How it is tested
+
+`tools/conformance/test/assets.integration.test.ts` runs the service as a process on a local network with
+three accepted tokens: a classic asset's Stellar Asset Contract (7 decimals), the test token deployed with 6
+decimals (`TEST6`) and with 18 (`TEST18`). For each token, a stock `@x402/express` seller and a stock
+`@x402/fetch` buyer complete payments from a `G…` payer and from a `C…` smart-account payer, and to a `C…`
+`payTo`; `TEST18`'s price of 12.5 is 12,500,000,000,000,000,000 base units, beyond the 64-bit range. Each
+payment is read back from the chain:
+
+- exactly one `transfer` event, from the payer to `payTo`, for the price, from the token's contract;
+- the payer's balance falls and `payTo`'s rises by the price, and no facilitator account holds or moves the
+  token;
+- the fee is paid by the sponsor, through a fee bump around a channel account, and the sponsor's XLM falls by
+  exactly the fee charged.
+
+The same three tokens are paid with `upto`: a stock seller with `@rail402.dev/upto`'s server scheme prices
+the resource at the cap and charges 40% of it through the stock settlement override, the buyer pays with the
+scheme's own client, and only the charged amount moves, from payer to `payTo`, while the Bazaar lists the
+resource at its cap.
+
+The same suite checks the Bazaar listing's token facts (`symbol`, `decimals`, `receivable`), search by
+`asset=<symbol>` and a `maxPrice` in whole units, `insufficient_funds` for a payer holding less than the
+amount and for one holding none, and the startup checks above.

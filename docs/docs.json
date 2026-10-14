@@ -17,7 +17,7 @@
     "facilitatorUrl": "https://testnet.rail402.dev"
   },
   "banner": {
-    "content": "Rail402 is live on `stellar:testnet`, free and without an API key. [Try the hosted facilitator →](/facilitator/hosted-testnet)",
+    "content": "Rail402 is live on `stellar:testnet`, free and without an API key. [Try the hosted facilitator \u2192](/facilitator/hosted-testnet)",
     "dismissible": true
   },
   "appearance": {
@@ -85,6 +85,8 @@
               "facilitator/docker",
               "facilitator/railway",
               "facilitator/in-process",
+              "facilitator/assets",
+              "facilitator/upto",
               "configuration",
               "operations"
             ]
@@ -94,9 +96,30 @@
             "pages": ["bazaar/cataloging", "bazaar/discovery", "bazaar/search"]
           },
           {
+            "group": "Agents",
+            "pages": ["agents/sdk", "agents/mcp-server", "agents/cli"]
+          },
+          {
+            "group": "Playground",
+            "pages": ["playground/overview", "playground/how-it-works", "playground/self-host"]
+          },
+          {
+            "group": "Sellers",
+            "pages": ["sellers/helpers"]
+          },
+          {
+            "group": "Security",
+            "pages": ["security/threat-model", "security/operational-tests"]
+          },
+          {
             "group": "Reference",
             "pages": [
               "verification-rules",
+              "reference/error-codes",
+              "reference/upto-contract",
+              "reference/spending-policy",
+              "reference/egress",
+              "reference/secret-handling",
               "reference/conformance",
               "reference/search-evaluation",
               "dependency-licenses"

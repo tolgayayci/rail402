@@ -7,11 +7,16 @@ These steps take a fresh machine to a verified checkout. Everything after them, 
 or reproducing the evidence, starts from here.
 
 <Info>
-  The current release is [v0.2.1](https://github.com/tolgayayci/rail402/releases/tag/v0.2.1)
-  ([changelog](https://github.com/tolgayayci/rail402/blob/main/CHANGELOG.md)). It is also published as the
-  container image `ghcr.io/tolgayayci/rail402:0.2.1` ([Docker](/facilitator/docker#published-image)) and as
-  the npm packages [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator),
-  `bazaar`, `search`, `store-postgres`, `stellar` and `errors`, version 0.2.1.
+  The current GitHub release is [v0.2.1](https://github.com/tolgayayci/rail402/releases/tag/v0.2.1)
+  ([changelog](https://github.com/tolgayayci/rail402/blob/main/CHANGELOG.md)), also published as the
+  container image `ghcr.io/tolgayayci/rail402:0.2.1` ([Docker](/facilitator/docker#published-image)); it
+  serves `exact` only. The npm packages are at 0.4.1, with [`upto`](/facilitator/upto), the agent tools and
+  the browser entries of the SDK, safe-fetch and the MCP tools:
+  [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator), `bazaar`, `search`,
+  `store-postgres`, `stellar`, `errors`, `upto`, `sdk`, `mcp`, `cli` and `safe-fetch`.
+
+The [Playground](/playground/overview) runs from a checkout. A checkout built with the steps below has all of it.
+
 </Info>
 
 ## Prerequisites
@@ -52,7 +57,7 @@ pnpm verify
 | Formatting   | `pnpm format:check` | Prettier over the whole repository                                                               |
 | Lint         | `pnpm lint`         | ESLint                                                                                           |
 | Types        | `pnpm typecheck`    | `tsc` over every workspace package                                                               |
-| Unit tests   | `pnpm test`         | Vitest `unit` project; needs no network, Docker or model                                         |
+| Unit tests   | `pnpm test`         | Vitest `unit` and `web` projects; need no network, Docker or model                               |
 | Licence gate | `pnpm license:gate` | Every licence meets the [policy](/dependency-licenses); `docs/dependency-licenses.md` is current |
 
 CI (`.github/workflows/ci.yml`) runs the same command on every push to `main` and on every pull request,
@@ -65,8 +70,9 @@ pnpm build
 ```
 
 This compiles every workspace package to its `dist/` directory. The service entry points are then
-`apps/rail402/dist/main.js` (the HTTP service) and `apps/rail402/dist/channels.js` (the
-[channel commands](/operations#channel-accounts)).
+`apps/rail402/dist/main.js` (the HTTP service), `apps/rail402/dist/channels.js` (the
+[channel commands](/operations#channel-accounts)) and `apps/rail402/dist/upto.js` (the
+[`upto` contract and authority commands](/operations#the-upto-settlement-contract)).
 
 ## Integration tests
 
@@ -78,6 +84,10 @@ pnpm models:fetch                                   # downloads and hash-checks 
 docker compose --profile stellar up -d --wait       # Postgres on :5432, Stellar RPC and Friendbot on :8000
 pnpm test:integration
 ```
+
+The `upto` archival test starts a second, disposable network of its own with Docker, whose contracts
+archive within seconds (`test/stellar/short-ttl.json`), and removes it afterwards. It is skipped when
+Docker is unavailable or `RAIL402_TEST_ARCHIVAL=0` is set.
 
 The private network runs with the testnet passphrase so the unmodified `@x402/stellar` scheme works against
 it. It resets whenever its container is recreated. Stop everything with `docker compose --profile stellar down`.
@@ -105,9 +115,13 @@ creates its channel accounts. Check it with `curl localhost:8080/ready`.
 
 ## Reproduce the published results
 
-| What                      | Command                                                             | Page                                              |
-| ------------------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
-| Search evaluation         | `pnpm eval`, and `pnpm eval:check` for the gate                     | [Search evaluation](/reference/search-evaluation) |
-| Canonical client payment  | `node tools/conformance/src/canonical-exact.ts --facilitator <url>` | [Conformance evidence](/reference/conformance)    |
-| Upstream x402 e2e suite   | `node tools/conformance/src/upstream-e2e.ts --x402 <path>`          | [Conformance evidence](/reference/conformance)    |
-| Dependency licence report | `pnpm license:report`                                               | [Dependency licences](/dependency-licenses)       |
+| What                      | Command                                                                      | Page                                                      |
+| ------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Search evaluation         | `pnpm eval`, and `pnpm eval:check` for the gate                              | [Search evaluation](/reference/search-evaluation)         |
+| Every conformance run     | `pnpm evidence` (see the page for its settings)                              | [Conformance evidence](/reference/conformance)            |
+| Canonical client payment  | `node tools/conformance/src/canonical.ts --facilitator <url>`                | [Conformance evidence](/reference/conformance)            |
+| Upstream x402 e2e suite   | `node tools/conformance/src/upstream-e2e.ts --x402 <path>`                   | [Conformance evidence](/reference/conformance)            |
+| Operational exercises     | `node --conditions=@rail402/source tools/conformance/src/ops.ts`             | [Operational tests](/security/operational-tests)          |
+| Live Playground run       | `node --conditions=@rail402/source tools/conformance/src/live-playground.ts` | [Conformance evidence](/reference/conformance#playground) |
+| Packages from tarballs    | `pnpm pack:check`                                                            | [Release controls](/operations#release-controls)          |
+| Dependency licence report | `pnpm license:report`                                                        | [Dependency licences](/dependency-licenses)               |

@@ -1,0 +1,226 @@
+---
+title: Seller helpers
+description: Declare paid HTTP routes and MCP tools with discovery metadata the Rail402 catalog accepts as is, validate it before the first sale, and check a live seller the way the catalog will.
+---
+
+`@rail402.dev/sdk/seller` builds the configuration the stock x402 middleware and `@x402/mcp` take, with Bazaar
+discovery metadata that is complete and valid: every parameter described, examples that satisfy their
+schemas, self-contained schemas without `$ref`, and nothing the catalog would drop. A declaration the Rail402
+catalog would reject throws when the route or tool is declared, so it never reaches production.
+
+The demo seller in this repository (`apps/demo-seller`) is built with these helpers: three paid HTTP routes and
+the paid MCP tools `forecast` and `air_quality` at `/mcp`, plus a metered upto route (`GET /history`, charged per
+day returned) and a metered upto tool (`hourly_forecast`, charged per forecast hour), each capped at 0.01 USDC.
+The metered pair is served only while its facilitator serves upto (`METERED=false` leaves it out).
+
+```sh
+npm install @rail402.dev/sdk@0.4.1 @x402/core@2.27.0 @x402/express@2.27.0 @x402/extensions@2.27.0 @x402/stellar@2.27.0
+```
+
+## An HTTP route
+
+```ts
+import express from "express";
+import { HTTPFacilitatorClient, x402ResourceServer } from "@x402/core/server";
+import { paymentMiddleware } from "@x402/express";
+import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
+import { ExactStellarScheme } from "@x402/stellar/exact/server";
+import { exact, httpRoute, param } from "@rail402.dev/sdk/seller";
+
+const NETWORK = "stellar:testnet";
+const forecast = httpRoute({
+  method: "GET",
+  path: "/forecast/:city",
+  description: "Seven-day weather forecast for a city",
+  payment: exact({ network: NETWORK, payTo: process.env.PAY_TO!, price: "$0.01" }),
+  pathParams: { city: param.string({ description: "City name", example: "Ankara", maxLength: 64 }) },
+  query: { days: param.integer({ description: "Number of days", minimum: 1, maximum: 7, example: 3 }) },
+  output: { example: { city: "Ankara", days: [{ high: 21, low: 9 }] } },
+});
+
+const resourceServer = new x402ResourceServer(new HTTPFacilitatorClient({ url: "{{facilitatorUrl}}" }))
+  .register(NETWORK, new ExactStellarScheme())
+  .registerExtension(bazaarResourceServerExtension);
+
+const app = express();
+app.use(paymentMiddleware({ [forecast.key]: forecast.config }, resourceServer));
+app.get("/forecast/:city", (req, res) => res.json({ city: req.params.city, days: [{ high: 21, low: 9 }] }));
+app.listen(4021);
+```
+
+- `param.string`, `param.number`, `param.integer`, `param.boolean`, `param.enum`, `param.array` and
+  `param.object` each need a `description` (1-300 characters) at every depth; a missing one throws
+  `seller_param_description_required`. `required` defaults to false, and a required HTTP parameter needs an
+  `example`.
+- Query parameters are for `GET`, `HEAD` and `DELETE`; `POST`, `PUT` and `PATCH` declare
+  `body: { type: "json" | "form-data" | "text", params }`. Path parameters are strings or enums and always
+  required.
+- `route.config` is the stock x402 route configuration (tested with `@x402/express`). The resource server must
+  register `bazaarResourceServerExtension`, which adds the method and route template to each 402.
+- `serviceName`, `tags` (up to 5), `iconUrl` and `mimeType` are checked the way the catalog checks them.
+
+## Prices
+
+`exact({ network, payTo, price })` returns a payment option priced in base units, converted without rounding.
+`payTo` is a `G…` account or `C…` contract; a muxed `M…` address throws `seller_declaration_invalid`, because
+the exact verifier cannot match a muxed transfer to it.
+
+- `"$0.01"` is Circle's USDC on the option's network (7 decimals);
+- `{ amount: "0.5", asset: "USDC" }` is the same with an explicit amount;
+- `{ amount: "0.5", asset: "C…", decimals: 6 }` is any SEP-41 token. Read its decimals from the network with
+  `await assetDecimals("C…", { network, rpcUrl })` instead of hard-coding them.
+
+A price with more decimals than its asset, a non-positive price or a custom token without decimals throws
+`seller_price_invalid`. `maxTimeoutSeconds` (10-300) sets the authorization lifetime. `paymentFlow: "upfront"`
+settles before the handler runs; pair it with `withSettleDedupe` (below).
+
+## An MCP tool
+
+```ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { createPaymentWrapper } from "@x402/mcp";
+import { mcpPaymentConfig, mcpTool } from "@rail402.dev/sdk/seller";
+
+const airQuality = mcpTool({
+  endpoint: "https://api.example.com/mcp",
+  toolName: "air_quality",
+  description: "Current air quality index (AQI) for a city",
+  payment: exact({ network: NETWORK, payTo: process.env.PAY_TO!, price: "$0.001" }),
+  arguments: {
+    city: param.string({ description: "City name", required: true, example: "Izmir" }),
+    pollutant: param.enum(["pm25", "pm10", "o3"], { description: "Pollutant to report", example: "pm25" }),
+  },
+  output: { example: { city: "Izmir", aqi: 42 } },
+  transport: "streamable-http",
+});
+
+await resourceServer.initialize();
+const paid = createPaymentWrapper(resourceServer, await mcpPaymentConfig(resourceServer, airQuality));
+
+const server = new McpServer({ name: "air", version: "1.0.0" });
+server.registerTool(
+  airQuality.toolName,
+  { description: airQuality.description, inputSchema: airQuality.zodShape },
+  paid((args) => ({ content: [{ type: "text", text: JSON.stringify({ city: args.city, aqi: 42 }) }] })),
+);
+```
+
+One declaration yields both the tool's JSON Schema (`inputSchema`, identical to the listing's) and the zod shape
+the MCP server validates arguments with, so the two never drift. The Rail402 catalog keys MCP listings by
+endpoint and tool name, scoped to the `payTo` that settled. After the first settled call, it lists the tool once
+the tool's own answer to an unpaid `tools/call` confirms it, sent with the declaration's example arguments:
+give every required argument an `example`, and keep the endpoint reachable from the public internet (see
+[Origin verification](/bazaar/cataloging#origin-verification)). `endpoint` must be https on pubnet
+(`seller_endpoint_invalid`).
+
+## Charge what a call used (upto)
+
+`upto({ network, payTo, maxPrice, maxTimeoutSeconds? })` is a payment option whose price is a cap: the buyer
+authorizes at most `maxPrice`, and the seller settles what the call used, from zero up to the cap, after
+serving it. Register the upto server scheme next to (or instead of) `exact`; it copies the facilitator's
+settlement authority into the requirements. `payTo` must be a `G…` or `C…` address.
+
+```ts
+import { UptoStellarServerScheme, httpRoute, setUptoCharge, upto } from "@rail402.dev/sdk/seller";
+
+const report = httpRoute({
+  method: "GET",
+  path: "/report",
+  description: "Report rows, billed per row up to 0.05 USDC",
+  payment: upto({ network: NETWORK, payTo: process.env.PAY_TO!, maxPrice: "$0.05", maxTimeoutSeconds: 120 }),
+  query: { rows: param.integer({ description: "Rows to return", minimum: 1, maximum: 500, example: 20 }) },
+  output: { example: { rows: [] } },
+});
+
+resourceServer.register(NETWORK, new UptoStellarServerScheme());
+app.use(paymentMiddleware({ [report.key]: report.config }, resourceServer));
+app.get("/report", (req, res) => {
+  const rows = Number(req.query.rows ?? 20);
+  setUptoCharge(res, rows * 1_000); // base units: 0.0001 USDC per row
+  res.json({ rows: [] });
+});
+```
+
+`setUptoCharge(res, amount)` takes base units (a bigint, safe integer or integer string), a percentage of the
+cap (`"25%"`) or a dollar price (`"$0.002"`), and throws `seller_declaration_invalid` for anything else. The
+stock middleware settles that amount after the handler; without it, it settles the full cap. The facilitator
+refuses a charge above the cap, and a charge of zero settles without moving funds. The authorization must
+outlive the handler and the settlement, so give `maxTimeoutSeconds` room.
+
+For MCP tools, the stock `@x402/mcp` wrapper passes no settlement amount, so on its own it settles **the full
+cap** of every upto tool. To charge what a tool call used, wrap the resource server with `meteredToolServer`
+and return the charge with `chargeUpto`; the charge is removed from the result before it reaches the buyer:
+
+```ts
+import { chargeUpto, meteredToolServer } from "@rail402.dev/sdk/seller";
+
+const metered = createPaymentWrapper(
+  meteredToolServer(resourceServer),
+  await mcpPaymentConfig(resourceServer, summarize), // declared with mcpTool({ payment: upto(…), … })
+);
+server.registerTool(
+  summarize.toolName,
+  { description: summarize.description, inputSchema: summarize.zodShape },
+  metered((args) => {
+    const text = summarizeText(args.text);
+    return chargeUpto({ content: [{ type: "text", text }] }, text.length * 10);
+  }),
+);
+```
+
+The Rail402 catalog lists an upto resource at its cap.
+
+## Validate before the first sale
+
+```ts
+import { validateListing } from "@rail402.dev/sdk/seller";
+
+const report = await validateListing(forecast, { network: "stellar:testnet" });
+report.catalogable; // the catalog would list it after a settlement
+report.dropped; // metadata the catalog would leave out
+report.lint; // advice: missing descriptions or output example
+report.preview; // resource, type, method or toolName, payTo, asset, amount
+```
+
+`validateListing` runs the catalog's own extraction, schema sandbox and soft-drop rules on a declaration or on
+a live `PAYMENT-REQUIRED`. The helper test suite checks every declaration shape against it with no drops.
+
+## Check a running seller
+
+```ts
+import { checkSellerOrigin } from "@rail402.dev/sdk/seller";
+
+const report = await checkSellerOrigin("https://api.example.com/forecast/Ankara", {
+  network: "stellar:testnet",
+  rpcUrl: "https://soroban-testnet.stellar.org",
+  facilitatorUrl: "{{facilitatorUrl}}",
+});
+```
+
+It makes the unpaid request (an unpaid `tools/call` with `toolName`), validates the live 402 like
+`validateListing`, and reports findings with codes: `payTo` cannot receive the asset
+(`seller_asset_not_receivable`, when `rpcUrl` is given), the facilitator does not settle this scheme and network
+with sponsored fees and the bazaar extension (`seller_facilitator_unsupported`, when `facilitatorUrl` is given),
+no x402 v2 402 (`seller_origin_not_payment_required`), and whether the domain's `stellar.toml` claims `payTo`
+and (when `rpcUrl` is given) whether `payTo` sets the host as its `home_domain` (`domain.homeDomainMatches`);
+both together make the listing `domain_verified`. The request goes through [safe-fetch](/reference/egress).
+`rail402 seller check <url>` runs the same check from the [CLI](/agents/cli).
+
+## Serve each payment once
+
+An idempotent facilitator answers a repeated `/settle` of the same signed payment with the original success,
+and stock middleware would then serve the resource again. With `paymentFlow: "upfront"`, wrap the facilitator
+client:
+
+```ts
+import { withSettleDedupe } from "@rail402.dev/sdk/seller";
+
+const facilitator = withSettleDedupe(new HTTPFacilitatorClient({ url: "{{facilitatorUrl}}" }));
+```
+
+A repeat, recognised by Rail402's `extensionResponses.rail402.settlement.repeat` marker or by a transaction
+hash the wrapper has already seen, becomes a settlement failure (`seller_settlement_repeat`) and the middleware
+answers 402. Pass a shared `memory` when the seller runs several replicas. With the default `authorization`
+flow a replayed payment is already refused at verification, because its nonce is used.
+
+Every seller helper code is listed in the [error-code reference](/reference/error-codes#seller-helpers).

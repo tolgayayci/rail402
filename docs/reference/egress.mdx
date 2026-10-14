@@ -1,0 +1,127 @@
+---
+title: Outbound requests (SSRF and egress)
+sidebarTitle: Outbound requests
+description: How the SDK, the MCP server and the CLI fetch seller URLs chosen by agents or taken from listings, without reaching private networks, following unsafe redirects or reading unbounded responses.
+---
+
+An agent picks the URLs it pays, and listings come from sellers. Every request to such a URL (the unpaid probe,
+the paid request, an MCP tool call, `seller check`) goes through `@rail402.dev/safe-fetch`, a `fetch`
+replacement on `node:http(s)` that refuses anything the egress policy does not allow. The Rail402 catalog uses
+the same address rules for its own origin checks. Endpoints you configure yourself (the RPC, the Bazaar, the
+facilitator) are not seller URLs and use the normal `fetch`.
+
+A refusal is an error with an `egress_*` code and the stage it happened at (`url`, `dns`, `connect`, `tls`,
+`request`, `redirect`, `response`). Errors name the host and the class of problem, never a resolved address.
+Nothing is signed or reserved when a probe is refused, and an egress failure before the paid request reaches
+the seller reports `paid: none`.
+
+## The default policy
+
+| Control     | Default                                                                                                 | Code                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Scheme      | `https` only                                                                                            | `egress_scheme_not_allowed`                                          |
+| Port        | 443 (and 80 when plain http is allowed)                                                                 | `egress_port_not_allowed`                                            |
+| URL         | absolute, at most 2 KiB, no credentials, no control characters                                          | `egress_url_invalid`                                                 |
+| Destination | public addresses only, see below                                                                        | `egress_destination_not_allowed`                                     |
+| Redirects   | refused on paid requests; probes that opt in follow at most 3 hops on the same host and port            | `egress_redirect_not_allowed`, `egress_too_many_redirects`           |
+| Request     | body at most 64 KiB, caller headers at most 8 KiB                                                       | `egress_request_too_large`                                           |
+| Response    | headers at most 64 KiB, body at most 1 MiB after decoding (gzip, deflate, br)                           | `egress_response_too_large`                                          |
+| Timeouts    | connect 5 s, headers 15 s, idle 15 s once the headers arrived, total 60 s                               | `egress_timeout`                                                     |
+| Failures    | DNS, connection and TLS errors                                                                          | `egress_dns_failed`, `egress_connection_failed`, `egress_tls_failed` |
+| Connections | 4 per host and port, 256 in total; an unused kept connection closes after 15 s, at most 2 kept per host | further requests wait for a free connection                          |
+
+Before the response headers arrive, a server may stay silent for as long as the headers timeout allows; the
+idle timeout bounds the silence after them.
+
+A paid request waits longer, because the seller verifies, serves and settles before it answers: its headers
+and idle timeouts are the option's `maxTimeoutSeconds` plus 30 s, at most 120 s, and the whole exchange at most
+150 s. This applies to paid HTTP requests and to paid MCP tool calls alike (for the legacy SSE transport, to its
+stream from the start). A paid MCP tool call that would exceed the 64 KiB request limit once the payment is
+attached is refused before it is sent (`egress_request_too_large`, `paid: none`).
+
+Environment proxies are never used. Hop-by-hop headers (`host`, `connection`, `content-length`,
+`transfer-encoding`, `upgrade`, `expect`, `accept-encoding` and similar) cannot be set by the caller.
+
+## Destinations
+
+A host is refused when it is, or resolves to, anything outside the public internet:
+
+- IPv4: `0.0.0.0/8`, `10.0.0.0/8`, `100.64.0.0/10` (carrier-grade NAT), `127.0.0.0/8`, `169.254.0.0/16`
+  (link-local, including the `169.254.169.254` metadata address), `172.16.0.0/12`, `192.0.0.0/24`,
+  `192.0.2.0/24`, `192.88.99.0/24`, `192.168.0.0/16`, `198.18.0.0/15`, `198.51.100.0/24`,
+  `203.0.113.0/24`, multicast and reserved (`224.0.0.0/3`);
+- IPv6: unspecified and loopback, IPv4-compatible, site-local, NAT64 (`64:ff9b::/96`, `64:ff9b:1::/48`),
+  discard, Teredo and other IETF assignments (`2001::/23`), documentation (`2001:db8::/32`, `3fff::/20`),
+  6to4 (`2002::/16`), IPv4-translated (`::ffff:0:0:0/96`), unique local (`fc00::/7`, which holds
+  `fd00:ec2::254`), link-local and multicast. IPv4-mapped addresses are judged by the IPv4 rules, and zone ids
+  (`fe80::1%eth0`) are refused;
+- local names: `localhost` and `*.localhost`, `*.local`, `*.internal`, `*.home.arpa`, `*.lan`, and single-label
+  names.
+
+IP literals are checked before any connection, in every spelling the URL parser accepts (for example
+`0x7f.1` and `2130706433` for `127.0.0.1`). Names are resolved once, and the connection is **pinned** to the
+addresses that were checked: if any address a name resolves to is private, the name is refused, and the
+connection dials only validated addresses. A DNS answer that changes between the check and the connection (DNS
+rebinding) therefore cannot redirect the request.
+
+## Redirects
+
+A paid request never follows a redirect: the payment is bound to one URL, so a `3xx` answer is reported as
+`payment_redirect_after_payment` and the `PAYMENT-SIGNATURE` is never sent anywhere else. Requests that opt into
+same-origin redirects (URL probes) follow at most 3 hops on the same host and port, each hop checked again; an
+http URL may upgrade to https on the same host, and https never downgrades. `303` (and `301`/`302` after a POST)
+continue as a body-less `GET`, as `fetch` does.
+
+## Local development
+
+For a seller on your own machine, testnet buyers can allow plain http and loopback destinations explicitly.
+Nothing else private is ever allowed, and all three switches are refused on `stellar:pubnet` (a port list
+there may only name 443).
+
+| SDK (`egress`)                    | MCP server and CLI                                                  |
+| --------------------------------- | ------------------------------------------------------------------- |
+| `schemes: ["https:", "http:"]`    | `RAIL402_ALLOW_HTTP=true`, `--allow-http`                           |
+| `allowPrivateNetwork: "loopback"` | `RAIL402_ALLOW_PRIVATE_NETWORK=loopback`, `--allow-private-network` |
+| `ports: [443, 8080]`              | `RAIL402_ALLOWED_PORTS=443,8080`                                    |
+
+Connections are bounded so that requests to many distinct hosts cannot pile up sockets: `maxSocketsPerHost`
+(default 4), `maxTotalSockets` (256), `maxFreeSocketsPerHost` (2) and `idleSocketMs` (15,000). With
+`keepAlive: false` every connection closes after its answer, which suits a fetch shared by callers that name
+arbitrary hosts.
+
+## Using safe-fetch directly
+
+```ts
+import { createSafeFetch, isEgressError } from "@rail402.dev/safe-fetch";
+
+const safeFetch = createSafeFetch(); // the default policy above
+try {
+  const response = await safeFetch(untrustedUrl, { redirect: "same-origin" });
+  console.log(response.status, await response.text());
+} catch (error) {
+  if (isEgressError(error)) console.log(error.code, error.reason);
+} finally {
+  safeFetch.close();
+}
+```
+
+`createSafeFetch(policy)` takes `schemes`, `ports`, `allowPrivateNetwork`, `redirects`, `limits` and
+`timeouts`. It returns a native `Response`. The test suites in `packages/safe-fetch/test` cover the address
+ranges, IP literals in every spelling, local names, mixed and empty DNS answers, a rebinding name against real
+local servers, redirect loops, cross-origin hops and downgrades, oversized requests, headers and bodies, a
+compressed bomb, and header, idle and total timeouts.
+
+`@rail402.dev/safe-fetch/shared` holds the parts with no Node module (the `SafeFetch` types, the policy
+defaults, `markFinalRequest` and `finalRequestOf`), for transports such as a browser relay that keep the same
+contract.
+
+## The Playground's relay
+
+The [Playground](/playground/how-it-works#the-relay)'s page cannot reach most sellers itself, so its server
+relays each seller request with safe-fetch under a fixed policy: https on port 443 to public addresses only,
+redirects refused except same-origin hops for unpaid probes, and the limits above. It never relays to the
+Playground itself, the facilitator, the Bazaar or a host the operator denies, and forwards only allowlisted
+headers both ways. Its seller check (`POST /api/seller-check`) runs the SDK's seller checks with the same
+https-only, public-only policy. The server's tests cover every private and metadata literal, DNS answers
+with a private address, every spelling of the denied hosts and redirects off the seller's origin, through
+both the relay and the seller check (`apps/playground/test/ssrf.test.ts`).

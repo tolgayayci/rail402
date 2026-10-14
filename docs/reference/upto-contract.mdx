@@ -1,0 +1,203 @@
+---
+title: upto settlement contract
+description: The Soroban contract that settles x402 upto payments on Stellar, its testnet deployment, how to rebuild and verify it, and how its TTL is kept.
+---
+
+`x402-upto-stellar` settles [`upto` payments](/facilitator/upto): the payer signs terms with a cap, and the
+settlement authority named in them later charges any amount from zero up to that cap. The contract is
+immutable. It has no admin, no upgrade path, no constructor and no storage, and it never holds funds. Its
+source is [`contracts/stellar/upto`](https://github.com/tolgayayci/rail402/tree/main/contracts/stellar/upto)
+(Apache-2.0), written against `soroban-sdk` 28.0.0.
+
+## Deployments
+
+{/* generated:begin deployments */}
+
+| Network           | Contract                                                   | WASM SHA-256                                                       |
+| ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| `stellar:testnet` | `CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U` | `cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797` |
+
+[View it on stellar.expert](https://stellar.expert/explorer/testnet/contract/CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U).
+
+{/* generated:end */}
+
+There is no pubnet deployment. A facilitator serving `upto` on pubnet configures its own contract and WASM
+hash (`PUBNET_UPTO_CONTRACT`, `PUBNET_UPTO_WASM_HASH`), and refuses to start if the live contract runs other code.
+
+The testnet deployment record is
+[`contracts/stellar/deployments/testnet.json`](https://github.com/tolgayayci/rail402/blob/main/contracts/stellar/deployments/testnet.json):
+
+{/* generated:begin deployment-record */}
+
+| Field                  | Value                                                                                                                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source revision        | `f107e0993e0c807e7c646a169bdc225191fa5a47` (`contracts/stellar/upto`)                                                                                                       |
+| Source archive SHA-256 | `c783ef0838c7d2c235ded5c4e28b8303e7d7e387362ff868f0a3cc5018802343`                                                                                                          |
+| Build image            | `docker.io/stellar/stellar-cli:28.0.0-rust1.98.0-slim-trixie-amd64-0@sha256:3901802ef2324ff9563a50995279818ca4b98938b45e1dab0e1e7c5d69adb5a9`                               |
+| Build options          | `--locked` `--optimize`                                                                                                                                                     |
+| Build CLI              | `stellar` 28.1.0                                                                                                                                                            |
+| WASM size              | 4,451 bytes                                                                                                                                                                 |
+| Deployer               | `GDIPKWWR6XJF54ZWAU5VVAUY36RFAWJG4OTWU5TVHEI2WGAE6PCSFBA4`                                                                                                                  |
+| Salt                   | `sha256("x402-upto-stellar/v1.1")` = `379714072c27ad068d175a4e64017065e569fb9fd33b9c7c8b59428741f7330b`                                                                     |
+| Upload                 | `86c3d9f7ffbe078e654a242426a266926797fe1fbc7fc05fcc2ab47779a249de` (ledger 5071398)                                                                                         |
+| Deploy                 | `cf415bbdf8782de3fb429bdf0d5f6dbe8cef2c174d4a54673ea4c14fc3f90fa9` (ledger 5071399)                                                                                         |
+| Instance TTL extension | `0155aed10ff6fa3491a0ceb64c5ed91b92d79dcc0714a7405c729487fce280bd` (ledger 5071400), live until ledger 8181799                                                              |
+| Code TTL extension     | `20315838b03ac600a23b32eb0d1cea55bd6aa6e309d37a9e484b17d5b9e649c3` (ledger 5071401), live until ledger 8181800                                                              |
+| Deployment CLI         | `stellar` 28.0.0                                                                                                                                                            |
+| Replaces               | `CCNU3CYA6HCLF5HQSPV3UU2FYVGJ4QWKLCJPMCRSSU6ZKF6LJSN5AYPB` (WASM `40258eb6b66e51016abe13a4cc1b11b18b7d65ac4f9999a38f13fa15448d2435`, salt `sha256("x402-upto-stellar/v1")`) |
+
+{/* generated:end */}
+
+The address depends only on the network, the deployer and the salt, so it was known before anything was sent,
+and only the deployer can create a contract there. The contract cannot be upgraded, so the deployer holds no
+privilege over it afterwards. It replaces `CCNU3CYA…AYPB` (salt `sha256("x402-upto-stellar/v1")`), which runs
+the same source built without the `source_repo` metadata; that contract stays on chain unchanged, but
+`@rail402.dev/upto` no longer names it.
+`@rail402.dev/upto` exports the deployment as `UPTO_TESTNET_DEPLOYMENT`, and a Rail402 service uses it on
+testnet unless `TESTNET_UPTO_CONTRACT` names another contract.
+
+## Interface
+
+```rust
+fn settle(env: Env, payer: Address, terms: UptoTerms, amount: i128) -> Result<i128, UptoError>;
+fn version(env: Env) -> u32; // 1
+
+struct UptoTerms {            // an ScMap on the wire, keys in this order
+    expiration_ledger: u32,   // last ledger (inclusive) at which the terms can be settled
+    facilitator: Address,     // the settlement authority: the only address that can choose the amount
+    max_amount: i128,         // the cap in base units of `token`, > 0
+    recipient: Address,       // G… account or C… contract
+    token: Address,           // SEP-41 token contract
+    valid_after_ledger: u32,  // first ledger at which the terms can be settled
+}
+```
+
+`settle` checks the cap and the ledger window, requires the payer's authorization of `settle(terms)` and the
+settlement authority's authorization of `settle(payer, terms, amount)`, then, for a positive amount, calls
+the signed `token.approve(payer, contract, max_amount, expiration_ledger)` and pulls `amount` with
+`transfer_from`, which the token allows because the contract is the direct invoker. A zero amount makes no
+token call. It returns the amount settled and emits one `upto_settled` event (topics: `"upto_settled"`, payer,
+recipient; data: `token`, `amount`, `max_amount`, `facilitator`), also for zero.
+
+| Code | Error              | When                                              |
+| ---- | ------------------ | ------------------------------------------------- |
+| 1    | `InvalidMaxAmount` | `max_amount` is zero or negative                  |
+| 2    | `NegativeAmount`   | `amount` is negative                              |
+| 3    | `AmountExceedsMax` | `amount` is larger than `max_amount`              |
+| 4    | `NotYetValid`      | the current ledger is before `valid_after_ledger` |
+| 5    | `Expired`          | the current ledger is after `expiration_ledger`   |
+| 6    | `InvalidRecipient` | `recipient` is the settlement contract itself     |
+
+Authorization failures are host errors: `Error(Auth, InvalidAction)` when an authorization is missing or does
+not match (for example, a submitter other than the settlement authority), `Error(Auth, ExistingValue)` when the
+payer's entry was already used. Any error rolls back the whole settlement, the payer's nonce included.
+
+## Rebuild and verify
+
+The crate directory is the complete build input: `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`,
+`.gitignore` and `src/`. The contract is built the way stellar.expert's release workflow
+([`stellar-expert/soroban-build-workflow`](https://github.com/stellar-expert/soroban-build-workflow)) builds it:
+
+```sh
+stellar contract build --optimize --meta source_repo=github:tolgayayci/rail402 --package x402-upto-stellar
+```
+
+with `stellar` 28.1.0 and Rust 1.98.0 (pinned by `rust-toolchain.toml`). The `source_repo` entry in the WASM's
+contract metadata is the [SEP-55](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0055.md)
+link from the deployed code to this repository. `scripts/contracts/build.sh` runs that build with the official
+stellar-cli 28.1.0 release binary (its archive's SHA-256 is checked) on the Rust toolchain of a digest-pinned
+image. The result does not depend on the host path, user or toolchain; Docker, git, jq and curl are all that is
+needed.
+
+Verify the testnet deployment from a checkout of the repository:
+
+```sh
+scripts/contracts/verify.sh --network testnet
+```
+
+It rebuilds the recorded revision from a clean export, compares the crate's source archive and the WASM with the
+recorded hashes, downloads the WASM the deployed instance runs (`stellar contract fetch`) and compares it too,
+and prints the embedded metadata (`rsver`, `rssdkver`, `cliver`, `source_repo`). Other forms:
+
+```sh
+scripts/contracts/build.sh --contract upto            # build the working tree into target/contracts/upto/
+scripts/contracts/build.sh --contract upto --check    # rebuild and compare with the committed WASM
+scripts/contracts/verify.sh --wasm <file> [--rev <rev>]  # rebuild a revision and compare with a WASM file
+stellar contract info meta --wasm <file>              # show the embedded metadata
+```
+
+### Source verification on stellar.expert
+
+stellar.expert links a contract to its source only for WASM that its own release workflow built. A tag
+`upto-contract-v<crate version>` runs `.github/workflows/contract-release.yml`, which first rebuilds the contract
+with `build.sh` and requires it to be the WASM the testnet deployment runs, then calls stellar.expert's workflow
+for `contracts/stellar/upto`. That workflow builds the contract with the command above, publishes the WASM as a
+GitHub release, attests it with GitHub build provenance and asks stellar.expert to validate it. The last job requires the released
+WASM to be the deployed one and its attestation to come from stellar.expert's workflow
+(`gh attestation verify <wasm> --repo tolgayayci/rail402 --signer-repo stellar-expert/soroban-build-workflow`).
+stellar.expert shows the repository and commit on the contract's page once it has processed that request; until
+a tagged release has run, the contract page shows the source as unavailable.
+
+The committed WASM is `packages/testkit/fixtures/x402_upto_stellar.wasm`, with its provenance in
+`x402_upto_stellar.provenance.json`; CI rebuilds it on every change and fails if the hash differs. The contract
+tests run with `cargo test --locked` in `contracts/stellar/upto`.
+
+A Rail402 service checks the contract at startup too: if the live instance runs WASM other than
+`UPTO_WASM_HASH` (the canonical hash for the canonical contract), it refuses to start.
+
+## TTL: monitoring, extension and restoration
+
+The contract stores nothing per payment: the payer's nonce and the allowance are temporary entries that expire
+on their own. Only two entries pay rent, the contract's instance and its code, and the contract never extends
+them itself, so a settlement's fee never depends on them. Once an entry's TTL runs out it is archived, and until
+it is restored every `upto` payment that uses the contract is refused. Extending and restoring are
+permissionless: any funded account can pay for them, and neither changes the contract.
+
+**Monitoring.** A Rail402 service watches the contract under the alias `upto`:
+`rail402_contract_ttl_ledgers{contract="upto"}` for the instance and the code, `/health` warnings
+`contract_ttl_low` and `contract_ttl_critical` (`CONTRACT_TTL_WARN_LEDGERS`, `CONTRACT_TTL_CRITICAL_LEDGERS`),
+and `contract_archived` once an entry is archived. `upto ttl status` prints both entries' TTL and the keeper's
+plan.
+
+**Extension.** The service's keeper (`UPTO_TTL_KEEPER`, on by default) extends both entries once either has
+fewer than `UPTO_TTL_EXTEND_BELOW_LEDGERS` ledgers left (518,400, about 30 days), to
+`UPTO_TTL_EXTEND_TO_LEDGERS` (the network maximum less one day). The sponsor pays, under
+`UPTO_TTL_MAX_FEE_STROOPS`, and one replica at a time does it, never while another replica provisions accounts
+from the sponsor. A round whose fee would leave the sponsor below `SPONSOR_RESERVE_XLM` is refused, so
+maintenance never stops settlements. Extending the testnet code entry by the network maximum cost about 32 XLM.
+By hand:
+
+```sh
+node apps/rail402/dist/upto.js ttl extend --network stellar:testnet [--to <ledgers>]
+# or, from any funded account:
+stellar contract extend --id CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U --durability persistent \
+  --ledgers-to-extend 3110399 --network testnet --source <account>
+stellar contract extend --wasm-hash cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797 \
+  --ledgers-to-extend 3110399 --network testnet --source <account>
+```
+
+`3110399` is the largest extension testnet accepts (`max_entry_ttl − 1`).
+
+**Restoration.** A payment never restores the contract: since protocol 23 a freshly simulated invocation of an
+archived contract would restore it inside the transaction and bill the rent to the fee payer, so while it is
+archived Rail402 refuses `upto` payments with `invalid_upto_stellar_settlement_contract_archived` and submits
+nothing. `exact` payments and `/ready` are not affected. Where `UPTO_TTL_AUTO_RESTORE` is on (testnet by
+default) the keeper restores and then extends the contract; elsewhere `/health` reports
+`upto_contract_restore_required` and an operator runs:
+
+```sh
+node apps/rail402/dist/upto.js ttl restore --network stellar:pubnet
+# or, from any funded account:
+stellar contract restore --id <contract> --durability persistent --network <network> --source <account>
+stellar contract restore --wasm-hash <wasm sha256> --network <network> --source <account>
+# then extend both entries as above
+```
+
+A restored entry comes back with the network's minimum TTL, so restoration is always followed by an
+extension. Afterwards `upto ttl status` shows no archived entry and the next `/health` shows no `upto` warning.
+The full runbook is in [operations](/operations#the-upto-settlement-contract). The archive, refusal, restore and
+settle sequence is tested on a private network with short TTLs
+(`apps/rail402/test/upto-archival.integration.test.ts`).
+
+A new instance lives only the network's minimum TTL (about 7 days on testnet), so extend a contract of your own
+right after deploying it; `scripts/contracts/deploy.sh` does.

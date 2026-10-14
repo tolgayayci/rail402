@@ -1,0 +1,143 @@
+---
+title: CLI
+description: rail402 searches the Stellar Bazaar, pays x402 resources under a spending cap, inspects transactions and onboards testnet accounts, with one JSON document per command and exit statuses scripts can branch on.
+---
+
+`rail402` (package `@rail402.dev/cli`) is the [buyer SDK](/agents/sdk) on the command line. Every payment
+needs `--max`, passes the spending policy and the signing guard, and prints a receipt with the transaction
+hash and its explorer link.
+
+```sh
+npm install -g @rail402.dev/cli@0.4.1
+rail402 --help
+```
+
+## From zero to a paid call on the testnet
+
+```sh
+rail402 keys new                               # a new key file (mode 0600); prints its address, never the seed
+rail402 account setup --usdc 1                 # Friendbot, USDC trustline, 1 USDC bought with XLM on the testnet exchange
+rail402 search "current weather for a city"
+rail402 pay "https://demo.rail402.dev/weather?city=Ankara" --max 0.01
+rail402 tx <transaction hash>                  # who sponsored it, what moved, the explorer link
+```
+
+## Commands
+
+| Command                                     | Signs | What it does                                                                                                 |
+| ------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------ |
+| `search <query>`                            | no    | Natural-language search. `--type http\|mcp --max-price --asset --pay-to --scheme --limit --cursor`           |
+| `resources`                                 | no    | The catalog listing. `--type --pay-to --scheme --extensions --limit --offset --as-of`                        |
+| `listing <id>`                              | no    | One listing; `--versions` adds its public version history                                                    |
+| `quote <url>`                               | no    | The unpaid probe and each payment option's verdict under the policy                                          |
+| `pay <url> --max <amount>`                  | yes   | Pays an HTTP resource, or an MCP tool with `--tool`                                                          |
+| `purchase <query> --max <amount>`           | yes   | Searches, picks the first payable result (or `--pick <n\|listing id>`) and pays it through its listing       |
+| `tx <hash>`                                 | no    | Explains a transaction: fee sponsor, authorizations, transfers, x402 shape, facilitator attribution          |
+| `session show\|list\|start\|end\|reconcile` | no    | Budget windows: `--name --max-total --ttl --force`                                                           |
+| `keys new\|import\|show\|path`              | no    | Local key files; `import` reads the seed from stdin (hidden on a terminal); only public data is printed      |
+| `account setup\|status`                     | setup | Testnet: Friendbot, trustline, `--usdc <n>` from the testnet exchange. Pubnet: trustline only, after `--yes` |
+| `seller check <url>`                        | no    | Checks a paid resource the way the catalog will (`--method --tool --args`)                                   |
+| `seller validate <file>`                    | no    | Validates a saved `PAYMENT-REQUIRED` (JSON or base64)                                                        |
+| `version`                                   | no    |                                                                                                              |
+
+Call input for `pay`, `purchase` and `quote`: `--method`, `--query k=v` (repeatable), `--header "k: v"`,
+`--data <json>` or `--data-file <path>` for HTTP; `--tool <name>`, `--args <json>` or `--args-file <path>` and
+`--transport streamable-http|sse` for MCP; `--path-param k=v` for a listing's path parameters. Payment flags:
+`--asset`, `--scheme exact|upto` (a preference; the policy decides), `--session <name>` and
+`--idempotency-key <key>`. Repeating a paid command with
+the same `--idempotency-key` never pays twice. It returns the stored result with `replayed: true`, or the
+stored error while the payment's outcome is open. It checks that payment on chain first, and pays again only
+once the chain shows the earlier authorization expired unused. A key used again for another resource in the
+same window is refused with `payment_request_invalid`.
+
+## upto resources
+
+`quote`, `pay` and `purchase` pay `upto` resources like `exact` ones. The seller's price is a cap: the quote
+shows it, `--max` must cover it, and the receipt reports both what was authorized and what the seller settled:
+
+```sh
+rail402 pay https://api.example.com/report --query rows=200 --max 0.10
+```
+
+```text
+paid:        0.0125 USDC to G… (settled, verified on chain)
+authorized:  up to 0.05 USDC (upto; the rest of the cap is back in the budget)
+transaction: 3f…
+```
+
+The cap is reserved in the budget window when the authorization is signed; only the charge the chain proves
+stays spent (`session show`). `tx <hash>` recognises an upto settlement (`x402.shape: "upto"`). On testnet the
+canonical settlement contract is pinned by default; `RAIL402_UPTO_CONTRACTS` pins another (for a private
+network), `RAIL402_UPTO_FACILITATORS` limits the settlement authorities, and `RAIL402_SCHEMES=exact` turns
+upto off. See [Spending policy](/reference/spending-policy) for every check.
+
+## JSON output
+
+With `--json` (or `RAIL402_OUTPUT=json`) stdout carries exactly one JSON document per command; progress,
+logs and `--verbose` payment events go to stderr.
+
+```json
+{"v":1,"ok":true,"command":"pay","network":"stellar:testnet","result":{ … }}
+{"v":1,"ok":false,"command":"pay","error":{"code":"payment_per_call_cap_exceeded","reason":"…","retryable":false,"paid":"none","details":{ … }}}
+```
+
+`result` by command:
+
+| Command            | `result`                                                                                                                                                                                                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search`           | `{ query, hits, nextCursor, partialResults, method }`; each hit has `listingId`, `type`, `resource`, `method`, `toolName`, `owner`, `trust`, `settlements`, `prices`, `callable`, `withinPolicy`, `seller`, `input`, `output`                                        |
+| `resources`        | `{ hits, pagination: { limit, offset, total, asOf } }`                                                                                                                                                                                                               |
+| `listing`          | `{ listing, versions? }`; `listing.state` is `pending`, `published` or `quarantined`                                                                                                                                                                                 |
+| `quote`            | `{ callId, resource, paymentRequired, status, options, chosen, refused, warnings }`; each option has `amount`, `asset`, `payTo`, `feesSponsored`, `acceptable`, `refused`                                                                                            |
+| `pay`, `purchase`  | `{ callId, paid, replayed, payment, response, budget }`, plus `chosen` (the search hit) for `purchase`. `payment` is the receipt: `status`, `scheme`, `network`, `asset`, `authorized`, `settled`, `payTo`, `payer`, `transaction`, `explorerUrl`, `verifiedOnChain` |
+| `tx`               | `{ hash, network, status, ledger, closedAt, feeBump, source, operations, authorizations, transfers, x402, facilitator, explorerUrl }`                                                                                                                                |
+| `session show`     | The budget window: `{ session, window, payer, startedAt, expiresAt, autoRenew, assets: [{ asset, perCallCap, sessionCap, spent, pending, remaining }], … }`                                                                                                          |
+| `keys new\|import` | `{ address, keyFile, network }`; `keys show` adds `source`; `keys path` is `{ keyFile, exists }`                                                                                                                                                                     |
+| `account status`   | `{ address, network, exists, xlm, assets: [{ asset, contract, trustline, authorized, balance }] }`; `setup` adds `funded`, `trustline`, `bought`, `transactions`                                                                                                     |
+| `seller check`     | `{ url, type, ok, status, paymentRequired, validation, findings, receivable, domain }`                                                                                                                                                                               |
+
+Amounts are decimal strings in whole units of the asset (`"0.015"`); `atomic` fields are base units. JSON
+output escapes C1 control characters and bidirectional overrides, so seller text printed to a terminal is inert.
+
+## Exit statuses
+
+A script can tell from the status alone whether retrying is safe.
+
+| Status | Meaning                                                                                                        |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| 0      | Success                                                                                                        |
+| 1      | Internal error (`cli_internal_error`)                                                                          |
+| 2      | Usage, configuration or key problem (for example `cli_usage_invalid`, `payment_cap_required`, `key_not_found`) |
+| 3      | Refused before signing: nothing was paid (for example `payment_per_call_cap_exceeded`)                         |
+| 4      | Signed but refused by the seller or its facilitator: not settled (`payment_rejected`)                          |
+| 5      | Paid or possibly paid: do not repeat without the same `--idempotency-key` (`paid` is `settled` or `unknown`)   |
+| 6      | Temporarily unavailable: retry later (for example `discovery_unavailable`, `rpc_unavailable`)                  |
+| 7      | Not found (`listing_not_found`, `transaction_not_found`, `mcp_tool_not_found`, `account_not_found`)            |
+
+`paid` decides first: any error whose `paid` is `settled` or `unknown` exits 5, even when it is retryable. A
+paid command whose receipt status is `unknown` also exits 5, with an `ok: true` document. Status 3 also covers
+a signed payment that never reached the seller (`payment_settlement_unconfirmed` or `egress_request_too_large`
+with `paid: none`): nothing was paid, but its reserved budget stays pending until the authorization expires.
+Any failure after a payment was sent, including a budget ledger that cannot be written, reports `paid: unknown`. The
+[error-code reference](/reference/error-codes#client-codes) lists the exit status of every code.
+
+## Configuration
+
+Settings are read from flags, then `RAIL402_*` environment variables, then the config file
+(`$XDG_CONFIG_HOME/rail402/config.json`, or `--config <path>`), then the network's defaults. The variables are the
+same as the [MCP server's](/agents/mcp-server#configuration), plus `RAIL402_FACILITATOR_URL` (for `tx`
+attribution and `seller check`; defaults to the Bazaar URL), `RAIL402_FRIENDBOT_URL` (testnet only) and
+`RAIL402_OUTPUT`. The config file takes the same settings in camelCase (`network`, `rpcUrl`, `bazaarUrl`,
+`maxPerCall`, `maxTotal`, `assets`, `keyFile`, `schemes`, `uptoContracts`, …) and is refused if it holds anything that looks like a secret
+key.
+
+The key is found in this order: `--key-file`, `RAIL402_SECRET_KEY_FILE`, `RAIL402_SECRET_KEY`, the config
+file's `keyFile`, then the default key file for the network
+(`$XDG_CONFIG_HOME/rail402/keys/stellar-testnet.key`). `keys new` and `keys import` never overwrite a file
+(`key_exists`).
+
+Global flags: `--network stellar:testnet|stellar:pubnet`, `--rpc-url`, `--bazaar-url`, `--facilitator-url`,
+`--key-file`, `--config`, `--json`, `--verbose`, `--timeout <seconds>` (default 120), and, for local
+development on testnet only, `--allow-http` and `--allow-private-network`. On `stellar:pubnet` the RPC and Bazaar
+URLs and both caps are required, `account setup` needs `--yes` and never uses Friendbot, and `--usdc` is
+refused with `cli_command_not_supported_on_network`.

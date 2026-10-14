@@ -3,6 +3,11 @@ title: Quickstart for sellers
 description: Charge for an HTTP endpoint with the stock @x402/express middleware, settle through Rail402 and get listed in its Bazaar.
 ---
 
+<Tip>
+  The [seller helpers](/sellers/helpers) in `@rail402.dev/sdk/seller` build the route configuration below, and
+  paid MCP tools, with discovery metadata the catalog accepts as is, and check it before the first sale.
+</Tip>
+
 A seller runs a stock x402 resource server and names Rail402 as its facilitator. Nothing Rail402-specific
 is installed: the facilitator is just a URL. This page uses the hosted testnet facilitator.
 
@@ -167,14 +172,16 @@ Shortly after the first settlement, Rail402 requests the resource without paymen
 back names the same `payTo` and a matching bazaar extension, the listing's `trust` becomes
 `origin_verified` and a new version is recorded.
 
-To have your domain vouch for the listing as well, publish a SEP-1 `stellar.toml` at
-`https://<your host>/.well-known/stellar.toml` that lists your `payTo` account:
+To have your domain vouch for the listing as well, bind the domain and the account both ways (SEP-1). Publish a
+`stellar.toml` at `https://<your host>/.well-known/stellar.toml` that lists your `payTo` account:
 
 ```toml
 ACCOUNTS = ["G..."]
 ```
 
-Within minutes the listing's `trust` becomes `domain_verified`.
+and set that host as the `payTo` account's home domain (a `setOptions` operation with `homeDomain`, for
+example `stellar tx new set-options --home-domain <your host>` with the Stellar CLI). Within minutes the
+listing's `trust` becomes `domain_verified`.
 
 ## Changing price or metadata
 

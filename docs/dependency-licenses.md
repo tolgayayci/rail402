@@ -9,17 +9,21 @@ no copyleft licence appears anywhere in the tree, development tooling included, 
 exceptions flagged below. The policy is enforced on every CI run by `pnpm license:gate`
 (`tools/license-gate/src/policy.ts`).
 
-- Permissive allowlist: 0BSD, Apache-2.0, BlueOak-1.0.0, BSD-2-Clause, BSD-3-Clause, CC0-1.0, ISC, MIT, MIT-0, PostgreSQL, Python-2.0, Unlicense, Zlib.
+- Permissive allowlist: 0BSD, Apache-2.0, BlueOak-1.0.0, BSD-2-Clause, BSD-3-Clause, CC0-1.0, ISC, MIT, MIT-0, PostgreSQL, Python-2.0, Unicode-3.0, Unlicense, Zlib.
 - Forbidden anywhere: AGPL*, GPL*, LGPL*, SSPL*, EUPL*, OSL*, CPAL*, CC-BY-SA*, CC-BY-NC*, BUSL*, Elastic*, Commons-Clause*.
 - The OpenZeppelin Relayer, its x402 plugin and the relayer SDK are AGPL and are not used.
 
 ## Summary
 
-| Closure                                              | Packages |
-| ---------------------------------------------------- | -------- |
-| Service (the container image)                        | 93       |
-| Other workspace tools (conformance runs, evaluation) | 84       |
-| Development only (build, lint, test)                 | 154      |
+| Closure                                                                                                                                       | Packages |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Service (the container image)                                                                                                                 | 93       |
+| Outside the service: the published agent packages (SDK, MCP server, CLI, upto, safe-fetch) and workspace tools (conformance runs, evaluation) | 106      |
+| Development only (build, lint, test)                                                                                                          | 178      |
+| Contract contracts/stellar/upto (Rust)                                                                                                        | 216      |
+| Contract contracts/testing/approve-spending-limit (Rust)                                                                                      | 218      |
+| Contract contracts/testing/composition (Rust)                                                                                                 | 216      |
+| Contract contracts/testing/test-token (Rust)                                                                                                  | 219      |
 
 ## Flagged items
 
@@ -33,10 +37,10 @@ Refused whatever licence they declare:
 
 Tolerated in development tooling only; never shipped:
 
-| Package                    | Licence | Reason                                                                                       |
-| -------------------------- | ------- | -------------------------------------------------------------------------------------------- |
-| lightningcss               | MPL-2.0 | vite (via vitest) CSS transformer; file-level copyleft, test tooling only, never distributed |
-| lightningcss-linux-x64-gnu | MPL-2.0 | platform binary of lightningcss; test tooling only, never distributed                        |
+| Package                    | Licence | Reason                                                                                                                                          |
+| -------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| lightningcss               | MPL-2.0 | vite CSS transformer (tests and web builds); file-level copyleft, runs at build time only and never enters a published package, image or bundle |
+| lightningcss-linux-x64-gnu | MPL-2.0 | platform binary of lightningcss; build and test tooling only, never distributed                                                                 |
 
 Dual or compound licences (a permissive branch is always available):
 
@@ -46,13 +50,15 @@ Dual or compound licences (a permissive branch is always available):
 
 ## Artifacts outside the package manager
 
-| Artifact                                                            | Licence                                                      | Where                                                                                     |
-| ------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| sentence-transformers/all-MiniLM-L6-v2 (ONNX weights and tokenizer) | Apache-2.0                                                   | service image; pinned revision and hashes in packages/search/models/all-minilm-l6-v2.json |
-| node:24 trixie-slim base image                                      | MIT (Node.js); Debian packages under their own free licences | service image                                                                             |
-| rs-soroban-env simple_account.wasm                                  | Apache-2.0                                                   | tests only; packages/testkit/fixtures/README.md                                           |
-| postgres:18 image                                                   | PostgreSQL                                                   | docker-compose and CI only                                                                |
-| stellar/quickstart image                                            | Apache-2.0                                                   | docker-compose and CI only                                                                |
+| Artifact                                                               | Licence                                                      | Where                                                                                     |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| sentence-transformers/all-MiniLM-L6-v2 (ONNX weights and tokenizer)    | Apache-2.0                                                   | service image; pinned revision and hashes in packages/search/models/all-minilm-l6-v2.json |
+| node:24 trixie-slim base image                                         | MIT (Node.js); Debian packages under their own free licences | service image                                                                             |
+| rs-soroban-env simple_account.wasm                                     | Apache-2.0                                                   | tests only; packages/testkit/fixtures/README.md                                           |
+| OpenZeppelin stellar-contracts smart account and ed25519 verifier wasm | MIT                                                          | tests only; pinned commit in scripts/contracts/fixtures.sh                                |
+| stellar/stellar-cli build image                                        | Apache-2.0                                                   | contract builds only; pinned digest in scripts/contracts/common.sh                        |
+| postgres:18 image                                                      | PostgreSQL                                                   | docker-compose and CI only                                                                |
+| stellar/quickstart image                                               | Apache-2.0                                                   | docker-compose and CI only                                                                |
 
 ## Service packages
 
@@ -152,24 +158,104 @@ Dual or compound licences (a permissive branch is always available):
 | zod                             | 3.25.76 | MIT          |
 | zod                             | 4.6.5   | MIT          |
 
-## Other workspace tools, by licence
+## Outside the service (published agent packages and workspace tools), by licence
 
 | Licence          | Packages |
 | ---------------- | -------- |
-| MIT              | 71       |
-| ISC              | 6        |
-| Apache-2.0       | 4        |
+| MIT              | 87       |
+| ISC              | 9        |
+| Apache-2.0       | 6        |
 | BSD-3-Clause     | 2        |
 | (MIT OR CC0-1.0) | 1        |
+| BSD-2-Clause     | 1        |
 
 ## Development only, by licence
 
 | Licence       | Packages |
 | ------------- | -------- |
-| MIT           | 123      |
-| Apache-2.0    | 14       |
-| BSD-2-Clause  | 6        |
-| ISC           | 6        |
+| MIT           | 144      |
+| Apache-2.0    | 18       |
+| BSD-2-Clause  | 7        |
+| ISC           | 4        |
 | BSD-3-Clause  | 2        |
 | MPL-2.0       | 2        |
 | BlueOak-1.0.0 | 1        |
+
+## Contract dependencies (Rust)
+
+Resolved from each contract's `Cargo.lock` with `cargo metadata --locked`, development
+dependencies included. Every package must be permissive; only normal dependencies are compiled
+into the deployed contract.
+
+### contracts/stellar/upto
+
+| Licence                                             | Packages |
+| --------------------------------------------------- | -------- |
+| MIT OR Apache-2.0                                   | 125      |
+| Apache-2.0 OR MIT                                   | 31       |
+| Apache-2.0                                          | 19       |
+| MIT                                                 | 19       |
+| Unlicense OR MIT                                    | 7        |
+| BSD-3-Clause                                        | 4        |
+| Apache-2.0 WITH LLVM-exception                      | 2        |
+| BSD-2-Clause OR Apache-2.0 OR MIT                   | 2        |
+| MIT OR Apache-2.0 OR BSD-1-Clause                   | 2        |
+| Zlib OR MIT OR Apache-2.0                           | 2        |
+| (MIT OR Apache-2.0) AND Unicode-3.0                 | 1        |
+| Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | 1        |
+| Zlib OR Apache-2.0 OR MIT                           | 1        |
+
+### contracts/testing/approve-spending-limit
+
+| Licence                                             | Packages |
+| --------------------------------------------------- | -------- |
+| MIT OR Apache-2.0                                   | 125      |
+| Apache-2.0 OR MIT                                   | 31       |
+| MIT                                                 | 20       |
+| Apache-2.0                                          | 19       |
+| Unlicense OR MIT                                    | 7        |
+| BSD-3-Clause                                        | 4        |
+| Apache-2.0 WITH LLVM-exception                      | 2        |
+| BSD-2-Clause OR Apache-2.0 OR MIT                   | 2        |
+| MIT OR Apache-2.0 OR BSD-1-Clause                   | 2        |
+| Zlib OR MIT OR Apache-2.0                           | 2        |
+| (MIT OR Apache-2.0) AND Unicode-3.0                 | 1        |
+| Apache-2.0 OR BSL-1.0                               | 1        |
+| Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | 1        |
+| Zlib OR Apache-2.0 OR MIT                           | 1        |
+
+### contracts/testing/composition
+
+| Licence                                             | Packages |
+| --------------------------------------------------- | -------- |
+| MIT OR Apache-2.0                                   | 124      |
+| Apache-2.0 OR MIT                                   | 31       |
+| Apache-2.0                                          | 20       |
+| MIT                                                 | 19       |
+| Unlicense OR MIT                                    | 7        |
+| BSD-3-Clause                                        | 4        |
+| Apache-2.0 WITH LLVM-exception                      | 2        |
+| BSD-2-Clause OR Apache-2.0 OR MIT                   | 2        |
+| MIT OR Apache-2.0 OR BSD-1-Clause                   | 2        |
+| Zlib OR MIT OR Apache-2.0                           | 2        |
+| (MIT OR Apache-2.0) AND Unicode-3.0                 | 1        |
+| Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | 1        |
+| Zlib OR Apache-2.0 OR MIT                           | 1        |
+
+### contracts/testing/test-token
+
+| Licence                                             | Packages |
+| --------------------------------------------------- | -------- |
+| MIT OR Apache-2.0                                   | 124      |
+| Apache-2.0 OR MIT                                   | 31       |
+| MIT                                                 | 22       |
+| Apache-2.0                                          | 20       |
+| Unlicense OR MIT                                    | 7        |
+| BSD-3-Clause                                        | 4        |
+| Apache-2.0 WITH LLVM-exception                      | 2        |
+| BSD-2-Clause OR Apache-2.0 OR MIT                   | 2        |
+| MIT OR Apache-2.0 OR BSD-1-Clause                   | 2        |
+| Zlib OR MIT OR Apache-2.0                           | 2        |
+| (MIT OR Apache-2.0) AND Unicode-3.0                 | 1        |
+| Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | 1        |
+| Zlib OR Apache-2.0 OR MIT                           | 1        |

@@ -1,0 +1,196 @@
+---
+title: Spending policy and signing guard
+sidebarTitle: Spending policy
+description: What the SDK, the MCP server and the CLI check before they sign a payment, the code each check returns, and the test that proves it.
+---
+
+Every payment from `@rail402.dev/sdk`, `rail402-mcp` and `rail402` passes the same controls. A spending
+policy says what may be paid; each call brings its own cap; a budget ledger holds what has been spent and
+what is pending; and a **signing guard** wraps the key so that nothing is signed unless the exact bytes pass
+the policy, immediately before the signature. The unmodified `@x402/stellar` client builds the payment; the
+guard is the only way it reaches the key.
+
+## The policy
+
+| Setting                   | Default on `stellar:testnet`          | Default on `stellar:pubnet`                   |
+| ------------------------- | ------------------------------------- | --------------------------------------------- |
+| Assets                    | Circle USDC                           | Circle USDC                                   |
+| Per-call ceiling          | 0.10 USDC                             | none: required with a signer                  |
+| Budget-window total       | 1.00 USDC per 24 hours, renewing      | none: required with a signer                  |
+| Schemes                   | `exact` and `upto`                    | `exact` (`upto` once a contract is pinned)    |
+| upto settlement contracts | the canonical testnet deployment      | none                                          |
+| upto settlement authority | any, except the payer and recipient   | any, except the payer and recipient           |
+| Recipients                | any, except the payer itself          | any, except the payer itself                  |
+| Longest authorization     | 300 seconds (configurable up to 3600) | 300 seconds                                   |
+| Pay by URL                | allowed                               | listings only (`requireCatalogListing`)       |
+| Lowest listing trust paid | `settled`                             | HTTP `origin_verified`, MCP `domain_verified` |
+
+Any other SEP-41 token can be added with its symbol and decimals; both are read from the token contract when
+the buyer starts and must match (`payment_policy_invalid`), and every asset other than testnet USDC needs
+explicit caps. Recipient allow and deny lists compare base accounts, so a muxed `M…` address matches its `G…`
+account. Amounts are decimal strings converted to base units without rounding: a cap with more decimals than
+its asset is refused (`payment_cap_invalid`), never rounded.
+
+`upto` is paid only through a pinned settlement contract (`uptoContracts`, `RAIL402_UPTO_CONTRACTS`); on
+testnet the canonical deployment `CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U` is pinned by default.
+The contract is never taken from a seller. `uptoFacilitators` (`RAIL402_UPTO_FACILITATORS`) optionally limits
+which settlement authorities (`extra.facilitatorAddress`) may settle upto payments; without it any authority
+other than the payer and the recipient is accepted, bound exactly to the option the call selected.
+
+A buyer that can sign never runs without caps. Configuration errors are refused when the buyer, the MCP server
+or the CLI starts, with `payment_policy_invalid` and the offending setting in `details.setting`.
+
+## Checks, in order
+
+Test files, relative to `packages/sdk/test/`: `policy.test.ts` (the option and policy matrix), `decide.test.ts`
+(the signing decision on raw preimages), `guard.test.ts` (the guard around a spy signer), `ledger.test.ts` and
+`sqlite-ledger.test.ts` (budget windows), `http-flow.test.ts` and `mcp-flow.test.ts` (the payment flows),
+`discovery.test.ts` (listings), `upto.test.ts` (the upto scheme: the signed tree, option checks, settlement
+proof and budget accounting), `buyer.integration.test.ts`, `guard.integration.test.ts` and
+`upto.integration.test.ts` (the private Stellar network).
+
+### 1. Before anything is fetched
+
+| Check                                                                                                          | Code                                                   | Test                                  |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------- |
+| A signer is configured                                                                                         | `payment_signer_unavailable`                           | http-flow, discovery                  |
+| The call has a cap, well-formed, in a policy asset                                                             | `payment_cap_required`, `payment_cap_invalid`          | policy, http-flow                     |
+| Only allowed headers, no body on GET or HEAD, safe path parameters                                             | `payment_request_invalid`                              | http-flow                             |
+| With `requireCatalogListing`, the resource was selected from a listing                                         | `payment_listing_required`                             | discovery                             |
+| A listing is published, trusted enough, callable and on this network                                           | `listing_not_payable`                                  | discovery                             |
+| The seller URL passes the egress policy                                                                        | `egress_*`, see [Outbound requests](/reference/egress) | http-flow, `packages/safe-fetch/test` |
+| A repeated idempotency key replays the stored result; a call still running is refused (retry once it finishes) | `payment_in_progress`                                  | guard, ledger, basics                 |
+| An idempotency key is used again only for the resource it was first used for                                   | `payment_request_invalid`                              | http-flow, mcp-flow                   |
+
+### 2. Choosing a payment option
+
+The unpaid request returns the seller's `PAYMENT-REQUIRED` (x402 version 2 only, at most 64 KiB, otherwise
+`payment_requirements_invalid`). Each option is then judged:
+
+| Check                                                                                                           | Code                                         | Test                                   |
+| --------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------- |
+| The option's network is the buyer's network                                                                     | `payment_network_not_permitted`              | policy                                 |
+| Its scheme is enabled                                                                                           | `payment_scheme_not_permitted`               | policy                                 |
+| Its asset is in the policy and is the cap's asset                                                               | `payment_asset_not_permitted`                | policy                                 |
+| The option declares `areFeesSponsored: true`                                                                    | `payment_fees_not_sponsored`                 | policy, http-flow, upto                |
+| `upto`: the buyer's settlement contract is pinned in the policy                                                 | `payment_scheme_not_permitted`               | upto                                   |
+| `upto`: the option names a settlement authority that is not the recipient and is allowed                        | `payment_facilitator_not_permitted`          | upto, upto (integration)               |
+| `upto`: the recipient is a `G…` or `C…` address (muxed addresses are refused)                                   | `payment_recipient_not_permitted`            | upto, upto (integration)               |
+| The recipient is valid, not the payer, and allowed                                                              | `payment_recipient_not_permitted`            | policy                                 |
+| The amount is a positive integer that fits an i128                                                              | `payment_amount_not_permitted`               | policy                                 |
+| The price (for `upto`, the cap) is at most the effective cap (the lower of the call's cap and the ceiling)      | `payment_per_call_cap_exceeded`              | policy, http-flow, buyer (integration) |
+| `maxTimeoutSeconds` is within the policy's authorization window                                                 | `payment_authorization_window_not_permitted` | policy                                 |
+| For a listing: the live `payTo` is the listing's owner and the price is not above the listed one (HTTP and MCP) | `payment_listing_mismatch`                   | policy, http-flow, mcp-flow            |
+| The price fits what is left in the budget window                                                                | `payment_session_cap_exceeded`               | policy                                 |
+
+Among acceptable options the preferred scheme wins, then the lowest price (an `upto` option counts at its
+cap), then `exact`, then the seller's order. When none is acceptable, a single option's own refusal is returned; with several,
+`payment_no_acceptable_option` lists each option and why it was refused.
+
+### 3. Before signing
+
+| Check                                 | Code                               | Test      |
+| ------------------------------------- | ---------------------------------- | --------- |
+| The payer holds enough of the asset   | `payment_insufficient_funds`       | http-flow |
+| The payer has an authorized trustline | `payment_payer_trustline_missing`  | http-flow |
+| The recipient can receive the asset   | `payment_recipient_cannot_receive` | http-flow |
+
+Contract accounts and custom tokens, whose balances cannot be decided this way, proceed to the guard.
+
+### 4. The signing guard
+
+The guard is armed with the one option the call selected and signs at most once. It decodes the exact bytes
+it is asked to sign and refuses, in this order:
+
+| Check                                                                                                                                                                                  | Code                                                                                             | Test                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------- |
+| The bytes are a Soroban authorization preimage, not a transaction or anything else                                                                                                     | `payment_authorization_rejected`                                                                 | decide, guard                |
+| The preimage is for the buyer's network (network id and requested passphrase)                                                                                                          | `payment_network_not_permitted`                                                                  | decide, guard                |
+| It is bound to the signer's address                                                                                                                                                    | `payment_authorization_rejected`                                                                 | decide                       |
+| It invokes a payment an enabled scheme fully understands (a SEP-41 `transfer` for `exact`, no sub-invocations, no approvals)                                                           | `payment_authorization_rejected`                                                                 | decide, guard                |
+| For `upto`: `settle(terms)` on a pinned contract with exactly one child, `token.approve(payer, contract, cap, expiry)`, and terms that expire with the signature and start at ledger 0 | `payment_authorization_rejected`                                                                 | upto                         |
+| The money leaves the signer's own account                                                                                                                                              | `payment_authorization_rejected`                                                                 | decide                       |
+| Scheme, asset, recipient and amount equal the selected option exactly (a lower amount is refused too)                                                                                  | `payment_authorization_rejected`                                                                 | decide, guard                |
+| For `upto`, the settlement authority in the terms equals the selected option's                                                                                                         | `payment_authorization_rejected`                                                                 | upto                         |
+| For `upto`, that authority is neither the payer nor the recipient, and is allowed                                                                                                      | `payment_facilitator_not_permitted`                                                              | upto                         |
+| The asset, recipient and amount pass the policy again                                                                                                                                  | `payment_asset_not_permitted`, `payment_recipient_not_permitted`, `payment_amount_not_permitted` | decide                       |
+| The amount is within the effective cap                                                                                                                                                 | `payment_per_call_cap_exceeded`                                                                  | decide, guard                |
+| The expiration ledger is after the latest ledger and within the authorization window                                                                                                   | `payment_authorization_window_not_permitted`                                                     | decide, guard                |
+| A second signature in the same call                                                                                                                                                    | `payment_authorization_rejected`                                                                 | guard                        |
+| The amount is reserved in the budget window, in the same synchronous step as the decision                                                                                              | `payment_session_cap_exceeded`, `payment_session_expired`                                        | guard, ledger, sqlite-ledger |
+
+The latest ledger is read just before deciding. The decision and the reservation run in one synchronous step,
+so concurrent calls, including calls from several processes sharing the SQLite ledger, can never jointly exceed
+a cap. A spy signer in `guard.test.ts` is never called on any refusal and is called exactly once on success,
+including against malicious scheme doubles that change the amount by one, the recipient, the asset, the
+network, add an approval or a sub-invocation, push the expiry out, or ask for a second signature. For
+`upto`, doubles that sign for another settlement contract (including one a seller's 402 advertises), another
+settlement authority, another recipient or a higher cap are refused the same way, with nothing signed
+(`upto.test.ts`, `upto.integration.test.ts`). For a
+`G…` signer the produced Ed25519 signature is verified; a key or wallet failure is `payment_signing_failed`
+and releases the reservation.
+
+After signing, the payload the client built is checked against what was signed (`payment_authorization_rejected`).
+
+### 5. After the payment is sent
+
+| Outcome                                                               | Code                             | `paid`        |
+| --------------------------------------------------------------------- | -------------------------------- | ------------- |
+| The seller or its facilitator refused the signed payment              | `payment_rejected`               | `not_settled` |
+| Settled, then the resource answered an HTTP error or an MCP `isError` | `payment_resource_failed`        | `settled`     |
+| Sent, but no settlement was reported or it could not be confirmed     | `payment_settlement_unconfirmed` | `unknown`     |
+| The paid request was answered with a redirect (never followed)        | `payment_redirect_after_payment` | `unknown`     |
+
+A reported settlement is checked on chain: the transaction must have succeeded and consumed this payment's own
+authorization, meaning the envelope carries the payer's entry with the signed nonce and the host consumed that
+nonce (`verifiedOnChain`). That proves the `exact` price moved, whether the transfer was the transaction's own
+call or was made from inside another contract. For `upto` the amount is the one the pinned settlement contract
+recorded for the signed terms in its `upto_settled` event, at most the cap; when no such event can be read the
+whole cap counts. That amount is what the receipt reports as `settled`. A malformed hash is not recorded. A
+hash that another payment also reported is still only a claim against each payment that reported it.
+
+## The budget ledger
+
+Each signature reserves its amount as pending. A verified settlement moves it to spent. A reported settlement
+that is not verified yet counts as spent. A payment whose outcome is unknown stays pending until reconciliation
+proves it.
+
+Proof comes from the payer's nonce recorded at signing. The host keeps every nonce it consumes in a temporary
+ledger entry keyed by the payer and the nonce, and only the entry the payer signed can consume it.
+Reconciliation checks every transaction that sent the payer's asset to the recipient between the signing ledger
+and the authorization's expiry, plus the hash the seller reported:
+
+- **A transaction consumed the nonce.** The payment is spent, whatever shape the transaction has: a direct
+  settlement, a call through a wrapper or router contract, or a batch that settles several payments (of one
+  payer or of several payers sharing a ledger file).
+- **No transaction consumed it and the authorization has expired.** The payment is released (`expired_unused`),
+  or `claim_false` when a settlement was reported.
+
+A transfer made with another authorization never settles or releases a reservation. Neither does a hash a
+seller reported for some other payment. A consumed authorization is never released.
+
+An `upto` payment reserves its cap. The amount the seller reports counts as spent at once, and the rest of the
+cap stays pending until the chain proves the settlement: then the proven amount is spent and the rest returns
+to the window (a `released` event with reason `settled_below_cap`). A zero settlement proven on chain returns
+the whole cap; a zero settled off chain (no transaction) returns it once the authorization expires with nothing
+consumed.
+
+The RPC keeps events and transactions for a limited time (about 7 days on the public RPCs). An expired payment
+whose ledgers the RPC no longer holds can never be proven either way. It is counted as spent at its whole
+amount, reported once (an `unprovable` event), and no longer reconciled. It never blocks later windows and
+never returns budget that may have been paid. To avoid this, reconcile within the RPC's retention.
+
+Reconciliation runs:
+
+- for a few rows before each new payment;
+- for its own payment when a call is retried with the same idempotency key;
+- on demand: `buyer.reconcile()`, `rail402 session reconcile`, or MCP `get_budget` with `reconcile: true`.
+
+Refusals before signing never touch the budget.
+
+Budget windows are per payer, network and session name. When a window renews, payments signed in the earlier
+window that the chain has not resolved yet stay pending in the new one, so an authorization signed just before
+the renewal and settled after it still counts against the session cap. The default window lasts 24 hours and renews; named
+sessions (`rail402 session start --name … --max-total … --ttl …`) do not renew and end with
+`payment_session_expired`. The in-memory ledger serves one process; the SQLite ledger
+(`@rail402.dev/sdk/sqlite`, the CLI and MCP default) is shared by every process that opens the same file.

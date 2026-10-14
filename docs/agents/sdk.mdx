@@ -1,0 +1,296 @@
+---
+title: Buyer SDK
+description: Pay x402 resources on Stellar from TypeScript under a spending cap, discover them through the Bazaar, and get receipts that link to the settlement transaction.
+---
+
+`@rail402.dev/sdk` is a buyer for x402 resources on Stellar: HTTP endpoints and paid MCP tools. It signs
+`exact` payments with the unmodified `@x402/stellar` client and capped, usage-based `upto` payments with the
+`@rail402.dev/upto` client, behind a signing guard that checks every authorization against your spending policy
+immediately before it is signed. It also searches the Rail402 Bazaar and pays a listing
+bound to its owner.
+
+<Info>
+  Requires Node.js 24.11 or later. Any x402 seller on Stellar whose facilitator sponsors fees can be paid; the
+  seller does not have to use Rail402.
+</Info>
+
+```sh
+npm install @rail402.dev/sdk@0.4.1
+```
+
+## Create a buyer
+
+```ts
+import { createBuyer } from "@rail402.dev/sdk";
+
+const buyer = await createBuyer({
+  network: "stellar:testnet",
+  signer: { secretFile: "~/.config/rail402/keys/stellar-testnet.key" },
+});
+```
+
+- `network` is required. There is no default network, so a buyer can never fall back to the wrong one.
+- `signer` is a key source (`{ secretFile }`, preferred, or `{ secret }`) or any SEP-43 signer with
+  `address` and `signAuthEntry`, such as a wallet. Without a signer the buyer can search and quote, and paying
+  is refused with `payment_signer_unavailable`.
+- A key file must not be readable or writable by group or others (`key_file_insecure`). The `rail402 keys new`
+  command of the [CLI](/agents/cli) creates one with mode `0600`.
+
+On `stellar:testnet` the buyer uses `https://soroban-testnet.stellar.org` and the Bazaar at
+`https://testnet.rail402.dev` unless `rpcUrl` and `bazaarUrl` say otherwise, and Circle's testnet USDC with
+default caps of **0.10 USDC per call** and **1.00 USDC per 24-hour budget window**.
+
+## Choose the network
+
+The network is `stellar:testnet` or `stellar:pubnet`, named by its CAIP-2 identifier. The same code runs on both; pubnet only asks for more to be
+explicit:
+
+| Setting                                | `stellar:testnet`                                | `stellar:pubnet`                                        |
+| -------------------------------------- | ------------------------------------------------ | ------------------------------------------------------- |
+| RPC URL (`rpcUrl`)                     | default `https://soroban-testnet.stellar.org`    | required, https only                                    |
+| Bazaar URL (`bazaarUrl`)               | default `https://testnet.rail402.dev`            | required for discovery                                  |
+| Caps (`perCall`, `sessionTotal`)       | 0.10 and 1.00 USDC by default                    | required for every asset when a signer is configured    |
+| Plain http and loopback seller URLs    | only when you allow them in `egress`             | never                                                   |
+| Pay by URL (`pay`)                     | allowed (`requireCatalogListing` defaults false) | listings only by default (`requireCatalogListing` true) |
+| Lowest listing trust paid (`minTrust`) | `settled`                                        | `origin_verified` for HTTP, `domain_verified` for MCP   |
+| Schemes (`schemes`)                    | `exact` and `upto` (canonical contract pinned)   | `exact`; `upto` once `uptoContracts` pins a contract    |
+
+```ts
+const buyer = await createBuyer({
+  network: "stellar:pubnet",
+  rpcUrl: "https://rpc.example.com",
+  bazaarUrl: "https://bazaar.example.com",
+  signer: { secretFile: "~/.config/rail402/keys/stellar-pubnet.key" },
+  policy: { assets: [{ asset: "USDC", perCall: "0.05", sessionTotal: "5.00" }] },
+});
+```
+
+A pubnet buyer without an RPC URL, or with a signer but no caps, is refused at creation with
+`payment_policy_invalid`. Every authorization is also checked for the network it is valid on: a preimage
+for the other network is refused with `payment_network_not_permitted`, and a seller option on another network
+is never chosen.
+
+## Pay a resource by URL
+
+```ts
+const result = await buyer.pay(
+  { kind: "http", url: "https://demo.rail402.dev/weather", query: { city: "Ankara" } },
+  { maxAmount: { amount: "0.01", asset: "USDC" }, idempotencyKey: "weather-ankara-1" },
+);
+
+result.paid; // true: the resource asked for payment and was paid
+result.payment?.transaction; // the settlement transaction hash (64 hex characters)
+result.payment?.explorerUrl; // https://stellar.expert/explorer/testnet/tx/<hash>
+result.response; // { kind: "http", status: 200, json: { … } } (seller content: untrusted data)
+```
+
+`maxAmount` is required on every call; it is clamped to the policy's per-call ceiling for the asset. The
+flow makes an unpaid request, reads the seller's `PAYMENT-REQUIRED`, picks the option the policy allows, checks
+that the payer holds the asset and the recipient can receive it, signs one authorization through the guard,
+sends the paid request once, and verifies the reported settlement on chain before returning.
+
+An MCP tool is paid the same way:
+
+```ts
+await buyer.pay(
+  { kind: "mcp", url: "https://demo.rail402.dev/mcp", toolName: "air_quality", arguments: { city: "Izmir" } },
+  { maxAmount: { amount: "0.01" } },
+);
+```
+
+The hosted demo seller at `https://demo.rail402.dev/mcp` serves the paid tools `forecast`, `air_quality` and
+the metered `hourly_forecast`.
+
+HTTP requests carry only `accept`, `accept-language` and `x-request-id` headers from the caller; other
+headers are refused with `payment_request_invalid`. Paid requests never follow redirects: a `3xx` answer to
+a paid request is `payment_redirect_after_payment`.
+
+## Pay upto resources
+
+An `upto` option names a cap: the buyer authorizes at most that much, and the seller settles what the call
+used, from zero up to the cap, after serving it. The buyer pays upto resources the same way as `exact` ones:
+
+```ts
+const result = await buyer.pay(
+  { kind: "http", url: "https://api.example.com/report", query: { rows: "200" } },
+  { maxAmount: { amount: "0.10" } },
+);
+
+result.payment?.scheme; // "upto"
+result.payment?.authorized; // the cap, e.g. { amount: "0.05", atomic: "500000" }
+result.payment?.settled; // what the seller charged, proven on chain, e.g. { amount: "0.0125", … }
+```
+
+- The cap counts against `maxAmount`, the per-call ceiling and the budget window: an option whose cap is above
+  the effective cap is refused with `payment_per_call_cap_exceeded`, whatever it may end up charging.
+- The guard signs only `settle(terms)` on a **pinned** settlement contract, with exactly one child that approves
+  the cap to that contract, for the selected recipient, asset, cap, expiry and settlement authority. The
+  contract comes from `policy.uptoContracts` (on testnet the canonical deployment by default), never from the
+  seller; anything else fails closed with `payment_authorization_rejected`.
+- The settlement authority (`extra.facilitatorAddress`) is the only address that can settle the terms. It must
+  be neither the payer nor the recipient, and, when `policy.uptoFacilitators` lists authorities, one of them
+  (`payment_facilitator_not_permitted`). Muxed (`M…`) recipients are refused.
+- The budget reserves the cap when the authorization is signed. The reported charge counts as spent at once,
+  and the rest of the cap stays pending until the chain proves the settlement; with the default
+  `verify: "sync"` that happens before `pay` returns (a `released` event with reason `settled_below_cap`).
+  A zero charge proven on chain returns the whole cap; a zero settled off chain returns it once the
+  authorization expires unused.
+
+On a private network, pin your own deployment; the default `upto` scheme signs for the first pinned contract:
+
+```ts
+const buyer = await createBuyer({
+  network: "stellar:testnet",
+  rpcUrl: "http://localhost:8000/rpc",
+  signer: { secretFile: "./buyer.key" },
+  policy: { uptoContracts: ["C…"] },
+});
+```
+
+## Search the Bazaar and pay a listing
+
+```ts
+const page = await buyer.search("current weather for a city", { type: "http" });
+const hit = page.hits.find((candidate) => candidate.callable && candidate.withinPolicy);
+
+if (hit !== undefined) {
+  await buyer.payListing(hit, { query: { city: "Istanbul" } }, { maxAmount: { amount: "0.01" } });
+}
+
+// Or in one step: search, pick the first callable in-policy result, pay it.
+const found = await buyer.searchAndPay("current weather for a city", {
+  maxAmount: { amount: "0.01" },
+  call: { query: { city: "Istanbul" } },
+});
+found.chosen.listingId;
+```
+
+Paying a listing re-reads it first and binds the payment to it: the listing must be published, trusted at
+least `minTrust`, and its live payment requirements must pay the listing's owner and cost no more than the
+listed price (for HTTP resources and for MCP tools alike), otherwise the call is refused with `listing_not_payable` or
+`payment_listing_mismatch` before anything is signed. `list`, `listing` and `listingVersions` read the catalog
+without paying.
+
+The binding authenticates the payee, not the endpoint: money can only go to the listing's owner, but the
+listing's URL is whatever was cataloged for that owner. What vouches for the endpoint is the listing's trust:
+`origin_verified` means the endpoint's own `402` names the owner, and `domain_verified` means the endpoint's
+host and the owner's account name each other under SEP-1 (see [Trust](/bazaar/cataloging#trust)).
+
+## Quote without paying
+
+```ts
+const quote = await buyer.quote({ kind: "http", url: "https://demo.rail402.dev/translate", method: "POST" });
+quote.options; // each seller option with its decimal amount and the policy's verdict
+quote.chosen; // the option pay() would choose, or null with quote.refused
+```
+
+A quote makes the unpaid request only and never signs.
+
+## Results, errors and idempotency
+
+Every failure is a `PaymentError` with a stable `code`, a non-empty `reason`, `retryable`, `details` and
+`paid`, which says whether money may have moved: `none`, `not_settled`, `settled` or `unknown`. All codes are
+listed in the [error-code reference](/reference/error-codes#client-codes).
+
+```ts
+import { isPaymentError } from "@rail402.dev/sdk";
+
+try {
+  await buyer.pay(target, { maxAmount: { amount: "0.01" }, idempotencyKey });
+} catch (error) {
+  if (isPaymentError(error) && error.paid === "none") {
+    // nothing was signed or nothing reached the seller: safe to change the request and try again
+  }
+}
+```
+
+With an `idempotencyKey`, repeating a call in the same budget window never pays twice. A call still
+running is refused with `payment_in_progress`. A key names one call: using it again for another URL or tool
+in the window is refused with `payment_request_invalid` and never answered with the other call's result. For a call that finished, the retry first checks that
+call's own payment on chain if its outcome is still open, then:
+
+- returns the stored result with `replayed: true` when the call succeeded;
+- raises the stored error again while the payment's outcome is still open;
+- raises `payment_resource_failed` with `paid: "settled"` and the receipt when the chain shows the payment was
+  consumed but no response was received;
+- pays again with the same key only when the chain shows the authorization expired without being used (no
+  money moved);
+- raises `payment_settlement_unconfirmed` when the payment's ledgers are older than the RPC keeps. The payment
+  counts as spent; use a new key to pay again.
+
+A receipt whose `status` is `unknown` means the payment was sent but no settlement was confirmed. Its amount
+stays pending in the budget until the chain proves it settled or its authorization expires unused. The
+[spending policy](/reference/spending-policy#the-budget-ledger) explains how payments are proven.
+
+`buyer.inspectTransaction(hash)` reads a transaction over RPC and reports its fee sponsor, authorizations,
+token transfers, whether it has the shape of an x402 payment and, with `facilitatorUrl` set, whether its fee
+source is one of that facilitator's advertised signers.
+
+## Budget, sessions and ledgers
+
+Each payment reserves its amount in a budget window before it is signed. The decision and the reservation
+happen in one synchronous step, so concurrent calls can never jointly exceed a cap. `buyer.budget()` returns
+what each asset has spent, holds pending and has left. The default window is named `default`, lasts 24 hours
+and renews when it ends; `session: { name, ttlMs, autoRenew }` changes it.
+
+The default ledger is in memory. To share one budget between processes, such as several agents paying from
+one key, use the SQLite ledger (its directory is created with mode `0700` and the file with `0600`). The CLI
+and the MCP server use the same file by default, so they share one budget per key and session:
+
+```ts
+import { SqliteSpendLedger, defaultLedgerPath } from "@rail402.dev/sdk/sqlite";
+
+const buyer = await createBuyer({
+  network: "stellar:testnet",
+  signer: { secretFile: "~/.config/rail402/keys/stellar-testnet.key" },
+  ledger: new SqliteSpendLedger(defaultLedgerPath()), // ~/.local/state/rail402/ledger.sqlite
+});
+```
+
+The spending policy (assets, caps, recipients, schemes, authorization window, listing trust) and the guard's
+checks are described in [Spending policy and signing guard](/reference/spending-policy). Seller URLs are fetched
+through `@rail402.dev/safe-fetch`; see [Outbound requests](/reference/egress).
+
+## Events
+
+`onEvent` receives one event per step (`probe`, `quote`, `reserved`, `signed`, `sent`, `settled`,
+`unresolved`, `released`, `refused`, `window`). Events carry call ids, codes, amounts and transaction hashes,
+never keys, signatures or signed payloads; see [Secret handling](/reference/secret-handling).
+
+## In a browser
+
+`@rail402.dev/sdk/browser` is the same buyer for pages and other runtimes without Node: the spending policy,
+the signing guard, the budget ledgers, discovery, the payment flows and the on-chain checks, with no Node
+module in its import graph (a test bundles it for the browser and fails on any Node built-in). It leaves out
+the seller helpers, configuration loading and the SQLite ledger.
+
+<Note>The `./browser` entry is in `@rail402.dev/sdk` from version 0.4.0 on.</Note>
+
+A page cannot open SSRF-safe connections, and most sellers and the Bazaar send no CORS headers, so the page
+supplies the transport. `seller` carries probes and paid calls and must keep the `SafeFetch` contract of
+`@rail402.dev/safe-fetch/shared` (refuse what its policy forbids with an `EgressError`, and record each
+answer with `markFinalRequest`); `operator` reads the Bazaar and the facilitator's `/supported`:
+
+```ts
+import { KeyHolder, StorageSpendLedger, createBrowserBuyer } from "@rail402.dev/sdk/browser";
+
+const buyer = await createBrowserBuyer({
+  network: "stellar:testnet",
+  signer: KeyHolder.random(), // or any SEP-43 signer, such as a wallet
+  rpcUrl: "https://soroban-testnet.stellar.org",
+  transport: { seller: relayFetch, operator: proxyFetch },
+  ledger: new StorageSpendLedger(localStorage, { prefix: "my-app.ledger" }),
+});
+```
+
+`StorageSpendLedger` keeps the budget in any synchronous key-value store, such as `localStorage`, so a reload
+keeps what was spent and held; a stored ledger that cannot be read is refused with `payment_ledger_unavailable`
+until `reset()`. The [Playground](/playground/how-it-works) is built on this entry, with a same-origin relay
+as its seller transport. On pubnet the same rules as `createBuyer` apply: an https RPC, and a seller transport
+whose policy allows https only and no private network (`payment_policy_invalid`).
+
+## Configure it like the CLI
+
+`resolveAgentConfig(process.env)` reads the same `RAIL402_*` variables as the [CLI](/agents/cli) and the
+[MCP server](/agents/mcp-server), and `egressFromConfig(config)` turns the development switches into an egress
+policy. `examples/sdk-buyer` in the repository uses them to pay by URL and then by search in about 40 lines.

@@ -124,6 +124,7 @@ The version reported by `/health` comes from the `RAIL402_VERSION` build argumen
         "database": { "ok": true },
         "stellar:testnet:rpc": { "ok": true },
         "stellar:testnet:sponsor": { "ok": true, "detail": "99999997600 stroops" },
+        "stellar:testnet:assets": { "ok": true, "detail": "USDC:7" },
         "stellar:testnet:channels": { "ok": true, "detail": "8 channels" },
         "search": { "ok": true }
       }
@@ -139,7 +140,7 @@ The version reported by `/health` comes from the `RAIL402_VERSION` build argumen
     with fresh Friendbot-funded accounts and checks the balances:
 
     ```sh
-    node tools/conformance/src/canonical-exact.ts --facilitator http://127.0.0.1:8080
+    node tools/conformance/src/canonical.ts --facilitator http://127.0.0.1:8080
     ```
 
     It prints the settlement transaction and the buyer's and seller's USDC balances before and after.
@@ -191,7 +192,7 @@ docker compose --profile service down                                    # stop;
 `channels status` prints one JSON line per network:
 
 ```text
-{"network":"stellar:testnet","sponsor":"G...","channels":8,"present":8,"missing":[],"unfinishedSettlements":0,"leasedChannels":0}
+{"network":"stellar:testnet","sponsor":"G...","channels":8,"present":8,"missing":[],"authority":{"address":"G...","present":true,"balanceStroops":"0"},"unfinishedSettlements":0,"leasedChannels":0,"unresolvableSettlements":[]}
 ```
 
 On `SIGTERM` the service stops accepting requests, lets in-flight settlements finish for up to
@@ -202,5 +203,6 @@ On `SIGTERM` the service stops accepting requests, lets in-flight settlements fi
 
 The image can be configured for `stellar:pubnet`, but pubnet has not been exercised end to end. Its
 configuration has stricter rules, checked at startup: an `https` RPC URL, an explicit
-`PUBNET_REQUIRE_API_KEY`, and channel accounts that are not created at startup but provisioned by an operator.
+`PUBNET_REQUIRE_API_KEY`, an explicit sponsor budget (`PUBNET_MAX_SPONSOR_SPEND_XLM_PER_HOUR`), and
+channel accounts that are not created at startup but provisioned by an operator.
 See [Configuration](/configuration#per-network) and [Operations](/operations#channel-accounts).

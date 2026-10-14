@@ -28,7 +28,16 @@ but should not, a settlement that moves funds the payer did not authorize, anyth
 pay for more than network fees, or a way to create or change a Bazaar listing for a `payTo` you do not
 control.
 
+Also in scope: the `upto` settlement contract in `contracts/stellar/upto` and its deployments
+(`contracts/stellar/deployments/`), for example a settlement above the signed cap, to another recipient or
+in another token, a second settlement of one authorization, or a settlement without the payer's or the
+settlement authority's authorization. A deployed contract cannot be changed: a fix ships as a new
+deployment, with a new address, and the canonical deployment constants in `@rail402.dev/upto` move to it.
+
 The hosted instance at `https://testnet.rail402.dev` runs on the Stellar testnet, where funds have no value.
 Please do not load-test it or attack its infrastructure; run your own instance for that.
 
 How keys are held and rotated is described in [Operations](https://docs.rail402.dev/operations).
+The [threat model](https://docs.rail402.dev/security/threat-model) lists the threats Rail402 is built against,
+with the code and tests that answer each, and the [operational tests](https://docs.rail402.dev/security/operational-tests)
+show the exercises that run them.
