@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
   "kind": "live-matrix",
-  "runId": "57a64ea7-9ca1-4ada-919f-4ccd581c2825",
-  "startedAt": "2026-10-09T12:56:19.562Z",
-  "finishedAt": "2026-10-09T13:02:45.990Z",
+  "runId": "a34d079f-6d6d-4822-8a34-9d50ecedbc35",
+  "startedAt": "2026-10-14T09:18:25.149Z",
+  "finishedAt": "2026-10-14T09:25:16.873Z",
   "network": "stellar:testnet",
   "target": {
     "mode": "local",
     "facilitatorUrl": "http://127.0.0.1:8801",
-    "healthVersion": "0.4.1+b9ebb87f3632",
+    "healthVersion": "0.4.1+2cbc980e8442",
     "supported": {
       "kinds": [
         {
@@ -65,7 +65,7 @@
     }
   },
   "harness": {
-    "commit": "b9ebb87f3632f7e601f9f2f884cd4389deb65c20",
+    "commit": "2cbc980e84426cc68c377e4bdf0a9077698f88d8",
     "dirty": false
   },
   "packages": {
@@ -81,8 +81,8 @@
     "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
   },
   "accounts": {
-    "payTo": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
-    "treasury": "GDKSUHO7QNGHF3P7BDSBA35VB2FADH3VZRXHHPUTUCIIAY4T5FJ5DKRO"
+    "payTo": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
+    "treasury": "GABWRZVSO4NLQ2JOJ3YPF2X6WGCYMTL3DXW2T66P3WNTNLCT3DXV5OWZ"
   },
   "summary": {
     "total": 32,
@@ -116,28 +116,28 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 10936,
+      "elapsedMs": 11995,
       "transactions": [
         {
-          "hash": "3cd387f88a51fbc526c317b81d541ad5056df03c457d695a637dd224e29fab49",
-          "ledger": 5105408,
+          "hash": "a2f6b34d66ad6a3b822ed5af966673572597a80d94728cb2989651380bca8540",
+          "ledger": 5189193,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "12345678",
           "payerType": "G",
-          "feeChargedStroops": "23159",
+          "feeChargedStroops": "23183",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GCCGXWZDLJG5L3C5PCLKDUDGPPGBKN3C3TXGZ736HSSFLN2HVMNUYVFH",
-          "innerSequence": "21278118387908637",
+          "innerSequence": "21278118387908651",
           "transfers": [
             {
-              "from": "GCENDPYQCA6VVAT3RHKSPR672HBGZY4TKME4SQQMDA3AROAPHKWLRZVM",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GBHGOIEKUD2ONUDBRUSXTWQGZNB64ELM5425ZYNYGRP5QAE2ZV4MTVAM",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "12345678"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/3cd387f88a51fbc526c317b81d541ad5056df03c457d695a637dd224e29fab49"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/a2f6b34d66ad6a3b822ed5af966673572597a80d94728cb2989651380bca8540"
         }
       ]
     },
@@ -152,28 +152,28 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 10200,
+      "elapsedMs": 9081,
       "transactions": [
         {
-          "hash": "802a2a8c16e3d88a5228af8c5b667c9deb59a6bd6a38f53daf2ac63470eda621",
-          "ledger": 5105410,
+          "hash": "de0adf7fc36c0a88fc0aaf3a304cb4788c1224802dc251b93a0a296b42034e06",
+          "ledger": 5189195,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "1",
           "payerType": "G",
-          "feeChargedStroops": "23159",
+          "feeChargedStroops": "23183",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GCB55H2E42HA63FM3C4MTWU7EITNYFC6DRTIOEYOIIGOL2GP2QIGPQUM",
-          "innerSequence": "21278122682875931",
+          "innerSequence": "21278122682875946",
           "transfers": [
             {
-              "from": "GBQS7BA4GCJK5DXTYEN4YH3W53N7W6FGH7GWTGMXJ62DQUN6J3KUB3XE",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GDG5RGP4LNRJ35CJBBXBXURHHEA6DB5TYRQ7F2TG7ZVHZFHQVGP4VWFL",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "1"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/802a2a8c16e3d88a5228af8c5b667c9deb59a6bd6a38f53daf2ac63470eda621"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/de0adf7fc36c0a88fc0aaf3a304cb4788c1224802dc251b93a0a296b42034e06"
         }
       ]
     },
@@ -188,28 +188,28 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 10353,
+      "elapsedMs": 10873,
       "transactions": [
         {
-          "hash": "ef75ef21eac4db90d3b9fd8f32547fb46f49a9cc2171188d09f3c2beac73056b",
-          "ledger": 5105412,
+          "hash": "72cc99c06f0a96406a09a0dcf88872ad2c1370e23a86288f5ef5996b60d14a52",
+          "ledger": 5189197,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "1000000",
           "payerType": "G",
-          "feeChargedStroops": "23159",
+          "feeChargedStroops": "23183",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GC26TSVL2POVCMEPGRF5D2VWOKGFCVVENK5RLZCPN6XX3NH77BGUCOBH",
-          "innerSequence": "21278118387908639",
+          "innerSequence": "21278118387908652",
           "transfers": [
             {
-              "from": "GCGLCMJRUQ4UJLGNUC3Z7V5JCOYW7EX4VN4HQGXC2TIV6KV6FJCAXFRN",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GCLIB4RTJUIT5GNAIZYSEM2LAB6SOY2MAIXV726RQVWSKRFB6W2B53AF",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "1000000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/ef75ef21eac4db90d3b9fd8f32547fb46f49a9cc2171188d09f3c2beac73056b"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/72cc99c06f0a96406a09a0dcf88872ad2c1370e23a86288f5ef5996b60d14a52"
         }
       ]
     },
@@ -225,28 +225,28 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 8639,
+      "elapsedMs": 8716,
       "transactions": [
         {
-          "hash": "4d139b9c1d147fa5d04f97977fa82c6dcfd5172607fecd504a8e24363380d596",
-          "ledger": 5105414,
+          "hash": "40d1e6106e8bf740b42bdca8b45f230322edca462e284acdadc14fa887c2f0a0",
+          "ledger": 5189199,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "1000000",
           "payerType": "G",
-          "feeChargedStroops": "23160",
+          "feeChargedStroops": "23183",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GBXCTH7MF6HGLNYCRNJC2N4AHQO33DQONYKXO4OCUT6JUW2P7SQDORY6",
-          "innerSequence": "21278122682875936",
+          "innerSequence": "21278122682875948",
           "transfers": [
             {
-              "from": "GDOUHKY4H67D6MI66ZRF2LVRY2WDKISZLKMUOS2J2P7DIXLC677MTP7R",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GB4TYPO2GEF7SLV44HX5LZK3QMM55SE7VCU6NLGWKUGRFBZOLF25LFT2",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "1000000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/4d139b9c1d147fa5d04f97977fa82c6dcfd5172607fecd504a8e24363380d596"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/40d1e6106e8bf740b42bdca8b45f230322edca462e284acdadc14fa887c2f0a0"
         }
       ]
     },
@@ -262,44 +262,44 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 11929,
+      "elapsedMs": 11868,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "settle_exact_stellar_idempotency_conflict",
-          "reason": "This authorization was already submitted for settlement with a different transaction or different payment terms; it was submitted in transaction 607c580cb47f4d1215968369cdc45ec28eaa40b680f827174a087467572c0aa3."
+          "reason": "This authorization was already submitted for settlement with a different transaction or different payment terms; it was submitted in transaction cba578ee0f546a6aadcc8b654953682294325cfcda93e010de5bc97c2d2240f2."
         },
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_nonce_already_used",
-          "reason": "This authorization was already settled in transaction 607c580cb47f4d1215968369cdc45ec28eaa40b680f827174a087467572c0aa3."
+          "reason": "This authorization was already settled in transaction cba578ee0f546a6aadcc8b654953682294325cfcda93e010de5bc97c2d2240f2."
         }
       ],
       "transactions": [
         {
-          "hash": "607c580cb47f4d1215968369cdc45ec28eaa40b680f827174a087467572c0aa3",
-          "ledger": 5105416,
+          "hash": "cba578ee0f546a6aadcc8b654953682294325cfcda93e010de5bc97c2d2240f2",
+          "ledger": 5189201,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "1000000",
           "payerType": "G",
-          "feeChargedStroops": "23159",
+          "feeChargedStroops": "23183",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GBUMX4RNOYKKPLVPUWIMC6J2RFERSTPOUGRZV4ZIV2BNBQI3JRSLLHPR",
-          "innerSequence": "21278118387908636",
+          "innerSequence": "21278118387908652",
           "transfers": [
             {
-              "from": "GC5WRADZRR3GB2DDLWE7EMP76YAFM36BFDGRFG6N3AVYBIYCRQISVTSC",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GAHV56BDOCSS7JTIWK4V3OESXQVQ45JEU355SNLR3OBCLUVJVWMK3LP3",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "1000000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/607c580cb47f4d1215968369cdc45ec28eaa40b680f827174a087467572c0aa3"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/cba578ee0f546a6aadcc8b654953682294325cfcda93e010de5bc97c2d2240f2"
         }
       ]
     },
@@ -314,7 +314,7 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 2263,
+      "elapsedMs": 2600,
       "rejections": [
         {
           "surface": "facilitator",
@@ -350,7 +350,7 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 1665,
+      "elapsedMs": 1585,
       "rejections": [
         {
           "surface": "facilitator",
@@ -372,7 +372,7 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 970,
+      "elapsedMs": 822,
       "rejections": [
         {
           "surface": "facilitator",
@@ -394,21 +394,21 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 3559,
+      "elapsedMs": 3635,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_payer_trustline_missing",
-          "reason": "The payer GBRTTTPMNDTIIZVJVTHJ24ITFBCCGQFESIQ74G2GEGCQ5NN24XD5CJNU has no trustline for this asset."
+          "reason": "The payer GA7ITHEKTVLVXWQY7UENG23DS6ZQ23HHGRTLD4O66L6SBALEUQCTQEO3 has no trustline for this asset."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_payer_trustline_missing",
-          "reason": "The payer GBRTTTPMNDTIIZVJVTHJ24ITFBCCGQFESIQ74G2GEGCQ5NN24XD5CJNU has no trustline for this asset."
+          "reason": "The payer GA7ITHEKTVLVXWQY7UENG23DS6ZQ23HHGRTLD4O66L6SBALEUQCTQEO3 has no trustline for this asset."
         }
       ]
     },
@@ -423,21 +423,21 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 5173,
+      "elapsedMs": 4671,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_recipient_trustline_missing",
-          "reason": "payTo GAECWKNN72BNURYZFIN7VLPVIKINVARDDWQVW3KZKRNB4SU5BXDDXYSH has no trustline for this asset and cannot receive it."
+          "reason": "payTo GAS26VVEE5CQ3Y2NFNJMEW4OZ33W2VWOXIQKC3NVZRS2B2UPDTOLSYUJ has no trustline for this asset and cannot receive it."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_recipient_trustline_missing",
-          "reason": "payTo GAECWKNN72BNURYZFIN7VLPVIKINVARDDWQVW3KZKRNB4SU5BXDDXYSH has no trustline for this asset and cannot receive it."
+          "reason": "payTo GAS26VVEE5CQ3Y2NFNJMEW4OZ33W2VWOXIQKC3NVZRS2B2UPDTOLSYUJ has no trustline for this asset and cannot receive it."
         }
       ]
     },
@@ -452,7 +452,7 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 15000,
+      "elapsedMs": 14868,
       "rejections": [
         {
           "surface": "facilitator",
@@ -482,28 +482,28 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 1428,
+      "elapsedMs": 1404,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_signature_expired",
-          "reason": "The authorization expired at ledger 5105421; the network is at ledger 5105422."
+          "reason": "The authorization expired at ledger 5189206; the network is at ledger 5189207."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_signature_expired",
-          "reason": "The authorization expired at ledger 5105421; the network is at ledger 5105422."
+          "reason": "The authorization expired at ledger 5189206; the network is at ledger 5189207."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_signature_expiration_too_soon",
-          "reason": "The authorization expires at ledger 5105422, within 1 ledger(s) of the current ledger 5105422."
+          "reason": "The authorization expires at ledger 5189207, within 1 ledger(s) of the current ledger 5189207."
         }
       ]
     },
@@ -518,51 +518,51 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 24526,
+      "elapsedMs": 24692,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_signature_expired",
-          "reason": "The authorization expired at ledger 5105424; the network is at ledger 5105425."
+          "reason": "The authorization expired at ledger 5189209; the network is at ledger 5189210."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_signature_expired",
-          "reason": "The authorization expired at ledger 5105424; the network is at ledger 5105425."
+          "reason": "The authorization expired at ledger 5189209; the network is at ledger 5189210."
         }
       ],
       "transactions": [
         {
-          "hash": "1f61ea2be0b44db6019f41fbc12d16057956283f5db4c7ae7f9c4451633419c1",
-          "ledger": 5105427,
+          "hash": "bde1c7b576e1e232ef6a6da0e3bc0740d077fbbb18cd9dbb1cd406c2e2cb9db3",
+          "ledger": 5189212,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "1000000",
           "payerType": "G",
-          "feeChargedStroops": "23159",
+          "feeChargedStroops": "23183",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
-          "innerSource": "GB3WBOLRLBHO2WVYFTIJRZJ6SNYWYAER3ROSLDV7U5ROQCFTVFFXAHJR",
-          "innerSequence": "21278118387908632",
+          "innerSource": "GA6WOEEAOW4XNB27NE445NSQFWBKG76QWO2RBUYNDXTHMPFLUWUYTIUG",
+          "innerSequence": "21278118387908646",
           "transfers": [
             {
-              "from": "GBIDN23ERJCVKJQNX3MIROJD2MCD4XAAXAYPJMLLZ3NCG3VZP5TSVHZI",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GDLCB4HCPSUJT7IER3UWMZE7K6M22PRGQAZQGUVZ3YMJWVXALXOY7FG6",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "1000000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/1f61ea2be0b44db6019f41fbc12d16057956283f5db4c7ae7f9c4451633419c1"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/bde1c7b576e1e232ef6a6da0e3bc0740d077fbbb18cd9dbb1cd406c2e2cb9db3"
         }
       ],
       "observations": {
         "estimatedLedgerSeconds": 5,
         "shortTimeoutSeconds": 10,
-        "shortExpirationLedger": 5105424,
-        "shortLatestLedgerAtSigning": 5105422,
+        "shortExpirationLedger": 5189209,
+        "shortLatestLedgerAtSigning": 5189207,
         "freshTimeoutSeconds": 60,
         "freshExpirationOffset": 12,
         "upperEdge": "not run on testnet: it depends on the facilitator's and the client's Horizon readings agreeing"
@@ -580,32 +580,32 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 33257,
+      "elapsedMs": 33684,
       "transactions": [
         {
-          "hash": "776695e7546d1ccd813bcc038d3c38ac6830a90f71aab4773cd9dde82d4aa9e6",
-          "ledger": 5105429,
+          "hash": "6cea3e82f407062640cedbc39af7193684838a3b2ef30c67d5efe2e832629a5d",
+          "ledger": 5189214,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "1000000",
           "payerType": "G",
-          "feeChargedStroops": "23159",
+          "feeChargedStroops": "23183",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
-          "innerSource": "GA6WOEEAOW4XNB27NE445NSQFWBKG76QWO2RBUYNDXTHMPFLUWUYTIUG",
-          "innerSequence": "21278118387908635",
+          "innerSource": "GB5ZCW3RMKEYFDMJGHVY2CY7JAF75JCFECWCPNDZZTNNZFDZ6XRJQ6ZR",
+          "innerSequence": "21278118387908644",
           "transfers": [
             {
-              "from": "GA63WY3OIMTMY6C2OCLXM3AU4CEDGYESEO26YTQWQMS7LP3ROS7M4RZX",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GC3REJGNLI3SKCFW5DBRT5URETQOZH3AYIO57TBUZY4ZURISHS75QRQP",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "1000000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/776695e7546d1ccd813bcc038d3c38ac6830a90f71aab4773cd9dde82d4aa9e6"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/6cea3e82f407062640cedbc39af7193684838a3b2ef30c67d5efe2e832629a5d"
         }
       ],
       "observations": {
-        "expirationLedger": 5105433
+        "expirationLedger": 5189218
       }
     },
     {
@@ -619,7 +619,7 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 1802,
+      "elapsedMs": 2380,
       "rejections": [
         {
           "surface": "facilitator",
@@ -649,28 +649,28 @@
       "payer": "C",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 24783,
+      "elapsedMs": 34777,
       "transactions": [
         {
-          "hash": "9d63cc2883a5533100a3a0a642855e0af6723dc0be3f787bf5c07ea4813883ff",
-          "ledger": 5105439,
+          "hash": "bcc5bff00f183df0dc046cab3ab8780cf7df4c5269df9cc7029542de169d7d46",
+          "ledger": 5189226,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "1234567",
           "payerType": "C",
-          "feeChargedStroops": "20351",
+          "feeChargedStroops": "20376",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GAJ7YFAN3PIGBLQVPZCB2OM6AAINS5EPPT37G5NSVMZLVPU3OLTM6XIF",
-          "innerSequence": "21278118387908635",
+          "innerSequence": "21278118387908650",
           "transfers": [
             {
-              "from": "CACSLOPGFSII7HADDYWKTZ6DSSG6O54MBFXOKKRI4OGCFBSLXFBNGHJ6",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "CC3MLDNZYJM4D56M7RN5BPH2V2AI3H7SBY7KHUN5IDUS6G2T5LFJQZYR",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "1234567"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/9d63cc2883a5533100a3a0a642855e0af6723dc0be3f787bf5c07ea4813883ff"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/bcc5bff00f183df0dc046cab3ab8780cf7df4c5269df9cc7029542de169d7d46"
         }
       ]
     },
@@ -685,7 +685,7 @@
       "payer": "C",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 2496,
+      "elapsedMs": 2338,
       "rejections": [
         {
           "surface": "facilitator",
@@ -714,28 +714,28 @@
       "payer": "G",
       "payTo": "C",
       "status": "passed",
-      "elapsedMs": 11825,
+      "elapsedMs": 11832,
       "transactions": [
         {
-          "hash": "3a6aed462e0fddcebd5e5303283022eb3ce1a2d6571f266b6f686bc2d485e663",
-          "ledger": 5105442,
+          "hash": "036b6a8b11a15da1b39ffeb2e6760609c52cf378b732edd8fb6243431c78419d",
+          "ledger": 5189229,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "2500000",
           "payerType": "G",
-          "feeChargedStroops": "21746",
+          "feeChargedStroops": "21769",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GAFU3WCNPV6GU6U5TUABY4JBRUTVANTO3CAPBAFGDTUSFCNV6OTUA5DV",
-          "innerSequence": "21278118387908639",
+          "innerSequence": "21278118387908654",
           "transfers": [
             {
-              "from": "GAN56TIADWNMVQQCB4FTC6KMBY6D3QPL2U6VWHQR65MWIX4N6QAPYRDS",
-              "to": "CACSLOPGFSII7HADDYWKTZ6DSSG6O54MBFXOKKRI4OGCFBSLXFBNGHJ6",
+              "from": "GBPE33DPRQRK2P5CF7BFAC6LU42CCPUSVQNEACI6XA4TFNOUAN676AMC",
+              "to": "CC3MLDNZYJM4D56M7RN5BPH2V2AI3H7SBY7KHUN5IDUS6G2T5LFJQZYR",
               "amount": "2500000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/3a6aed462e0fddcebd5e5303283022eb3ce1a2d6571f266b6f686bc2d485e663"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/036b6a8b11a15da1b39ffeb2e6760609c52cf378b732edd8fb6243431c78419d"
         }
       ]
     },
@@ -750,7 +750,7 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 1683,
+      "elapsedMs": 1692,
       "rejections": [
         {
           "surface": "facilitator",
@@ -830,28 +830,28 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 6607,
+      "elapsedMs": 6474,
       "transactions": [
         {
-          "hash": "6c73f0496f6df0f8373bee8fb4dbe695cda581b21b3e60abb2d189a9155b8bb5",
-          "ledger": 5105446,
+          "hash": "cfadba51dab9325d81708cd53a063eda0959a4486616b4ecd0725b46c891bd13",
+          "ledger": 5189234,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "400000",
           "payerType": "G",
-          "feeChargedStroops": "39192",
+          "feeChargedStroops": "39304",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GA72N6TMCGBXNLICYTT7L7PQOQCZGIYM73YJRYCBMLOKHMSEC5QOPRFE",
-          "innerSequence": "21278122682875934",
+          "innerSequence": "21278122682875949",
           "transfers": [
             {
-              "from": "GD7NKOBODJ3G2V4TUREZ2HDCVXBUBPA3V2CDP226JYUKD3THG625K34A",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GD5DFI6I6A6IIVJPRPLV6Q6NBIGUOTNQRB7G34J2KV5472R55OVQQR6V",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "400000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/6c73f0496f6df0f8373bee8fb4dbe695cda581b21b3e60abb2d189a9155b8bb5"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/cfadba51dab9325d81708cd53a063eda0959a4486616b4ecd0725b46c891bd13"
         }
       ]
     },
@@ -866,28 +866,28 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 10041,
+      "elapsedMs": 10392,
       "transactions": [
         {
-          "hash": "72dce0af3074dfe7c348fa2644a2ff537e47f8e3349157c543e360593d498f35",
-          "ledger": 5105448,
+          "hash": "b3911b73e0bc33ae10b9fc4bf076b778facd671a3f8399354b1c5f441e3791c8",
+          "ledger": 5189236,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "1000000",
           "payerType": "G",
-          "feeChargedStroops": "39192",
+          "feeChargedStroops": "39304",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GA5AZMQ7V6JAJAP3ZC34RIUSEQEY3EYUDNXYJ2XWSB3FKCDLU5OFQL6T",
-          "innerSequence": "21278118387908638",
+          "innerSequence": "21278118387908650",
           "transfers": [
             {
-              "from": "GBGZLZXVZJDFOWQCXLDAR57E53ZN3IEPXXLTGP623FWPKAZBNEJYT3VQ",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GBJPJF7WGZJWNXVUEFOAD447QJP63WQFAY7EBNEIBMII3XSTV5UTPAZU",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "1000000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/72dce0af3074dfe7c348fa2644a2ff537e47f8e3349157c543e360593d498f35"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/b3911b73e0bc33ae10b9fc4bf076b778facd671a3f8399354b1c5f441e3791c8"
         }
       ]
     },
@@ -903,31 +903,31 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 10166,
+      "elapsedMs": 9102,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_nonce_already_used",
-          "reason": "This authorization was already settled in transaction 68aba0c6bfe496c176424da40f17d3166af120026e5fe0418c2c820912e1298d."
+          "reason": "This authorization was already settled in transaction be33bbf94a28b72f909f5adee70fbc92e1f9843447544f4a7588842f9b982e58."
         }
       ],
       "transactions": [
         {
-          "hash": "68aba0c6bfe496c176424da40f17d3166af120026e5fe0418c2c820912e1298d",
-          "ledger": 5105450,
+          "hash": "be33bbf94a28b72f909f5adee70fbc92e1f9843447544f4a7588842f9b982e58",
+          "ledger": 5189238,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "0",
           "payerType": "G",
-          "feeChargedStroops": "20369",
+          "feeChargedStroops": "20392",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GDUD6VR2CGDRSLNKSUGMHSUNHIN3GBHHNJHVFU3DESRICK4A2JKSD7HO",
-          "innerSequence": "21278122682875939",
+          "innerSequence": "21278122682875953",
           "transfers": [],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/68aba0c6bfe496c176424da40f17d3166af120026e5fe0418c2c820912e1298d"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/be33bbf94a28b72f909f5adee70fbc92e1f9843447544f4a7588842f9b982e58"
         }
       ],
       "observations": {
@@ -946,7 +946,7 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 1775,
+      "elapsedMs": 982,
       "rejections": [
         {
           "surface": "facilitator",
@@ -970,37 +970,37 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 8353,
+      "elapsedMs": 10575,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "settle_upto_stellar_idempotency_conflict",
-          "reason": "This authorization was already submitted for settlement for 300000 with different payment terms; it was submitted in transaction 5d1fd89f029de8b556c9e864c9b744f35c0b839bc611b29f7f51e18f243dc298."
+          "reason": "This authorization was already submitted for settlement for 300000 with different payment terms; it was submitted in transaction 638e0bb1c33c942b1a0e7cd72947feba810f2b2252ae8e83eaa27daaf68411ef."
         }
       ],
       "transactions": [
         {
-          "hash": "5d1fd89f029de8b556c9e864c9b744f35c0b839bc611b29f7f51e18f243dc298",
-          "ledger": 5105452,
+          "hash": "638e0bb1c33c942b1a0e7cd72947feba810f2b2252ae8e83eaa27daaf68411ef",
+          "ledger": 5189240,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "300000",
           "payerType": "G",
-          "feeChargedStroops": "39192",
+          "feeChargedStroops": "39304",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GDKZ2E37PSF74DKF2CB7KFEYPM6SLMOTZW5FIWYQRA57TEZTCXKAYP23",
-          "innerSequence": "21278118387908639",
+          "innerSequence": "21278118387908655",
           "transfers": [
             {
-              "from": "GAEJP6SNCRZ7VGNDPIZUL4TKUVXW3S6KCTCDTDO2TOIV2VAMHLEYUJMV",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GBZZQEX5UI5YKVYZCOA34Z4R7PEZDCUDQIDGXH4UKWJRUOLKPFZKRZFF",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "300000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/5d1fd89f029de8b556c9e864c9b744f35c0b839bc611b29f7f51e18f243dc298"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/638e0bb1c33c942b1a0e7cd72947feba810f2b2252ae8e83eaa27daaf68411ef"
         }
       ]
     },
@@ -1017,37 +1017,37 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 8581,
+      "elapsedMs": 8876,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_nonce_already_used",
-          "reason": "This authorization was already settled in transaction 6645f5893bf5b21fa6386c46686b71079fcf6f6502c668a28bdac531f9df19d7."
+          "reason": "This authorization was already settled in transaction 2c666d80268282d1091cf821ddc44a9943ae9bdc46b6f28a0a077378ec772cd5."
         }
       ],
       "transactions": [
         {
-          "hash": "6645f5893bf5b21fa6386c46686b71079fcf6f6502c668a28bdac531f9df19d7",
-          "ledger": 5105454,
+          "hash": "2c666d80268282d1091cf821ddc44a9943ae9bdc46b6f28a0a077378ec772cd5",
+          "ledger": 5189242,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "250000",
           "payerType": "G",
-          "feeChargedStroops": "39192",
+          "feeChargedStroops": "39304",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GDI62WZSGCFB2VKUW3CFQIBHGZEYRYVGG5MA5U4U3NGFFIBKN6YAIOPF",
-          "innerSequence": "21278118387908640",
+          "innerSequence": "21278118387908654",
           "transfers": [
             {
-              "from": "GAFOC2HWHNI7SNLXYEUXNY2WXCNTB42VMGZWU6B3UYCLX7KYDKTM7GIW",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GCHT2LDUZL65SYIFRLHQYAQWU2ZZNPDHPIOP6KRUXB5NFJ4XGITQHR5L",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "250000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/6645f5893bf5b21fa6386c46686b71079fcf6f6502c668a28bdac531f9df19d7"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/2c666d80268282d1091cf821ddc44a9943ae9bdc46b6f28a0a077378ec772cd5"
         }
       ],
       "observations": {
@@ -1066,28 +1066,28 @@
       "payer": "C",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 6848,
+      "elapsedMs": 9445,
       "transactions": [
         {
-          "hash": "6115ee8dd6b8031418599277f7b900ad7ee0ddd3147c94968ef821800cd14d6f",
-          "ledger": 5105459,
+          "hash": "46ec75cf77f68d3b02fd6ecfeaa780e0bb6cf6ed5acd74456c5e4ad77ba7196f",
+          "ledger": 5189247,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "400000",
           "payerType": "C",
-          "feeChargedStroops": "36313",
+          "feeChargedStroops": "36429",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GDFUTOYYCF2L336IXLPMR3NC3A4HEWLWNTBOCRLJ3Y3MYTTU6EY2AXTG",
-          "innerSequence": "21278118387908638",
+          "innerSequence": "21278118387908654",
           "transfers": [
             {
-              "from": "CAZ5ENGKITW2HIGU5EB3AEW4KLBIJUHSMHKX4ZUULCZTUO7UUJ25JVUX",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "CCFXD76LZ2B7W77GPIDVL4BZFFLBMJ62H3RULQFIOWZOMIW6VCO6MV2C",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "400000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/6115ee8dd6b8031418599277f7b900ad7ee0ddd3147c94968ef821800cd14d6f"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/46ec75cf77f68d3b02fd6ecfeaa780e0bb6cf6ed5acd74456c5e4ad77ba7196f"
         }
       ]
     },
@@ -1102,28 +1102,28 @@
       "payer": "C",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 9874,
+      "elapsedMs": 12258,
       "transactions": [
         {
-          "hash": "23a42d6b0233f48404a062acbd38e828b6ffb0269982a629d22037c2634ebc92",
-          "ledger": 5105461,
+          "hash": "c084bebc1032c2b4e8c24c8bbdf87a1366e5ce9e36f0cef0443dbce2dd3bbbb2",
+          "ledger": 5189250,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "1000000",
           "payerType": "C",
-          "feeChargedStroops": "33282",
+          "feeChargedStroops": "33311",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GDDODQHNIA5POLNJMS37DPTRCKRLRAT35EZVJUKB3DX5UDNEVTP4BWSP",
-          "innerSequence": "21278118387908640",
+          "innerSequence": "21278118387908655",
           "transfers": [
             {
-              "from": "CAZ5ENGKITW2HIGU5EB3AEW4KLBIJUHSMHKX4ZUULCZTUO7UUJ25JVUX",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "CCFXD76LZ2B7W77GPIDVL4BZFFLBMJ62H3RULQFIOWZOMIW6VCO6MV2C",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "1000000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/23a42d6b0233f48404a062acbd38e828b6ffb0269982a629d22037c2634ebc92"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/c084bebc1032c2b4e8c24c8bbdf87a1366e5ce9e36f0cef0443dbce2dd3bbbb2"
         }
       ]
     },
@@ -1139,31 +1139,31 @@
       "payer": "C",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 4344,
+      "elapsedMs": 9627,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_nonce_already_used",
-          "reason": "This authorization was already settled in transaction e744637ebf5e32e7fa722c173c0c7527c971871a8e25f72e271770b465e4e359."
+          "reason": "This authorization was already settled in transaction 60822414c17574dd5366cc85653009552d1a440fb85e4bbf3ba40e1868b87056."
         }
       ],
       "transactions": [
         {
-          "hash": "e744637ebf5e32e7fa722c173c0c7527c971871a8e25f72e271770b465e4e359",
-          "ledger": 5105462,
+          "hash": "60822414c17574dd5366cc85653009552d1a440fb85e4bbf3ba40e1868b87056",
+          "ledger": 5189252,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "0",
           "payerType": "C",
-          "feeChargedStroops": "18907",
+          "feeChargedStroops": "18928",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GDAHKU2XNTMX6WJSZX6T37T6N53ADISMFSDSHCWQMI7GYQ4WLSS6ALMG",
-          "innerSequence": "21278118387908638",
+          "innerSequence": "21278118387908654",
           "transfers": [],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/e744637ebf5e32e7fa722c173c0c7527c971871a8e25f72e271770b465e4e359"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/60822414c17574dd5366cc85653009552d1a440fb85e4bbf3ba40e1868b87056"
         }
       ],
       "observations": {
@@ -1182,21 +1182,21 @@
       "payer": "C",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 46586,
+      "elapsedMs": 45250,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_smart_account_rejected",
-          "reason": "The payer's smart account rejected the authorization: Error(Contract, #8) from CBVPH6VOAMYEU6NG6PLJPQ4TAH6N27VKY4OQULVIKA32WU3ATQWRVULD."
+          "reason": "The payer's smart account rejected the authorization: Error(Contract, #8) from CCI6QVNFX2LFIS4F4D76SN2XYXQCWCW23X7WI725WEHBPFYRB5J7PGEJ."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_smart_account_rejected",
-          "reason": "The payer's smart account rejected the authorization: Error(Contract, #8) from CBVPH6VOAMYEU6NG6PLJPQ4TAH6N27VKY4OQULVIKA32WU3ATQWRVULD."
+          "reason": "The payer's smart account rejected the authorization: Error(Contract, #8) from CCI6QVNFX2LFIS4F4D76SN2XYXQCWCW23X7WI725WEHBPFYRB5J7PGEJ."
         }
       ],
       "observations": {
@@ -1216,51 +1216,51 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 20837,
+      "elapsedMs": 22145,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_signature_expired",
-          "reason": "The authorization expired at ledger 5105473; the current ledger is 5105474."
+          "reason": "The authorization expired at ledger 5189263; the current ledger is 5189264."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_signature_expired",
-          "reason": "The authorization expired at ledger 5105473; the current ledger is 5105474."
+          "reason": "The authorization expired at ledger 5189263; the current ledger is 5189264."
         }
       ],
       "transactions": [
         {
-          "hash": "ebc53ee457878dc8e3f6533d7251181d465297f03075b5395a5e8225f24c52b0",
-          "ledger": 5105475,
+          "hash": "81c7db41842644e95ecacaafcd48dcae6881579aca97e87cad9312c2a4352d05",
+          "ledger": 5189265,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "100000",
           "payerType": "G",
-          "feeChargedStroops": "39191",
+          "feeChargedStroops": "39304",
           "feeSource": "GALXEJ66CXZSRKY6V52USFYYHSTIQMXJEEUGYGCLEDHVOGLS3TOKHZYZ",
           "innerSource": "GCCGXWZDLJG5L3C5PCLKDUDGPPGBKN3C3TXGZ736HSSFLN2HVMNUYVFH",
-          "innerSequence": "21278118387908638",
+          "innerSequence": "21278118387908652",
           "transfers": [
             {
-              "from": "GB6GS5LJST3UIEPW7XJ5IKFPEX3S5H3ONET7WM45TJ4GSRVE4ES4CKWF",
-              "to": "GDK5A3OR7GB23K5T6IB3Z6GWTAJYTHUY7MVSDQX4MEW42RK3U4DL3DPU",
+              "from": "GBZI2E6SFAAVOQYJVCORVQVQ4X5SC3RY2HAZ2ULF6LLYIDEI5ZDTIE64",
+              "to": "GACREHDKK7EPWOL4HTB5DVLBMWBHXMEDOYBIEFNJYRQ3ZQ7PUVIAT7XR",
               "amount": "100000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/ebc53ee457878dc8e3f6533d7251181d465297f03075b5395a5e8225f24c52b0"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/81c7db41842644e95ecacaafcd48dcae6881579aca97e87cad9312c2a4352d05"
         }
       ],
       "observations": {
         "estimatedLedgerSeconds": 5,
         "shortTimeoutSeconds": 10,
-        "shortExpirationLedger": 5105473,
-        "shortLatestLedgerAtSigning": 5105471,
+        "shortExpirationLedger": 5189263,
+        "shortLatestLedgerAtSigning": 5189261,
         "freshTimeoutSeconds": 60,
         "freshExpirationOffset": 12
       }

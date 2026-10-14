@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
   "kind": "ops",
-  "runId": "d648e46b-a963-4568-aca9-46cb1e33ecec",
-  "startedAt": "2026-10-09T13:38:28.959Z",
-  "finishedAt": "2026-10-09T13:42:54.332Z",
+  "runId": "6d36ef3d-55f7-4529-b19b-de5debad22d0",
+  "startedAt": "2026-10-14T10:07:20.086Z",
+  "finishedAt": "2026-10-14T10:12:01.199Z",
   "network": "stellar:testnet",
   "target": {
     "mode": "local",
@@ -12,7 +12,7 @@
     "supported": null
   },
   "harness": {
-    "commit": "b9ebb87f3632f7e601f9f2f884cd4389deb65c20",
+    "commit": "2cbc980e84426cc68c377e4bdf0a9077698f88d8",
     "dirty": false
   },
   "packages": {
@@ -43,7 +43,7 @@
         "idempotency"
       ],
       "status": "passed",
-      "elapsedMs": 22749,
+      "elapsedMs": 20366,
       "observations": {
         "threats": [
           "R1"
@@ -56,12 +56,12 @@
               {
                 "name": "settlement idempotency on a live network with the memory ledger answers a sequential repeat with the recorded response, marked as a repeat",
                 "status": "passed",
-                "durationMs": 6423
+                "durationMs": 6554
               },
               {
                 "name": "settlement idempotency on a live network with the postgres ledger answers a sequential repeat with the recorded response, marked as a repeat",
                 "status": "passed",
-                "durationMs": 8929
+                "durationMs": 7866
               }
             ]
           },
@@ -71,7 +71,7 @@
               {
                 "name": "exact settlement on a live network answers a repeated settle with the original result and moves funds once",
                 "status": "passed",
-                "durationMs": 7397
+                "durationMs": 5946
               }
             ]
           }
@@ -86,7 +86,7 @@
         "concurrency"
       ],
       "status": "passed",
-      "elapsedMs": 19631,
+      "elapsedMs": 20889,
       "observations": {
         "threats": [
           "R1",
@@ -100,12 +100,12 @@
               {
                 "name": "settlement idempotency on a live network with the memory ledger settles 5 concurrent repeats once: one transfer, one original, identical bodies",
                 "status": "passed",
-                "durationMs": 6284
+                "durationMs": 7609
               },
               {
                 "name": "settlement idempotency on a live network with the postgres ledger settles 5 concurrent repeats once: one transfer, one original, identical bodies",
                 "status": "passed",
-                "durationMs": 5854
+                "durationMs": 6580
               }
             ]
           },
@@ -115,7 +115,7 @@
               {
                 "name": "exact settlement on a live network settles concurrent duplicates exactly once, all callers getting the same result",
                 "status": "passed",
-                "durationMs": 7493
+                "durationMs": 6700
               }
             ]
           }
@@ -130,7 +130,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 20507,
+      "elapsedMs": 22675,
       "observations": {
         "threats": [
           "R2"
@@ -143,12 +143,12 @@
               {
                 "name": "settlement idempotency on a live network with the memory ledger refuses the same authorization in another envelope, naming the recorded transaction",
                 "status": "passed",
-                "durationMs": 5682
+                "durationMs": 9011
               },
               {
                 "name": "settlement idempotency on a live network with the postgres ledger refuses the same authorization in another envelope, naming the recorded transaction",
                 "status": "passed",
-                "durationMs": 5734
+                "durationMs": 7461
               }
             ]
           },
@@ -158,7 +158,7 @@
               {
                 "name": "exact settlement on a live network refuses a settled authorization in a different envelope, and verify names the replay",
                 "status": "passed",
-                "durationMs": 9091
+                "durationMs": 6203
               }
             ]
           }
@@ -172,7 +172,7 @@
         "idempotency"
       ],
       "status": "passed",
-      "elapsedMs": 10461,
+      "elapsedMs": 6596,
       "observations": {
         "threats": [
           "R4"
@@ -185,7 +185,7 @@
               {
                 "name": "seller helpers on the local network does not serve a replayed payment signature again",
                 "status": "passed",
-                "durationMs": 24
+                "durationMs": 26
               }
             ]
           },
@@ -195,7 +195,7 @@
               {
                 "name": "seller helpers on the local network serves an upfront settlement once when the facilitator answers its repeat",
                 "status": "passed",
-                "durationMs": 10437
+                "durationMs": 6570
               }
             ]
           }
@@ -209,7 +209,7 @@
         "front-running"
       ],
       "status": "passed",
-      "elapsedMs": 8053,
+      "elapsedMs": 7380,
       "observations": {
         "threats": [
           "F1",
@@ -223,7 +223,7 @@
               {
                 "name": "front-running reconciliation for exact payments answers success with the attacker's hash; the payment moves once and our fee is wasted",
                 "status": "passed",
-                "durationMs": 8014
+                "durationMs": 7338
               }
             ]
           },
@@ -233,7 +233,7 @@
               {
                 "name": "front-running reconciliation for exact payments accepts only proof from the chain refuses an authorization consumed before the request was claimed",
                 "status": "passed",
-                "durationMs": 23
+                "durationMs": 21
               }
             ]
           },
@@ -243,15 +243,15 @@
               {
                 "name": "front-running reconciliation for exact payments accepts only proof from the chain refuses when the consuming transaction carried a different invocation for the same nonce",
                 "status": "passed",
-                "durationMs": 16
+                "durationMs": 21
               }
             ]
           }
         ],
         "recorded": [
           {
-            "attackerTransaction": "385238d788629597b8a89bcc498866fc645cafe8e531b5ba6466f7b6ed74f045",
-            "ourFailedTransaction": "263c2aed210e13cbbd3583e54c42ddc0e22065cf9655a9705c2ccfd47d0f9dbc",
+            "attackerTransaction": "aaf96c55cb951ffc68fab61c0338497613eaa06213c1f20994aacea197fde281",
+            "ourFailedTransaction": "bd8e15bf82001bc667f07088a912a94466d78ad572bac4fea601b27bb913108d",
             "answer": "success with the attacker's hash",
             "wastedFeeStroops": "76214",
             "payerDebitedOnce": "1000000"
@@ -267,7 +267,7 @@
         "scheme-upto"
       ],
       "status": "passed",
-      "elapsedMs": 18979,
+      "elapsedMs": 20704,
       "observations": {
         "threats": [
           "F3",
@@ -281,7 +281,7 @@
               {
                 "name": "front-running upto settlements cannot be landed by an attacker without the settlement authority; Rail402's settlement proceeds",
                 "status": "passed",
-                "durationMs": 11277
+                "durationMs": 8456
               }
             ]
           },
@@ -291,7 +291,7 @@
               {
                 "name": "front-running upto settlements answers with the authority's own earlier transaction for the same amount; our fee is wasted",
                 "status": "passed",
-                "durationMs": 7702
+                "durationMs": 12248
               }
             ]
           }
@@ -306,7 +306,7 @@
         "scheme-upto"
       ],
       "status": "passed",
-      "elapsedMs": 86,
+      "elapsedMs": 81,
       "observations": {
         "threats": [
           "A1"
@@ -319,7 +319,7 @@
               {
                 "name": "exact settlement on a live network smart accounts (C… addresses) rejects a smart-account payment signed by the wrong key",
                 "status": "passed",
-                "durationMs": 59
+                "durationMs": 57
               }
             ]
           },
@@ -329,7 +329,7 @@
               {
                 "name": "upto payers through the Rail402 service a simple custom account (C…) refuses a signature by another key as the account's own rejection",
                 "status": "passed",
-                "durationMs": 27
+                "durationMs": 24
               }
             ]
           }
@@ -343,7 +343,7 @@
         "scheme-upto"
       ],
       "status": "passed",
-      "elapsedMs": 1404,
+      "elapsedMs": 1383,
       "observations": {
         "threats": [
           "A4",
@@ -358,7 +358,7 @@
               {
                 "name": "upto payers through the Rail402 service an OpenZeppelin smart account (C…) paying with an agent key refuses a payment over its own spending limit, and nothing moves",
                 "status": "passed",
-                "durationMs": 178
+                "durationMs": 159
               }
             ]
           },
@@ -368,7 +368,7 @@
               {
                 "name": "upto payers through the Rail402 service an OpenZeppelin smart account (C…) paying with an agent key has reserved the full cap of each payment against its budget",
                 "status": "passed",
-                "durationMs": 13
+                "durationMs": 11
               }
             ]
           },
@@ -378,7 +378,7 @@
               {
                 "name": "upto payers through the Rail402 service the smart account's limits does not let the agent key use the owner's policy-free default rule",
                 "status": "passed",
-                "durationMs": 90
+                "durationMs": 91
               }
             ]
           },
@@ -388,7 +388,7 @@
               {
                 "name": "upto payers through the Rail402 service the smart account's limits pays up to its budget and refuses the cap that would exceed it",
                 "status": "passed",
-                "durationMs": 1123
+                "durationMs": 1122
               }
             ]
           }
@@ -402,7 +402,7 @@
         "fees-sponsored"
       ],
       "status": "passed",
-      "elapsedMs": 11425,
+      "elapsedMs": 19134,
       "observations": {
         "threats": [
           "A2"
@@ -415,17 +415,17 @@
               {
                 "name": "fee sponsor exposure for exact payments names a smart account whose __check_auth passes the settle-time simulation and fails at inclusion; the fee is counted as wasted",
                 "status": "passed",
-                "durationMs": 11425
+                "durationMs": 19134
               }
             ]
           }
         ],
         "recorded": [
           {
-            "payer": "CDF4YGHVMZVG5GFMDGXIO2UPMQDCT32VRC33OHS7BLO6ONN5FFLOYQNJ",
+            "payer": "CAMV6HX56SB3DFE4HVLBQ7RWHGSE2ZJH7HQSQ6D464AQIM7Y7AUCD5ID",
             "phase": "between the settle-time simulation and inclusion",
-            "transaction": "bab3d18712f02bd118328fddb510d7a92dd1408d251f47a04ad15b09bc50540e",
-            "ledger": 1089729,
+            "transaction": "58c5be34c7a935f9270f856f35be054d45c6e2ead9d629657cf8cbd898ba64d6",
+            "ledger": 3685,
             "settle": "invalid_exact_stellar_payload_smart_account_rejected",
             "wastedFeeStroops": "74145",
             "sponsorDeltaStroops": "-74145"
@@ -440,7 +440,7 @@
         "fees-sponsored"
       ],
       "status": "passed",
-      "elapsedMs": 15751,
+      "elapsedMs": 24096,
       "observations": {
         "threats": [
           "S1"
@@ -453,7 +453,7 @@
               {
                 "name": "fee sponsor exposure for exact payments refuses at settle, with nothing submitted, a payment whose balance moved after verify",
                 "status": "passed",
-                "durationMs": 9220
+                "durationMs": 11205
               }
             ]
           },
@@ -463,7 +463,7 @@
               {
                 "name": "fee sponsor exposure for exact payments names a balance spent between the settle-time simulation and inclusion; the fee is spent and counted as wasted",
                 "status": "passed",
-                "durationMs": 6531
+                "durationMs": 12891
               }
             ]
           }
@@ -477,11 +477,11 @@
           },
           {
             "phase": "between the settle-time simulation and inclusion",
-            "transaction": "dfb5fa321dc3863671ecac346952f5cdf4fd42588d11fe3c9f6d78fea216ae58",
-            "ledger": 1089718,
+            "transaction": "81cd00f0bf9442d18027eaaa365cff0860fa5228086b965d852f4e683e239f45",
+            "ledger": 3666,
             "settle": "insufficient_funds",
-            "wastedFeeStroops": "76214",
-            "sponsorDeltaStroops": "-76214"
+            "wastedFeeStroops": "76216",
+            "sponsorDeltaStroops": "-76216"
           }
         ]
       }
@@ -493,7 +493,7 @@
         "expiration"
       ],
       "status": "passed",
-      "elapsedMs": 27709,
+      "elapsedMs": 27027,
       "observations": {
         "threats": [
           "S2"
@@ -506,7 +506,7 @@
               {
                 "name": "authorization expiry for exact payments names an authorization that expires between submission and inclusion; the fee is spent",
                 "status": "passed",
-                "durationMs": 10411
+                "durationMs": 8902
               }
             ]
           },
@@ -516,7 +516,7 @@
               {
                 "name": "authorization expiry for upto payments refuses at the network an upto settlement held past expiration_ledger; no fee is spent",
                 "status": "passed",
-                "durationMs": 8681
+                "durationMs": 9540
               }
             ]
           },
@@ -526,12 +526,12 @@
               {
                 "name": "authorization expiry for exact payments holds the lower edge at the current ledger plus a one-ledger margin",
                 "status": "passed",
-                "durationMs": 4207
+                "durationMs": 4380
               },
               {
                 "name": "authorization expiry for upto payments holds the lower edge at the current ledger plus a one-ledger margin",
                 "status": "passed",
-                "durationMs": 4410
+                "durationMs": 4205
               }
             ]
           }
@@ -539,10 +539,10 @@
         "recorded": [
           {
             "scheme": "exact",
-            "expirationLedger": 1089552,
-            "transaction": "f14579ac9f707bb0550944075f56e30d950f912cdc2764badf31b8f58650f4e0",
+            "expirationLedger": 3492,
+            "transaction": "a91ff6bb7c7b787672c13b01a3165dcba29a6f1863c87233206e87b5a3ee11c6",
             "settle": "invalid_exact_stellar_signature_expired",
-            "wastedFeeStroops": "76214"
+            "wastedFeeStroops": "76216"
           }
         ]
       }
@@ -555,7 +555,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 5881,
+      "elapsedMs": 6129,
       "observations": {
         "threats": [
           "S3"
@@ -568,7 +568,7 @@
               {
                 "name": "fee sponsor exposure for exact payments refuses a payment whose settlement would cost more than the fee ceiling, before signing anything",
                 "status": "passed",
-                "durationMs": 5875
+                "durationMs": 6122
               }
             ]
           },
@@ -578,7 +578,7 @@
               {
                 "name": "upto facilitator: verify enforces the fee ceiling",
                 "status": "passed",
-                "durationMs": 6
+                "durationMs": 7
               }
             ]
           }
@@ -601,7 +601,7 @@
         "fees-sponsored"
       ],
       "status": "passed",
-      "elapsedMs": 6480,
+      "elapsedMs": 9755,
       "observations": {
         "threats": [
           "S4"
@@ -614,7 +614,7 @@
               {
                 "name": "fee sponsor exposure for exact payments stops settling once the hourly fee budget is committed, before any RPC work",
                 "status": "passed",
-                "durationMs": 6479
+                "durationMs": 9754
               }
             ]
           },
@@ -632,7 +632,7 @@
         "recorded": [
           {
             "budgetStroops": "1",
-            "firstSettlement": "a26811eed9ced7c2f9786170502168f058bc5c8d03dcada7847dcea46d09b102",
+            "firstSettlement": "e22186df586e5380bfc7ade5437468ac057262300287ff9608236a65701be1e2",
             "refusal": "settle_exact_stellar_sponsor_unavailable",
             "submissionsAfterTrip": 0
           }
@@ -647,7 +647,7 @@
         "fees-sponsored"
       ],
       "status": "passed",
-      "elapsedMs": 12136,
+      "elapsedMs": 7337,
       "observations": {
         "threats": [
           "S5"
@@ -660,7 +660,7 @@
               {
                 "name": "observability: the sponsor guard counts refusals below the reserve and reports the sponsor below its floor",
                 "status": "passed",
-                "durationMs": 8570
+                "durationMs": 5118
               }
             ]
           },
@@ -670,7 +670,7 @@
               {
                 "name": "service runtime readiness fails while the sponsor holds less than MIN_SPONSOR_BALANCE_XLM",
                 "status": "passed",
-                "durationMs": 3566
+                "durationMs": 2219
               }
             ]
           }
@@ -809,7 +809,7 @@
         "mcp"
       ],
       "status": "passed",
-      "elapsedMs": 642,
+      "elapsedMs": 645,
       "observations": {
         "threats": [
           "X4"
@@ -822,7 +822,7 @@
               {
                 "name": "egress controls against local servers stops oversized and compressed-bomb answers at the decoded limit",
                 "status": "passed",
-                "durationMs": 37
+                "durationMs": 41
               }
             ]
           },
@@ -832,7 +832,7 @@
               {
                 "name": "createSafeFetch times out waiting for headers, on an idle body, and in total",
                 "status": "passed",
-                "durationMs": 605
+                "durationMs": 604
               }
             ]
           }
@@ -847,7 +847,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 9551,
+      "elapsedMs": 13359,
       "observations": {
         "threats": [
           "P2"
@@ -860,7 +860,7 @@
               {
                 "name": "Bazaar: settlement-gated cataloging through a real seller refuses a different payTo for the same resource, with a coded reason",
                 "status": "passed",
-                "durationMs": 9293
+                "durationMs": 13046
               }
             ]
           },
@@ -870,7 +870,7 @@
               {
                 "name": "postgres: bazaar catalog never lets a different payTo modify a listing",
                 "status": "passed",
-                "durationMs": 136
+                "durationMs": 120
               }
             ]
           },
@@ -880,7 +880,7 @@
               {
                 "name": "postgres: bazaar catalog transfers ownership only when the origin names the new payTo",
                 "status": "passed",
-                "durationMs": 122
+                "durationMs": 193
               }
             ]
           }
@@ -894,7 +894,7 @@
         "discovery"
       ],
       "status": "passed",
-      "elapsedMs": 239,
+      "elapsedMs": 254,
       "observations": {
         "threats": [
           "P1"
@@ -907,7 +907,7 @@
               {
                 "name": "postgres: bazaar catalog does not let echoed metadata change a listing until the origin confirms it",
                 "status": "passed",
-                "durationMs": 130
+                "durationMs": 118
               }
             ]
           },
@@ -917,7 +917,7 @@
               {
                 "name": "postgres: bazaar catalog never lists an HTTP resource whose own response is not a 402",
                 "status": "passed",
-                "durationMs": 109
+                "durationMs": 136
               }
             ]
           }
@@ -932,7 +932,7 @@
         "mcp"
       ],
       "status": "passed",
-      "elapsedMs": 395,
+      "elapsedMs": 465,
       "observations": {
         "threats": [
           "P9"
@@ -945,12 +945,12 @@
               {
                 "name": "postgres: bazaar catalog never publishes a tool description or price planted with a one-unit exact payment under a seller's payTo",
                 "status": "passed",
-                "durationMs": 121
+                "durationMs": 136
               },
               {
                 "name": "postgres: bazaar catalog never publishes a tool description or price planted with a one-unit upto settlement under a huge cap under a seller's payTo",
                 "status": "passed",
-                "durationMs": 115
+                "durationMs": 130
               }
             ]
           },
@@ -960,7 +960,7 @@
               {
                 "name": "postgres: bazaar catalog never lets a planted settlement withdraw or change a tool its origin confirmed",
                 "status": "passed",
-                "durationMs": 110
+                "durationMs": 135
               }
             ]
           },
@@ -970,7 +970,7 @@
               {
                 "name": "MCP origin checks reads a tool's PaymentRequired from its unpaid call, sending the example arguments",
                 "status": "passed",
-                "durationMs": 49
+                "durationMs": 64
               }
             ]
           }
@@ -984,7 +984,7 @@
         "discovery"
       ],
       "status": "passed",
-      "elapsedMs": 364,
+      "elapsedMs": 359,
       "observations": {
         "threats": [
           "P3"
@@ -997,7 +997,7 @@
               {
                 "name": "SchemaSandbox stops a catastrophic-backtracking pattern within its budget and keeps serving",
                 "status": "passed",
-                "durationMs": 353
+                "durationMs": 346
               }
             ]
           },
@@ -1017,7 +1017,7 @@
               {
                 "name": "SchemaSandbox finds external references in every schema position, and only there",
                 "status": "passed",
-                "durationMs": 10
+                "durationMs": 12
               }
             ]
           }
@@ -1031,7 +1031,7 @@
         "discovery"
       ],
       "status": "passed",
-      "elapsedMs": 166,
+      "elapsedMs": 164,
       "observations": {
         "threats": [
           "P4"
@@ -1054,7 +1054,7 @@
               {
                 "name": "postgres: bazaar catalog uses a routeTemplate only when it is safe and matches the paid path",
                 "status": "passed",
-                "durationMs": 165
+                "durationMs": 163
               }
             ]
           },
@@ -1078,7 +1078,7 @@
         "crash-recovery"
       ],
       "status": "passed",
-      "elapsedMs": 15648,
+      "elapsedMs": 14456,
       "observations": {
         "threats": [
           "O1"
@@ -1091,12 +1091,12 @@
               {
                 "name": "crash recovery of the service process (SIGKILL) exact K0: finds the transaction the network accepted before the process died",
                 "status": "passed",
-                "durationMs": 7866
+                "durationMs": 7382
               },
               {
                 "name": "crash recovery of the service process (SIGKILL) upto K0: finds the transaction the network accepted before the process died",
                 "status": "passed",
-                "durationMs": 7782
+                "durationMs": 7074
               }
             ]
           }
@@ -1110,7 +1110,7 @@
         "crash-recovery"
       ],
       "status": "passed",
-      "elapsedMs": 18919,
+      "elapsedMs": 14580,
       "observations": {
         "threats": [
           "O1"
@@ -1123,12 +1123,12 @@
               {
                 "name": "crash recovery of the service process (SIGKILL) exact K1: rebroadcasts the identical recorded bytes when the broadcast never left",
                 "status": "passed",
-                "durationMs": 11108
+                "durationMs": 7908
               },
               {
                 "name": "crash recovery of the service process (SIGKILL) upto K1: rebroadcasts the identical recorded bytes when the broadcast never left",
                 "status": "passed",
-                "durationMs": 7811
+                "durationMs": 6672
               }
             ]
           }
@@ -1142,7 +1142,7 @@
         "crash-recovery"
       ],
       "status": "passed",
-      "elapsedMs": 15887,
+      "elapsedMs": 15383,
       "observations": {
         "threats": [
           "O1"
@@ -1155,12 +1155,12 @@
               {
                 "name": "crash recovery of the service process (SIGKILL) exact K2: finds a transaction that was included before the process saw it confirmed",
                 "status": "passed",
-                "durationMs": 7627
+                "durationMs": 8981
               },
               {
                 "name": "crash recovery of the service process (SIGKILL) upto K2: finds a transaction that was included before the process saw it confirmed",
                 "status": "passed",
-                "durationMs": 8260
+                "durationMs": 6402
               }
             ]
           }
@@ -1174,7 +1174,7 @@
         "crash-recovery"
       ],
       "status": "passed",
-      "elapsedMs": 41452,
+      "elapsedMs": 41102,
       "observations": {
         "threats": [
           "O1"
@@ -1187,7 +1187,7 @@
               {
                 "name": "crash recovery of the service process (SIGKILL) K3: expires a transaction whose time bound passed while the service was down, and nothing moves",
                 "status": "passed",
-                "durationMs": 41452
+                "durationMs": 41102
               }
             ]
           }
@@ -1202,7 +1202,7 @@
         "observability"
       ],
       "status": "passed",
-      "elapsedMs": 1734,
+      "elapsedMs": 1820,
       "observations": {
         "threats": [
           "O4"
@@ -1215,7 +1215,7 @@
               {
                 "name": "crash recovery of the service process (SIGKILL) keeps a settlement the RPC can no longer prove absent unresolved, and reports it",
                 "status": "passed",
-                "durationMs": 1734
+                "durationMs": 1820
               }
             ]
           }
@@ -1229,7 +1229,7 @@
         "concurrency"
       ],
       "status": "passed",
-      "elapsedMs": 105151,
+      "elapsedMs": 101731,
       "observations": {
         "threats": [
           "O2",
@@ -1243,17 +1243,17 @@
               {
                 "name": "concurrent settlements on a live network settles 3 batches of 20 exact payments over 8 channels with injected duplicates, without a collision",
                 "status": "passed",
-                "durationMs": 34882
+                "durationMs": 36903
               },
               {
                 "name": "concurrent settlements on a live network settles 3 batches of 20 upto payments over 8 channels with injected duplicates, without a collision",
                 "status": "passed",
-                "durationMs": 33931
+                "durationMs": 29145
               },
               {
                 "name": "concurrent settlements on a live network settles 3 batches of 20 mixed payments over 8 channels with injected duplicates, without a collision",
                 "status": "passed",
-                "durationMs": 36338
+                "durationMs": 35683
               }
             ]
           }
@@ -1268,7 +1268,7 @@
         "idempotency"
       ],
       "status": "passed",
-      "elapsedMs": 35396,
+      "elapsedMs": 31632,
       "observations": {
         "threats": [
           "O2",
@@ -1282,7 +1282,7 @@
               {
                 "name": "two service replicas on one Postgres settles 3 batches of 20 with every duplicate sent to the other replica",
                 "status": "passed",
-                "durationMs": 35396
+                "durationMs": 31632
               }
             ]
           }
@@ -1296,7 +1296,7 @@
         "observability"
       ],
       "status": "passed",
-      "elapsedMs": 13113,
+      "elapsedMs": 15773,
       "observations": {
         "threats": [
           "O2"
@@ -1309,7 +1309,7 @@
               {
                 "name": "observability: every signal moves when its cause happens counts a sequence conflict when a channel's sequence is used behind its back",
                 "status": "passed",
-                "durationMs": 13113
+                "durationMs": 15773
               }
             ]
           }
@@ -1323,7 +1323,7 @@
         "observability"
       ],
       "status": "passed",
-      "elapsedMs": 7884,
+      "elapsedMs": 4535,
       "observations": {
         "threats": [
           "O3"
@@ -1336,7 +1336,7 @@
               {
                 "name": "service runtime readiness fails while the RPC is unreachable",
                 "status": "passed",
-                "durationMs": 2831
+                "durationMs": 3518
               }
             ]
           },
@@ -1346,7 +1346,7 @@
               {
                 "name": "observability: every signal moves when its cause happens counts transport and request errors while the RPC fails, and reports it in /health",
                 "status": "passed",
-                "durationMs": 5053
+                "durationMs": 1017
               }
             ]
           }
@@ -1361,7 +1361,7 @@
         "observability"
       ],
       "status": "passed",
-      "elapsedMs": 16061,
+      "elapsedMs": 20143,
       "observations": {
         "threats": [
           "O3"
@@ -1374,7 +1374,7 @@
               {
                 "name": "exact settlement on a live network refuses or finishes settlements it cannot complete, and says why broadcasts nothing when the envelope cannot be recorded first, leaving the payment retryable",
                 "status": "passed",
-                "durationMs": 6376
+                "durationMs": 6030
               }
             ]
           },
@@ -1384,12 +1384,12 @@
               {
                 "name": "settlement idempotency on a live network with the memory ledger keeps verify available when the ledger cannot be read",
                 "status": "passed",
-                "durationMs": 4654
+                "durationMs": 5815
               },
               {
                 "name": "settlement idempotency on a live network with the postgres ledger keeps verify available when the ledger cannot be read",
                 "status": "passed",
-                "durationMs": 4965
+                "durationMs": 8234
               }
             ]
           },
@@ -1399,7 +1399,7 @@
               {
                 "name": "connection pool survives the server closing its idle connections, as in a restart or failover",
                 "status": "passed",
-                "durationMs": 66
+                "durationMs": 64
               }
             ]
           }
@@ -1414,7 +1414,7 @@
         "observability"
       ],
       "status": "passed",
-      "elapsedMs": 18355,
+      "elapsedMs": 23504,
       "observations": {
         "threats": [
           "O5"
@@ -1427,7 +1427,7 @@
               {
                 "name": "exact settlement on a live network refuses or finishes settlements it cannot complete, and says why refuses when no channel frees up in time, leaving the payment retryable",
                 "status": "passed",
-                "durationMs": 5574
+                "durationMs": 6982
               }
             ]
           },
@@ -1437,7 +1437,7 @@
               {
                 "name": "observability: every signal moves when its cause happens measures the wait for a channel when settlements outnumber channels",
                 "status": "passed",
-                "durationMs": 12781
+                "durationMs": 16522
               }
             ]
           }
@@ -1452,7 +1452,7 @@
         "scheme-upto"
       ],
       "status": "passed",
-      "elapsedMs": 4879,
+      "elapsedMs": 4779,
       "observations": {
         "threats": [
           "U7"
@@ -1465,7 +1465,7 @@
               {
                 "name": "upto through the Rail402 service extends the contract from the keeper and the operator command, and reports its TTL",
                 "status": "passed",
-                "durationMs": 4879
+                "durationMs": 4779
               }
             ]
           }
@@ -1480,7 +1480,7 @@
         "scheme-upto"
       ],
       "status": "passed",
-      "elapsedMs": 54754,
+      "elapsedMs": 69868,
       "observations": {
         "threats": [
           "U7",
@@ -1494,7 +1494,7 @@
               {
                 "name": "upto against an archived settlement contract refuses payments while the contract is archived, and settles once an operator restores it",
                 "status": "passed",
-                "durationMs": 15084
+                "durationMs": 25858
               }
             ]
           },
@@ -1504,7 +1504,7 @@
               {
                 "name": "upto against an archived settlement contract is restored by the TTL keeper where automatic restoration is allowed",
                 "status": "passed",
-                "durationMs": 39670
+                "durationMs": 44010
               }
             ]
           }
@@ -1556,7 +1556,7 @@
         "mcp"
       ],
       "status": "passed",
-      "elapsedMs": 80,
+      "elapsedMs": 96,
       "observations": {
         "threats": [
           "M1"
@@ -1569,7 +1569,7 @@
               {
                 "name": "rail402-mcp on the local network refuses a price above the caller's cap before signing",
                 "status": "passed",
-                "durationMs": 24
+                "durationMs": 25
               }
             ]
           },
@@ -1589,7 +1589,7 @@
               {
                 "name": "guarded signer never lets 20 concurrent payments exceed the session budget",
                 "status": "passed",
-                "durationMs": 39
+                "durationMs": 54
               }
             ]
           }
@@ -1640,7 +1640,7 @@
         "mcp"
       ],
       "status": "passed",
-      "elapsedMs": 220,
+      "elapsedMs": 216,
       "observations": {
         "threats": [
           "M3"
@@ -1653,7 +1653,7 @@
               {
                 "name": "secret canary scan of rail402-mcp on the local network leaks nothing into frames, logs or the ledger",
                 "status": "passed",
-                "durationMs": 91
+                "durationMs": 76
               }
             ]
           },
@@ -1663,7 +1663,7 @@
               {
                 "name": "secret canary scan of the buyer on the local network leaks nothing, and the payment reached only the paid origin",
                 "status": "passed",
-                "durationMs": 69
+                "durationMs": 81
               }
             ]
           },
@@ -1673,7 +1673,7 @@
               {
                 "name": "secret canary scan of the rail402 CLI on the local network leaks nothing on stdout, stderr or in the ledger",
                 "status": "passed",
-                "durationMs": 60
+                "durationMs": 59
               }
             ]
           }
@@ -1716,7 +1716,7 @@
         "idempotency"
       ],
       "status": "passed",
-      "elapsedMs": 9895,
+      "elapsedMs": 8382,
       "observations": {
         "threats": [
           "R5",
@@ -1730,7 +1730,7 @@
               {
                 "name": "upto through the Rail402 facilitator settles zero on-chain: the nonce is consumed and no funds move",
                 "status": "passed",
-                "durationMs": 6561
+                "durationMs": 4707
               }
             ]
           },
@@ -1740,7 +1740,7 @@
               {
                 "name": "upto through the Rail402 facilitator settles zero off-chain when configured: no transaction, the authorization used up in the ledger",
                 "status": "passed",
-                "durationMs": 3334
+                "durationMs": 3675
               }
             ]
           }
@@ -1756,7 +1756,7 @@
         "concurrency"
       ],
       "status": "passed",
-      "elapsedMs": 14034,
+      "elapsedMs": 18243,
       "observations": {
         "threats": [
           "U3",
@@ -1770,12 +1770,12 @@
               {
                 "name": "settlement idempotency on a live network with the memory ledger upto settles 5 concurrent requests for different amounts once: one success, four conflicts",
                 "status": "passed",
-                "durationMs": 4758
+                "durationMs": 5440
               },
               {
                 "name": "settlement idempotency on a live network with the postgres ledger upto settles 5 concurrent requests for different amounts once: one success, four conflicts",
                 "status": "passed",
-                "durationMs": 5387
+                "durationMs": 5284
               }
             ]
           },
@@ -1785,7 +1785,7 @@
               {
                 "name": "upto settlement through the Rail402 service duplicates lets the first settle request fix the amount: a payload holder's zero turns the seller's settle into a conflict",
                 "status": "passed",
-                "durationMs": 3889
+                "durationMs": 7519
               }
             ]
           }
@@ -1800,7 +1800,7 @@
         "front-running"
       ],
       "status": "passed",
-      "elapsedMs": 14821,
+      "elapsedMs": 18501,
       "observations": {
         "threats": [
           "F4"
@@ -1813,7 +1813,7 @@
               {
                 "name": "upto through the Rail402 facilitator a settlement another transaction landed first succeeds with that transaction when it settled the same amount",
                 "status": "passed",
-                "durationMs": 8247
+                "durationMs": 9745
               }
             ]
           },
@@ -1823,7 +1823,7 @@
               {
                 "name": "upto through the Rail402 facilitator a settlement another transaction landed first answers settled_elsewhere when it settled a different amount",
                 "status": "passed",
-                "durationMs": 6574
+                "durationMs": 8756
               }
             ]
           }
@@ -1837,7 +1837,7 @@
         "observability"
       ],
       "status": "passed",
-      "elapsedMs": 17920,
+      "elapsedMs": 17332,
       "observations": {
         "threats": [
           "O6"
@@ -1850,7 +1850,7 @@
               {
                 "name": "channels command on a network reports, provisions and retires channel accounts with STORE=memory",
                 "status": "passed",
-                "durationMs": 9767
+                "durationMs": 9795
               }
             ]
           },
@@ -1860,7 +1860,7 @@
               {
                 "name": "channels command on a network with Postgres reports durable state and refuses to retire while a channel is leased",
                 "status": "passed",
-                "durationMs": 8153
+                "durationMs": 7537
               }
             ]
           }

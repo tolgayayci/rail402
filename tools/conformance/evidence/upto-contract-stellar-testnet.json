@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
   "kind": "upto-contract",
-  "runId": "9d12b18a-dd70-4e00-9f33-a82dbabf65cc",
-  "startedAt": "2026-10-09T13:42:54.619Z",
-  "finishedAt": "2026-10-09T13:43:14.360Z",
+  "runId": "3b4b1caf-289f-4e34-b916-561a84619859",
+  "startedAt": "2026-10-14T10:12:01.474Z",
+  "finishedAt": "2026-10-14T10:12:22.260Z",
   "network": "stellar:testnet",
   "target": {
     "mode": "local",
     "facilitatorUrl": "http://127.0.0.1:8801",
-    "healthVersion": "0.4.1+b9ebb87f3632",
+    "healthVersion": "0.4.1+2cbc980e8442",
     "supported": {
       "kinds": [
         {
@@ -65,7 +65,7 @@
     }
   },
   "harness": {
-    "commit": "b9ebb87f3632f7e601f9f2f884cd4389deb65c20",
+    "commit": "2cbc980e84426cc68c377e4bdf0a9077698f88d8",
     "dirty": false
   },
   "packages": {
@@ -101,7 +101,7 @@
       "observations": {
         "contractId": "CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U",
         "wasmSha256": "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
-        "sourceRevision": "f107e0993e0c807e7c646a169bdc225191fa5a47",
+        "sourceRevision": "b63695c8ac4ed27fa5e75e18690084c9b74c23bb",
         "source": "contracts/stellar/upto",
         "sourceSha256": "c783ef0838c7d2c235ded5c4e28b8303e7d7e387362ff868f0a3cc5018802343",
         "buildImage": "docker.io/stellar/stellar-cli:28.0.0-rust1.98.0-slim-trixie-amd64-0@sha256:3901802ef2324ff9563a50995279818ca4b98938b45e1dab0e1e7c5d69adb5a9",
@@ -127,11 +127,11 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 362,
+      "elapsedMs": 735,
       "observations": {
-        "latestLedger": 5105957,
-        "instanceTtlLedgers": 3075842,
-        "codeTtlLedgers": 3075843
+        "latestLedger": 5189826,
+        "instanceTtlLedgers": 2991973,
+        "codeTtlLedgers": 2991974
       }
     },
     {
@@ -142,7 +142,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 553,
+      "elapsedMs": 622,
       "observations": {
         "fetchedSha256": "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
         "stellarCli": "stellar 28.1.0 (c0f4d0da891bbf214c08b8c5035ae6db80e9a3bd)"
@@ -156,7 +156,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 17140,
+      "elapsedMs": 17389,
       "observations": {
         "rebuiltSha256": "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
         "deployedSha256": "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
@@ -185,7 +185,7 @@
           "keeper": {
             "enabled": true,
             "autoRestore": true,
-            "checkedAt": "2026-10-09T13:38:54.342Z",
+            "checkedAt": "2026-10-14T10:10:45.762Z",
             "plan": "none",
             "lastAction": null,
             "error": null
@@ -201,13 +201,13 @@
       ],
       "asset": "TEST6",
       "status": "passed",
-      "elapsedMs": 1660,
+      "elapsedMs": 2014,
       "observations": {
         "contractId": "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK",
         "wasmSha256": "b2a8948479de732f4374a92810d2aaef365a68dab53b227ffbaba707e55ed9e0",
         "fetchedSha256": "b2a8948479de732f4374a92810d2aaef365a68dab53b227ffbaba707e55ed9e0",
-        "sourceRevision": "9e4686ade88743a31c8ec81de212688336386490",
-        "instanceTtlLedgers": 2945777,
+        "sourceRevision": "b63695c8ac4ed27fa5e75e18690084c9b74c23bb",
+        "instanceTtlLedgers": 2861908,
         "deploy": {
           "tx": "6091557af2daba6f7c08677ecf71dcedec2ded1c40c62b615584d07a3b0b420d",
           "ledger": 4941338,

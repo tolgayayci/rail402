@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
   "kind": "live-playground",
-  "runId": "56247e6b-795d-4440-9fac-ba87388f7517",
-  "startedAt": "2026-10-09T14:41:39.547Z",
-  "finishedAt": "2026-10-09T14:43:51.651Z",
+  "runId": "5dea8b19-c257-40c1-bfd1-f597344d1ef2",
+  "startedAt": "2026-10-14T09:31:44.334Z",
+  "finishedAt": "2026-10-14T09:33:55.999Z",
   "network": "stellar:testnet",
   "target": {
     "mode": "hosted",
     "facilitatorUrl": "https://testnet.rail402.dev",
-    "healthVersion": "0.4.1+c99804586cfc",
+    "healthVersion": "0.4.1+2cbc980e8442",
     "supported": {
       "kinds": [
         {
@@ -65,7 +65,7 @@
     }
   },
   "harness": {
-    "commit": "bb1cfc54bf5ad9eed9cee1a62f1e20a8b692a310",
+    "commit": "2cbc980e84426cc68c377e4bdf0a9077698f88d8",
     "dirty": false
   },
   "packages": {
@@ -95,7 +95,7 @@
     "browser": "chromium 153.0.8010.12 (headless)"
   },
   "accounts": {
-    "payer": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+    "payer": "GA5LHCLKWLIEH4VHGCBESASMV4YW4OPWDTOISL6JNKOGIBTTNLCDBGQ5",
     "demoPayTo": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
     "labPayTo": "GCXS4EFFJBYHJEYKCQHY4XNUDMXOGLSTMHPFYE55SSQ5NRE672HCO5ZH",
     "uptoContract": "CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U"
@@ -114,24 +114,24 @@
         "playground"
       ],
       "status": "passed",
-      "elapsedMs": 17509,
+      "elapsedMs": 17743,
       "observations": {
-        "payer": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+        "payer": "GA5LHCLKWLIEH4VHGCBESASMV4YW4OPWDTOISL6JNKOGIBTTNLCDBGQ5",
         "classicTransactions": [
           {
-            "hash": "0e97b505e643175d41996956af7b42e22a7cce882c91ce9c24bfc4f7d5289de0",
-            "ledger": 5106664,
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/0e97b505e643175d41996956af7b42e22a7cce882c91ce9c24bfc4f7d5289de0"
+            "hash": "e1cd9c61a48b35b98d81fcc5eb93f00fa9e985a21096aeb97d0ee0662571b19d",
+            "ledger": 5189345,
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/e1cd9c61a48b35b98d81fcc5eb93f00fa9e985a21096aeb97d0ee0662571b19d"
           },
           {
-            "hash": "cec64010c0b4ea309beab00b3636a139e6378799b2dd5352a26dcfe3de1980bc",
-            "ledger": 5106665,
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/cec64010c0b4ea309beab00b3636a139e6378799b2dd5352a26dcfe3de1980bc"
+            "hash": "ebf6e099291c8abb62c0fca6620959d779611e5ed827a80eb3dae7ac55c082cb",
+            "ledger": 5189346,
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/ebf6e099291c8abb62c0fca6620959d779611e5ed827a80eb3dae7ac55c082cb"
           },
           {
-            "hash": "6075dc20703deb07418b4d4515f1dc0a42fd35ed2f57428e068861c3e3b565dd",
-            "ledger": 5106666,
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/6075dc20703deb07418b4d4515f1dc0a42fd35ed2f57428e068861c3e3b565dd"
+            "hash": "d5a416cac58c7bad91763e57861b30e5b09444b3407b1b5eb1177e85a7475258",
+            "ledger": 5189347,
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/d5a416cac58c7bad91763e57861b30e5b09444b3407b1b5eb1177e85a7475258"
           }
         ]
       }
@@ -149,28 +149,28 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 10605,
+      "elapsedMs": 9783,
       "transactions": [
         {
-          "hash": "e65c283a32ae30e1c3802fd5f89b637c8daa753a4ad623f173ca6a2f8bf0005a",
-          "ledger": 5106668,
+          "hash": "2813cf20d9672a88921264be054054d0d8003fb73e93b1abc452ad67e65cf4ed",
+          "ledger": 5189349,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "10000",
           "payerType": "G",
-          "feeChargedStroops": "23158",
+          "feeChargedStroops": "23182",
           "feeSource": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
-          "innerSource": "GAUNOKFXMYYCCAEN3RAEXJOCOBES2PWEIHMOZVQGTDF3EDDLAE3WRNVA",
-          "innerSequence": "21108583143833625",
+          "innerSource": "GCSBROZRQFRWMTCQYQGU5SHDML24ZVSAOP4M4Z3SJZXYIC55DL6QF2TN",
+          "innerSequence": "21101041181261872",
           "transfers": [
             {
-              "from": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+              "from": "GA5LHCLKWLIEH4VHGCBESASMV4YW4OPWDTOISL6JNKOGIBTTNLCDBGQ5",
               "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
               "amount": "10000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/e65c283a32ae30e1c3802fd5f89b637c8daa753a4ad623f173ca6a2f8bf0005a"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/2813cf20d9672a88921264be054054d0d8003fb73e93b1abc452ad67e65cf4ed"
         }
       ],
       "observations": {
@@ -198,7 +198,7 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 1493,
+      "elapsedMs": 1698,
       "rejections": [
         {
           "surface": "http",
@@ -229,7 +229,7 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 8361,
+      "elapsedMs": 9070,
       "rejections": [
         {
           "surface": "facilitator",
@@ -240,25 +240,25 @@
       ],
       "transactions": [
         {
-          "hash": "3e2b9acbda48812698c88f2ac44865a7c5c41fe2dc65420d71e9a9b5b885a34c",
-          "ledger": 5106670,
+          "hash": "7e0f123cae7e63409db97569486554e539d4b3cba3ad2d919a57b75034a177a0",
+          "ledger": 5189351,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "10000",
           "payerType": "G",
-          "feeChargedStroops": "23158",
+          "feeChargedStroops": "23182",
           "feeSource": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
-          "innerSource": "GDTJKNDIENAI7AVCSIMQLPZGFJSRDRBQ4WWKEVJLP5CZVTTSSM2SV3IN",
-          "innerSequence": "21101041181261870",
+          "innerSource": "GCM75IOHE4X5T4PAWC52JQH2WC2DOCLZQFKVJB7Z7IHOMMPR2CX75EEK",
+          "innerSequence": "21101041181261873",
           "transfers": [
             {
-              "from": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+              "from": "GA5LHCLKWLIEH4VHGCBESASMV4YW4OPWDTOISL6JNKOGIBTTNLCDBGQ5",
               "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
               "amount": "10000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/3e2b9acbda48812698c88f2ac44865a7c5c41fe2dc65420d71e9a9b5b885a34c"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/7e0f123cae7e63409db97569486554e539d4b3cba3ad2d919a57b75034a177a0"
         }
       ],
       "observations": {
@@ -291,28 +291,28 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 10087,
+      "elapsedMs": 9520,
       "transactions": [
         {
-          "hash": "14c98a78ddba993af6ded79ba2064df6437903c255e0f59165edff83738cc9a4",
-          "ledger": 5106672,
+          "hash": "b6f599d170df4a275123f3017a22aa1333e957d1ebdadcdf737e4073a3ae1e79",
+          "ledger": 5189353,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "21000",
           "payerType": "G",
-          "feeChargedStroops": "39185",
+          "feeChargedStroops": "39304",
           "feeSource": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
-          "innerSource": "GB7MYLE2FJ3B45QCUKSWLDXU7XOX5IB6WP4BRZ23ZBZXGOMT7OCBLZHY",
-          "innerSequence": "21108583143833624",
+          "innerSource": "GDZREJ6UXJDL7IMLRMHP4F6RM37TF3WUGRB7GPE5G4IUIXKS6ISZPVEQ",
+          "innerSequence": "21101041181261873",
           "transfers": [
             {
-              "from": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+              "from": "GA5LHCLKWLIEH4VHGCBESASMV4YW4OPWDTOISL6JNKOGIBTTNLCDBGQ5",
               "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
               "amount": "21000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/14c98a78ddba993af6ded79ba2064df6437903c255e0f59165edff83738cc9a4"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/b6f599d170df4a275123f3017a22aa1333e957d1ebdadcdf737e4073a3ae1e79"
         }
       ],
       "observations": {
@@ -342,7 +342,7 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 4412,
+      "elapsedMs": 4484,
       "rejections": [
         {
           "surface": "facilitator",
@@ -381,28 +381,28 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 11363,
+      "elapsedMs": 10466,
       "transactions": [
         {
-          "hash": "dbe1047c5d9991534a597c87764f300615caf10d8a6a713f3c4190f4522fe3b4",
-          "ledger": 5106675,
+          "hash": "5b2fbaa25620b096c88f34b5e891608c078c13cedc5690c2c05c5ede41da774f",
+          "ledger": 5189356,
           "scheme": "upto",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "12000",
           "payerType": "G",
-          "feeChargedStroops": "36153",
+          "feeChargedStroops": "36177",
           "feeSource": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
-          "innerSource": "GBMM3OEFZTPG2JWQTY2RDVNDDDONFZXBEWV6UD3L554RTJGZULR752YJ",
-          "innerSequence": "21101041181261870",
+          "innerSource": "GDTMBMFVMXC5JA4TJJBK6TQQ36ZPNPQLG6RWHMONLYP7SMFL4I7HX4O7",
+          "innerSequence": "21108583143833630",
           "transfers": [
             {
-              "from": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+              "from": "GA5LHCLKWLIEH4VHGCBESASMV4YW4OPWDTOISL6JNKOGIBTTNLCDBGQ5",
               "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
               "amount": "12000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/dbe1047c5d9991534a597c87764f300615caf10d8a6a713f3c4190f4522fe3b4"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/5b2fbaa25620b096c88f34b5e891608c078c13cedc5690c2c05c5ede41da774f"
         }
       ],
       "observations": {
@@ -446,7 +446,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 2331,
+      "elapsedMs": 2191,
       "rejections": [
         {
           "surface": "http",
@@ -468,7 +468,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 2044,
+      "elapsedMs": 2029,
       "rejections": [
         {
           "surface": "http",
@@ -490,7 +490,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 1792,
+      "elapsedMs": 2191,
       "rejections": [
         {
           "surface": "http",
@@ -512,7 +512,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 2745,
+      "elapsedMs": 2922,
       "rejections": [
         {
           "surface": "http",
@@ -534,7 +534,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 11795,
+      "elapsedMs": 11446,
       "rejections": [
         {
           "surface": "http",
@@ -545,32 +545,32 @@
       ],
       "transactions": [
         {
-          "hash": "b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d",
-          "ledger": 5106679,
+          "hash": "4a1e9a34c13ba07522d623a9506cce8dba8c2fa73885e86f3274d1a6b75ad07d",
+          "ledger": 5189360,
           "scheme": "exact",
           "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
           "decimals": 7,
           "amount": "10000",
           "payerType": "G",
-          "feeChargedStroops": "23158",
+          "feeChargedStroops": "23182",
           "feeSource": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
-          "innerSource": "GBAUIMDRVA4ZRRKMP23XMO6WVQWN7LCZPA4Q4LOUNYK2QPYKUNGPAMVY",
-          "innerSequence": "21108583143833625",
+          "innerSource": "GC65COQZYD3QBDXXPDZP5QIYG2DEDGRANTIG27HEIGCKE6YIIV33XAG2",
+          "innerSequence": "21108583143833627",
           "transfers": [
             {
-              "from": "GAO3JYR7I7XFI6CLC2E625SNUI6PPS2AB4TQGEP5SIT35FEOKW7FVCLU",
+              "from": "GA5LHCLKWLIEH4VHGCBESASMV4YW4OPWDTOISL6JNKOGIBTTNLCDBGQ5",
               "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
               "amount": "10000"
             }
           ],
-          "explorer": "https://stellar.expert/explorer/testnet/tx/b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d"
+          "explorer": "https://stellar.expert/explorer/testnet/tx/4a1e9a34c13ba07522d623a9506cce8dba8c2fa73885e86f3274d1a6b75ad07d"
         }
       ],
       "observations": {
         "feeSourceAdvertised": true,
         "paidBeforeRefusal": {
           "amount": "10000",
-          "transaction": "b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d"
+          "transaction": "4a1e9a34c13ba07522d623a9506cce8dba8c2fa73885e86f3274d1a6b75ad07d"
         },
         "layer": "policy"
       }
@@ -583,7 +583,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 1573,
+      "elapsedMs": 1531,
       "rejections": [
         {
           "surface": "http",
@@ -605,7 +605,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 1488,
+      "elapsedMs": 1744,
       "rejections": [
         {
           "surface": "http",
@@ -642,10 +642,10 @@
       "payer": "G",
       "payTo": "G",
       "status": "passed",
-      "elapsedMs": 40394,
+      "elapsedMs": 40391,
       "observations": {
         "meter": "Session budget: 0.0063 spent, 0 held, 0.9937 of 1 USDC left",
-        "releasedAfterMs": 40394
+        "releasedAfterMs": 40391
       }
     },
     {
@@ -655,72 +655,72 @@
         "playground"
       ],
       "status": "passed",
-      "elapsedMs": 410,
+      "elapsedMs": 270,
       "observations": {
         "transactions": [
           {
-            "hash": "0e97b505e643175d41996956af7b42e22a7cce882c91ce9c24bfc4f7d5289de0",
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/0e97b505e643175d41996956af7b42e22a7cce882c91ce9c24bfc4f7d5289de0",
+            "hash": "e1cd9c61a48b35b98d81fcc5eb93f00fa9e985a21096aeb97d0ee0662571b19d",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/e1cd9c61a48b35b98d81fcc5eb93f00fa9e985a21096aeb97d0ee0662571b19d",
             "apiStatus": 200,
-            "ledger": 5106664,
+            "ledger": 5189345,
             "attempts": 1,
-            "pageLink": "https://stellar.expert/explorer/testnet/tx/0e97b505e643175d41996956af7b42e22a7cce882c91ce9c24bfc4f7d5289de0"
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/e1cd9c61a48b35b98d81fcc5eb93f00fa9e985a21096aeb97d0ee0662571b19d"
           },
           {
-            "hash": "cec64010c0b4ea309beab00b3636a139e6378799b2dd5352a26dcfe3de1980bc",
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/cec64010c0b4ea309beab00b3636a139e6378799b2dd5352a26dcfe3de1980bc",
+            "hash": "ebf6e099291c8abb62c0fca6620959d779611e5ed827a80eb3dae7ac55c082cb",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/ebf6e099291c8abb62c0fca6620959d779611e5ed827a80eb3dae7ac55c082cb",
             "apiStatus": 200,
-            "ledger": 5106665,
+            "ledger": 5189346,
             "attempts": 1,
-            "pageLink": "https://stellar.expert/explorer/testnet/tx/cec64010c0b4ea309beab00b3636a139e6378799b2dd5352a26dcfe3de1980bc"
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/ebf6e099291c8abb62c0fca6620959d779611e5ed827a80eb3dae7ac55c082cb"
           },
           {
-            "hash": "6075dc20703deb07418b4d4515f1dc0a42fd35ed2f57428e068861c3e3b565dd",
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/6075dc20703deb07418b4d4515f1dc0a42fd35ed2f57428e068861c3e3b565dd",
+            "hash": "d5a416cac58c7bad91763e57861b30e5b09444b3407b1b5eb1177e85a7475258",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/d5a416cac58c7bad91763e57861b30e5b09444b3407b1b5eb1177e85a7475258",
             "apiStatus": 200,
-            "ledger": 5106666,
+            "ledger": 5189347,
             "attempts": 1,
-            "pageLink": "https://stellar.expert/explorer/testnet/tx/6075dc20703deb07418b4d4515f1dc0a42fd35ed2f57428e068861c3e3b565dd"
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/d5a416cac58c7bad91763e57861b30e5b09444b3407b1b5eb1177e85a7475258"
           },
           {
-            "hash": "e65c283a32ae30e1c3802fd5f89b637c8daa753a4ad623f173ca6a2f8bf0005a",
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/e65c283a32ae30e1c3802fd5f89b637c8daa753a4ad623f173ca6a2f8bf0005a",
+            "hash": "2813cf20d9672a88921264be054054d0d8003fb73e93b1abc452ad67e65cf4ed",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/2813cf20d9672a88921264be054054d0d8003fb73e93b1abc452ad67e65cf4ed",
             "apiStatus": 200,
-            "ledger": 5106668,
+            "ledger": 5189349,
             "attempts": 1,
-            "pageLink": "https://stellar.expert/explorer/testnet/tx/e65c283a32ae30e1c3802fd5f89b637c8daa753a4ad623f173ca6a2f8bf0005a"
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/2813cf20d9672a88921264be054054d0d8003fb73e93b1abc452ad67e65cf4ed"
           },
           {
-            "hash": "3e2b9acbda48812698c88f2ac44865a7c5c41fe2dc65420d71e9a9b5b885a34c",
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/3e2b9acbda48812698c88f2ac44865a7c5c41fe2dc65420d71e9a9b5b885a34c",
+            "hash": "7e0f123cae7e63409db97569486554e539d4b3cba3ad2d919a57b75034a177a0",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/7e0f123cae7e63409db97569486554e539d4b3cba3ad2d919a57b75034a177a0",
             "apiStatus": 200,
-            "ledger": 5106670,
+            "ledger": 5189351,
             "attempts": 1,
-            "pageLink": "https://stellar.expert/explorer/testnet/tx/3e2b9acbda48812698c88f2ac44865a7c5c41fe2dc65420d71e9a9b5b885a34c"
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/7e0f123cae7e63409db97569486554e539d4b3cba3ad2d919a57b75034a177a0"
           },
           {
-            "hash": "14c98a78ddba993af6ded79ba2064df6437903c255e0f59165edff83738cc9a4",
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/14c98a78ddba993af6ded79ba2064df6437903c255e0f59165edff83738cc9a4",
+            "hash": "b6f599d170df4a275123f3017a22aa1333e957d1ebdadcdf737e4073a3ae1e79",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/b6f599d170df4a275123f3017a22aa1333e957d1ebdadcdf737e4073a3ae1e79",
             "apiStatus": 200,
-            "ledger": 5106672,
+            "ledger": 5189353,
             "attempts": 1,
-            "pageLink": "https://stellar.expert/explorer/testnet/tx/14c98a78ddba993af6ded79ba2064df6437903c255e0f59165edff83738cc9a4"
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/b6f599d170df4a275123f3017a22aa1333e957d1ebdadcdf737e4073a3ae1e79"
           },
           {
-            "hash": "dbe1047c5d9991534a597c87764f300615caf10d8a6a713f3c4190f4522fe3b4",
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/dbe1047c5d9991534a597c87764f300615caf10d8a6a713f3c4190f4522fe3b4",
+            "hash": "5b2fbaa25620b096c88f34b5e891608c078c13cedc5690c2c05c5ede41da774f",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/5b2fbaa25620b096c88f34b5e891608c078c13cedc5690c2c05c5ede41da774f",
             "apiStatus": 200,
-            "ledger": 5106675,
+            "ledger": 5189356,
             "attempts": 1,
-            "pageLink": "https://stellar.expert/explorer/testnet/tx/dbe1047c5d9991534a597c87764f300615caf10d8a6a713f3c4190f4522fe3b4"
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/5b2fbaa25620b096c88f34b5e891608c078c13cedc5690c2c05c5ede41da774f"
           },
           {
-            "hash": "b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d",
-            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d",
+            "hash": "4a1e9a34c13ba07522d623a9506cce8dba8c2fa73885e86f3274d1a6b75ad07d",
+            "explorerUrl": "https://stellar.expert/explorer/testnet/tx/4a1e9a34c13ba07522d623a9506cce8dba8c2fa73885e86f3274d1a6b75ad07d",
             "apiStatus": 200,
-            "ledger": 5106679,
+            "ledger": 5189360,
             "attempts": 1,
-            "pageLink": "https://stellar.expert/explorer/testnet/tx/b55cbd1bb38d5ac9763a5dabfb0725fccdb70a81f01ed28218b2e465d3d4f42d"
+            "pageLink": "https://stellar.expert/explorer/testnet/tx/4a1e9a34c13ba07522d623a9506cce8dba8c2fa73885e86f3274d1a6b75ad07d"
           }
         ]
       }
@@ -732,10 +732,10 @@
         "playground"
       ],
       "status": "passed",
-      "elapsedMs": 1765,
+      "elapsedMs": 1773,
       "observations": {
         "secretScan": {
-          "channels": 1226,
+          "channels": 1224,
           "needles": 69,
           "payments": 7,
           "serverLogs": true,

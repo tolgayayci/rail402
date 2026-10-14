@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
   "kind": "rejection-audit",
-  "runId": "6ed7ff23-f78f-4500-9c10-978e84875466",
-  "startedAt": "2026-10-09T13:36:38.260Z",
-  "finishedAt": "2026-10-09T13:38:28.315Z",
+  "runId": "25548ec4-f156-4f23-b538-8d6ac238e654",
+  "startedAt": "2026-10-14T10:05:07.304Z",
+  "finishedAt": "2026-10-14T10:07:19.436Z",
   "network": "stellar:testnet",
   "target": {
     "mode": "hosted",
     "facilitatorUrl": "https://testnet.rail402.dev",
-    "healthVersion": "0.4.1+c99804586cfc",
+    "healthVersion": "0.4.1+2cbc980e8442",
     "supported": {
       "kinds": [
         {
@@ -65,7 +65,7 @@
     }
   },
   "harness": {
-    "commit": "b9ebb87f3632f7e601f9f2f884cd4389deb65c20",
+    "commit": "2cbc980e84426cc68c377e4bdf0a9077698f88d8",
     "dirty": false
   },
   "packages": {
@@ -84,13 +84,13 @@
     "mcp": true
   },
   "accounts": {
-    "payTo": "GAR6W3BPX7T433HW57GU6CV5BJIZ7E6R73MWMYTYBMZFLLGSYLA3SYLY",
-    "untrusted": "GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U",
-    "poor": "GDRCIED4JVX7ELZ3FSARYLCFIBLSHBCAY3D63YPAB4OUHDVR52CJHXDL",
-    "treasury": "GDKLWLIOHHSNYYOGJ5ZIH2DTI4UWUKFTZP5FUNHIH3GDJ35DAZDTPJ6N",
-    "payer1": "GBHMHZQUP6QLM2J3E6TAOVKZG7FCCS6WUZ33RPIHGSKYEOG56SKPQENB",
-    "payer2": "GA5Q52CJZXFTFVF2FUU25UTGFQDMWB2MZ3BCIDGVMP3QSVBICFEHPOOT",
-    "payer3": "GBGCA65R3FKCEFKBGVKBE7GSGI5YR6NMMD43EHNBIC4KONSU6X2IVAQB"
+    "payTo": "GBB5HWTPXFEK754U2GQXIWHPPJZV2TODYFFGHJCDIPYYMGOKUOVEI2BY",
+    "untrusted": "GD4NC3ZXQDHTPHMSWG2SORVJNL6T7C7KICO5RHNTVZHECYLLZCOB26FD",
+    "poor": "GDAFX4OEHNPQDKYAIU77IP6DBDWL2WWN3CZ54732DE3O2EISAFZ7THUT",
+    "treasury": "GBQT3Y6NSJPZ24WBUJLU5T6EPD7PH7O7SS4ZBQ6RKVYQ3O72W5HXTUMN",
+    "payer1": "GC6LPFNSKKK3RDNMRLAKSDZKUBGNBBNKYAEIQTB2RC623KZWQQG4JRBC",
+    "payer2": "GBHEL5JTWCJ45Y7UL5KSVGOVAPBI5EZOLMOEJKVO77FMQ2Q7XZHXGDP4",
+    "payer3": "GAWKMHUZAMBBIBFOPRGFN5DFPPAA7OWV5255FW3CZKRKI54IPS6WJCQB"
   },
   "summary": {
     "total": 94,
@@ -106,7 +106,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 943,
+      "elapsedMs": 860,
       "rejections": [
         {
           "surface": "http",
@@ -150,7 +150,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 147,
+      "elapsedMs": 150,
       "rejections": [
         {
           "surface": "http",
@@ -180,7 +180,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 602,
+      "elapsedMs": 497,
       "rejections": [
         {
           "surface": "http",
@@ -239,7 +239,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 470,
+      "elapsedMs": 472,
       "rejections": [
         {
           "surface": "http",
@@ -297,7 +297,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 466,
+      "elapsedMs": 507,
       "rejections": [
         {
           "surface": "facilitator",
@@ -343,7 +343,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 783,
+      "elapsedMs": 856,
       "rejections": [
         {
           "surface": "facilitator",
@@ -388,7 +388,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 854,
+      "elapsedMs": 806,
       "rejections": [
         {
           "surface": "facilitator",
@@ -433,7 +433,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 502,
+      "elapsedMs": 531,
       "rejections": [
         {
           "surface": "facilitator",
@@ -464,7 +464,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 480,
+      "elapsedMs": 498,
       "rejections": [
         {
           "surface": "facilitator",
@@ -495,7 +495,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 830,
+      "elapsedMs": 912,
       "rejections": [
         {
           "surface": "facilitator",
@@ -540,7 +540,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 1571,
+      "elapsedMs": 1481,
       "rejections": [
         {
           "surface": "facilitator",
@@ -615,7 +615,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 747,
+      "elapsedMs": 489,
       "rejections": [
         {
           "surface": "facilitator",
@@ -647,7 +647,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 458,
+      "elapsedMs": 523,
       "rejections": [
         {
           "surface": "facilitator",
@@ -679,7 +679,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 317,
+      "elapsedMs": 382,
       "rejections": [
         {
           "surface": "facilitator",
@@ -710,7 +710,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 513,
+      "elapsedMs": 523,
       "rejections": [
         {
           "surface": "facilitator",
@@ -742,7 +742,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 464,
+      "elapsedMs": 548,
       "rejections": [
         {
           "surface": "facilitator",
@@ -773,7 +773,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 481,
+      "elapsedMs": 516,
       "rejections": [
         {
           "surface": "facilitator",
@@ -804,7 +804,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 471,
+      "elapsedMs": 467,
       "rejections": [
         {
           "surface": "facilitator",
@@ -835,7 +835,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 475,
+      "elapsedMs": 590,
       "rejections": [
         {
           "surface": "facilitator",
@@ -867,7 +867,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 473,
+      "elapsedMs": 472,
       "rejections": [
         {
           "surface": "facilitator",
@@ -898,7 +898,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 471,
+      "elapsedMs": 472,
       "rejections": [
         {
           "surface": "facilitator",
@@ -929,7 +929,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 460,
+      "elapsedMs": 538,
       "rejections": [
         {
           "surface": "facilitator",
@@ -961,7 +961,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 460,
+      "elapsedMs": 632,
       "rejections": [
         {
           "surface": "facilitator",
@@ -992,7 +992,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 606,
+      "elapsedMs": 500,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1024,7 +1024,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 1434,
+      "elapsedMs": 1540,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1099,7 +1099,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 1897,
+      "elapsedMs": 2699,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1130,21 +1130,21 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 789,
+      "elapsedMs": 1116,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_signature_expired",
-          "reason": "The authorization expired at ledger 5105875; the network is at ledger 5105885."
+          "reason": "The authorization expired at ledger 5189737; the network is at ledger 5189747."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_signature_expired",
-          "reason": "The authorization expired at ledger 5105875; the network is at ledger 5105885."
+          "reason": "The authorization expired at ledger 5189737; the network is at ledger 5189747."
         }
       ],
       "observations": {
@@ -1161,14 +1161,14 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 599,
+      "elapsedMs": 1360,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
-          "code": "invalid_exact_stellar_signature_expiration_too_soon",
-          "reason": "The authorization expires at ledger 5105885, within 1 ledger(s) of the current ledger 5105885."
+          "code": "invalid_exact_stellar_signature_expired",
+          "reason": "The authorization expired at ledger 5189747; the network is at ledger 5189748."
         }
       ],
       "observations": {
@@ -1186,7 +1186,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 986,
+      "elapsedMs": 4210,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1217,21 +1217,21 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 669,
+      "elapsedMs": 1583,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_payer_trustline_missing",
-          "reason": "The payer GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset."
+          "reason": "The payer GD4NC3ZXQDHTPHMSWG2SORVJNL6T7C7KICO5RHNTVZHECYLLZCOB26FD has no trustline for this asset."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_payer_trustline_missing",
-          "reason": "The payer GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset."
+          "reason": "The payer GD4NC3ZXQDHTPHMSWG2SORVJNL6T7C7KICO5RHNTVZHECYLLZCOB26FD has no trustline for this asset."
         }
       ],
       "observations": {
@@ -1248,21 +1248,21 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 593,
+      "elapsedMs": 1420,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_recipient_trustline_missing",
-          "reason": "payTo GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset and cannot receive it."
+          "reason": "payTo GD4NC3ZXQDHTPHMSWG2SORVJNL6T7C7KICO5RHNTVZHECYLLZCOB26FD has no trustline for this asset and cannot receive it."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_recipient_trustline_missing",
-          "reason": "payTo GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset and cannot receive it."
+          "reason": "payTo GD4NC3ZXQDHTPHMSWG2SORVJNL6T7C7KICO5RHNTVZHECYLLZCOB26FD has no trustline for this asset and cannot receive it."
         }
       ],
       "observations": {
@@ -1279,7 +1279,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 638,
+      "elapsedMs": 1003,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1310,21 +1310,21 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 651,
+      "elapsedMs": 933,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_account_missing",
-          "reason": "The payer account GBY65R3CAEBG3TD3DRDL7Q7PMDQBRHGWKASDXNVUT46NL5VMJXUEX6EP does not exist on this network."
+          "reason": "The payer account GA2JVSH32ODMWLWBXIIM3V3BPL65OHAGTYT5XOFEOAS6GOGYSR72FQGT does not exist on this network."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_account_missing",
-          "reason": "The payer account GBY65R3CAEBG3TD3DRDL7Q7PMDQBRHGWKASDXNVUT46NL5VMJXUEX6EP does not exist on this network."
+          "reason": "The payer account GA2JVSH32ODMWLWBXIIM3V3BPL65OHAGTYT5XOFEOAS6GOGYSR72FQGT does not exist on this network."
         }
       ],
       "observations": {
@@ -1341,7 +1341,7 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 1860,
+      "elapsedMs": 2290,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1373,7 +1373,7 @@
       "scheme": "exact",
       "payer": "C",
       "status": "passed",
-      "elapsedMs": 22141,
+      "elapsedMs": 20165,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1405,25 +1405,25 @@
       ],
       "scheme": "exact",
       "status": "passed",
-      "elapsedMs": 3068,
+      "elapsedMs": 8783,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "settle_exact_stellar_idempotency_conflict",
-          "reason": "This authorization was already submitted for settlement with a different transaction or different payment terms; it was submitted in transaction 3aae20583f393c4893628ab2875f8bb082ddd5d0a6d13d1f5de2eb6f77aefe73."
+          "reason": "This authorization was already submitted for settlement with a different transaction or different payment terms; it was submitted in transaction 7ee1b1f10b4a900c6e021f3fbc0ed019471ef3c8c8e3a1070b5022de27054c61."
         },
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_exact_stellar_payload_nonce_already_used",
-          "reason": "This authorization was already settled in transaction 3aae20583f393c4893628ab2875f8bb082ddd5d0a6d13d1f5de2eb6f77aefe73."
+          "reason": "This authorization was already settled in transaction 7ee1b1f10b4a900c6e021f3fbc0ed019471ef3c8c8e3a1070b5022de27054c61."
         }
       ],
       "observations": {
-        "settledTransaction": "3aae20583f393c4893628ab2875f8bb082ddd5d0a6d13d1f5de2eb6f77aefe73",
+        "settledTransaction": "7ee1b1f10b4a900c6e021f3fbc0ed019471ef3c8c8e3a1070b5022de27054c61",
         "expectedCodes": [
           "invalid_exact_stellar_payload_nonce_already_used"
         ]
@@ -1437,7 +1437,7 @@
         "discovery"
       ],
       "status": "passed",
-      "elapsedMs": 1019,
+      "elapsedMs": 1194,
       "rejections": [
         {
           "surface": "bazaar",
@@ -1503,7 +1503,7 @@
         "discovery"
       ],
       "status": "passed",
-      "elapsedMs": 445,
+      "elapsedMs": 477,
       "rejections": [
         {
           "surface": "bazaar",
@@ -1552,7 +1552,7 @@
         "discovery"
       ],
       "status": "passed",
-      "elapsedMs": 588,
+      "elapsedMs": 667,
       "rejections": [
         {
           "surface": "search",
@@ -1597,7 +1597,7 @@
         "discovery"
       ],
       "status": "passed",
-      "elapsedMs": 459,
+      "elapsedMs": 519,
       "rejections": [
         {
           "surface": "search",
@@ -1635,7 +1635,7 @@
         "discovery"
       ],
       "status": "passed",
-      "elapsedMs": 580,
+      "elapsedMs": 665,
       "rejections": [
         {
           "surface": "search",
@@ -1681,7 +1681,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 936,
+      "elapsedMs": 982,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1713,7 +1713,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 871,
+      "elapsedMs": 941,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1745,7 +1745,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1127,
+      "elapsedMs": 1202,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1792,7 +1792,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1532,
+      "elapsedMs": 1857,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1861,7 +1861,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 846,
+      "elapsedMs": 1058,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1893,7 +1893,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1104,
+      "elapsedMs": 1410,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1939,7 +1939,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 811,
+      "elapsedMs": 995,
       "rejections": [
         {
           "surface": "facilitator",
@@ -1971,7 +1971,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 892,
+      "elapsedMs": 1097,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2032,7 +2032,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 523,
+      "elapsedMs": 660,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2065,7 +2065,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 810,
+      "elapsedMs": 963,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2098,21 +2098,21 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 806,
+      "elapsedMs": 941,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_wrong_recipient",
-          "reason": "The authorization pays GAR6W3BPX7T433HW57GU6CV5BJIZ7E6R73MWMYTYBMZFLLGSYLA3SYLY; payTo is GAXT6QMBGGOFVBEOK24UA7REER2QECXOQMLG73JJMQG7TGDCVHWGPUEO."
+          "reason": "The authorization pays GBB5HWTPXFEK754U2GQXIWHPPJZV2TODYFFGHJCDIPYYMGOKUOVEI2BY; payTo is GBO2HW3O6WMIBSFK6URL5LU3V5Y4ZG53KSBKHZ7XJPSLF3GHILK4ESQ4."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_wrong_recipient",
-          "reason": "The authorization pays GAR6W3BPX7T433HW57GU6CV5BJIZ7E6R73MWMYTYBMZFLLGSYLA3SYLY; payTo is GAXT6QMBGGOFVBEOK24UA7REER2QECXOQMLG73JJMQG7TGDCVHWGPUEO."
+          "reason": "The authorization pays GBB5HWTPXFEK754U2GQXIWHPPJZV2TODYFFGHJCDIPYYMGOKUOVEI2BY; payTo is GBO2HW3O6WMIBSFK6URL5LU3V5Y4ZG53KSBKHZ7XJPSLF3GHILK4ESQ4."
         }
       ],
       "observations": {
@@ -2130,7 +2130,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 809,
+      "elapsedMs": 918,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2162,7 +2162,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 819,
+      "elapsedMs": 867,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2194,21 +2194,21 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 922,
+      "elapsedMs": 855,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_expiration_mismatch",
-          "reason": "expiration_ledger 5105907 differs from signatureExpirationLedger 5105908."
+          "reason": "expiration_ledger 5189771 differs from signatureExpirationLedger 5189772."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_expiration_mismatch",
-          "reason": "expiration_ledger 5105907 differs from signatureExpirationLedger 5105908."
+          "reason": "expiration_ledger 5189771 differs from signatureExpirationLedger 5189772."
         }
       ],
       "observations": {
@@ -2226,7 +2226,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 963,
+      "elapsedMs": 841,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2258,7 +2258,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1386,
+      "elapsedMs": 1142,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2290,7 +2290,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1997,
+      "elapsedMs": 2683,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2364,7 +2364,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 694,
+      "elapsedMs": 1453,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2396,7 +2396,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 702,
+      "elapsedMs": 1060,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2428,21 +2428,21 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 843,
+      "elapsedMs": 1199,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_facilitator_mismatch",
-          "reason": "The authorization names GAXT6QMBGGOFVBEOK24UA7REER2QECXOQMLG73JJMQG7TGDCVHWGPUEO as settlement authority; this facilitator's is GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC."
+          "reason": "The authorization names GBO2HW3O6WMIBSFK6URL5LU3V5Y4ZG53KSBKHZ7XJPSLF3GHILK4ESQ4 as settlement authority; this facilitator's is GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_facilitator_mismatch",
-          "reason": "The authorization names GAXT6QMBGGOFVBEOK24UA7REER2QECXOQMLG73JJMQG7TGDCVHWGPUEO as settlement authority; this facilitator's is GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC."
+          "reason": "The authorization names GBO2HW3O6WMIBSFK6URL5LU3V5Y4ZG53KSBKHZ7XJPSLF3GHILK4ESQ4 as settlement authority; this facilitator's is GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC."
         }
       ],
       "observations": {
@@ -2460,7 +2460,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 831,
+      "elapsedMs": 1243,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2492,7 +2492,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 828,
+      "elapsedMs": 1191,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2524,21 +2524,21 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1171,
+      "elapsedMs": 1246,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_not_yet_valid",
-          "reason": "The terms are valid from ledger 5105901; the current ledger is 5105897."
+          "reason": "The terms are valid from ledger 5189767; the current ledger is 5189762."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_not_yet_valid",
-          "reason": "The terms are valid from ledger 5105901; the current ledger is 5105897."
+          "reason": "The terms are valid from ledger 5189767; the current ledger is 5189762."
         }
       ],
       "observations": {
@@ -2556,21 +2556,21 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1375,
+      "elapsedMs": 1159,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_signature_expired",
-          "reason": "The authorization expired at ledger 5105887; the current ledger is 5105897."
+          "reason": "The authorization expired at ledger 5189752; the current ledger is 5189762."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_signature_expired",
-          "reason": "The authorization expired at ledger 5105887; the current ledger is 5105897."
+          "reason": "The authorization expired at ledger 5189752; the current ledger is 5189762."
         }
       ],
       "observations": {
@@ -2588,21 +2588,21 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1419,
+      "elapsedMs": 1194,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_signature_expiration_too_far",
-          "reason": "The authorization expires at ledger 5110897; maxTimeoutSeconds allows at most ledger 5105911."
+          "reason": "The authorization expires at ledger 5194762; maxTimeoutSeconds allows at most ledger 5189776."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_signature_expiration_too_far",
-          "reason": "The authorization expires at ledger 5110897; maxTimeoutSeconds allows at most ledger 5105911."
+          "reason": "The authorization expires at ledger 5194762; maxTimeoutSeconds allows at most ledger 5189776."
         }
       ],
       "observations": {
@@ -2620,14 +2620,14 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1260,
+      "elapsedMs": 1048,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
-          "code": "invalid_upto_stellar_signature_expiration_too_soon",
-          "reason": "The authorization expires at ledger 5105897, fewer than 1 ledgers after the current ledger 5105897."
+          "code": "invalid_upto_stellar_signature_expired",
+          "reason": "The authorization expired at ledger 5189762; the current ledger is 5189763."
         }
       ],
       "observations": {
@@ -2647,7 +2647,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 894,
+      "elapsedMs": 742,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2672,7 +2672,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1020,
+      "elapsedMs": 1538,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2704,7 +2704,7 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 743,
+      "elapsedMs": 1507,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2729,21 +2729,21 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1250,
+      "elapsedMs": 1148,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_payer_trustline_missing",
-          "reason": "The payer GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset."
+          "reason": "The payer GD4NC3ZXQDHTPHMSWG2SORVJNL6T7C7KICO5RHNTVZHECYLLZCOB26FD has no trustline for this asset."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_payer_trustline_missing",
-          "reason": "The payer GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset."
+          "reason": "The payer GD4NC3ZXQDHTPHMSWG2SORVJNL6T7C7KICO5RHNTVZHECYLLZCOB26FD has no trustline for this asset."
         }
       ],
       "observations": {
@@ -2761,21 +2761,21 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1204,
+      "elapsedMs": 1215,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_recipient_trustline_missing",
-          "reason": "payTo GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset and cannot receive it."
+          "reason": "payTo GD4NC3ZXQDHTPHMSWG2SORVJNL6T7C7KICO5RHNTVZHECYLLZCOB26FD has no trustline for this asset and cannot receive it."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_recipient_trustline_missing",
-          "reason": "payTo GBE22S6RP6VDC3PZPUPO4XKAQBEVYUO52SPZTJVS6IURAMB5I3BFBW5U has no trustline for this asset and cannot receive it."
+          "reason": "payTo GD4NC3ZXQDHTPHMSWG2SORVJNL6T7C7KICO5RHNTVZHECYLLZCOB26FD has no trustline for this asset and cannot receive it."
         }
       ],
       "observations": {
@@ -2793,21 +2793,21 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 1098,
+      "elapsedMs": 1374,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_account_missing",
-          "reason": "The payer account GBORFMPFDNJ2LK7W4UNY6P3E4NW63LD7TQVAAOSUJOQR6JUO7LUPL27V does not exist on this network."
+          "reason": "The payer account GAC5HP6FBQNFSGB2YMSPBMJT4VHN7FKBVMR5RW4C74NRO6SAS7ARLVCW does not exist on this network."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_account_missing",
-          "reason": "The payer account GBORFMPFDNJ2LK7W4UNY6P3E4NW63LD7TQVAAOSUJOQR6JUO7LUPL27V does not exist on this network."
+          "reason": "The payer account GAC5HP6FBQNFSGB2YMSPBMJT4VHN7FKBVMR5RW4C74NRO6SAS7ARLVCW does not exist on this network."
         }
       ],
       "observations": {
@@ -2826,7 +2826,7 @@
       "scheme": "upto",
       "payer": "C",
       "status": "passed",
-      "elapsedMs": 20998,
+      "elapsedMs": 20140,
       "rejections": [
         {
           "surface": "facilitator",
@@ -2859,25 +2859,25 @@
       ],
       "scheme": "upto",
       "status": "passed",
-      "elapsedMs": 3423,
+      "elapsedMs": 8661,
       "rejections": [
         {
           "surface": "facilitator",
           "operation": "POST /verify",
           "httpStatus": 200,
           "code": "invalid_upto_stellar_payload_nonce_already_used",
-          "reason": "This authorization was already settled in transaction 62d17f4fb8ea3e68106b4d370ae6011a953d1e68ffddab73578e5b75f12f540b."
+          "reason": "This authorization was already settled in transaction bcc9e88fb6c26734515fefd183de95a781f5f60a7c01e6a6a176c2fcea26cd63."
         },
         {
           "surface": "facilitator",
           "operation": "POST /settle",
           "httpStatus": 200,
           "code": "settle_upto_stellar_idempotency_conflict",
-          "reason": "This authorization was already submitted for settlement for 100 with different payment terms; it was submitted in transaction 62d17f4fb8ea3e68106b4d370ae6011a953d1e68ffddab73578e5b75f12f540b."
+          "reason": "This authorization was already submitted for settlement for 100 with different payment terms; it was submitted in transaction bcc9e88fb6c26734515fefd183de95a781f5f60a7c01e6a6a176c2fcea26cd63."
         }
       ],
       "observations": {
-        "settledTransaction": "62d17f4fb8ea3e68106b4d370ae6011a953d1e68ffddab73578e5b75f12f540b",
+        "settledTransaction": "bcc9e88fb6c26734515fefd183de95a781f5f60a7c01e6a6a176c2fcea26cd63",
         "expectedCodes": [
           "settle_upto_stellar_idempotency_conflict"
         ]
@@ -2891,7 +2891,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 310,
+      "elapsedMs": 313,
       "rejections": [
         {
           "surface": "mcp",
@@ -2917,7 +2917,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 1,
+      "elapsedMs": 2,
       "rejections": [
         {
           "surface": "mcp",
@@ -2943,7 +2943,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 1,
+      "elapsedMs": 2,
       "rejections": [
         {
           "surface": "mcp",
@@ -2969,7 +2969,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 10,
+      "elapsedMs": 11,
       "rejections": [
         {
           "surface": "mcp",
@@ -2994,7 +2994,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 2,
+      "elapsedMs": 3,
       "rejections": [
         {
           "surface": "mcp",
@@ -3174,7 +3174,7 @@
         "rejection-codes"
       ],
       "status": "passed",
-      "elapsedMs": 0,
+      "elapsedMs": 1,
       "rejections": [
         {
           "surface": "mcp",
