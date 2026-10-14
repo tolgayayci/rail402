@@ -14,6 +14,7 @@ import {
   type Transaction,
 } from "@stellar/stellar-sdk";
 import type { IssuedAsset, LocalNetwork, PaymentRequirementsLike } from "./network.ts";
+import type { EntrySigner } from "./upto.ts";
 
 const SIMPLE_ACCOUNT_WASM = readFileSync(new URL("../fixtures/simple_account.wasm", import.meta.url));
 
@@ -60,7 +61,8 @@ export async function mintTo(
 /**
  * An x402 exact payment from a smart account. The transaction is built and simulated as a wallet
  * would, then the account's authorization entry is signed the way its `__check_auth` expects: an
- * ed25519 signature by the owner over the SorobanAuthorization preimage hash.
+ * ed25519 signature by the owner over the SorobanAuthorization preimage hash, or `signEntry` for an
+ * account that expects another signature (an OpenZeppelin smart account's `AuthPayload`).
  */
 export async function smartAccountPayment(
   net: LocalNetwork,
@@ -71,6 +73,10 @@ export async function smartAccountPayment(
     readonly source: Keypair;
     readonly requirements: PaymentRequirementsLike;
     readonly signWith?: Keypair;
+    /** Signs the account's entry (its expiration already set) instead of the owner's raw signature. */
+    readonly signEntry?: EntrySigner;
+    /** The authorization's expiration ledger; by default the latest ledger plus maxTimeoutSeconds / 5. */
+    readonly expirationLedger?: number;
   },
 ) {
   const { account, requirements } = options;
@@ -92,25 +98,29 @@ export async function smartAccountPayment(
     );
   }
 
-  const expiration = (await net.latestLedger()) + Math.ceil(requirements.maxTimeoutSeconds / 5);
+  const expiration =
+    options.expirationLedger ?? (await net.latestLedger()) + Math.ceil(requirements.maxTimeoutSeconds / 5);
   const signer = options.signWith ?? options.owner;
-  const auth = simulation.result.auth.map((entry) => {
-    const credentials = entry.credentials();
-    if (credentials.switch() !== xdr.SorobanCredentialsType.sorobanCredentialsAddress()) return entry;
-    const address = credentials.address();
-    if (Address.fromScAddress(address.address()).toString() !== account) return entry;
-    address.signatureExpirationLedger(expiration);
-    const preimage = xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(
-      new xdr.HashIdPreimageSorobanAuthorization({
-        networkId: hash(Buffer.from(net.passphrase)),
-        nonce: address.nonce(),
-        signatureExpirationLedger: expiration,
-        invocation: entry.rootInvocation(),
-      }),
-    );
-    address.signature(xdr.ScVal.scvBytes(signer.sign(hash(preimage.toXDR()))));
-    return entry;
-  });
+  const auth = await Promise.all(
+    simulation.result.auth.map(async (entry) => {
+      const credentials = entry.credentials();
+      if (credentials.switch() !== xdr.SorobanCredentialsType.sorobanCredentialsAddress()) return entry;
+      const address = credentials.address();
+      if (Address.fromScAddress(address.address()).toString() !== account) return entry;
+      address.signatureExpirationLedger(expiration);
+      if (options.signEntry !== undefined) return options.signEntry(entry, net.passphrase);
+      const preimage = xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(
+        new xdr.HashIdPreimageSorobanAuthorization({
+          networkId: hash(Buffer.from(net.passphrase)),
+          nonce: address.nonce(),
+          signatureExpirationLedger: expiration,
+          invocation: entry.rootInvocation(),
+        }),
+      );
+      address.signature(xdr.ScVal.scvBytes(signer.sign(hash(preimage.toXDR()))));
+      return entry;
+    }),
+  );
 
   const operation = unsigned.operations[0];
   if (operation?.type !== "invokeHostFunction") throw new Error("unexpected operation");

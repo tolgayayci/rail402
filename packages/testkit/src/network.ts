@@ -17,6 +17,7 @@ import {
   type Transaction,
 } from "@stellar/stellar-sdk";
 import { basicNodeSigner } from "@stellar/stellar-sdk/contract";
+import { getEstimatedLedgerCloseTimeSeconds } from "@x402/stellar";
 
 /**
  * Helpers for the private Stellar network from docker-compose.yml (`--profile stellar`). It runs with
@@ -25,6 +26,11 @@ import { basicNodeSigner } from "@stellar/stellar-sdk/contract";
 export const LOCAL_RPC_URL = process.env["RAIL402_TEST_RPC_URL"] ?? "http://localhost:8000/rpc";
 export const LOCAL_FRIENDBOT_URL =
   process.env["RAIL402_TEST_FRIENDBOT_URL"] ?? "http://localhost:8000/friendbot";
+
+/** How often `submit` sends a transaction the network answered with TRY_AGAIN_LATER. */
+const SUBMIT_ATTEMPTS = 5;
+/** Friendbot answers tried per account before `fund` gives up (5xx and network errors only). */
+const FRIENDBOT_ATTEMPTS = 5;
 
 export interface PaymentRequirementsLike {
   readonly scheme: "exact";
@@ -64,23 +70,74 @@ export class LocalNetwork {
     }
   }
 
+  /**
+   * Funds new accounts from Friendbot. A Friendbot shared by many test runs answers 5xx under load
+   * (its own funding transaction failed or timed out), so those answers are retried a few times with
+   * a growing pause; an account that already exists after a failed answer (Friendbot refuses one it
+   * funded before with a 400) counts as funded.
+   */
   async fund(...accounts: Keypair[]): Promise<void> {
-    await Promise.all(
-      accounts.map(async (account) => {
-        const response = await fetch(`${this.friendbotUrl}?addr=${account.publicKey()}`);
-        if (!response.ok) throw new Error(`friendbot ${response.status}: ${await response.text()}`);
-      }),
-    );
+    await Promise.all(accounts.map((account) => this.fundOne(account)));
+  }
+
+  private async fundOne(account: Keypair): Promise<void> {
+    const url = `${this.friendbotUrl}?addr=${account.publicKey()}`;
+    for (let attempt = 1; ; attempt++) {
+      const failure = await fetch(url).then(
+        async (response) =>
+          response.ok
+            ? undefined
+            : {
+                retry: response.status >= 500,
+                message: `friendbot ${String(response.status)}: ${await response.text()}`,
+              },
+        (error: unknown) => ({
+          retry: true,
+          message: `friendbot unreachable: ${error instanceof Error ? error.message : String(error)}`,
+        }),
+      );
+      if (failure === undefined) return;
+      // Friendbot refuses an account it already funded with a 4xx: an existing account is funded.
+      if (await this.exists(account.publicKey())) return;
+      if (!failure.retry) throw new Error(failure.message);
+      if (attempt >= FRIENDBOT_ATTEMPTS) throw new Error(failure.message);
+      await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+    }
+  }
+
+  private async exists(address: string): Promise<boolean> {
+    try {
+      await this.server.getAccount(address);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async latestLedger(): Promise<number> {
     return (await this.server.getHealth()).latestLedger;
   }
 
+  /**
+   * The signature expiration ledger the stock client picks for `maxTimeoutSeconds`: the latest
+   * ledger plus `ceil(maxTimeoutSeconds / est)`, `est` being upstream's Horizon-based estimate.
+   */
+  async expirationFor(maxTimeoutSeconds: number): Promise<number> {
+    const latest = (await this.server.getLatestLedger()).sequence;
+    const seconds = await getEstimatedLedgerCloseTimeSeconds("stellar:testnet");
+    return latest + Math.ceil(maxTimeoutSeconds / seconds);
+  }
+
   async submit(
     transaction: Transaction | FeeBumpTransaction,
   ): Promise<rpc.Api.GetSuccessfulTransactionResponse> {
-    const sent = await this.server.sendTransaction(transaction);
+    let sent = await this.server.sendTransaction(transaction);
+    // A busy shared network answers TRY_AGAIN_LATER without accepting the transaction; the same bytes
+    // can be sent again.
+    for (let attempt = 1; sent.status === "TRY_AGAIN_LATER" && attempt < SUBMIT_ATTEMPTS; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 1_000 * attempt));
+      sent = await this.server.sendTransaction(transaction);
+    }
     if (sent.status !== "PENDING") {
       throw new Error(`sendTransaction ${sent.status}: ${sent.errorResult?.result().switch().name ?? ""}`);
     }
@@ -209,15 +266,16 @@ export class LocalNetwork {
   /**
    * Creates a signed x402 exact payment, following the upstream client (exact/client/scheme.ts) step
    * for step. The stock client cannot reach a plain-HTTP RPC, so this reproduces it with `allowHttp`;
-   * the unmodified client is exercised against the public testnet instead.
+   * the unmodified client is exercised against the public testnet instead. Like the stock client,
+   * the authorization expires `ceil(maxTimeoutSeconds / est)` ledgers after the latest one, where
+   * `est` is upstream's ledger-time estimate from public Horizon (see horizon-pin.ts).
    */
   async payment(
     payer: Keypair,
     requirements: PaymentRequirementsLike,
     options: { expirationLedger?: number } = {},
   ) {
-    const latest = await this.latestLedger();
-    const expiration = options.expirationLedger ?? latest + Math.ceil(requirements.maxTimeoutSeconds / 5);
+    const expiration = options.expirationLedger ?? (await this.expirationFor(requirements.maxTimeoutSeconds));
     const { signAuthEntry } = basicNodeSigner(payer, this.passphrase);
     const assembled = await contract.AssembledTransaction.build({
       contractId: requirements.asset,

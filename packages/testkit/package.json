@@ -1,6 +1,6 @@
 {
   "name": "@rail402.dev/testkit",
-  "version": "0.2.1",
+  "version": "0.4.1",
   "private": true,
   "description": "Test fixtures and local-network helpers shared by Rail402's test suites. Never published.",
   "license": "Apache-2.0",
@@ -12,7 +12,8 @@
     }
   },
   "dependencies": {
-    "@stellar/stellar-sdk": "catalog:"
+    "@stellar/stellar-sdk": "catalog:",
+    "@x402/stellar": "catalog:"
   },
   "files": [
     "src",
