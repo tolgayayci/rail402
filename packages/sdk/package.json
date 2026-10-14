@@ -1,0 +1,111 @@
+{
+  "name": "@rail402.dev/sdk",
+  "version": "0.4.1",
+  "description": "Pay x402 resources on Stellar under a spending cap, discover them through the Bazaar, and describe paid endpoints.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "x402",
+    "stellar",
+    "payments",
+    "agents",
+    "sdk"
+  ],
+  "homepage": "https://docs.rail402.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/rail402.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/tolgayayci/rail402/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./browser": {
+      "@rail402/source": "./src/browser.ts",
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
+    "./seller": {
+      "@rail402/source": "./src/seller/index.ts",
+      "types": "./dist/seller/index.d.ts",
+      "default": "./dist/seller/index.js"
+    },
+    "./seller/codes": {
+      "@rail402/source": "./src/seller/codes.ts",
+      "types": "./dist/seller/codes.d.ts",
+      "default": "./dist/seller/codes.js"
+    },
+    "./sqlite": {
+      "@rail402/source": "./src/sqlite/index.ts",
+      "types": "./dist/sqlite/index.d.ts",
+      "default": "./dist/sqlite/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "catalog:",
+    "@rail402.dev/bazaar": "workspace:*",
+    "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/safe-fetch": "workspace:*",
+    "@rail402.dev/stellar": "workspace:*",
+    "@rail402.dev/upto": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:",
+    "@x402/core": "catalog:",
+    "@x402/extensions": "catalog:",
+    "@x402/stellar": "catalog:",
+    "buffer": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@hono/node-server": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@rail402.dev/facilitator": "workspace:*",
+    "@rail402.dev/service": "workspace:*",
+    "@rail402.dev/testkit": "workspace:*",
+    "@types/express": "5.0.6",
+    "@x402/express": "catalog:",
+    "@x402/mcp": "catalog:",
+    "express": "5.2.1",
+    "vite": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.11"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./browser": {
+        "types": "./dist/browser.d.ts",
+        "default": "./dist/browser.js"
+      },
+      "./seller": {
+        "types": "./dist/seller/index.d.ts",
+        "default": "./dist/seller/index.js"
+      },
+      "./seller/codes": {
+        "types": "./dist/seller/codes.d.ts",
+        "default": "./dist/seller/codes.js"
+      },
+      "./sqlite": {
+        "types": "./dist/sqlite/index.d.ts",
+        "default": "./dist/sqlite/index.js"
+      }
+    }
+  }
+}
