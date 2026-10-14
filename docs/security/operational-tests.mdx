@@ -36,8 +36,8 @@ From `tools/conformance/evidence/ops-local-stellar-testnet.json`: **45 of 45 exe
 
 | Field          | Value                                                                                              |
 | -------------- | -------------------------------------------------------------------------------------------------- |
-| Date           | 2026-10-09 to 2026-10-09                                                                           |
-| Rail402 commit | [`b9ebb87`](https://github.com/tolgayayci/rail402/commit/b9ebb87f3632f7e601f9f2f884cd4389deb65c20) |
+| Date           | 2026-10-14 to 2026-10-14                                                                           |
+| Rail402 commit | [`2cbc980`](https://github.com/tolgayayci/rail402/commit/2cbc980e84426cc68c377e4bdf0a9077698f88d8) |
 | Packages       | `@x402/core`, `@x402/stellar` 2.27.0; `@stellar/stellar-sdk` 16.3.0; `@rail402.dev/service` 0.4.1  |
 | Command        | `node --conditions=@rail402/source tools/conformance/src/ops.ts`                                   |
 
@@ -112,10 +112,10 @@ Threats R1 · Private Stellar network (1 s ledgers) and Postgres
 - [`apps/rail402/test/idempotency.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/idempotency.integration.test.ts): answers a sequential repeat with the recorded response, marked as a repeat
 - [`packages/facilitator/test/settlement.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/settlement.integration.test.ts): answers a repeated settle with the original result and moves funds once
 
-**Observed.** Passed (22,749 ms).
+**Observed.** Passed (20,366 ms).
 
-- answers a sequential repeat with the recorded response, marked as a repeat: 2 of 2 passed in 15.4 s
-- answers a repeated settle with the original result and moves funds once: 1 of 1 passed in 7.4 s
+- answers a sequential repeat with the recorded response, marked as a repeat: 2 of 2 passed in 14.4 s
+- answers a repeated settle with the original result and moves funds once: 1 of 1 passed in 5.9 s
 
 **On the public testnet**
 
@@ -135,10 +135,10 @@ Threats R1, S6 · Private Stellar network (1 s ledgers) and Postgres
 - [`apps/rail402/test/idempotency.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/idempotency.integration.test.ts): settles 5 concurrent repeats once: one transfer, one original, identical bodies
 - [`packages/facilitator/test/settlement.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/settlement.integration.test.ts): settles concurrent duplicates exactly once, all callers getting the same result
 
-**Observed.** Passed (19,631 ms).
+**Observed.** Passed (20,889 ms).
 
-- settles 5 concurrent repeats once: one transfer, one original, identical bodies: 2 of 2 passed in 12.1 s
-- settles concurrent duplicates exactly once, all callers getting the same result: 1 of 1 passed in 7.5 s
+- settles 5 concurrent repeats once: one transfer, one original, identical bodies: 2 of 2 passed in 14.2 s
+- settles concurrent duplicates exactly once, all callers getting the same result: 1 of 1 passed in 6.7 s
 
 **On the public testnet**
 
@@ -157,10 +157,10 @@ Threats R2 · Private Stellar network (1 s ledgers) and Postgres
 - [`apps/rail402/test/idempotency.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/idempotency.integration.test.ts): refuses the same authorization in another envelope, naming the recorded transaction
 - [`packages/facilitator/test/settlement.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/settlement.integration.test.ts): refuses a settled authorization in a different envelope, and verify names the replay
 
-**Observed.** Passed (20,507 ms).
+**Observed.** Passed (22,675 ms).
 
-- refuses the same authorization in another envelope, naming the recorded transaction: 2 of 2 passed in 11.4 s
-- refuses a settled authorization in a different envelope, and verify names the replay: 1 of 1 passed in 9.1 s
+- refuses the same authorization in another envelope, naming the recorded transaction: 2 of 2 passed in 16.5 s
+- refuses a settled authorization in a different envelope, and verify names the replay: 1 of 1 passed in 6.2 s
 
 **On the public testnet**
 
@@ -179,10 +179,10 @@ Threats R4 · Private Stellar network (1 s ledgers)
 - [`packages/sdk/test/seller.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/sdk/test/seller.integration.test.ts): does not serve a replayed payment signature again
 - [`packages/sdk/test/seller.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/sdk/test/seller.integration.test.ts): serves an upfront settlement once when the facilitator answers its repeat
 
-**Observed.** Passed (10,461 ms).
+**Observed.** Passed (6,596 ms).
 
 - does not serve a replayed payment signature again: 1 of 1 passed in 0.0 s
-- serves an upfront settlement once when the facilitator answers its repeat: 1 of 1 passed in 10.4 s
+- serves an upfront settlement once when the facilitator answers its repeat: 1 of 1 passed in 6.6 s
 
 ### `front-run` A copied exact authorization lands first
 
@@ -198,12 +198,12 @@ Threats F1, F2 · Private Stellar network (1 s ledgers)
 - [`packages/facilitator/test/front-run.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/front-run.integration.test.ts): refuses an authorization consumed before the request was claimed
 - [`packages/facilitator/test/front-run.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/front-run.integration.test.ts): refuses when the consuming transaction carried a different invocation for the same nonce
 
-**Observed.** Passed (8,053 ms).
+**Observed.** Passed (7,380 ms).
 
-- answers success with the attacker's hash; the payment moves once and our fee is wasted: 1 of 1 passed in 8.0 s
+- answers success with the attacker's hash; the payment moves once and our fee is wasted: 1 of 1 passed in 7.3 s
 - refuses an authorization consumed before the request was claimed: 1 of 1 passed in 0.0 s
 - refuses when the consuming transaction carried a different invocation for the same nonce: 1 of 1 passed in 0.0 s
-- Recorded: attackerTransaction `385238d788629597b8a89bcc498866fc645cafe8e531b5ba6466f7b6ed74f045`, ourFailedTransaction `263c2aed210e13cbbd3583e54c42ddc0e22065cf9655a9705c2ccfd47d0f9dbc`, answer `success with the attacker's hash`, wastedFeeStroops `76214`, payerDebitedOnce `1000000`
+- Recorded: attackerTransaction `aaf96c55cb951ffc68fab61c0338497613eaa06213c1f20994aacea197fde281`, ourFailedTransaction `bd8e15bf82001bc667f07088a912a94466d78ad572bac4fea601b27bb913108d`, answer `success with the attacker's hash`, wastedFeeStroops `76214`, payerDebitedOnce `1000000`
 
 ### `front-run-upto` Front-running an upto settlement
 
@@ -218,10 +218,10 @@ Threats F3, F4 · Private Stellar network (1 s ledgers)
 - [`packages/facilitator/test/front-run.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/front-run.integration.test.ts): cannot be landed by an attacker without the settlement authority; Rail402's settlement proceeds
 - [`packages/facilitator/test/front-run.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/front-run.integration.test.ts): answers with the authority's own earlier transaction for the same amount; our fee is wasted
 
-**Observed.** Passed (18,979 ms).
+**Observed.** Passed (20,704 ms).
 
-- cannot be landed by an attacker without the settlement authority; Rail402's settlement proceeds: 1 of 1 passed in 11.3 s
-- answers with the authority's own earlier transaction for the same amount; our fee is wasted: 1 of 1 passed in 7.7 s
+- cannot be landed by an attacker without the settlement authority; Rail402's settlement proceeds: 1 of 1 passed in 8.5 s
+- answers with the authority's own earlier transaction for the same amount; our fee is wasted: 1 of 1 passed in 12.2 s
 
 ### `smart-account-signer` A smart-account payment signed by a key the account does not accept
 
@@ -236,7 +236,7 @@ Threats A1 · Private Stellar network (1 s ledgers) and Postgres
 - [`packages/facilitator/test/settlement.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/settlement.integration.test.ts): rejects a smart-account payment signed by the wrong key
 - [`apps/rail402/test/upto-payers.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/upto-payers.integration.test.ts): refuses a signature by another key as the account's own rejection
 
-**Observed.** Passed (86 ms).
+**Observed.** Passed (81 ms).
 
 - rejects a smart-account payment signed by the wrong key: 1 of 1 passed in 0.1 s
 - refuses a signature by another key as the account's own rejection: 1 of 1 passed in 0.0 s
@@ -261,7 +261,7 @@ Threats A4, A5, A6 · Private Stellar network (1 s ledgers) and Postgres
 - [`apps/rail402/test/upto-payers.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/upto-payers.integration.test.ts): does not let the agent key use the owner's policy-free default rule
 - [`apps/rail402/test/upto-payers.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/upto-payers.integration.test.ts): pays up to its budget and refuses the cap that would exceed it
 
-**Observed.** Passed (1,404 ms).
+**Observed.** Passed (1,383 ms).
 
 - refuses a payment over its own spending limit, and nothing moves: 1 of 1 passed in 0.2 s
 - has reserved the full cap of each payment against its budget: 1 of 1 passed in 0.0 s
@@ -284,10 +284,10 @@ Threats A2 · Private Stellar network (1 s ledgers)
 
 - [`packages/facilitator/test/fee-exposure.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/fee-exposure.integration.test.ts): names a smart account whose \_\_check_auth passes the settle-time simulation and fails at inclusion
 
-**Observed.** Passed (11,425 ms).
+**Observed.** Passed (19,134 ms).
 
-- names a smart account whose \_\_check_auth passes the settle-time simulation and fails at inclusion: 1 of 1 passed in 11.4 s
-- Recorded: payer `CDF4YGHVMZVG5GFMDGXIO2UPMQDCT32VRC33OHS7BLO6ONN5FFLOYQNJ`, phase `between the settle-time simulation and inclusion`, transaction `bab3d18712f02bd118328fddb510d7a92dd1408d251f47a04ad15b09bc50540e`, ledger `1089729`, settle `invalid_exact_stellar_payload_smart_account_rejected`, wastedFeeStroops `74145`, sponsorDeltaStroops `-74145`
+- names a smart account whose \_\_check_auth passes the settle-time simulation and fails at inclusion: 1 of 1 passed in 19.1 s
+- Recorded: payer `CAMV6HX56SB3DFE4HVLBQ7RWHGSE2ZJH7HQSQ6D464AQIM7Y7AUCD5ID`, phase `between the settle-time simulation and inclusion`, transaction `58c5be34c7a935f9270f856f35be054d45c6e2ead9d629657cf8cbd898ba64d6`, ledger `3685`, settle `invalid_exact_stellar_payload_smart_account_rejected`, wastedFeeStroops `74145`, sponsorDeltaStroops `-74145`
 
 ### `balance-race` The payer spends the balance before settlement lands
 
@@ -302,12 +302,12 @@ Threats S1 · Private Stellar network (1 s ledgers)
 - [`packages/facilitator/test/fee-exposure.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/fee-exposure.integration.test.ts): refuses at settle, with nothing submitted, a payment whose balance moved after verify
 - [`packages/facilitator/test/fee-exposure.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/fee-exposure.integration.test.ts): names a balance spent between the settle-time simulation and inclusion; the fee is spent and counted as wasted
 
-**Observed.** Passed (15,751 ms).
+**Observed.** Passed (24,096 ms).
 
-- refuses at settle, with nothing submitted, a payment whose balance moved after verify: 1 of 1 passed in 9.2 s
-- names a balance spent between the settle-time simulation and inclusion; the fee is spent and counted as wasted: 1 of 1 passed in 6.5 s
+- refuses at settle, with nothing submitted, a payment whose balance moved after verify: 1 of 1 passed in 11.2 s
+- names a balance spent between the settle-time simulation and inclusion; the fee is spent and counted as wasted: 1 of 1 passed in 12.9 s
 - Recorded: phase `between verify and settle`, settle `insufficient_funds`, submissions `0`, sponsorDeltaStroops `0`
-- Recorded: phase `between the settle-time simulation and inclusion`, transaction `dfb5fa321dc3863671ecac346952f5cdf4fd42588d11fe3c9f6d78fea216ae58`, ledger `1089718`, settle `insufficient_funds`, wastedFeeStroops `76214`, sponsorDeltaStroops `-76214`
+- Recorded: phase `between the settle-time simulation and inclusion`, transaction `81cd00f0bf9442d18027eaaa365cff0860fa5228086b965d852f4e683e239f45`, ledger `3666`, settle `insufficient_funds`, wastedFeeStroops `76216`, sponsorDeltaStroops `-76216`
 
 ### `expiry-race` An authorization that expires while the settlement waits
 
@@ -323,12 +323,12 @@ Threats S2 · Private Stellar network (1 s ledgers)
 - [`packages/facilitator/test/expiration.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/expiration.integration.test.ts): refuses at the network an upto settlement held past expiration_ledger; no fee is spent
 - [`packages/facilitator/test/expiration.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/expiration.integration.test.ts): holds the lower edge at the current ledger plus a one-ledger margin
 
-**Observed.** Passed (27,709 ms).
+**Observed.** Passed (27,027 ms).
 
-- names an authorization that expires between submission and inclusion; the fee is spent: 1 of 1 passed in 10.4 s
-- refuses at the network an upto settlement held past expiration_ledger; no fee is spent: 1 of 1 passed in 8.7 s
+- names an authorization that expires between submission and inclusion; the fee is spent: 1 of 1 passed in 8.9 s
+- refuses at the network an upto settlement held past expiration_ledger; no fee is spent: 1 of 1 passed in 9.5 s
 - holds the lower edge at the current ledger plus a one-ledger margin: 2 of 2 passed in 8.6 s
-- Recorded: scheme `exact`, expirationLedger `1089552`, transaction `f14579ac9f707bb0550944075f56e30d950f912cdc2764badf31b8f58650f4e0`, settle `invalid_exact_stellar_signature_expired`, wastedFeeStroops `76214`
+- Recorded: scheme `exact`, expirationLedger `3492`, transaction `a91ff6bb7c7b787672c13b01a3165dcba29a6f1863c87233206e87b5a3ee11c6`, settle `invalid_exact_stellar_signature_expired`, wastedFeeStroops `76216`
 
 **On the public testnet**
 
@@ -348,9 +348,9 @@ Threats S3 · Private Stellar network (1 s ledgers)
 - [`packages/facilitator/test/fee-exposure.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/fee-exposure.integration.test.ts): refuses a payment whose settlement would cost more than the fee ceiling, before signing anything
 - [`packages/upto/test/facilitator.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/upto/test/facilitator.test.ts): enforces the fee ceiling
 
-**Observed.** Passed (5,881 ms).
+**Observed.** Passed (6,129 ms).
 
-- refuses a payment whose settlement would cost more than the fee ceiling, before signing anything: 1 of 1 passed in 5.9 s
+- refuses a payment whose settlement would cost more than the fee ceiling, before signing anything: 1 of 1 passed in 6.1 s
 - enforces the fee ceiling: 1 of 1 passed in 0.0 s
 - Recorded: ceilingStroops `20000`, verify `invalid_exact_stellar_payload_fee_exceeds_maximum`, settle `invalid_exact_stellar_payload_fee_exceeds_maximum`, submissions `0`, sponsorDeltaStroops `0`
 
@@ -367,11 +367,11 @@ Threats S4 · Private Stellar network (1 s ledgers)
 - [`packages/facilitator/test/fee-exposure.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/fee-exposure.integration.test.ts): stops settling once the hourly fee budget is committed, before any RPC work
 - [`packages/facilitator/test/fees.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/fees.test.ts): refuses once the hourly fee budget is committed
 
-**Observed.** Passed (6,480 ms).
+**Observed.** Passed (9,755 ms).
 
-- stops settling once the hourly fee budget is committed, before any RPC work: 1 of 1 passed in 6.5 s
+- stops settling once the hourly fee budget is committed, before any RPC work: 1 of 1 passed in 9.8 s
 - refuses once the hourly fee budget is committed: 1 of 1 passed in 0.0 s
-- Recorded: budgetStroops `1`, firstSettlement `a26811eed9ced7c2f9786170502168f058bc5c8d03dcada7847dcea46d09b102`, refusal `settle_exact_stellar_sponsor_unavailable`, submissionsAfterTrip `0`
+- Recorded: budgetStroops `1`, firstSettlement `e22186df586e5380bfc7ade5437468ac057262300287ff9608236a65701be1e2`, refusal `settle_exact_stellar_sponsor_unavailable`, submissionsAfterTrip `0`
 
 ### `sponsor-floor` The sponsor below its reserve
 
@@ -386,10 +386,10 @@ Threats S5 · The Rail402 service on the private network
 - [`apps/rail402/test/observability.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/observability.integration.test.ts): counts refusals below the reserve and reports the sponsor below its floor
 - [`apps/rail402/test/runtime.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/runtime.integration.test.ts): fails while the sponsor holds less than MIN_SPONSOR_BALANCE_XLM
 
-**Observed.** Passed (12,136 ms).
+**Observed.** Passed (7,337 ms).
 
-- counts refusals below the reserve and reports the sponsor below its floor: 1 of 1 passed in 8.6 s
-- fails while the sponsor holds less than MIN_SPONSOR_BALANCE_XLM: 1 of 1 passed in 3.6 s
+- counts refusals below the reserve and reports the sponsor below its floor: 1 of 1 passed in 5.1 s
+- fails while the sponsor holds less than MIN_SPONSOR_BALANCE_XLM: 1 of 1 passed in 2.2 s
 
 ### `ssrf-origin` Origin checks and SEP-1 fetches to private addresses
 
@@ -464,7 +464,7 @@ Threats X4 · Local sockets and a stub resolver
 - [`packages/safe-fetch/test/egress.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/safe-fetch/test/egress.integration.test.ts): stops oversized and compressed-bomb answers at the decoded limit
 - [`packages/safe-fetch/test/fetch.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/safe-fetch/test/fetch.test.ts): times out waiting for headers, on an idle body, and in total
 
-**Observed.** Passed (642 ms).
+**Observed.** Passed (645 ms).
 
 - stops oversized and compressed-bomb answers at the decoded limit: 1 of 1 passed in 0.0 s
 - times out waiting for headers, on an idle body, and in total: 1 of 1 passed in 0.6 s
@@ -483,11 +483,11 @@ Threats P2 · The Rail402 service on the private network
 - [`packages/bazaar/src/testing.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/bazaar/src/testing.ts): never lets a different payTo modify a listing (run by `packages/store-postgres/test/stores.integration.test.ts`)
 - [`packages/bazaar/src/testing.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/bazaar/src/testing.ts): transfers ownership only when the origin names the new payTo (run by `packages/store-postgres/test/stores.integration.test.ts`)
 
-**Observed.** Passed (9,551 ms).
+**Observed.** Passed (13,359 ms).
 
-- refuses a different payTo for the same resource, with a coded reason: 1 of 1 passed in 9.3 s
+- refuses a different payTo for the same resource, with a coded reason: 1 of 1 passed in 13.0 s
 - never lets a different payTo modify a listing: 1 of 1 passed in 0.1 s
-- transfers ownership only when the origin names the new payTo: 1 of 1 passed in 0.1 s
+- transfers ownership only when the origin names the new payTo: 1 of 1 passed in 0.2 s
 
 **On the public testnet**
 
@@ -506,7 +506,7 @@ Threats P1 · Postgres
 - [`packages/bazaar/src/testing.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/bazaar/src/testing.ts): does not let echoed metadata change a listing until the origin confirms it (run by `packages/store-postgres/test/stores.integration.test.ts`)
 - [`packages/bazaar/src/testing.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/bazaar/src/testing.ts): never lists an HTTP resource whose own response is not a 402 (run by `packages/store-postgres/test/stores.integration.test.ts`)
 
-**Observed.** Passed (239 ms).
+**Observed.** Passed (254 ms).
 
 - does not let echoed metadata change a listing until the origin confirms it: 1 of 1 passed in 0.1 s
 - never lists an HTTP resource whose own response is not a 402: 1 of 1 passed in 0.1 s
@@ -529,11 +529,11 @@ Threats P9 · Postgres
 - [`packages/bazaar/src/testing.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/bazaar/src/testing.ts): never lets a planted settlement withdraw or change a tool its origin confirmed (run by `packages/store-postgres/test/stores.integration.test.ts`)
 - [`packages/bazaar/test/mcp-origin.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/bazaar/test/mcp-origin.test.ts): reads a tool's PaymentRequired from its unpaid call, sending the example arguments
 
-**Observed.** Passed (395 ms).
+**Observed.** Passed (465 ms).
 
-- never publishes a tool description or price planted with: 2 of 2 passed in 0.2 s
+- never publishes a tool description or price planted with: 2 of 2 passed in 0.3 s
 - never lets a planted settlement withdraw or change a tool its origin confirmed: 1 of 1 passed in 0.1 s
-- reads a tool's PaymentRequired from its unpaid call, sending the example arguments: 1 of 1 passed in 0.0 s
+- reads a tool's PaymentRequired from its unpaid call, sending the example arguments: 1 of 1 passed in 0.1 s
 
 **On the public testnet**
 
@@ -553,9 +553,9 @@ Threats P3 · In-process, with the RPC or store simulated
 - [`packages/bazaar/test/security.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/bazaar/test/security.test.ts): stops a combinatorial uniqueItems check within its budget
 - [`packages/bazaar/test/security.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/bazaar/test/security.test.ts): finds external references in every schema position, and only there
 
-**Observed.** Passed (364 ms).
+**Observed.** Passed (359 ms).
 
-- stops a catastrophic-backtracking pattern within its budget and keeps serving: 1 of 1 passed in 0.4 s
+- stops a catastrophic-backtracking pattern within its budget and keeps serving: 1 of 1 passed in 0.3 s
 - stops a combinatorial uniqueItems check within its budget: 1 of 1 passed in 0.0 s
 - finds external references in every schema position, and only there: 1 of 1 passed in 0.0 s
 
@@ -577,7 +577,7 @@ Threats P4 · Postgres
 - [`packages/bazaar/src/testing.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/bazaar/src/testing.ts): uses a routeTemplate only when it is safe and matches the paid path (run by `packages/store-postgres/test/stores.integration.test.ts`)
 - [`packages/sdk/test/discovery.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/sdk/test/discovery.test.ts): fills route parameters and refuses traversal
 
-**Observed.** Passed (166 ms).
+**Observed.** Passed (164 ms).
 
 - refuses route templates that decode to NUL, CR, LF, a backslash or an empty segment: 1 of 1 passed in 0.0 s
 - uses a routeTemplate only when it is safe and matches the paid path: 1 of 1 passed in 0.2 s
@@ -599,9 +599,9 @@ Threats O1 · Rail402 service processes over Postgres on the private network, ki
 
 - [`apps/rail402/test/crash-recovery.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/crash-recovery.integration.test.ts): K0: finds the transaction the network accepted before the process died
 
-**Observed.** Passed (15,648 ms).
+**Observed.** Passed (14,456 ms).
 
-- K0: finds the transaction the network accepted before the process died: 2 of 2 passed in 15.6 s
+- K0: finds the transaction the network accepted before the process died: 2 of 2 passed in 14.5 s
 
 **On the public testnet**
 
@@ -620,9 +620,9 @@ Threats O1 · Rail402 service processes over Postgres on the private network, ki
 
 - [`apps/rail402/test/crash-recovery.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/crash-recovery.integration.test.ts): K1: rebroadcasts the identical recorded bytes when the broadcast never left
 
-**Observed.** Passed (18,919 ms).
+**Observed.** Passed (14,580 ms).
 
-- K1: rebroadcasts the identical recorded bytes when the broadcast never left: 2 of 2 passed in 18.9 s
+- K1: rebroadcasts the identical recorded bytes when the broadcast never left: 2 of 2 passed in 14.6 s
 
 **On the public testnet**
 
@@ -641,9 +641,9 @@ Threats O1 · Rail402 service processes over Postgres on the private network, ki
 
 - [`apps/rail402/test/crash-recovery.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/crash-recovery.integration.test.ts): K2: finds a transaction that was included before the process saw it confirmed
 
-**Observed.** Passed (15,887 ms).
+**Observed.** Passed (15,383 ms).
 
-- K2: finds a transaction that was included before the process saw it confirmed: 2 of 2 passed in 15.9 s
+- K2: finds a transaction that was included before the process saw it confirmed: 2 of 2 passed in 15.4 s
 
 ### `crash-k3` Down until the time bound passed
 
@@ -657,9 +657,9 @@ Threats O1 · Rail402 service processes over Postgres on the private network, ki
 
 - [`apps/rail402/test/crash-recovery.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/crash-recovery.integration.test.ts): K3: expires a transaction whose time bound passed while the service was down, and nothing moves
 
-**Observed.** Passed (41,452 ms).
+**Observed.** Passed (41,102 ms).
 
-- K3: expires a transaction whose time bound passed while the service was down, and nothing moves: 1 of 1 passed in 41.5 s
+- K3: expires a transaction whose time bound passed while the service was down, and nothing moves: 1 of 1 passed in 41.1 s
 
 **On the public testnet**
 
@@ -677,9 +677,9 @@ Threats O4 · Rail402 service processes over Postgres on the private network, ki
 
 - [`apps/rail402/test/crash-recovery.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/crash-recovery.integration.test.ts): keeps a settlement the RPC can no longer prove absent unresolved, and reports it
 
-**Observed.** Passed (1,734 ms).
+**Observed.** Passed (1,820 ms).
 
-- keeps a settlement the RPC can no longer prove absent unresolved, and reports it: 1 of 1 passed in 1.7 s
+- keeps a settlement the RPC can no longer prove absent unresolved, and reports it: 1 of 1 passed in 1.8 s
 
 ### `concurrency` Three batches of twenty concurrent settlements
 
@@ -693,9 +693,9 @@ Threats O2, S6 · Private Stellar network (1 s ledgers)
 
 - [`packages/facilitator/test/concurrency.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/concurrency.integration.test.ts): with injected duplicates, without a collision
 
-**Observed.** Passed (105,151 ms).
+**Observed.** Passed (101,731 ms).
 
-- with injected duplicates, without a collision: 3 of 3 passed in 105.2 s
+- with injected duplicates, without a collision: 3 of 3 passed in 101.7 s
 
 **On the public testnet**
 
@@ -713,9 +713,9 @@ Threats O2, R1 · Two Rail402 service processes over one Postgres on the private
 
 - [`apps/rail402/test/replicas.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/replicas.integration.test.ts): with every duplicate sent to the other replica
 
-**Observed.** Passed (35,396 ms).
+**Observed.** Passed (31,632 ms).
 
-- with every duplicate sent to the other replica: 1 of 1 passed in 35.4 s
+- with every duplicate sent to the other replica: 1 of 1 passed in 31.6 s
 
 ### `seq-conflict` A channel used behind the service's back
 
@@ -729,9 +729,9 @@ Threats O2 · The Rail402 service on the private network
 
 - [`apps/rail402/test/observability.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/observability.integration.test.ts): counts a sequence conflict when a channel's sequence is used behind its back
 
-**Observed.** Passed (13,113 ms).
+**Observed.** Passed (15,773 ms).
 
-- counts a sequence conflict when a channel's sequence is used behind its back: 1 of 1 passed in 13.1 s
+- counts a sequence conflict when a channel's sequence is used behind its back: 1 of 1 passed in 15.8 s
 
 ### `rpc-outage` The RPC stops answering
 
@@ -746,10 +746,10 @@ Threats O3 · The Rail402 service on the private network
 - [`apps/rail402/test/runtime.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/runtime.integration.test.ts): fails while the RPC is unreachable
 - [`apps/rail402/test/observability.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/observability.integration.test.ts): counts transport and request errors while the RPC fails, and reports it in /health
 
-**Observed.** Passed (7,884 ms).
+**Observed.** Passed (4,535 ms).
 
-- fails while the RPC is unreachable: 1 of 1 passed in 2.8 s
-- counts transport and request errors while the RPC fails, and reports it in /health: 1 of 1 passed in 5.1 s
+- fails while the RPC is unreachable: 1 of 1 passed in 3.5 s
+- counts transport and request errors while the RPC fails, and reports it in /health: 1 of 1 passed in 1.0 s
 
 ### `store-outage` The settlement store fails
 
@@ -765,10 +765,10 @@ Threats O3 · Private Stellar network (1 s ledgers) and Postgres
 - [`apps/rail402/test/idempotency.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/idempotency.integration.test.ts): keeps verify available when the ledger cannot be read
 - [`packages/store-postgres/test/stores.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/store-postgres/test/stores.integration.test.ts): survives the server closing its idle connections, as in a restart or failover
 
-**Observed.** Passed (16,061 ms).
+**Observed.** Passed (20,143 ms).
 
-- broadcasts nothing when the envelope cannot be recorded first, leaving the payment retryable: 1 of 1 passed in 6.4 s
-- keeps verify available when the ledger cannot be read: 2 of 2 passed in 9.6 s
+- broadcasts nothing when the envelope cannot be recorded first, leaving the payment retryable: 1 of 1 passed in 6.0 s
+- keeps verify available when the ledger cannot be read: 2 of 2 passed in 14.0 s
 - survives the server closing its idle connections, as in a restart or failover: 1 of 1 passed in 0.1 s
 
 ### `channel-exhaustion` Every channel busy
@@ -784,10 +784,10 @@ Threats O5 · Private Stellar network (1 s ledgers)
 - [`packages/facilitator/test/settlement.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/settlement.integration.test.ts): refuses when no channel frees up in time, leaving the payment retryable
 - [`apps/rail402/test/observability.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/observability.integration.test.ts): measures the wait for a channel when settlements outnumber channels
 
-**Observed.** Passed (18,355 ms).
+**Observed.** Passed (23,504 ms).
 
-- refuses when no channel frees up in time, leaving the payment retryable: 1 of 1 passed in 5.6 s
-- measures the wait for a channel when settlements outnumber channels: 1 of 1 passed in 12.8 s
+- refuses when no channel frees up in time, leaving the payment retryable: 1 of 1 passed in 7.0 s
+- measures the wait for a channel when settlements outnumber channels: 1 of 1 passed in 16.5 s
 
 ### `ttl-extend` Extending the upto contract's TTL
 
@@ -801,9 +801,9 @@ Threats U7 · The Rail402 service on the private network
 
 - [`apps/rail402/test/upto.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/upto.integration.test.ts): extends the contract from the keeper and the operator command, and reports its TTL
 
-**Observed.** Passed (4,879 ms).
+**Observed.** Passed (4,779 ms).
 
-- extends the contract from the keeper and the operator command, and reports its TTL: 1 of 1 passed in 4.9 s
+- extends the contract from the keeper and the operator command, and reports its TTL: 1 of 1 passed in 4.8 s
 
 ### `ttl-restore` An archived upto contract
 
@@ -818,10 +818,10 @@ Threats U7, S7 · A dedicated Stellar network with short TTLs, and the service
 - [`apps/rail402/test/upto-archival.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/upto-archival.integration.test.ts): refuses payments while the contract is archived, and settles once an operator restores it
 - [`apps/rail402/test/upto-archival.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/upto-archival.integration.test.ts): is restored by the TTL keeper where automatic restoration is allowed
 
-**Observed.** Passed (54,754 ms).
+**Observed.** Passed (69,868 ms).
 
-- refuses payments while the contract is archived, and settles once an operator restores it: 1 of 1 passed in 15.1 s
-- is restored by the TTL keeper where automatic restoration is allowed: 1 of 1 passed in 39.7 s
+- refuses payments while the contract is archived, and settles once an operator restores it: 1 of 1 passed in 25.9 s
+- is restored by the TTL keeper where automatic restoration is allowed: 1 of 1 passed in 44.0 s
 
 ### `degraded-indexing` The embedder fails
 
@@ -855,11 +855,11 @@ Threats M1 · Private Stellar network (1 s ledgers)
 - [`packages/sdk/test/guard.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/sdk/test/guard.integration.test.ts): refuses to sign a payment above the per-call cap
 - [`packages/sdk/test/guard.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/sdk/test/guard.test.ts): never lets 20 concurrent payments exceed the session budget
 
-**Observed.** Passed (80 ms).
+**Observed.** Passed (96 ms).
 
 - refuses a price above the caller's cap before signing: 1 of 1 passed in 0.0 s
 - refuses to sign a payment above the per-call cap: 1 of 1 passed in 0.0 s
-- never lets 20 concurrent payments exceed the session budget: 1 of 1 passed in 0.0 s
+- never lets 20 concurrent payments exceed the session budget: 1 of 1 passed in 0.1 s
 
 **On the public testnet**
 
@@ -901,7 +901,7 @@ Threats M3 · Private Stellar network (1 s ledgers)
 - [`packages/sdk/test/secrets.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/sdk/test/secrets.integration.test.ts): leaks nothing, and the payment reached only the paid origin
 - [`packages/cli/test/secrets.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/cli/test/secrets.integration.test.ts): leaks nothing on stdout, stderr or in the ledger
 
-**Observed.** Passed (220 ms).
+**Observed.** Passed (216 ms).
 
 - leaks nothing into frames, logs or the ledger: 1 of 1 passed in 0.1 s
 - leaks nothing, and the payment reached only the paid origin: 1 of 1 passed in 0.1 s
@@ -941,10 +941,10 @@ Threats R5, U6 · Private Stellar network (1 s ledgers)
 - [`packages/facilitator/test/upto.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/upto.integration.test.ts): settles zero on-chain: the nonce is consumed and no funds move
 - [`packages/facilitator/test/upto.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/upto.integration.test.ts): settles zero off-chain when configured: no transaction, the authorization used up in the ledger
 
-**Observed.** Passed (9,895 ms).
+**Observed.** Passed (8,382 ms).
 
-- settles zero on-chain: the nonce is consumed and no funds move: 1 of 1 passed in 6.6 s
-- settles zero off-chain when configured: no transaction, the authorization used up in the ledger: 1 of 1 passed in 3.3 s
+- settles zero on-chain: the nonce is consumed and no funds move: 1 of 1 passed in 4.7 s
+- settles zero off-chain when configured: no transaction, the authorization used up in the ledger: 1 of 1 passed in 3.7 s
 
 **On the public testnet**
 
@@ -965,10 +965,10 @@ Threats U3, F5 · Private Stellar network (1 s ledgers) and Postgres
 - [`apps/rail402/test/idempotency.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/idempotency.integration.test.ts): settles 5 concurrent requests for different amounts once: one success, four conflicts
 - [`apps/rail402/test/upto-settlement.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/upto-settlement.integration.test.ts): lets the first settle request fix the amount: a payload holder's zero turns the seller's settle into a conflict
 
-**Observed.** Passed (14,034 ms).
+**Observed.** Passed (18,243 ms).
 
-- settles 5 concurrent requests for different amounts once: one success, four conflicts: 2 of 2 passed in 10.1 s
-- lets the first settle request fix the amount: a payload holder's zero turns the seller's settle into a conflict: 1 of 1 passed in 3.9 s
+- settles 5 concurrent requests for different amounts once: one success, four conflicts: 2 of 2 passed in 10.7 s
+- lets the first settle request fix the amount: a payload holder's zero turns the seller's settle into a conflict: 1 of 1 passed in 7.5 s
 
 **On the public testnet**
 
@@ -988,10 +988,10 @@ Threats F4 · Private Stellar network (1 s ledgers)
 - [`packages/facilitator/test/upto.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/upto.integration.test.ts): succeeds with that transaction when it settled the same amount
 - [`packages/facilitator/test/upto.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/upto.integration.test.ts): answers settled_elsewhere when it settled a different amount
 
-**Observed.** Passed (14,821 ms).
+**Observed.** Passed (18,501 ms).
 
-- succeeds with that transaction when it settled the same amount: 1 of 1 passed in 8.2 s
-- answers settled_elsewhere when it settled a different amount: 1 of 1 passed in 6.6 s
+- succeeds with that transaction when it settled the same amount: 1 of 1 passed in 9.7 s
+- answers settled_elsewhere when it settled a different amount: 1 of 1 passed in 8.8 s
 
 ### `rotation-channels` The channel steps of a sponsor rotation
 
@@ -1006,9 +1006,9 @@ Threats O6 · Private Stellar network (1 s ledgers) and Postgres
 - [`apps/rail402/test/channels.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/channels.integration.test.ts): reports, provisions and retires channel accounts with STORE=memory
 - [`apps/rail402/test/channels.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/channels.integration.test.ts): reports durable state and refuses to retire while a channel is leased
 
-**Observed.** Passed (17,920 ms).
+**Observed.** Passed (17,332 ms).
 
 - reports, provisions and retires channel accounts with STORE=memory: 1 of 1 passed in 9.8 s
-- reports durable state and refuses to retire while a channel is leased: 1 of 1 passed in 8.2 s
+- reports durable state and refuses to retire while a channel is leased: 1 of 1 passed in 7.5 s
 
 {/* generated:end */}
