@@ -1,0 +1,30 @@
+[package]
+name = "rail402-test-token"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.91.0"
+description = "Open-faucet SEP-41 test token with configurable decimals, for test networks only"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = "=27.0.2"
+# OpenZeppelin Stellar Contracts (MIT), pinned to one commit.
+stellar-tokens = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "a5bd8cbd3d0bb8efbd5cf5e2edf9734f87e47640" }
+
+[dev-dependencies]
+soroban-sdk = { version = "=27.0.2", features = ["testutils"] }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true

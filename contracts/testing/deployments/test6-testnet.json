@@ -1,0 +1,49 @@
+{
+  "contract": "test-token",
+  "network": "testnet",
+  "caip2": "stellar:testnet",
+  "network_passphrase": "Test SDF Network ; September 2015",
+  "rpc_url": "https://soroban-testnet.stellar.org",
+  "contract_id": "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK",
+  "constructor": {
+    "name": "Rail402 Test Token (6 decimals)",
+    "symbol": "TEST6",
+    "decimals": 6
+  },
+  "wasm_sha256": "b2a8948479de732f4374a92810d2aaef365a68dab53b227ffbaba707e55ed9e0",
+  "wasm_size": 15557,
+  "crate": "rail402-test-token",
+  "source": "contracts/testing/test-token",
+  "source_sha256": "1e9fc11b081d131e0b77a5b66d397ab912a5c3c2159ea4997450053d186358a5",
+  "bldimg": "docker.io/stellar/stellar-cli:28.0.0-rust1.98.0-slim-trixie-amd64-0@sha256:3901802ef2324ff9563a50995279818ca4b98938b45e1dab0e1e7c5d69adb5a9",
+  "bldopt": ["--locked"],
+  "commit": "9e4686ade88743a31c8ec81de212688336386490",
+  "deployer": "GDIPKWWR6XJF54ZWAU5VVAUY36RFAWJG4OTWU5TVHEI2WGAE6PCSFBA4",
+  "salt": "a9723236514ab9651266712292aa157530f3b455a9e8a53d40b7507fee8fd984",
+  "salt_preimage": "rail402-test-token/v1/TEST6",
+  "stellar_cli": "28.0.0",
+  "transactions": {
+    "upload": {
+      "tx": "2a51ced5328bcb7ba2d268a534f98ef6ff8b31ece0ea7d1c0447bd047b3e687b",
+      "ledger": 4941337
+    },
+    "deploy": {
+      "tx": "6091557af2daba6f7c08677ecf71dcedec2ded1c40c62b615584d07a3b0b420d",
+      "ledger": 4941338
+    },
+    "extend_instance": {
+      "tx": "1aac885dde32792ae702859b0fa212eb4515cc9a71646128cb7b0dd892d2604a",
+      "ledger": 4941339,
+      "extend_to": 3110399
+    },
+    "extend_code": {
+      "tx": "d5616ab8eb80bc1ac22d9f1afcde42645b2a9a4f49b3c1db32fbfd1b48134805",
+      "ledger": 4941340,
+      "extend_to": 3110399
+    }
+  },
+  "live_until_ledger": {
+    "instance": 8051738,
+    "code": 8051739
+  }
+}
