@@ -1,0 +1,87 @@
+{
+  "name": "@rail402.dev/upto",
+  "version": "0.4.1",
+  "description": "The x402 upto payment scheme on Stellar: client, resource server and facilitator for capped, usage-based payments.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "x402",
+    "stellar",
+    "soroban",
+    "upto"
+  ],
+  "homepage": "https://docs.rail402.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/rail402.git",
+    "directory": "packages/upto"
+  },
+  "bugs": {
+    "url": "https://github.com/tolgayayci/rail402/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "@rail402/source": "./src/client/index.ts",
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
+    },
+    "./server": {
+      "@rail402/source": "./src/server/index.ts",
+      "types": "./dist/server/index.d.ts",
+      "default": "./dist/server/index.js"
+    },
+    "./facilitator": {
+      "@rail402/source": "./src/facilitator/index.ts",
+      "types": "./dist/facilitator/index.d.ts",
+      "default": "./dist/facilitator/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "vectors": "node --conditions=@rail402/source scripts/vectors.ts"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "catalog:",
+    "@x402/core": "catalog:",
+    "@x402/stellar": "catalog:",
+    "buffer": "catalog:"
+  },
+  "devDependencies": {
+    "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/testkit": "workspace:*",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.11"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./client": {
+        "types": "./dist/client/index.d.ts",
+        "default": "./dist/client/index.js"
+      },
+      "./server": {
+        "types": "./dist/server/index.d.ts",
+        "default": "./dist/server/index.js"
+      },
+      "./facilitator": {
+        "types": "./dist/facilitator/index.d.ts",
+        "default": "./dist/facilitator/index.js"
+      }
+    }
+  }
+}
