@@ -1,0 +1,81 @@
+{
+  "name": "@rail402.dev/mcp",
+  "version": "0.4.1",
+  "description": "An MCP server that lets AI agents search the Stellar Bazaar and pay x402 resources under a spending cap.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "x402",
+    "stellar",
+    "mcp",
+    "agents"
+  ],
+  "homepage": "https://docs.rail402.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/rail402.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/tolgayayci/rail402/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./tools": {
+      "@rail402/source": "./src/tools-entry.ts",
+      "types": "./dist/tools-entry.d.ts",
+      "default": "./dist/tools-entry.js"
+    }
+  },
+  "bin": {
+    "rail402-mcp": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "catalog:",
+    "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/safe-fetch": "workspace:*",
+    "@rail402.dev/sdk": "workspace:*",
+    "buffer": "catalog:",
+    "zod": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.11"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./tools": {
+        "types": "./dist/tools-entry.d.ts",
+        "default": "./dist/tools-entry.js"
+      }
+    }
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@rail402.dev/stellar": "workspace:*",
+    "@rail402.dev/testkit": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:",
+    "@types/express": "5.0.6",
+    "@x402/core": "catalog:",
+    "@x402/express": "catalog:",
+    "@x402/extensions": "catalog:",
+    "@x402/stellar": "catalog:",
+    "express": "5.2.1"
+  }
+}

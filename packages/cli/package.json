@@ -1,0 +1,66 @@
+{
+  "name": "@rail402.dev/cli",
+  "version": "0.4.1",
+  "description": "Command-line tool to search the Stellar Bazaar and pay x402 resources under a spending cap.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "x402",
+    "stellar",
+    "cli"
+  ],
+  "homepage": "https://docs.rail402.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/rail402.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/tolgayayci/rail402/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "rail402": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/sdk": "workspace:*",
+    "@rail402.dev/stellar": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:"
+  },
+  "devDependencies": {
+    "@rail402.dev/safe-fetch": "workspace:*",
+    "@rail402.dev/testkit": "workspace:*",
+    "@types/express": "5.0.6",
+    "@x402/core": "catalog:",
+    "@x402/express": "catalog:",
+    "@x402/extensions": "catalog:",
+    "@x402/stellar": "catalog:",
+    "express": "5.2.1"
+  },
+  "engines": {
+    "node": ">=24.11"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  }
+}
