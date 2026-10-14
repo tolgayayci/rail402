@@ -13,6 +13,8 @@ export interface Closures {
   readonly production: readonly PackageLicense[];
   /** Every installed package, development tooling included. */
   readonly everything: readonly PackageLicense[];
+  /** Resolved Rust packages of each contract workspace, development dependencies included. */
+  readonly contracts?: readonly { readonly path: string; readonly packages: readonly PackageLicense[] }[];
 }
 
 /** Artifacts that reach users or CI without passing through the package manager. */
@@ -32,6 +34,16 @@ const ARTIFACTS: readonly { name: string; license: string; where: string }[] = [
     license: "Apache-2.0",
     where: "tests only; packages/testkit/fixtures/README.md",
   },
+  {
+    name: "OpenZeppelin stellar-contracts smart account and ed25519 verifier wasm",
+    license: "MIT",
+    where: "tests only; pinned commit in scripts/contracts/fixtures.sh",
+  },
+  {
+    name: "stellar/stellar-cli build image",
+    license: "Apache-2.0",
+    where: "contract builds only; pinned digest in scripts/contracts/common.sh",
+  },
   { name: "postgres:18 image", license: "PostgreSQL", where: "docker-compose and CI only" },
   { name: "stellar/quickstart image", license: "Apache-2.0", where: "docker-compose and CI only" },
 ];
@@ -49,6 +61,26 @@ function counts(packages: readonly PackageLicense[]): string[] {
   return [...byLicense]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([license, count]) => `| ${license} | ${String(count)} |`);
+}
+
+function contractSections(workspaces: NonNullable<Closures["contracts"]>): string[] {
+  if (workspaces.length === 0) return [];
+  return [
+    "## Contract dependencies (Rust)",
+    "",
+    "Resolved from each contract's `Cargo.lock` with `cargo metadata --locked`, development",
+    "dependencies included. Every package must be permissive; only normal dependencies are compiled",
+    "into the deployed contract.",
+    "",
+    ...workspaces.flatMap((workspace) => [
+      `### ${workspace.path}`,
+      "",
+      "| Licence | Packages |",
+      "| --- | --- |",
+      ...counts(sorted(workspace.packages)),
+      "",
+    ]),
+  ];
 }
 
 /**
@@ -90,8 +122,11 @@ export function renderReport(closures: Closures): string {
     "| Closure | Packages |",
     "| --- | --- |",
     `| Service (the container image) | ${String(service.length)} |`,
-    `| Other workspace tools (conformance runs, evaluation) | ${String(toolsOnly.length)} |`,
+    `| Outside the service: the published agent packages (SDK, MCP server, CLI, upto, safe-fetch) and workspace tools (conformance runs, evaluation) | ${String(toolsOnly.length)} |`,
     `| Development only (build, lint, test) | ${String(development.length)} |`,
+    ...(closures.contracts ?? []).map(
+      (workspace) => `| Contract ${workspace.path} (Rust) | ${String(sorted(workspace.packages).length)} |`,
+    ),
     "",
     "## Flagged items",
     "",
@@ -130,7 +165,7 @@ export function renderReport(closures: Closures): string {
     "| --- | --- | --- |",
     ...service.map((pkg) => `| ${pkg.name} | ${pkg.version} | ${pkg.license} |`),
     "",
-    "## Other workspace tools, by licence",
+    "## Outside the service (published agent packages and workspace tools), by licence",
     "",
     "| Licence | Packages |",
     "| --- | --- |",
@@ -142,6 +177,7 @@ export function renderReport(closures: Closures): string {
     "| --- | --- |",
     ...counts(development),
     "",
+    ...contractSections(closures.contracts ?? []),
   ];
   return lines.join("\n");
 }

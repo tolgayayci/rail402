@@ -5,15 +5,20 @@
  *   pnpm license:gate --report          also print every licence with its package count
  *   pnpm license:report                 write docs/dependency-licenses.md
  *   pnpm license:gate --check-report    also fail when docs/dependency-licenses.md is stale
+ *
+ * The Rust dependency trees of the contracts under contracts/ are checked too (cargo must be on
+ * PATH); every Rust package must be permissive, development dependencies included.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { format, resolveConfig } from "prettier";
+import { findCargoWorkspaces, listCargoLicenses, type CargoWorkspace } from "./cargo.ts";
 import { judge, type PackageLicense } from "./policy.ts";
 import { renderReport } from "./report.ts";
 
 const REPORT = new URL("../../../docs/dependency-licenses.md", import.meta.url);
+const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 
 interface PnpmLicenseEntry {
   readonly name: string;
@@ -57,6 +62,27 @@ for (const pkg of everything) {
     failures.push(`[development] ${pkg.name}@${pkg.version} (${pkg.license}): ${verdict.problem}`);
 }
 
+const contracts: CargoWorkspace[] = [];
+for (const path of findCargoWorkspaces(ROOT)) {
+  try {
+    contracts.push(listCargoLicenses(ROOT, path));
+  } catch (error) {
+    const { code, stderr } = error as { code?: string; stderr?: string };
+    failures.push(
+      code === "ENOENT"
+        ? `[${path}] cargo not found: install Rust (rustup) to check the contract dependencies`
+        : `[${path}] cargo metadata --locked failed: ${stderr?.trim() || (error as Error).message}`,
+    );
+  }
+}
+for (const workspace of contracts) {
+  for (const pkg of workspace.packages) {
+    const verdict = judge(pkg, "production");
+    if (!verdict.ok)
+      failures.push(`[${workspace.path}] ${pkg.name}@${pkg.version} (${pkg.license}): ${verdict.problem}`);
+  }
+}
+
 if (process.argv.includes("--report")) {
   const counts = new Map<string, number>();
   for (const pkg of everything) counts.set(pkg.license, (counts.get(pkg.license) ?? 0) + 1);
@@ -68,7 +94,7 @@ if (process.argv.includes("--report")) {
 if (process.argv.includes("--write-report") || process.argv.includes("--check-report")) {
   const path = fileURLToPath(REPORT);
   const report = await format(
-    renderReport({ service: listLicenses(true, "@rail402.dev/service"), production, everything }),
+    renderReport({ service: listLicenses(true, "@rail402.dev/service"), production, everything, contracts }),
     { ...(await resolveConfig(path)), filepath: path },
   );
   if (process.argv.includes("--write-report")) {
@@ -92,6 +118,7 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  ${failure}`);
   process.exit(1);
 }
+const rust = contracts.reduce((sum, workspace) => sum + workspace.packages.length, 0);
 console.log(
-  `licence gate: ok (${production.length} production, ${everything.length - production.length} development packages)`,
+  `licence gate: ok (${production.length} production, ${everything.length - production.length} development packages; ${rust} Rust packages in ${contracts.length} contract workspace(s))`,
 );

@@ -30,6 +30,8 @@ target/
 # local runtime data (postgres volumes, downloaded embedding models)
 .data/
 .models/
+# local test and tooling output (code coverage records)
+.work/
 
 # search evaluation output (the tagged report lives in tools/search-eval/data)
 tools/search-eval/results/
@@ -37,3 +39,11 @@ tools/search-eval/results/
 # Judge packets are generated (src/build/pool.ts, src/build/public.ts); the judged copies are in packets.tar.gz
 tools/search-eval/construction/judging/*/packets/
 tools/search-eval/construction/judging/*/packets-public/
+
+# soroban test snapshots written by contract unit tests
+contracts/**/test_snapshots/
+
+# Playground browser tests and Vite cache
+apps/playground/test-results/
+apps/playground/playwright-report/
+apps/playground/web/.vite/

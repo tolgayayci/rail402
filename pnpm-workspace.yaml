@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - examples/*
   - packages/*
   - tools/*
 
@@ -13,9 +14,16 @@ catalog:
   "@x402/fetch": 2.27.0
   "@x402/express": 2.27.0
   "@x402/paywall": 2.27.0
+  "@x402/mcp": 2.27.0
+  "@x402/hono": 2.27.0
   # @x402/stellar 2.27.0 depends on ^16.3.0; 17.x would load a second, incompatible XDR copy.
   "@stellar/stellar-sdk": 16.3.0
   "zod": 4.6.5
+  # MCP TypeScript SDK v2 (protocol 2026-07-28, serves 2025 clients). v1 is used only where stock
+  # @x402/mcp sellers are exercised, because @x402/mcp depends on it.
+  "@modelcontextprotocol/server": 2.2.0
+  "@modelcontextprotocol/client": 2.2.0
+  "@modelcontextprotocol/sdk": 1.31.0
   "hono": 4.13.8
   "@hono/node-server": 2.1.1
   "pino": 10.3.1
@@ -31,6 +39,19 @@ catalog:
   "typescript": 6.0.3
   "typescript-eslint": 8.70.1
   "vitest": 5.0.1
+  # Browser builds: the Playground web app and the SDK's browser bundle check. vite matches the copy
+  # vitest already uses. buffer is the npm polyfill stellar-sdk imports in browsers.
+  "vite": 8.3.0
+  "@vitejs/plugin-react": 6.1.1
+  "buffer": 6.0.3
+  "react": 19.3.0
+  "react-dom": 19.3.0
+  "@types/react": 19.3.0
+  "@types/react-dom": 19.3.0
+  "happy-dom": 20.14.5
+  "@testing-library/react": 16.3.3
+  "@testing-library/dom": 10.4.2
+  "@playwright/test": 1.63.0
 
 # Install scripts are denied unless listed here. onnxruntime-node's postinstall only downloads CUDA
 # libraries; its CPU binaries ship in the package, so the script is deliberately not run.

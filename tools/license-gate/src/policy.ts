@@ -19,6 +19,7 @@ export const PERMISSIVE = new Set([
   "MIT-0",
   "PostgreSQL",
   "Python-2.0",
+  "Unicode-3.0",
   "Unlicense",
   "Zlib",
 ]);
@@ -60,12 +61,13 @@ export const DEV_EXCEPTIONS: readonly DevException[] = [
   {
     name: "lightningcss",
     license: "MPL-2.0",
-    reason: "vite (via vitest) CSS transformer; file-level copyleft, test tooling only, never distributed",
+    reason:
+      "vite CSS transformer (tests and web builds); file-level copyleft, runs at build time only and never enters a published package, image or bundle",
   },
   {
     name: "lightningcss-linux-x64-gnu",
     license: "MPL-2.0",
-    reason: "platform binary of lightningcss; test tooling only, never distributed",
+    reason: "platform binary of lightningcss; build and test tooling only, never distributed",
   },
 ];
 

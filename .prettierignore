@@ -5,3 +5,7 @@ tmp/
 .models/
 LICENSE
 tools/conformance/evidence/
+# written by scripts/contracts/build.sh and fixtures.sh
+packages/testkit/fixtures/*.provenance.json
+# recorded run reports, written by the Playground suites (web/test/fixtures/record.ts)
+apps/playground/web/test/fixtures/recorded/

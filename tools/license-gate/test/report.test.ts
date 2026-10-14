@@ -19,7 +19,9 @@ describe("renderReport", () => {
 
   it("counts each closure once, service first", () => {
     expect(report).toContain("| Service (the container image) | 2 |");
-    expect(report).toContain("| Other workspace tools (conformance runs, evaluation) | 1 |");
+    expect(report).toContain(
+      "| Outside the service: the published agent packages (SDK, MCP server, CLI, upto, safe-fetch) and workspace tools (conformance runs, evaluation) | 1 |",
+    );
     expect(report).toContain("| Development only (build, lint, test) | 3 |");
     expect(report.indexOf("| abc | 1.0.0 | Apache-2.0 |")).toBeLessThan(
       report.indexOf("| hono | 1.0.0 | MIT |"),

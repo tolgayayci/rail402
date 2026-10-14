@@ -1,0 +1,119 @@
+name: contract-release
+
+# A tag upto-contract-v<crate version>[-<n>] (upto-contract-v1.0.0, …) releases the upto settlement contract
+# through stellar.expert's reusable build workflow (stellar-expert/soroban-build-workflow, SEP-55):
+# it builds contracts/stellar/upto with `stellar contract build --optimize` and the metadata
+# `source_repo=github:<this repository>`, publishes the wasm as a GitHub release, attests it with
+# build provenance and sends stellar.expert the validation request. stellar.expert accepts that
+# request only from its own workflow, so the build itself is not done here.
+#
+# Before the release, `check` rebuilds the contract with scripts/contracts/build.sh, which reproduces
+# the workflow's bytes, and requires them to be the committed wasm that the testnet deployment record
+# names. Afterwards, `confirm` requires the released wasm to be that same wasm and its attestation to
+# come from stellar.expert's workflow in this repository.
+
+on:
+  push:
+    tags: ["upto-contract-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The release workflow is the reviewed revision
+        # stellar.expert accepts builds only from its workflow's main branch, so the call below cannot
+        # be pinned to a commit; this refuses a release when main has moved since it was reviewed.
+        env:
+          REVIEWED: 6b16426dd3a61715ddddf83a2df322a6371fe071
+        run: |
+          main="$(git ls-remote https://github.com/stellar-expert/soroban-build-workflow.git refs/heads/main | cut -f1)"
+          if [ "$main" != "$REVIEWED" ]; then
+            echo "::error::stellar-expert/soroban-build-workflow main is $main, reviewed revision is $REVIEWED"
+            exit 1
+          fi
+      - name: The tag names the crate version and the build names this repository
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' contracts/stellar/upto/Cargo.toml | head -1)"
+          # upto-contract-v1.0.0, or upto-contract-v1.0.0-<n> to release the same version again.
+          case "$GITHUB_REF_NAME" in
+            "upto-contract-v$version" | "upto-contract-v$version-"*) ;;
+            *)
+              echo "::error::tag $GITHUB_REF_NAME does not name the crate version $version"
+              exit 1
+              ;;
+          esac
+          repo="$(sed -n 's/^SOURCE_REPO="\(.*\)"/\1/p' scripts/contracts/common.sh)"
+          if [ "$repo" != "github:$GITHUB_REPOSITORY" ]; then
+            echo "::error::scripts/contracts/common.sh builds for $repo, this is github:$GITHUB_REPOSITORY"
+            exit 1
+          fi
+      - name: The pinned build reproduces the deployed wasm
+        run: |
+          scripts/contracts/build.sh --contract upto --check
+          deployed="$(jq -r .wasm_sha256 contracts/stellar/deployments/testnet.json)"
+          built="$(sha256sum target/contracts/upto/x402_upto_stellar.wasm | cut -d' ' -f1)"
+          if [ "$built" != "$deployed" ]; then
+            echo "::error::the build gives $built, the testnet deployment runs $deployed"
+            exit 1
+          fi
+
+  release:
+    needs: check
+    permissions:
+      id-token: write
+      contents: write
+      attestations: write
+    uses: stellar-expert/soroban-build-workflow/.github/workflows/release.yml@main
+    with:
+      release_name: ${{ github.ref_name }}
+      release_description: x402 upto settlement contract (contracts/stellar/upto), built by stellar.expert's release workflow.
+      relative_path: contracts/stellar/upto
+      package: x402-upto-stellar
+    secrets:
+      release_token: ${{ secrets.GITHUB_TOKEN }}
+
+  confirm:
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The released wasm is the deployed wasm, attested by stellar.expert's workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The release workflow names its release <tag>_<path>_<package>_…_cli<version>.
+          release="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' |
+            grep -F "${GITHUB_REF_NAME}_" | head -1)"
+          if [ -z "$release" ]; then
+            echo "::error::no release for $GITHUB_REF_NAME"
+            exit 1
+          fi
+          gh release download "$release" --repo "$GITHUB_REPOSITORY" --pattern '*.wasm' --dir release
+          wasm="$(ls release/*.wasm)"
+          released="$(sha256sum "$wasm" | cut -d' ' -f1)"
+          deployed="$(jq -r .wasm_sha256 contracts/stellar/deployments/testnet.json)"
+          echo "release $release: $wasm $released"
+          if [ "$released" != "$deployed" ]; then
+            echo "::error::the released wasm is $released, the testnet deployment runs $deployed"
+            exit 1
+          fi
+          gh attestation verify "$wasm" --repo "$GITHUB_REPOSITORY" \
+            --signer-repo stellar-expert/soroban-build-workflow
+      - name: stellar.expert validation status
+        run: |
+          contract="$(jq -r .contract_id contracts/stellar/deployments/testnet.json)"
+          validation="$(curl -fsS "https://api.stellar.expert/explorer/testnet/contract/$contract" | jq -c .validation || true)"
+          echo "stellar.expert validation of $contract: ${validation:-unavailable}"
+          case "$validation" in
+            *'"verified"'*) ;;
+            *) echo "::notice::stellar.expert has not validated $contract yet; it validates after its queue picks up the request" ;;
+          esac
