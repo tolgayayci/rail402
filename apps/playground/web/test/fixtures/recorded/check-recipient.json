@@ -1,0 +1,195 @@
+{
+  "format": "rail402-playground-run",
+  "version": 1,
+  "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+  "network": "stellar:testnet",
+  "playgroundVersion": "0.4.0",
+  "startedAt": "2026-10-03T19:33:48.783Z",
+  "summary": {
+    "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+    "status": "refused",
+    "code": "payment_recipient_not_permitted",
+    "reason": "The recipient is invalid, is the payer itself, or is excluded by the policy's recipient allow or deny list."
+  },
+  "events": [
+    {
+      "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+      "at": 0,
+      "kind": "run",
+      "phase": "start",
+      "scenario": "pay",
+      "variant": "recipient",
+      "cap": "0.01"
+    },
+    {
+      "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+      "at": 11,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-24",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/weather?city=Ankara",
+      "paid": false,
+      "headerNames": [],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+      "at": 15,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-24",
+      "status": 402,
+      "ms": 4,
+      "required": {
+        "x402Version": 2,
+        "resource": {
+          "url": "https://demo.rail402.dev/weather?city=Ankara",
+          "description": "Current weather for a city",
+          "mimeType": "application/json"
+        },
+        "error": "Payment required",
+        "options": [
+          {
+            "index": 0,
+            "scheme": "exact",
+            "network": "stellar:testnet",
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "decimals": 7,
+            "amount": "10000",
+            "decimal": "0.001",
+            "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "maxTimeoutSeconds": 300,
+            "feesSponsored": true,
+            "facilitatorAddress": null,
+            "facilitatorAddressAdvertised": null,
+            "verdict": {
+              "acceptable": true,
+              "code": null,
+              "reason": null
+            }
+          }
+        ],
+        "bazaar": {
+          "declared": true,
+          "type": "http",
+          "method": "GET",
+          "toolName": null
+        }
+      }
+    },
+    {
+      "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+      "at": 31,
+      "kind": "sdk",
+      "event": {
+        "type": "probe",
+        "callId": "970bfd91-f8e8-4cdb-aabf-bd286f967f80",
+        "resource": "https://demo.rail402.dev/weather?city=Ankara"
+      }
+    },
+    {
+      "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+      "at": 31,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-25",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/weather?city=Ankara",
+      "paid": false,
+      "headerNames": [],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+      "at": 34,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-25",
+      "status": 402,
+      "ms": 3,
+      "required": {
+        "x402Version": 2,
+        "resource": {
+          "url": "https://demo.rail402.dev/weather?city=Ankara",
+          "description": "Current weather for a city",
+          "mimeType": "application/json"
+        },
+        "error": "Payment required",
+        "options": [
+          {
+            "index": 0,
+            "scheme": "exact",
+            "network": "stellar:testnet",
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "decimals": 7,
+            "amount": "10000",
+            "decimal": "0.001",
+            "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "maxTimeoutSeconds": 300,
+            "feesSponsored": true,
+            "facilitatorAddress": null,
+            "facilitatorAddressAdvertised": null,
+            "verdict": {
+              "acceptable": false,
+              "code": "payment_recipient_not_permitted",
+              "reason": null
+            }
+          }
+        ],
+        "bazaar": {
+          "declared": true,
+          "type": "http",
+          "method": "GET",
+          "toolName": null
+        }
+      }
+    },
+    {
+      "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+      "at": 35,
+      "kind": "sdk",
+      "event": {
+        "type": "refused",
+        "callId": "970bfd91-f8e8-4cdb-aabf-bd286f967f80",
+        "code": "payment_recipient_not_permitted"
+      }
+    },
+    {
+      "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+      "at": 35,
+      "kind": "refusal",
+      "layer": "policy",
+      "code": "payment_recipient_not_permitted",
+      "reason": "The recipient is invalid, is the payer itself, or is excluded by the policy's recipient allow or deny list.",
+      "details": {
+        "paid": "none",
+        "callId": "970bfd91-f8e8-4cdb-aabf-bd286f967f80"
+      }
+    },
+    {
+      "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+      "at": 39,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "0.9747",
+      "after": "0.9747"
+    },
+    {
+      "runId": "b4ddc48f-bdbd-45a5-a437-22840058676c",
+      "at": 39,
+      "kind": "run",
+      "phase": "end",
+      "status": "refused",
+      "code": "payment_recipient_not_permitted",
+      "reason": "The recipient is invalid, is the payer itself, or is excluded by the policy's recipient allow or deny list."
+    }
+  ]
+}

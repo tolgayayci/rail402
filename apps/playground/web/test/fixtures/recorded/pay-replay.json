@@ -1,0 +1,367 @@
+{
+  "format": "rail402-playground-run",
+  "version": 1,
+  "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+  "network": "stellar:testnet",
+  "playgroundVersion": "0.4.0",
+  "startedAt": "2026-10-03T19:37:18.372Z",
+  "summary": {
+    "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+    "status": "info",
+    "code": "invalid_exact_stellar_payload_nonce_already_used",
+    "reason": "Paid once: the same payment sent again was refused (its authorization was already used once), and your balance did not move."
+  },
+  "events": [
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 0,
+      "kind": "run",
+      "phase": "start",
+      "scenario": "pay",
+      "variant": "replay",
+      "cap": "0.01"
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 25,
+      "kind": "sdk",
+      "event": {
+        "type": "probe",
+        "callId": "2b3a4150-10b5-46b5-94f1-d481d248ff79",
+        "resource": "https://demo.rail402.dev/weather?city=Ankara"
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 25,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-1",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/weather?city=Ankara",
+      "paid": false,
+      "headerNames": [],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 33,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-1",
+      "status": 402,
+      "ms": 7,
+      "required": {
+        "x402Version": 2,
+        "resource": {
+          "url": "https://demo.rail402.dev/weather?city=Ankara",
+          "description": "Current weather for a city",
+          "mimeType": "application/json"
+        },
+        "error": "Payment required",
+        "options": [
+          {
+            "index": 0,
+            "scheme": "exact",
+            "network": "stellar:testnet",
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "decimals": 7,
+            "amount": "10000",
+            "decimal": "0.001",
+            "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "maxTimeoutSeconds": 300,
+            "feesSponsored": true,
+            "facilitatorAddress": null,
+            "facilitatorAddressAdvertised": null,
+            "verdict": {
+              "acceptable": true,
+              "code": null,
+              "reason": null
+            }
+          }
+        ],
+        "bazaar": {
+          "declared": true,
+          "type": "http",
+          "method": "GET",
+          "toolName": null
+        }
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 33,
+      "kind": "sdk",
+      "event": {
+        "type": "quote",
+        "callId": "2b3a4150-10b5-46b5-94f1-d481d248ff79",
+        "options": 1,
+        "acceptable": 1
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 84,
+      "kind": "sdk",
+      "event": {
+        "type": "reserved",
+        "callId": "2b3a4150-10b5-46b5-94f1-d481d248ff79",
+        "reservation": "6d45aa2b-eef7-4e35-8cfb-0bfda8291b83",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "amount": "10000"
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 85,
+      "kind": "auth",
+      "view": {
+        "network": "stellar:testnet",
+        "address": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+        "credential": "address",
+        "nonce": "8253451732773523440",
+        "expirationLedger": 592784,
+        "latestLedger": 592724,
+        "expiresInSeconds": 300,
+        "scheme": "exact",
+        "transfer": {
+          "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "from": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "to": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+          "amount": "10000"
+        }
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 86,
+      "kind": "sdk",
+      "event": {
+        "type": "signed",
+        "callId": "2b3a4150-10b5-46b5-94f1-d481d248ff79",
+        "reservation": "6d45aa2b-eef7-4e35-8cfb-0bfda8291b83",
+        "nonce": "8253451732773523440",
+        "expirationLedger": 592784
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 107,
+      "kind": "sdk",
+      "event": {
+        "type": "sent",
+        "callId": "2b3a4150-10b5-46b5-94f1-d481d248ff79",
+        "reservation": "6d45aa2b-eef7-4e35-8cfb-0bfda8291b83"
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 107,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-2",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/weather?city=Ankara",
+      "paid": true,
+      "headerNames": [
+        "payment-signature"
+      ],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 1175,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-2",
+      "status": 200,
+      "ms": 1068,
+      "settle": {
+        "from": "payment-response",
+        "success": true,
+        "transaction": "c4064f069bc3ec8474ce90107c2b865eafc2b92a797297c862b378c16c571e83",
+        "network": "stellar:testnet",
+        "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+        "amount": null,
+        "errorReason": null,
+        "errorMessage": null
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 1175,
+      "kind": "sdk",
+      "event": {
+        "type": "settled",
+        "callId": "2b3a4150-10b5-46b5-94f1-d481d248ff79",
+        "reservation": "6d45aa2b-eef7-4e35-8cfb-0bfda8291b83",
+        "transaction": "c4064f069bc3ec8474ce90107c2b865eafc2b92a797297c862b378c16c571e83",
+        "amount": "10000"
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 1193,
+      "kind": "delivery",
+      "view": {
+        "target": "http",
+        "status": 200,
+        "isError": false,
+        "contentType": "application/json; charset=utf-8",
+        "body": "{\"city\":\"Ankara\",\"temperature\":21,\"conditions\":\"sunny\"}",
+        "truncated": false,
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "transaction": "c4064f069bc3ec8474ce90107c2b865eafc2b92a797297c862b378c16c571e83",
+          "settled": "10000",
+          "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+          "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "verifiedOnChain": true
+        }
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 1221,
+      "kind": "chain",
+      "phase": "tx",
+      "view": {
+        "hash": "c4064f069bc3ec8474ce90107c2b865eafc2b92a797297c862b378c16c571e83",
+        "network": "stellar:testnet",
+        "status": "SUCCESS",
+        "ledger": 592725,
+        "closedAt": "2026-10-03T19:37:19.000Z",
+        "feeBump": {
+          "outerHash": "c4064f069bc3ec8474ce90107c2b865eafc2b92a797297c862b378c16c571e83",
+          "innerHash": "7641fcfa96f672a48963d70dcaca2f6c2885af7eabb0bc42723e962acc6bd088",
+          "feeSource": "GD4QMGUQAIHFP46CWPGQR52WJVBTWUO4NDROCYGTLRZ6I4OYX5MNJLM6",
+          "feeCharged": "88862"
+        },
+        "feeSourceAdvertised": true,
+        "transfers": [
+          {
+            "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "from": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+            "to": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "amount": "10000",
+            "decimal": "0.001"
+          }
+        ],
+        "x402Shape": "exact",
+        "nonces": [
+          "8253451732773523440"
+        ],
+        "uptoSettled": null,
+        "explorerUrl": "https://stellar.expert/explorer/testnet/tx/c4064f069bc3ec8474ce90107c2b865eafc2b92a797297c862b378c16c571e83"
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 1237,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "0.999",
+      "after": "0.998"
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 1251,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-3",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/weather?city=Ankara",
+      "paid": true,
+      "headerNames": [
+        "payment-signature"
+      ],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 1273,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-3",
+      "status": 402,
+      "ms": 22,
+      "required": {
+        "x402Version": 2,
+        "resource": {
+          "url": "https://demo.rail402.dev/weather?city=Ankara",
+          "description": "Current weather for a city",
+          "mimeType": "application/json"
+        },
+        "error": "invalid_exact_stellar_payload_nonce_already_used",
+        "options": [
+          {
+            "index": 0,
+            "scheme": "exact",
+            "network": "stellar:testnet",
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "decimals": 7,
+            "amount": "10000",
+            "decimal": "0.001",
+            "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "maxTimeoutSeconds": 300,
+            "feesSponsored": true,
+            "facilitatorAddress": null,
+            "facilitatorAddressAdvertised": null,
+            "verdict": {
+              "acceptable": true,
+              "code": null,
+              "reason": null
+            }
+          }
+        ],
+        "bazaar": {
+          "declared": true,
+          "type": "http",
+          "method": "GET",
+          "toolName": null
+        }
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 1288,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "0.998",
+      "after": "0.998"
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 1288,
+      "kind": "refusal",
+      "layer": "facilitator",
+      "code": "invalid_exact_stellar_payload_nonce_already_used",
+      "reason": "The seller refused the repeated payment: its authorization was already used once.",
+      "details": {
+        "status": 402
+      }
+    },
+    {
+      "runId": "a47b1e65-7aaf-4810-b5d9-b8703b4b5b8f",
+      "at": 1289,
+      "kind": "run",
+      "phase": "end",
+      "status": "info",
+      "code": "invalid_exact_stellar_payload_nonce_already_used",
+      "reason": "Paid once: the same payment sent again was refused (its authorization was already used once), and your balance did not move."
+    }
+  ]
+}

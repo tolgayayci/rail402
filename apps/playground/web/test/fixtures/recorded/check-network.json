@@ -1,0 +1,139 @@
+{
+  "format": "rail402-playground-run",
+  "version": 1,
+  "runId": "41fc6651-2f44-4d1e-b844-127f74116d92",
+  "network": "stellar:testnet",
+  "playgroundVersion": "0.4.0",
+  "startedAt": "2026-10-03T19:33:48.661Z",
+  "summary": {
+    "runId": "41fc6651-2f44-4d1e-b844-127f74116d92",
+    "status": "refused",
+    "code": "payment_network_not_permitted",
+    "reason": "The option is for stellar:pubnet, not stellar:testnet."
+  },
+  "events": [
+    {
+      "runId": "41fc6651-2f44-4d1e-b844-127f74116d92",
+      "at": 0,
+      "kind": "run",
+      "phase": "start",
+      "scenario": "pay",
+      "variant": "network",
+      "cap": "0.01"
+    },
+    {
+      "runId": "41fc6651-2f44-4d1e-b844-127f74116d92",
+      "at": 9,
+      "kind": "sdk",
+      "event": {
+        "type": "probe",
+        "callId": "c6f17385-515c-40d5-b167-0562a76569b3",
+        "resource": "https://playground.rail402.dev/lab/offers/pubnet"
+      }
+    },
+    {
+      "runId": "41fc6651-2f44-4d1e-b844-127f74116d92",
+      "at": 9,
+      "kind": "http",
+      "phase": "request",
+      "id": "direct-21",
+      "via": "direct",
+      "method": "GET",
+      "url": "https://playground.rail402.dev/lab/offers/pubnet",
+      "paid": false,
+      "headerNames": [],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "41fc6651-2f44-4d1e-b844-127f74116d92",
+      "at": 12,
+      "kind": "http",
+      "phase": "response",
+      "id": "direct-21",
+      "status": 402,
+      "ms": 3,
+      "required": {
+        "x402Version": 2,
+        "resource": {
+          "url": "https://playground.rail402.dev/lab/offers/pubnet",
+          "description": "Playground check: an offer on Stellar pubnet, which a testnet buyer must refuse",
+          "mimeType": "application/json"
+        },
+        "error": "Payment required",
+        "options": [
+          {
+            "index": 0,
+            "scheme": "exact",
+            "network": "stellar:pubnet",
+            "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+            "symbol": null,
+            "decimals": null,
+            "amount": "100000",
+            "decimal": null,
+            "payTo": "GB7KINVKZ6HC5QI5USK2CEQJ6WUUUZIIV2ZTGABUIVGPFHL2SC6LXVT6",
+            "maxTimeoutSeconds": 60,
+            "feesSponsored": true,
+            "facilitatorAddress": null,
+            "facilitatorAddressAdvertised": null,
+            "verdict": {
+              "acceptable": false,
+              "code": "payment_network_not_permitted",
+              "reason": "The option is for stellar:pubnet, not stellar:testnet."
+            }
+          }
+        ],
+        "bazaar": {
+          "declared": false,
+          "type": null,
+          "method": null,
+          "toolName": null
+        }
+      },
+      "trace": {
+        "v": 1
+      }
+    },
+    {
+      "runId": "41fc6651-2f44-4d1e-b844-127f74116d92",
+      "at": 12,
+      "kind": "sdk",
+      "event": {
+        "type": "refused",
+        "callId": "c6f17385-515c-40d5-b167-0562a76569b3",
+        "code": "payment_network_not_permitted"
+      }
+    },
+    {
+      "runId": "41fc6651-2f44-4d1e-b844-127f74116d92",
+      "at": 12,
+      "kind": "refusal",
+      "layer": "policy",
+      "code": "payment_network_not_permitted",
+      "reason": "The option is for stellar:pubnet, not stellar:testnet.",
+      "details": {
+        "paid": "none",
+        "callId": "c6f17385-515c-40d5-b167-0562a76569b3"
+      }
+    },
+    {
+      "runId": "41fc6651-2f44-4d1e-b844-127f74116d92",
+      "at": 17,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "0.9747",
+      "after": "0.9747"
+    },
+    {
+      "runId": "41fc6651-2f44-4d1e-b844-127f74116d92",
+      "at": 17,
+      "kind": "run",
+      "phase": "end",
+      "status": "refused",
+      "code": "payment_network_not_permitted",
+      "reason": "The option is for stellar:pubnet, not stellar:testnet."
+    }
+  ]
+}

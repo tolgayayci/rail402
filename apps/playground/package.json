@@ -1,0 +1,71 @@
+{
+  "name": "@rail402.dev/playground",
+  "version": "0.4.1",
+  "private": true,
+  "description": "A browser playground for x402 payments on the Stellar testnet: pay, sell, let an agent pay, and inspect every step.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    "./codes": {
+      "@rail402/source": "./src/shared/codes.ts",
+      "default": "./src/shared/codes.ts"
+    }
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "dev": "node --conditions=@rail402/source scripts/dev.ts",
+    "dev:server": "node --conditions=@rail402/source --watch src/main.ts",
+    "dev:fake": "vite --mode fake",
+    "build": "vite build",
+    "check:dist": "node scripts/check-dist.ts",
+    "test:e2e": "vite build && playwright test -c e2e/playwright.config.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "catalog:",
+    "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/safe-fetch": "workspace:*",
+    "@rail402.dev/sdk": "workspace:*",
+    "@rail402.dev/stellar": "workspace:*",
+    "@rail402.dev/upto": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:",
+    "@x402/core": "catalog:",
+    "@x402/extensions": "catalog:",
+    "@x402/hono": "catalog:",
+    "@x402/stellar": "catalog:",
+    "hono": "catalog:",
+    "pino": "catalog:",
+    "prom-client": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "catalog:",
+    "@playwright/test": "catalog:",
+    "@rail402.dev/cli": "workspace:*",
+    "@rail402.dev/demo-seller": "workspace:*",
+    "@rail402.dev/facilitator": "workspace:*",
+    "@rail402.dev/mcp": "workspace:*",
+    "@rail402.dev/service": "workspace:*",
+    "@rail402.dev/testkit": "workspace:*",
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/express": "5.0.6",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@x402/express": "catalog:",
+    "@x402/fetch": "catalog:",
+    "buffer": "catalog:",
+    "express": "5.2.1",
+    "happy-dom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "vite": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.11"
+  },
+  "files": [
+    "src",
+    "web/dist"
+  ]
+}

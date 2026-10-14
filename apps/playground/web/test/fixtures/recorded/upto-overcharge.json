@@ -1,0 +1,273 @@
+{
+  "format": "rail402-playground-run",
+  "version": 1,
+  "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+  "network": "stellar:testnet",
+  "playgroundVersion": "0.4.0",
+  "startedAt": "2026-10-03T19:37:21.740Z",
+  "summary": {
+    "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+    "status": "refused",
+    "code": "invalid_upto_stellar_payload_settlement_exceeds_amount",
+    "reason": "Overcharge blocked: Rail402 refused to settle more than the authorized cap, and nothing moved."
+  },
+  "events": [
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 0,
+      "kind": "run",
+      "phase": "start",
+      "scenario": "upto",
+      "variant": "overcharge",
+      "cap": "0.01"
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 23,
+      "kind": "sdk",
+      "event": {
+        "type": "probe",
+        "callId": "e2324e01-640f-45c5-9b77-d7af72fcc80f",
+        "resource": "https://playground.rail402.dev/lab/greedy/history?city=Berlin&days=7"
+      }
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 23,
+      "kind": "http",
+      "phase": "request",
+      "id": "direct-1",
+      "via": "direct",
+      "method": "GET",
+      "url": "https://playground.rail402.dev/lab/greedy/history?city=Berlin&days=7",
+      "paid": false,
+      "headerNames": [],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 34,
+      "kind": "http",
+      "phase": "response",
+      "id": "direct-1",
+      "status": 402,
+      "ms": 11,
+      "required": {
+        "x402Version": 2,
+        "resource": {
+          "url": "https://playground.rail402.dev/lab/greedy/history?city=Berlin&days=7",
+          "description": "Playground sample that overcharges on purpose: it asks to settle twice the authorized cap, which the facilitator refuses",
+          "mimeType": "application/json"
+        },
+        "error": "Payment required",
+        "options": [
+          {
+            "index": 0,
+            "scheme": "upto",
+            "network": "stellar:testnet",
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "decimals": 7,
+            "amount": "100000",
+            "decimal": "0.01",
+            "payTo": "GB7KINVKZ6HC5QI5USK2CEQJ6WUUUZIIV2ZTGABUIVGPFHL2SC6LXVT6",
+            "maxTimeoutSeconds": 60,
+            "feesSponsored": true,
+            "facilitatorAddress": "GAJLHDKRGE4YVOJIRON56ZVZSTASMVKMMREZVEVZVPW4N6KV4BHGLUNK",
+            "facilitatorAddressAdvertised": true,
+            "verdict": {
+              "acceptable": true,
+              "code": null,
+              "reason": null
+            }
+          }
+        ],
+        "bazaar": {
+          "declared": false,
+          "type": null,
+          "method": null,
+          "toolName": null
+        }
+      },
+      "trace": {
+        "v": 1
+      }
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 35,
+      "kind": "sdk",
+      "event": {
+        "type": "quote",
+        "callId": "e2324e01-640f-45c5-9b77-d7af72fcc80f",
+        "options": 1,
+        "acceptable": 1
+      }
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 58,
+      "kind": "sdk",
+      "event": {
+        "type": "reserved",
+        "callId": "e2324e01-640f-45c5-9b77-d7af72fcc80f",
+        "reservation": "c8c8b270-de67-4e4e-b21b-338546db832f",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "amount": "100000"
+      }
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 59,
+      "kind": "auth",
+      "view": {
+        "network": "stellar:testnet",
+        "address": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+        "credential": "address",
+        "nonce": "-8294156169368278575",
+        "expirationLedger": 592739,
+        "latestLedger": 592727,
+        "expiresInSeconds": 60,
+        "scheme": "upto",
+        "contract": "CCQPG6UZIIARBN5MXZBVFGQKFHX37CPKG5R3CIZKGBECJOFFYT35GT6P",
+        "terms": {
+          "recipient": "GB7KINVKZ6HC5QI5USK2CEQJ6WUUUZIIV2ZTGABUIVGPFHL2SC6LXVT6",
+          "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "maxAmount": "100000",
+          "validAfterLedger": 0,
+          "expirationLedger": 592739,
+          "facilitator": "GAJLHDKRGE4YVOJIRON56ZVZSTASMVKMMREZVEVZVPW4N6KV4BHGLUNK"
+        },
+        "approve": {
+          "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "from": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "spender": "CCQPG6UZIIARBN5MXZBVFGQKFHX37CPKG5R3CIZKGBECJOFFYT35GT6P",
+          "amount": "100000",
+          "expirationLedger": 592739
+        }
+      }
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 60,
+      "kind": "sdk",
+      "event": {
+        "type": "signed",
+        "callId": "e2324e01-640f-45c5-9b77-d7af72fcc80f",
+        "reservation": "c8c8b270-de67-4e4e-b21b-338546db832f",
+        "nonce": "-8294156169368278575",
+        "expirationLedger": 592739
+      }
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 62,
+      "kind": "sdk",
+      "event": {
+        "type": "sent",
+        "callId": "e2324e01-640f-45c5-9b77-d7af72fcc80f",
+        "reservation": "c8c8b270-de67-4e4e-b21b-338546db832f"
+      }
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 62,
+      "kind": "http",
+      "phase": "request",
+      "id": "direct-2",
+      "via": "direct",
+      "method": "GET",
+      "url": "https://playground.rail402.dev/lab/greedy/history?city=Berlin&days=7",
+      "paid": true,
+      "headerNames": [
+        "payment-signature"
+      ],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 98,
+      "kind": "http",
+      "phase": "response",
+      "id": "direct-2",
+      "status": 402,
+      "ms": 36,
+      "settle": {
+        "from": "payment-response",
+        "success": false,
+        "transaction": null,
+        "network": "stellar:testnet",
+        "payer": null,
+        "amount": "200000",
+        "errorReason": "invalid_upto_stellar_payload_settlement_exceeds_amount",
+        "errorMessage": "The settlement amount 200000 exceeds the authorized cap 100000."
+      },
+      "trace": {
+        "v": 1,
+        "verify": {
+          "isValid": true,
+          "ms": 25
+        },
+        "settle": {
+          "success": false,
+          "code": "invalid_upto_stellar_payload_settlement_exceeds_amount",
+          "reason": "The settlement amount 200000 exceeds the authorized cap 100000.",
+          "amount": "200000",
+          "requested": "200000",
+          "ms": 3
+        }
+      },
+      "timing": {
+        "x402-verify": 25,
+        "x402-settle": 3
+      }
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 99,
+      "kind": "sdk",
+      "event": {
+        "type": "unresolved",
+        "callId": "e2324e01-640f-45c5-9b77-d7af72fcc80f",
+        "reservation": "c8c8b270-de67-4e4e-b21b-338546db832f",
+        "code": "payment_rejected"
+      }
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 99,
+      "kind": "refusal",
+      "layer": "facilitator",
+      "code": "payment_rejected",
+      "reason": "The seller or its facilitator refused the signed payment; it did not settle.",
+      "details": {
+        "upstream": {
+          "reason": "The settlement amount 200000 exceeds the authorized cap 100000.",
+          "code": "invalid_upto_stellar_payload_settlement_exceeds_amount"
+        },
+        "paid": "not_settled",
+        "callId": "e2324e01-640f-45c5-9b77-d7af72fcc80f"
+      }
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 107,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "0.9959",
+      "after": "0.9959"
+    },
+    {
+      "runId": "6fee6478-0e6e-44ac-917f-d69baeb15580",
+      "at": 107,
+      "kind": "run",
+      "phase": "end",
+      "status": "refused",
+      "code": "invalid_upto_stellar_payload_settlement_exceeds_amount",
+      "reason": "Overcharge blocked: Rail402 refused to settle more than the authorized cap, and nothing moved."
+    }
+  ]
+}

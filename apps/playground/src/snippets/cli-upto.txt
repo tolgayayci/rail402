@@ -1,0 +1,5 @@
+# a testnet key and test USDC, once
+rail402 keys new # @step:sign
+rail402 account setup --usdc 1
+# authorize up to --max; the seller settles what the call used
+rail402 pay {{demoSeller}}/history --query city=Berlin --query days=7 --max {{cap}} # @step:request,quote,sign,paid-request,work,settle,submit,deliver,overcharge-refused

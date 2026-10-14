@@ -1,0 +1,165 @@
+/*
+ * Design tokens. Lane colours identify the parties of a payment everywhere on the page: in the
+ * legend, the swimlanes, the inspector's field dots and the outcome card. `data-tone` on any element
+ * selects a party's colour as --tone, --tone-tint and --tone-ink.
+ */
+:root {
+  --lane-you: #2563eb;
+  --lane-you-tint: #eff6ff;
+  --lane-you-ink: #1d4ed8;
+  --lane-seller: #7c3aed;
+  --lane-seller-tint: #f5f3ff;
+  --lane-seller-ink: #6d28d9;
+  --lane-rail: #d97706;
+  --lane-rail-tint: #fffbeb;
+  --lane-rail-ink: #b45309;
+  --lane-stellar: #0d9488;
+  --lane-stellar-tint: #f0fdfa;
+  --lane-stellar-ink: #0f766e;
+  --lane-bazaar: #db2777;
+  --lane-bazaar-tint: #fdf2f8;
+  --lane-bazaar-ink: #be185d;
+
+  --tone-error: #dc2626;
+  --tone-error-tint: #fef2f2;
+  --tone-error-ink: #b91c1c;
+  --tone-error-line: #fecaca;
+  --tone-info: #2563eb;
+  --tone-info-tint: #eff6ff;
+  --tone-info-ink: #1d4ed8;
+  --tone-info-line: #bfdbfe;
+  --tone-ok: #16a34a;
+  --tone-ok-tint: #f0fdf4;
+  --tone-ok-ink: #15803d;
+  --tone-ok-line: #bbf7d0;
+
+  --bg: #f7f7f9;
+  --surface: #ffffff;
+  --surface-sunken: #f4f4f8;
+  --ink: #0b0b10;
+  --ink-2: #1e1e26;
+  --ink-3: #3f3f48;
+  --muted: #5b5b66;
+  --muted-2: #6b6b76;
+  --line: #e6e6eb;
+  --line-soft: #efeff3;
+  --line-strong: #d6d6de;
+  --code-bg: #0f0f14;
+  --code-line: #23232c;
+  --code-ink: #c9c9d4;
+  --code-muted: #8e8e9a;
+  --code-tab: #26262f;
+  --code-hot: rgba(217, 119, 6, 0.18);
+  --link: #1d4ed8;
+  --link-hover: #1e3a8a;
+  --primary: #b45309;
+  --primary-ink: #ffffff;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --radius-s: 8px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --gutter: 28px;
+}
+
+[data-tone="you"] {
+  --tone: var(--lane-you);
+  --tone-tint: var(--lane-you-tint);
+  --tone-ink: var(--lane-you-ink);
+}
+[data-tone="seller"] {
+  --tone: var(--lane-seller);
+  --tone-tint: var(--lane-seller-tint);
+  --tone-ink: var(--lane-seller-ink);
+}
+[data-tone="rail"] {
+  --tone: var(--lane-rail);
+  --tone-tint: var(--lane-rail-tint);
+  --tone-ink: var(--lane-rail-ink);
+}
+[data-tone="stellar"],
+[data-tone="chain"] {
+  --tone: var(--lane-stellar);
+  --tone-tint: var(--lane-stellar-tint);
+  --tone-ink: var(--lane-stellar-ink);
+}
+[data-tone="bazaar"] {
+  --tone: var(--lane-bazaar);
+  --tone-tint: var(--lane-bazaar-tint);
+  --tone-ink: var(--lane-bazaar-ink);
+}
+[data-tone="error"] {
+  --tone: var(--tone-error);
+  --tone-tint: var(--tone-error-tint);
+  --tone-ink: var(--tone-error-ink);
+}
+[data-tone="idle"] {
+  --tone: var(--muted);
+  --tone-tint: #f4f4f5;
+  --tone-ink: var(--muted);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--link);
+}
+a:hover {
+  color: var(--link-hover);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+}
+
+:focus-visible {
+  outline: 2px solid var(--lane-you);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --gutter: 16px;
+  }
+}

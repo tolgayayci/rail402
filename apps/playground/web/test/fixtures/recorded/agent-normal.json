@@ -1,0 +1,868 @@
+{
+  "format": "rail402-playground-run",
+  "version": 1,
+  "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+  "network": "stellar:testnet",
+  "playgroundVersion": "0.4.0",
+  "startedAt": "2026-10-03T19:37:22.307Z",
+  "summary": {
+    "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+    "status": "ok",
+    "reason": "The agent paid the tool and got its answer."
+  },
+  "events": [
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 0,
+      "kind": "run",
+      "phase": "start",
+      "scenario": "agent",
+      "variant": "normal",
+      "cap": "0.01"
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 30,
+      "kind": "tool",
+      "phase": "call",
+      "name": "search_stellar_resources",
+      "args": {
+        "query": "hourly weather forecast",
+        "type": "mcp",
+        "maxPrice": {
+          "amount": "0.05",
+          "asset": "USDC"
+        }
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 50,
+      "kind": "bazaar",
+      "phase": "search",
+      "query": "hourly weather forecast",
+      "filters": {
+        "limit": 5,
+        "type": "mcp",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "maxPrice": "0.05"
+      },
+      "count": 1,
+      "method": "lexical",
+      "partialResults": true,
+      "top": [
+        {
+          "id": "827ce2c9-061a-43c2-aaa6-66aafbbd80f1",
+          "resource": "https://demo.rail402.dev/mcp",
+          "type": "mcp",
+          "method": null,
+          "toolName": "hourly_forecast",
+          "description": "Hourly weather forecast for a city, metered: 0.0002 USDC per forecast hour, at most 0.01 USDC per call",
+          "serviceName": null,
+          "owner": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+          "network": "stellar:testnet",
+          "trust": "origin_verified",
+          "state": "published",
+          "version": 2,
+          "settlements": 1,
+          "price": {
+            "scheme": "upto",
+            "amount": "100000",
+            "decimal": "0.01",
+            "symbol": "USDC"
+          },
+          "callable": true,
+          "notPayable": null,
+          "rank": 1,
+          "input": {
+            "pathParams": [],
+            "example": {
+              "city": "Istanbul",
+              "hours": 12
+            },
+            "required": [
+              "city",
+              "hours"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 50,
+      "kind": "tool",
+      "phase": "result",
+      "name": "search_stellar_resources",
+      "isError": false,
+      "result": {
+        "ok": true,
+        "network": "stellar:testnet",
+        "results": [
+          {
+            "listingId": "827ce2c9-061a-43c2-aaa6-66aafbbd80f1",
+            "type": "mcp",
+            "resource": "https://demo.rail402.dev/mcp",
+            "method": null,
+            "toolName": "hourly_forecast",
+            "transport": "streamable-http",
+            "routeTemplate": null,
+            "callable": true,
+            "notCallableReason": null,
+            "withinPolicy": true,
+            "prices": [
+              {
+                "scheme": "upto",
+                "amount": "0.01",
+                "atomic": "100000",
+                "asset": "USDC",
+                "assetContract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+                "decimals": 7,
+                "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+                "feesSponsored": true,
+                "receivable": true,
+                "withinPolicy": true
+              }
+            ],
+            "trust": "origin_verified",
+            "settlements": 1,
+            "seller": {
+              "serviceName": null,
+              "description": "Hourly weather forecast for a city, metered: 0.0002 USDC per forecast hour, at most 0.01 USDC per call",
+              "tags": []
+            },
+            "input": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "City name"
+                  },
+                  "hours": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 48,
+                    "description": "Number of hours ahead to forecast, 1-48; each hour is charged"
+                  }
+                },
+                "required": [
+                  "city",
+                  "hours"
+                ],
+                "additionalProperties": false
+              },
+              "example": {
+                "city": "Istanbul",
+                "hours": 12
+              },
+              "pathParams": []
+            },
+            "output": {
+              "example": {
+                "city": "Istanbul",
+                "hours": [
+                  {
+                    "hour": 1,
+                    "temperature": 18,
+                    "conditions": "cloudy"
+                  }
+                ],
+                "charged": {
+                  "units": 1,
+                  "amount": "2000"
+                }
+              }
+            }
+          }
+        ],
+        "nextCursor": null,
+        "partialResults": true,
+        "search": {
+          "method": "lexical"
+        }
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 50,
+      "kind": "bazaar",
+      "phase": "listing",
+      "listing": {
+        "id": "827ce2c9-061a-43c2-aaa6-66aafbbd80f1",
+        "resource": "https://demo.rail402.dev/mcp",
+        "type": "mcp",
+        "method": null,
+        "toolName": "hourly_forecast",
+        "description": "Hourly weather forecast for a city, metered: 0.0002 USDC per forecast hour, at most 0.01 USDC per call",
+        "serviceName": null,
+        "owner": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+        "network": "stellar:testnet",
+        "trust": "origin_verified",
+        "state": "published",
+        "version": 2,
+        "settlements": 1,
+        "price": {
+          "scheme": "upto",
+          "amount": "100000",
+          "decimal": "0.01",
+          "symbol": "USDC"
+        },
+        "callable": true,
+        "notPayable": null,
+        "rank": 1,
+        "input": {
+          "pathParams": [],
+          "example": {
+            "city": "Istanbul",
+            "hours": 12
+          },
+          "required": [
+            "city",
+            "hours"
+          ]
+        }
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 50,
+      "kind": "tool",
+      "phase": "call",
+      "name": "get_budget",
+      "args": {}
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 51,
+      "kind": "tool",
+      "phase": "result",
+      "name": "get_budget",
+      "isError": false,
+      "result": {
+        "ok": true,
+        "network": "stellar:testnet",
+        "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+        "policy": {
+          "assets": [
+            {
+              "asset": "USDC",
+              "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "decimals": 7,
+              "perCallCap": "0.01",
+              "sessionCap": "1"
+            }
+          ],
+          "schemes": [
+            "exact",
+            "upto"
+          ],
+          "uptoContracts": [
+            "CCQPG6UZIIARBN5MXZBVFGQKFHX37CPKG5R3CIZKGBECJOFFYT35GT6P"
+          ],
+          "uptoFacilitators": "any",
+          "recipients": "any",
+          "maxAuthorizationSeconds": 300,
+          "requireCatalogListing": false,
+          "minTrust": {
+            "http": "settled",
+            "mcp": "settled"
+          }
+        },
+        "payments": "enabled",
+        "budget": {
+          "session": "default",
+          "window": "fd05eb39-664f-4d50-bab2-7f442091c839",
+          "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "startedAt": "2026-10-03T19:37:09.550Z",
+          "expiresAt": "2026-10-04T19:37:09.550Z",
+          "autoRenew": true,
+          "assets": [
+            {
+              "asset": "USDC",
+              "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "decimals": 7,
+              "perCallCap": "0.01",
+              "sessionCap": "1",
+              "spent": "0.0041",
+              "pending": "0.01",
+              "remaining": "0.9859"
+            }
+          ],
+          "awaitingProof": 0,
+          "falseClaims": 0
+        }
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 59,
+      "kind": "tool",
+      "phase": "call",
+      "name": "pay_and_call",
+      "args": {
+        "listingId": "827ce2c9-061a-43c2-aaa6-66aafbbd80f1",
+        "arguments": {
+          "city": "Izmir",
+          "hours": 6
+        },
+        "spendingCap": {
+          "amount": "0.01",
+          "asset": "USDC"
+        },
+        "idempotencyKey": "pg_203afd0c-fd8c-4016-9864-7834233d199d"
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 70,
+      "kind": "sdk",
+      "event": {
+        "type": "probe",
+        "callId": "446d03d8-1353-4cf5-b6e8-d6edd5bc63ea",
+        "resource": "https://demo.rail402.dev/mcp tool=hourly_forecast"
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 72,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-1",
+      "via": "relay",
+      "method": "POST",
+      "url": "https://demo.rail402.dev/mcp",
+      "paid": false,
+      "headerNames": [
+        "accept",
+        "content-type",
+        "mcp-method",
+        "mcp-protocol-version"
+      ],
+      "bodyBytes": 269,
+      "rpc": {
+        "method": "server/discover",
+        "toolName": null,
+        "hasPayment": false
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 80,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-1",
+      "status": 400,
+      "ms": 8
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 84,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-2",
+      "via": "relay",
+      "method": "POST",
+      "url": "https://demo.rail402.dev/mcp",
+      "paid": false,
+      "headerNames": [
+        "accept",
+        "content-type"
+      ],
+      "bodyBytes": 152,
+      "rpc": {
+        "method": "initialize",
+        "toolName": null,
+        "hasPayment": false
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 94,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-2",
+      "status": 200,
+      "ms": 8,
+      "rpc": {
+        "isError": false,
+        "errorCode": null,
+        "errorMessage": null,
+        "required": null,
+        "settle": null
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 94,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-3",
+      "via": "relay",
+      "method": "POST",
+      "url": "https://demo.rail402.dev/mcp",
+      "paid": false,
+      "headerNames": [
+        "accept",
+        "content-type",
+        "mcp-protocol-version"
+      ],
+      "bodyBytes": 54,
+      "rpc": {
+        "method": "notifications/initialized",
+        "toolName": null,
+        "hasPayment": false
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 100,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-3",
+      "status": 202,
+      "ms": 6
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 101,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-4",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/mcp",
+      "paid": false,
+      "headerNames": [
+        "accept",
+        "mcp-protocol-version"
+      ],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 102,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-5",
+      "via": "relay",
+      "method": "POST",
+      "url": "https://demo.rail402.dev/mcp",
+      "paid": false,
+      "headerNames": [
+        "accept",
+        "content-type",
+        "mcp-protocol-version"
+      ],
+      "bodyBytes": 121,
+      "rpc": {
+        "method": "tools/call",
+        "toolName": "hourly_forecast",
+        "hasPayment": false
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 107,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-4",
+      "status": 405,
+      "ms": 6
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 110,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-5",
+      "status": 200,
+      "ms": 6,
+      "rpc": {
+        "isError": true,
+        "errorCode": null,
+        "errorMessage": null,
+        "required": {
+          "x402Version": 2,
+          "resource": {
+            "url": "https://demo.rail402.dev/mcp",
+            "description": "Hourly weather forecast for a city, metered: 0.0002 USDC per forecast hour, at most 0.01 USDC per call",
+            "mimeType": "application/json"
+          },
+          "error": "Payment required to access this tool",
+          "options": [
+            {
+              "index": 0,
+              "scheme": "upto",
+              "network": "stellar:testnet",
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "symbol": "USDC",
+              "decimals": 7,
+              "amount": "100000",
+              "decimal": "0.01",
+              "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+              "maxTimeoutSeconds": 120,
+              "feesSponsored": true,
+              "facilitatorAddress": "GAJLHDKRGE4YVOJIRON56ZVZSTASMVKMMREZVEVZVPW4N6KV4BHGLUNK",
+              "facilitatorAddressAdvertised": true,
+              "verdict": {
+                "acceptable": true,
+                "code": null,
+                "reason": null
+              }
+            }
+          ],
+          "bazaar": {
+            "declared": true,
+            "type": "mcp",
+            "method": null,
+            "toolName": "hourly_forecast"
+          }
+        },
+        "settle": null
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 132,
+      "kind": "sdk",
+      "event": {
+        "type": "quote",
+        "callId": "446d03d8-1353-4cf5-b6e8-d6edd5bc63ea",
+        "options": 1,
+        "acceptable": 1
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 149,
+      "kind": "sdk",
+      "event": {
+        "type": "reserved",
+        "callId": "446d03d8-1353-4cf5-b6e8-d6edd5bc63ea",
+        "reservation": "a64f04e9-575c-4c60-8992-8965fb85fd7e",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "amount": "100000"
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 150,
+      "kind": "auth",
+      "view": {
+        "network": "stellar:testnet",
+        "address": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+        "credential": "address",
+        "nonce": "5551421957568602375",
+        "expirationLedger": 592752,
+        "latestLedger": 592728,
+        "expiresInSeconds": 120,
+        "scheme": "upto",
+        "contract": "CCQPG6UZIIARBN5MXZBVFGQKFHX37CPKG5R3CIZKGBECJOFFYT35GT6P",
+        "terms": {
+          "recipient": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+          "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "maxAmount": "100000",
+          "validAfterLedger": 0,
+          "expirationLedger": 592752,
+          "facilitator": "GAJLHDKRGE4YVOJIRON56ZVZSTASMVKMMREZVEVZVPW4N6KV4BHGLUNK"
+        },
+        "approve": {
+          "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "from": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "spender": "CCQPG6UZIIARBN5MXZBVFGQKFHX37CPKG5R3CIZKGBECJOFFYT35GT6P",
+          "amount": "100000",
+          "expirationLedger": 592752
+        }
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 151,
+      "kind": "sdk",
+      "event": {
+        "type": "signed",
+        "callId": "446d03d8-1353-4cf5-b6e8-d6edd5bc63ea",
+        "reservation": "a64f04e9-575c-4c60-8992-8965fb85fd7e",
+        "nonce": "5551421957568602375",
+        "expirationLedger": 592752
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 153,
+      "kind": "sdk",
+      "event": {
+        "type": "sent",
+        "callId": "446d03d8-1353-4cf5-b6e8-d6edd5bc63ea",
+        "reservation": "a64f04e9-575c-4c60-8992-8965fb85fd7e"
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 153,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-6",
+      "via": "relay",
+      "method": "POST",
+      "url": "https://demo.rail402.dev/mcp",
+      "paid": true,
+      "headerNames": [
+        "accept",
+        "content-type",
+        "mcp-protocol-version"
+      ],
+      "bodyBytes": 3068,
+      "rpc": {
+        "method": "tools/call",
+        "toolName": "hourly_forecast",
+        "hasPayment": true
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 1236,
+      "kind": "sdk",
+      "event": {
+        "type": "settled",
+        "callId": "446d03d8-1353-4cf5-b6e8-d6edd5bc63ea",
+        "reservation": "a64f04e9-575c-4c60-8992-8965fb85fd7e",
+        "transaction": "f2da8becd5fe8db2d5413f1afbdc8ef8ada0bc0d7ad042376d99aeedb4337b11",
+        "amount": "12000"
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 1237,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-6",
+      "status": 200,
+      "ms": 7,
+      "rpc": {
+        "isError": false,
+        "errorCode": null,
+        "errorMessage": null,
+        "required": null,
+        "settle": {
+          "from": "mcp-meta",
+          "success": true,
+          "transaction": "f2da8becd5fe8db2d5413f1afbdc8ef8ada0bc0d7ad042376d99aeedb4337b11",
+          "network": "stellar:testnet",
+          "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "amount": "12000",
+          "errorReason": null,
+          "errorMessage": null
+        }
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 1245,
+      "kind": "sdk",
+      "event": {
+        "type": "released",
+        "callId": "446d03d8-1353-4cf5-b6e8-d6edd5bc63ea",
+        "reservation": "a64f04e9-575c-4c60-8992-8965fb85fd7e",
+        "reason": "settled_below_cap",
+        "amount": "88000"
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 1247,
+      "kind": "tool",
+      "phase": "result",
+      "name": "pay_and_call",
+      "isError": false,
+      "result": {
+        "ok": true,
+        "callId": "446d03d8-1353-4cf5-b6e8-d6edd5bc63ea",
+        "replayed": false,
+        "target": {
+          "type": "mcp",
+          "resource": "https://demo.rail402.dev/mcp",
+          "method": null,
+          "toolName": "hourly_forecast",
+          "listingId": "827ce2c9-061a-43c2-aaa6-66aafbbd80f1"
+        },
+        "paid": true,
+        "payment": {
+          "status": "settled",
+          "scheme": "upto",
+          "network": "stellar:testnet",
+          "asset": "USDC",
+          "assetContract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.01",
+            "atomic": "100000"
+          },
+          "settled": {
+            "amount": "0.0012",
+            "atomic": "12000"
+          },
+          "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+          "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "transaction": "f2da8becd5fe8db2d5413f1afbdc8ef8ada0bc0d7ad042376d99aeedb4337b11",
+          "explorerUrl": "https://stellar.expert/explorer/testnet/tx/f2da8becd5fe8db2d5413f1afbdc8ef8ada0bc0d7ad042376d99aeedb4337b11",
+          "verifiedOnChain": true
+        },
+        "response": {
+          "kind": "mcp",
+          "isError": false,
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"city\":\"Izmir\",\"hours\":[{\"hour\":1,\"temperature\":20,\"conditions\":\"sunny\"},{\"hour\":2,\"temperature\":22,\"conditions\":\"rain\"},{\"hour\":3,\"temperature\":24,\"conditions\":\"fog\"},{\"hour\":4,\"temperature\":9,\"conditions\":\"cloudy\"},{\"hour\":5,\"temperature\":11,\"conditions\":\"windy\"},{\"hour\":6,\"temperature\":13,\"condi…"
+            }
+          ],
+          "structuredContent": {
+            "city": "Izmir",
+            "hours": [
+              {
+                "hour": 1,
+                "temperature": 20,
+                "conditions": "sunny"
+              },
+              {
+                "hour": 2,
+                "temperature": 22,
+                "conditions": "rain"
+              },
+              {
+                "hour": 3,
+                "temperature": 24,
+                "conditions": "fog"
+              },
+              {
+                "hour": 4,
+                "temperature": 9,
+                "conditions": "cloudy"
+              },
+              {
+                "hour": 5,
+                "temperature": 11,
+                "conditions": "windy"
+              },
+              {
+                "hour": 6,
+                "temperature": 13,
+                "conditions": "sunny"
+              }
+            ],
+            "charged": {
+              "units": 6,
+              "amount": "12000"
+            }
+          },
+          "truncated": false
+        },
+        "budget": {
+          "session": "default",
+          "window": "fd05eb39-664f-4d50-bab2-7f442091c839",
+          "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "startedAt": "2026-10-03T19:37:09.550Z",
+          "expiresAt": "2026-10-04T19:37:09.550Z",
+          "autoRenew": true,
+          "assets": [
+            {
+              "asset": "USDC",
+              "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "decimals": 7,
+              "perCallCap": "0.01",
+              "sessionCap": "1",
+              "spent": "0.0053",
+              "pending": "0.01",
+              "remaining": "0.9847"
+            }
+          ],
+          "awaitingProof": 0,
+          "falseClaims": 0
+        }
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 1247,
+      "kind": "delivery",
+      "view": {
+        "target": "mcp",
+        "status": null,
+        "isError": false,
+        "contentType": "application/json",
+        "body": "{\"city\":\"Izmir\",\"hours\":[{\"hour\":1,\"temperature\":20,\"conditions\":\"sunny\"},{\"hour\":2,\"temperature\":22,\"conditions\":\"rain\"},{\"hour\":3,\"temperature\":24,\"conditions\":\"fog\"},{\"hour\":4,\"temperature\":9,\"conditions\":\"cloudy\"},{\"hour\":5,\"temperature\":11,\"conditions\":\"windy\"},{\"hour\":6,\"temperature\":13,\"conditions\":\"sunny\"}],\"charged\":{\"units\":6,\"amount\":\"12000\"}}",
+        "truncated": false,
+        "receipt": {
+          "status": "settled",
+          "scheme": "upto",
+          "transaction": "f2da8becd5fe8db2d5413f1afbdc8ef8ada0bc0d7ad042376d99aeedb4337b11",
+          "settled": "12000",
+          "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+          "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "verifiedOnChain": true
+        }
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 1264,
+      "kind": "chain",
+      "phase": "tx",
+      "view": {
+        "hash": "f2da8becd5fe8db2d5413f1afbdc8ef8ada0bc0d7ad042376d99aeedb4337b11",
+        "network": "stellar:testnet",
+        "status": "SUCCESS",
+        "ledger": 592729,
+        "closedAt": "2026-10-03T19:37:23.000Z",
+        "feeBump": {
+          "outerHash": "f2da8becd5fe8db2d5413f1afbdc8ef8ada0bc0d7ad042376d99aeedb4337b11",
+          "innerHash": "a1252b11c9aa2604fbe1955df6635d75b5826d536832120e332c17b0d0edba88",
+          "feeSource": "GD4QMGUQAIHFP46CWPGQR52WJVBTWUO4NDROCYGTLRZ6I4OYX5MNJLM6",
+          "feeCharged": "134321"
+        },
+        "feeSourceAdvertised": true,
+        "transfers": [
+          {
+            "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "from": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+            "to": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "amount": "12000",
+            "decimal": "0.0012"
+          }
+        ],
+        "x402Shape": "upto",
+        "nonces": [
+          "5551421957568602375"
+        ],
+        "uptoSettled": {
+          "amount": "12000",
+          "maxAmount": "100000"
+        },
+        "explorerUrl": "https://stellar.expert/explorer/testnet/tx/f2da8becd5fe8db2d5413f1afbdc8ef8ada0bc0d7ad042376d99aeedb4337b11"
+      }
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 1273,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "0.9959",
+      "after": "0.9947"
+    },
+    {
+      "runId": "203afd0c-fd8c-4016-9864-7834233d199d",
+      "at": 1273,
+      "kind": "run",
+      "phase": "end",
+      "status": "ok",
+      "reason": "The agent paid the tool and got its answer."
+    }
+  ]
+}

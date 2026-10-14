@@ -1,0 +1,282 @@
+{
+  "format": "rail402-playground-run",
+  "version": 1,
+  "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+  "network": "stellar:testnet",
+  "playgroundVersion": "0.4.0",
+  "startedAt": "2026-10-03T19:37:16.057Z",
+  "summary": {
+    "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+    "status": "ok",
+    "reason": "Paid and delivered."
+  },
+  "events": [
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 0,
+      "kind": "run",
+      "phase": "start",
+      "scenario": "pay",
+      "variant": "normal",
+      "cap": "0.01"
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 36,
+      "kind": "sdk",
+      "event": {
+        "type": "probe",
+        "callId": "be510732-2389-4f15-a4cd-c36377adbdac",
+        "resource": "https://demo.rail402.dev/weather?city=Ankara"
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 36,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-1",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/weather?city=Ankara",
+      "paid": false,
+      "headerNames": [],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 49,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-1",
+      "status": 402,
+      "ms": 12,
+      "required": {
+        "x402Version": 2,
+        "resource": {
+          "url": "https://demo.rail402.dev/weather?city=Ankara",
+          "description": "Current weather for a city",
+          "mimeType": "application/json"
+        },
+        "error": "Payment required",
+        "options": [
+          {
+            "index": 0,
+            "scheme": "exact",
+            "network": "stellar:testnet",
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "decimals": 7,
+            "amount": "10000",
+            "decimal": "0.001",
+            "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "maxTimeoutSeconds": 300,
+            "feesSponsored": true,
+            "facilitatorAddress": null,
+            "facilitatorAddressAdvertised": null,
+            "verdict": {
+              "acceptable": true,
+              "code": null,
+              "reason": null
+            }
+          }
+        ],
+        "bazaar": {
+          "declared": true,
+          "type": "http",
+          "method": "GET",
+          "toolName": null
+        }
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 51,
+      "kind": "sdk",
+      "event": {
+        "type": "quote",
+        "callId": "be510732-2389-4f15-a4cd-c36377adbdac",
+        "options": 1,
+        "acceptable": 1
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 110,
+      "kind": "sdk",
+      "event": {
+        "type": "reserved",
+        "callId": "be510732-2389-4f15-a4cd-c36377adbdac",
+        "reservation": "246078f7-2639-4541-9556-5b013a3f189d",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "amount": "10000"
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 111,
+      "kind": "auth",
+      "view": {
+        "network": "stellar:testnet",
+        "address": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+        "credential": "address",
+        "nonce": "5319270632646516553",
+        "expirationLedger": 592782,
+        "latestLedger": 592721,
+        "expiresInSeconds": 305,
+        "scheme": "exact",
+        "transfer": {
+          "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "from": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "to": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+          "amount": "10000"
+        }
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 112,
+      "kind": "sdk",
+      "event": {
+        "type": "signed",
+        "callId": "be510732-2389-4f15-a4cd-c36377adbdac",
+        "reservation": "246078f7-2639-4541-9556-5b013a3f189d",
+        "nonce": "5319270632646516553",
+        "expirationLedger": 592782
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 136,
+      "kind": "sdk",
+      "event": {
+        "type": "sent",
+        "callId": "be510732-2389-4f15-a4cd-c36377adbdac",
+        "reservation": "246078f7-2639-4541-9556-5b013a3f189d"
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 136,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-2",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/weather?city=Ankara",
+      "paid": true,
+      "headerNames": [
+        "payment-signature"
+      ],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 1229,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-2",
+      "status": 200,
+      "ms": 1093,
+      "settle": {
+        "from": "payment-response",
+        "success": true,
+        "transaction": "6ca79479cba7f0253b2c8af32b4cdd9c983652a01934073d8667ed32ca539914",
+        "network": "stellar:testnet",
+        "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+        "amount": null,
+        "errorReason": null,
+        "errorMessage": null
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 1230,
+      "kind": "sdk",
+      "event": {
+        "type": "settled",
+        "callId": "be510732-2389-4f15-a4cd-c36377adbdac",
+        "reservation": "246078f7-2639-4541-9556-5b013a3f189d",
+        "transaction": "6ca79479cba7f0253b2c8af32b4cdd9c983652a01934073d8667ed32ca539914",
+        "amount": "10000"
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 1240,
+      "kind": "delivery",
+      "view": {
+        "target": "http",
+        "status": 200,
+        "isError": false,
+        "contentType": "application/json; charset=utf-8",
+        "body": "{\"city\":\"Ankara\",\"temperature\":21,\"conditions\":\"sunny\"}",
+        "truncated": false,
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "transaction": "6ca79479cba7f0253b2c8af32b4cdd9c983652a01934073d8667ed32ca539914",
+          "settled": "10000",
+          "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+          "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "verifiedOnChain": true
+        }
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 1257,
+      "kind": "chain",
+      "phase": "tx",
+      "view": {
+        "hash": "6ca79479cba7f0253b2c8af32b4cdd9c983652a01934073d8667ed32ca539914",
+        "network": "stellar:testnet",
+        "status": "SUCCESS",
+        "ledger": 592723,
+        "closedAt": "2026-10-03T19:37:17.000Z",
+        "feeBump": {
+          "outerHash": "6ca79479cba7f0253b2c8af32b4cdd9c983652a01934073d8667ed32ca539914",
+          "innerHash": "16cbbc26a04efaabac85b0f5123c212cc3fe9760bcf058b1e3207ef41b76c1d0",
+          "feeSource": "GD4QMGUQAIHFP46CWPGQR52WJVBTWUO4NDROCYGTLRZ6I4OYX5MNJLM6",
+          "feeCharged": "88862"
+        },
+        "feeSourceAdvertised": true,
+        "transfers": [
+          {
+            "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "from": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+            "to": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "amount": "10000",
+            "decimal": "0.001"
+          }
+        ],
+        "x402Shape": "exact",
+        "nonces": [
+          "5319270632646516553"
+        ],
+        "uptoSettled": null,
+        "explorerUrl": "https://stellar.expert/explorer/testnet/tx/6ca79479cba7f0253b2c8af32b4cdd9c983652a01934073d8667ed32ca539914"
+      }
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 1276,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "1",
+      "after": "0.999"
+    },
+    {
+      "runId": "9f604114-b658-4ed3-a5e5-e0a9e569fdd3",
+      "at": 1276,
+      "kind": "run",
+      "phase": "end",
+      "status": "ok",
+      "reason": "Paid and delivered."
+    }
+  ]
+}

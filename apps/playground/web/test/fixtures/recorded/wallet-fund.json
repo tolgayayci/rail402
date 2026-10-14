@@ -1,0 +1,44 @@
+{
+  "format": "rail402-playground-run",
+  "version": 1,
+  "runId": "ecec8740-7b59-49f8-bf3e-13e836112d6c",
+  "network": "stellar:testnet",
+  "playgroundVersion": "0.4.0",
+  "startedAt": "2026-10-03T19:33:12.812Z",
+  "summary": {
+    "runId": "ecec8740-7b59-49f8-bf3e-13e836112d6c",
+    "status": "ok",
+    "reason": "Funded with 1 USDC for testing."
+  },
+  "events": [
+    {
+      "runId": "ecec8740-7b59-49f8-bf3e-13e836112d6c",
+      "at": 2239,
+      "kind": "wallet",
+      "step": "friendbot",
+      "transaction": "2eb93138bf2dd0faf2a48494519f358313a3e30ee1fabbb73a8b8e543c1fe63a"
+    },
+    {
+      "runId": "ecec8740-7b59-49f8-bf3e-13e836112d6c",
+      "at": 3295,
+      "kind": "wallet",
+      "step": "trustline",
+      "transaction": "c6e00cfcaa893d74f15afc8b5f6782646ecc18268ce49521a272e9a1693c8312"
+    },
+    {
+      "runId": "ecec8740-7b59-49f8-bf3e-13e836112d6c",
+      "at": 4327,
+      "kind": "wallet",
+      "step": "bought",
+      "transaction": "37a5e24777e114334e4fb8fe0ea8c1830c463041c9a3928696c9ae66994fcf7c"
+    },
+    {
+      "runId": "ecec8740-7b59-49f8-bf3e-13e836112d6c",
+      "at": 4349,
+      "kind": "run",
+      "phase": "end",
+      "status": "ok",
+      "reason": "Funded with 1 USDC for testing."
+    }
+  ]
+}

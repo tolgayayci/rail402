@@ -1,0 +1,307 @@
+{
+  "format": "rail402-playground-run",
+  "version": 1,
+  "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+  "network": "stellar:testnet",
+  "playgroundVersion": "0.4.0",
+  "startedAt": "2026-10-03T19:37:20.090Z",
+  "summary": {
+    "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+    "status": "ok",
+    "reason": "Settled 0.0021 of 0.01 authorized; the rest returns to the budget."
+  },
+  "events": [
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 0,
+      "kind": "run",
+      "phase": "start",
+      "scenario": "upto",
+      "variant": "normal",
+      "cap": "0.01"
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 23,
+      "kind": "sdk",
+      "event": {
+        "type": "probe",
+        "callId": "40e2d229-c7f5-461c-8821-6fd019e1da4f",
+        "resource": "https://demo.rail402.dev/history?city=Berlin&days=7"
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 23,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-1",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/history?city=Berlin&days=7",
+      "paid": false,
+      "headerNames": [],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 31,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-1",
+      "status": 402,
+      "ms": 8,
+      "required": {
+        "x402Version": 2,
+        "resource": {
+          "url": "https://demo.rail402.dev/history?city=Berlin&days=7",
+          "description": "Daily weather history for a city, metered: 0.0003 USDC per day returned, at most 0.01 USDC per call",
+          "mimeType": "application/json"
+        },
+        "error": "Payment required",
+        "options": [
+          {
+            "index": 0,
+            "scheme": "upto",
+            "network": "stellar:testnet",
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "decimals": 7,
+            "amount": "100000",
+            "decimal": "0.01",
+            "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "maxTimeoutSeconds": 120,
+            "feesSponsored": true,
+            "facilitatorAddress": "GAJLHDKRGE4YVOJIRON56ZVZSTASMVKMMREZVEVZVPW4N6KV4BHGLUNK",
+            "facilitatorAddressAdvertised": true,
+            "verdict": {
+              "acceptable": true,
+              "code": null,
+              "reason": null
+            }
+          }
+        ],
+        "bazaar": {
+          "declared": true,
+          "type": "http",
+          "method": "GET",
+          "toolName": null
+        }
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 31,
+      "kind": "sdk",
+      "event": {
+        "type": "quote",
+        "callId": "40e2d229-c7f5-461c-8821-6fd019e1da4f",
+        "options": 1,
+        "acceptable": 1
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 58,
+      "kind": "sdk",
+      "event": {
+        "type": "reserved",
+        "callId": "40e2d229-c7f5-461c-8821-6fd019e1da4f",
+        "reservation": "ba1ede50-6113-4a71-87c4-085f969f01e6",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "amount": "100000"
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 59,
+      "kind": "auth",
+      "view": {
+        "network": "stellar:testnet",
+        "address": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+        "credential": "address",
+        "nonce": "8587004847103679611",
+        "expirationLedger": 592750,
+        "latestLedger": 592726,
+        "expiresInSeconds": 120,
+        "scheme": "upto",
+        "contract": "CCQPG6UZIIARBN5MXZBVFGQKFHX37CPKG5R3CIZKGBECJOFFYT35GT6P",
+        "terms": {
+          "recipient": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+          "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "maxAmount": "100000",
+          "validAfterLedger": 0,
+          "expirationLedger": 592750,
+          "facilitator": "GAJLHDKRGE4YVOJIRON56ZVZSTASMVKMMREZVEVZVPW4N6KV4BHGLUNK"
+        },
+        "approve": {
+          "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "from": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "spender": "CCQPG6UZIIARBN5MXZBVFGQKFHX37CPKG5R3CIZKGBECJOFFYT35GT6P",
+          "amount": "100000",
+          "expirationLedger": 592750
+        }
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 60,
+      "kind": "sdk",
+      "event": {
+        "type": "signed",
+        "callId": "40e2d229-c7f5-461c-8821-6fd019e1da4f",
+        "reservation": "ba1ede50-6113-4a71-87c4-085f969f01e6",
+        "nonce": "8587004847103679611",
+        "expirationLedger": 592750
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 62,
+      "kind": "sdk",
+      "event": {
+        "type": "sent",
+        "callId": "40e2d229-c7f5-461c-8821-6fd019e1da4f",
+        "reservation": "ba1ede50-6113-4a71-87c4-085f969f01e6"
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 62,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-2",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/history?city=Berlin&days=7",
+      "paid": true,
+      "headerNames": [
+        "payment-signature"
+      ],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 1152,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-2",
+      "status": 200,
+      "ms": 1089,
+      "settle": {
+        "from": "payment-response",
+        "success": true,
+        "transaction": "b5a7bf4b76166393ffe04e84262f06aaa170678f75f671d082243f86d2cc4718",
+        "network": "stellar:testnet",
+        "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+        "amount": "21000",
+        "errorReason": null,
+        "errorMessage": null
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 1152,
+      "kind": "sdk",
+      "event": {
+        "type": "settled",
+        "callId": "40e2d229-c7f5-461c-8821-6fd019e1da4f",
+        "reservation": "ba1ede50-6113-4a71-87c4-085f969f01e6",
+        "transaction": "b5a7bf4b76166393ffe04e84262f06aaa170678f75f671d082243f86d2cc4718",
+        "amount": "21000"
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 1163,
+      "kind": "sdk",
+      "event": {
+        "type": "released",
+        "callId": "40e2d229-c7f5-461c-8821-6fd019e1da4f",
+        "reservation": "ba1ede50-6113-4a71-87c4-085f969f01e6",
+        "reason": "settled_below_cap",
+        "amount": "79000"
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 1163,
+      "kind": "delivery",
+      "view": {
+        "target": "http",
+        "status": 200,
+        "isError": false,
+        "contentType": "application/json; charset=utf-8",
+        "body": "{\"city\":\"Berlin\",\"days\":[{\"daysAgo\":1,\"high\":17,\"low\":9,\"conditions\":\"rain\"},{\"daysAgo\":2,\"high\":22,\"low\":2,\"conditions\":\"windy\"},{\"daysAgo\":3,\"high\":27,\"low\":5,\"conditions\":\"fog\"},{\"daysAgo\":4,\"high\":14,\"low\":8,\"conditions\":\"sunny\"},{\"daysAgo\":5,\"high\":19,\"low\":11,\"conditions\":\"cloudy\"},{\"daysAgo\":6,\"high\":24,\"low\":4,\"conditions\":\"rain\"},{\"daysAgo\":7,\"high\":29,\"low\":7,\"conditions\":\"windy\"}],\"charged\":{\"units\":7,\"amount\":\"21000\"}}",
+        "truncated": false,
+        "receipt": {
+          "status": "settled",
+          "scheme": "upto",
+          "transaction": "b5a7bf4b76166393ffe04e84262f06aaa170678f75f671d082243f86d2cc4718",
+          "settled": "21000",
+          "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+          "payer": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+          "verifiedOnChain": true
+        }
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 1182,
+      "kind": "chain",
+      "phase": "tx",
+      "view": {
+        "hash": "b5a7bf4b76166393ffe04e84262f06aaa170678f75f671d082243f86d2cc4718",
+        "network": "stellar:testnet",
+        "status": "SUCCESS",
+        "ledger": 592727,
+        "closedAt": "2026-10-03T19:37:21.000Z",
+        "feeBump": {
+          "outerHash": "b5a7bf4b76166393ffe04e84262f06aaa170678f75f671d082243f86d2cc4718",
+          "innerHash": "d7d4844952bfd16a61ac27a36633d641e517c3e6a358ac2069b60f80e2e9bf7f",
+          "feeSource": "GD4QMGUQAIHFP46CWPGQR52WJVBTWUO4NDROCYGTLRZ6I4OYX5MNJLM6",
+          "feeCharged": "144498"
+        },
+        "feeSourceAdvertised": true,
+        "transfers": [
+          {
+            "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "from": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+            "to": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "amount": "21000",
+            "decimal": "0.0021"
+          }
+        ],
+        "x402Shape": "upto",
+        "nonces": [
+          "8587004847103679611"
+        ],
+        "uptoSettled": {
+          "amount": "21000",
+          "maxAmount": "100000"
+        },
+        "explorerUrl": "https://stellar.expert/explorer/testnet/tx/b5a7bf4b76166393ffe04e84262f06aaa170678f75f671d082243f86d2cc4718"
+      }
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 1190,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "0.998",
+      "after": "0.9959"
+    },
+    {
+      "runId": "e64da8e4-1b48-4758-8dd2-6a13acec647a",
+      "at": 1190,
+      "kind": "run",
+      "phase": "end",
+      "status": "ok",
+      "reason": "Settled 0.0021 of 0.01 authorized; the rest returns to the budget."
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "format": "rail402-playground-run",
+  "version": 1,
+  "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+  "network": "stellar:testnet",
+  "playgroundVersion": "0.4.0",
+  "startedAt": "2026-10-03T19:33:51.070Z",
+  "summary": {
+    "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+    "status": "refused",
+    "code": "egress_destination_not_allowed",
+    "reason": "The host 169.254.169.254 is a private, local or reserved destination."
+  },
+  "events": [
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 0,
+      "kind": "run",
+      "phase": "start",
+      "scenario": "pay",
+      "variant": "private-address",
+      "cap": "0.01"
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 19,
+      "kind": "sdk",
+      "event": {
+        "type": "probe",
+        "callId": "fdc713a4-90af-4209-8ea6-e2ef56cdca53",
+        "resource": "https://127.0.0.1/"
+      }
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 19,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-30",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://127.0.0.1/",
+      "paid": false,
+      "headerNames": [],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 24,
+      "kind": "http",
+      "phase": "failed",
+      "id": "relay-30",
+      "code": "egress_connection_failed",
+      "reason": "The connection was refused or reset, or the server answered with an invalid response.",
+      "stage": "connect"
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 24,
+      "kind": "refusal",
+      "layer": "relay",
+      "code": "egress_connection_failed",
+      "reason": "The connection was refused or reset, or the server answered with an invalid response.",
+      "details": {
+        "stage": "connect",
+        "paid": "none",
+        "callId": "fdc713a4-90af-4209-8ea6-e2ef56cdca53"
+      }
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 28,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "0.9737",
+      "after": "0.9737"
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 33,
+      "kind": "sdk",
+      "event": {
+        "type": "probe",
+        "callId": "44d43d93-4ebe-4fe5-9d85-923eef047d47",
+        "resource": "https://169.254.169.254/"
+      }
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 33,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-31",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://169.254.169.254/",
+      "paid": false,
+      "headerNames": [],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 35,
+      "kind": "http",
+      "phase": "failed",
+      "id": "relay-31",
+      "code": "egress_destination_not_allowed",
+      "reason": "The host 169.254.169.254 is a private, local or reserved destination.",
+      "stage": "url"
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 35,
+      "kind": "refusal",
+      "layer": "relay",
+      "code": "egress_destination_not_allowed",
+      "reason": "The host 169.254.169.254 is a private, local or reserved destination.",
+      "details": {
+        "stage": "url",
+        "paid": "none",
+        "callId": "44d43d93-4ebe-4fe5-9d85-923eef047d47"
+      }
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 39,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "0.9737",
+      "after": "0.9737"
+    },
+    {
+      "runId": "807f1c6d-e83e-4885-a386-67ab7fdb25aa",
+      "at": 39,
+      "kind": "run",
+      "phase": "end",
+      "status": "refused",
+      "code": "egress_destination_not_allowed",
+      "reason": "The host 169.254.169.254 is a private, local or reserved destination."
+    }
+  ]
+}

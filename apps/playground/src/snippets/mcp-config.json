@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "rail402": {
+      "command": "npx",
+      "args": ["-y", "@rail402.dev/mcp"],
+      "env": {
+        "RAIL402_NETWORK": "stellar:testnet",
+        "RAIL402_SECRET_KEY_FILE": "~/.config/rail402/keys/stellar-testnet.key",
+        "RAIL402_MAX_PER_CALL": "{{cap}} {{asset}}",
+        "RAIL402_MAX_TOTAL": "{{sessionTotal}} {{asset}}"
+      }
+    }
+  }
+}
