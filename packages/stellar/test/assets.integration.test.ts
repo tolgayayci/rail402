@@ -12,7 +12,7 @@ import {
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
 import { AssetDirectory } from "@rail402.dev/stellar";
-import { LocalNetwork, randomContractId, type IssuedAsset } from "@rail402.dev/testkit";
+import { LocalNetwork, deployUpto, randomContractId, type IssuedAsset } from "@rail402.dev/testkit";
 
 const net = new LocalNetwork();
 const available = await net.available();
@@ -33,6 +33,18 @@ describe.skipIf(!available)("AssetDirectory", () => {
       decimals: 7,
     });
     expect(await directory.describe(randomContractId())).toBeUndefined();
+  });
+
+  it("inspects what a contract is: a token with its decimals, a contract that is not one, or nothing", async () => {
+    expect(await directory.inspect(usdc.sac)).toEqual({ found: true, kind: "sac", decimals: 7 });
+    // The upto settlement contract has no decimals(): definitive, not an error to retry.
+    const settlement = await deployUpto(net);
+    expect(await directory.inspect(settlement.address)).toEqual({
+      found: true,
+      kind: "sep41",
+      decimals: undefined,
+    });
+    expect(await directory.inspect(randomContractId())).toEqual({ found: false });
   });
 
   it("knows who can receive a Stellar Asset Contract token", async () => {
@@ -76,6 +88,78 @@ describe.skipIf(!available)("AssetDirectory", () => {
     await net.fund(account);
     expect(await directory.receivable(native, account.publicKey())).toBe(true);
     expect(await directory.receivable(native, Keypair.random().publicKey())).toBe(false);
+    const funds = await directory.funds(native, account.publicKey());
+    expect(funds).toMatchObject({ trustline: true, authorized: true });
+    expect(funds?.balance).toBe(await net.nativeBalance(account.publicKey()));
+    // The two base reserves of a plain account are not available to send.
+    expect(funds?.available).toBe((funds?.balance ?? 0n) - 10_000_000n);
+    expect(await directory.funds(native, Keypair.random().publicKey())).toEqual({
+      trustline: false,
+      authorized: false,
+      balance: 0n,
+      available: 0n,
+    });
+  });
+
+  it("reads what an account holds of a Stellar Asset Contract token", async () => {
+    const holder = await net.holder(usdc, "2.5");
+    const stranger = Keypair.random();
+    await net.fund(stranger);
+    expect(await directory.funds(usdc.sac, holder.publicKey())).toEqual({
+      trustline: true,
+      authorized: true,
+      balance: 25_000_000n,
+      available: 25_000_000n,
+    });
+    expect(await directory.funds(usdc.sac, stranger.publicKey())).toEqual({
+      trustline: false,
+      authorized: false,
+      balance: 0n,
+      available: 0n,
+    });
+    // Not decidable from one ledger entry: the issuer, contract accounts and non-tokens.
+    expect(await directory.funds(usdc.sac, usdc.issuer.publicKey())).toBeUndefined();
+    expect(await directory.funds(usdc.sac, randomContractId())).toBeUndefined();
+    expect(await directory.funds(randomContractId(), holder.publicKey())).toBeUndefined();
+  });
+
+  it("reports an unauthorized trustline", async () => {
+    const issuer = Keypair.random();
+    await net.fund(issuer);
+    await net.classic(issuer, [Operation.setOptions({ setFlags: AuthRequiredFlag })]);
+    const asset = new Asset("GBPT", issuer.publicKey());
+    const issued: IssuedAsset = { asset, issuer, sac: asset.contractId(net.passphrase) };
+    await deploySac(issued);
+    const holder = Keypair.random();
+    await net.fund(holder);
+    await net.trust(holder, issued);
+    expect(await directory.funds(issued.sac, holder.publicKey())).toEqual({
+      trustline: true,
+      authorized: false,
+      balance: 0n,
+      available: 0n,
+    });
+  });
+
+  it("holds back what open offers sell", async () => {
+    const holder = await net.holder(usdc, "2.5");
+    await net.classic(holder, [
+      Operation.manageSellOffer({ selling: usdc.asset, buying: Asset.native(), amount: "1", price: "1000" }),
+    ]);
+    expect(await directory.funds(usdc.sac, holder.publicKey())).toMatchObject({
+      balance: 25_000_000n,
+      available: 15_000_000n,
+    });
+  });
+
+  it("reads an account's home domain", async () => {
+    const account = Keypair.random();
+    await net.fund(account);
+    expect(await directory.homeDomain(account.publicKey())).toBeUndefined();
+    await net.classic(account, [Operation.setOptions({ homeDomain: "Pay.Example.com" })]);
+    expect(await directory.homeDomain(account.publicKey())).toBe("pay.example.com");
+    expect(await directory.homeDomain(randomContractId())).toBeUndefined();
+    expect(await directory.homeDomain(Keypair.random().publicKey())).toBeUndefined();
   });
 
   it("cannot decide for a contract that is not a readable token", async () => {

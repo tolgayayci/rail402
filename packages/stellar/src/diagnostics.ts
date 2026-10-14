@@ -1,4 +1,5 @@
 import { Address, scValToNative, xdr } from "@stellar/stellar-sdk";
+import type { AssetKind } from "./assets.ts";
 import type { ExactStellarCode } from "./codes.ts";
 
 /** A host error recorded as a diagnostic event: `topics = ["error", ScError]`, `data = message [, args…]`. */
@@ -63,6 +64,12 @@ export interface TransferContext {
   readonly asset: string;
   readonly from: string;
   readonly to: string;
+  /**
+   * What the token contract is. The Stellar Asset Contract's error numbers (trustline missing,
+   * balance out of range, …) are named only for `"sac"`; a custom token's own errors, and any error
+   * from a token whose kind is unknown, are reported as `token_rejected` with the number.
+   */
+  readonly assetKind?: AssetKind | undefined;
 }
 
 export interface Classification {
@@ -74,7 +81,8 @@ export interface Classification {
 /**
  * Maps the host errors of a failed simulation of `transfer(from, to, amount)` to a stable code.
  * Error numbers for the Stellar Asset Contract come from soroban-env-host `contract_error.rs`;
- * messages and structure were captured from protocol 28 simulations.
+ * messages and structure were captured from protocol 28 simulations. They apply only when the context
+ * says the token is a Stellar Asset Contract.
  */
 export function classifyTransferFailure(
   errors: readonly HostError[],
@@ -113,6 +121,13 @@ export function classifyTransferFailure(
   }
 
   const assetError = errors.find((e) => e.type === "Contract" && e.contract === context.asset);
+  if (assetError !== undefined && context.assetKind !== "sac") {
+    // Error numbers are each contract's own: #10 of one token is not #10 of another.
+    return {
+      code: "invalid_exact_stellar_payload_token_rejected",
+      reason: `The token contract rejected the transfer with error #${String(assetError.code)}.`,
+    };
+  }
   if (assetError !== undefined) {
     const subject = typeof assetError.args[0] === "string" ? assetError.args[0] : undefined;
     switch (assetError.code) {
@@ -149,6 +164,19 @@ export function classifyTransferFailure(
 
   const unauthorized = errors.find((e) => e.type === "Auth" && e.code === "InvalidAction");
   if (unauthorized !== undefined) {
+    // A G… payer that does not exist fails authentication on reading its own account entry.
+    const accountMissing = errors.some(
+      (e) =>
+        e.type === "Storage" &&
+        e.code === "MissingValue" &&
+        e.message?.includes("non-existing value for account") === true,
+    );
+    if (accountMissing && unauthorized.message?.includes("failed account authentication") === true) {
+      return {
+        code: "invalid_exact_stellar_payload_account_missing",
+        reason: `The payer account ${context.from} does not exist on this network.`,
+      };
+    }
     if (unauthorized.message?.includes("failed account authentication") === true) {
       return {
         code: context.from.startsWith("C")

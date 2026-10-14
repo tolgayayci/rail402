@@ -13,7 +13,7 @@ import {
 const asset = randomContractId();
 const from = Keypair.random().publicKey();
 const to = Keypair.random().publicKey();
-const context = { asset, from, to };
+const context = { asset, from, to, assetKind: "sac" as const };
 
 /** Event sequences below mirror diagnostics captured from protocol 28 simulations. */
 const classify = (...events: xdr.DiagnosticEvent[]) => classifyTransferFailure(hostErrors(events), context);
@@ -86,6 +86,30 @@ describe("classifyTransferFailure", () => {
     ).toBe("invalid_exact_stellar_payload_invalid_signature");
   });
 
+  it("a payer account that does not exist → account_missing", () => {
+    expect(
+      classify(
+        errorEvent({
+          contract: asset,
+          error: authError(xdr.ScErrorCode.scecInvalidAction()),
+          message: "failed account authentication with error",
+          args: [
+            address(from),
+            xdr.ScVal.scvError(xdr.ScError.sceStorage(xdr.ScErrorCode.scecMissingValue())),
+          ],
+        }),
+        errorEvent({
+          contract: asset,
+          error: xdr.ScError.sceStorage(xdr.ScErrorCode.scecMissingValue()),
+          message: "trying to get non-existing value for account",
+        }),
+      ),
+    ).toEqual({
+      code: "invalid_exact_stellar_payload_account_missing",
+      reason: `The payer account ${from} does not exist on this network.`,
+    });
+  });
+
   it("operation differs from the signed invocation → unauthorized_invocation", () => {
     expect(
       classify(
@@ -130,6 +154,36 @@ describe("classifyTransferFailure", () => {
         .code;
     expect(sac(6)).toBe("invalid_exact_stellar_payload_account_missing");
     expect(sac(11)).toBe("invalid_exact_stellar_payload_trustline_not_authorized");
+  });
+
+  it("names a custom token's own error by number, never by the Stellar Asset Contract's meaning", () => {
+    // TEST6's InsufficientBalance, as a protocol 28 simulation of the test token reports it.
+    const tokenError = (code: number) =>
+      errorEvent({
+        contract: asset,
+        error: contractError(code),
+        message: "failing with contract error",
+        args: [],
+      });
+    for (const assetKind of ["sep41", undefined] as const) {
+      for (const code of [100, 10, 13]) {
+        const result = classifyTransferFailure(hostErrors([tokenError(code)]), { ...context, assetKind });
+        expect(result.code).toBe("invalid_exact_stellar_payload_token_rejected");
+        expect(result.reason).toBe(`The token contract rejected the transfer with error #${String(code)}.`);
+      }
+    }
+  });
+
+  it("keeps naming authorization failures for a custom token", () => {
+    const replayed = errorEvent({
+      contract: asset,
+      error: authError(xdr.ScErrorCode.scecExistingValue()),
+      message: "nonce already exists for address",
+      args: [address(from)],
+    });
+    expect(classifyTransferFailure(hostErrors([replayed]), { ...context, assetKind: "sep41" }).code).toBe(
+      "invalid_exact_stellar_payload_nonce_already_used",
+    );
   });
 
   it("a smart-account payer rejecting in __check_auth → smart_account_rejected", () => {

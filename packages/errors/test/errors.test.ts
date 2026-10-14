@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { subscribe, unsubscribe } from "node:diagnostics_channel";
+import { describe, expect, it, vi } from "vitest";
 import {
+  CODE_CHANNEL,
   Rail402Error,
   defineCodes,
   errorFactory,
@@ -7,6 +9,7 @@ import {
   httpError,
   isRail402Error,
   mergeCodes,
+  reportCode,
   toErrorBody,
 } from "@rail402.dev/errors";
 
@@ -75,6 +78,38 @@ describe("Rail402Error", () => {
   it("every shared HTTP code has a non-empty reason", () => {
     for (const [code, spec] of Object.entries(httpCodes)) {
       expect(spec.reason.trim(), code).not.toBe("");
+    }
+  });
+});
+
+describe("reportCode", () => {
+  it("publishes each code on the diagnostics channel while someone listens", () => {
+    const seen: unknown[] = [];
+    const listener = (message: unknown) => seen.push(message);
+    subscribe(CODE_CHANNEL, listener);
+    try {
+      reportCode("not_found");
+      httpError("rate_limited");
+    } finally {
+      unsubscribe(CODE_CHANNEL, listener);
+    }
+    reportCode("bad_request");
+    expect(seen).toEqual([{ code: "not_found" }, { code: "rate_limited" }]);
+  });
+
+  it("loads and raises errors where Node's diagnostics channels do not exist", async () => {
+    vi.resetModules();
+    vi.stubGlobal("process", undefined);
+    try {
+      const fresh = await import("@rail402.dev/errors");
+      const error = fresh.httpError("not_found");
+      expect(error.code).toBe("not_found");
+      expect(() => {
+        fresh.reportCode("not_found");
+      }).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.resetModules();
     }
   });
 });

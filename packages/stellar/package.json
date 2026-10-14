@@ -1,7 +1,7 @@
 {
   "name": "@rail402.dev/stellar",
-  "version": "0.2.1",
-  "description": "Stellar network profiles, x402 exact payload inspection and failure classification for Rail402.",
+  "version": "0.4.1",
+  "description": "Stellar network profiles, x402 exact and upto payload inspection and failure classification for Rail402.",
   "license": "Apache-2.0",
   "keywords": [
     "x402",
@@ -35,8 +35,10 @@
   },
   "dependencies": {
     "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/upto": "workspace:*",
     "@stellar/stellar-sdk": "catalog:",
-    "@x402/stellar": "catalog:"
+    "@x402/stellar": "catalog:",
+    "buffer": "catalog:"
   },
   "devDependencies": {
     "@rail402.dev/testkit": "workspace:*"
@@ -45,6 +47,12 @@
     "node": ">=24.11"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   }
 }

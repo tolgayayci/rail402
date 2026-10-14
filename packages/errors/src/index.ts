@@ -4,6 +4,48 @@
  * is defined, so a missing reason or a malformed code fails at startup instead of on the wire.
  */
 
+/**
+ * Every code returned to a caller is published on this diagnostics channel as `{ code }`. Publishing is
+ * a no-op without subscribers; test runs subscribe to record which codes the suites exercise.
+ */
+export const CODE_CHANNEL = "rail402:code";
+
+export interface CodeEvent {
+  readonly code: string;
+}
+
+interface CodeChannel {
+  readonly hasSubscribers: boolean;
+  publish(message: unknown): void;
+}
+
+interface DiagnosticsChannelModule {
+  channel(name: string): CodeChannel;
+}
+
+/** Undefined until first use; null where Node's diagnostics channels do not exist (browsers). */
+let codeChannel: CodeChannel | null | undefined;
+
+/**
+ * Resolves the channel on first use, through `process.getBuiltinModule` instead of a static import, so
+ * this module also loads in browsers, where reporting is a no-op.
+ */
+function channelOf(): CodeChannel | null {
+  if (codeChannel === undefined) {
+    const host = (globalThis as { process?: { getBuiltinModule?: (id: string) => unknown } }).process;
+    const module = host?.getBuiltinModule?.("node:diagnostics_channel") as
+      DiagnosticsChannelModule | undefined;
+    codeChannel = module?.channel(CODE_CHANNEL) ?? null;
+  }
+  return codeChannel;
+}
+
+/** Announces that `code` is being returned to a caller. */
+export function reportCode(code: string): void {
+  const channel = channelOf();
+  if (channel?.hasSubscribers === true) channel.publish({ code } satisfies CodeEvent);
+}
+
 export interface CodeSpec {
   /** HTTP status used when the code is returned as a transport-level error. */
   readonly status: number;
@@ -75,6 +117,7 @@ export class Rail402Error<C extends string = string> extends Error {
     this.status = spec.status;
     this.retryable = spec.retryable;
     this.details = options.details;
+    reportCode(code);
   }
 }
 

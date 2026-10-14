@@ -2,7 +2,7 @@
 
 Stellar helpers for x402 on Rail402.
 
-Inspection of x402 `exact` payment payloads on Stellar, the reason codes for what is wrong with one, and diagnosis of on-chain settlement failures. Used by [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator).
+Inspection of x402 `exact` and `upto` payment payloads on Stellar, the reason codes for what is wrong with one, and diagnosis of on-chain settlement failures. Decoding of the Soroban authorization preimages a wallet signs, SEP-41 transfer events (from a transaction or the RPC event store), authorization expiry arithmetic, a shared latest-ledger reading, and token balances and trustlines. Used by [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator).
 
 ```sh
 npm install @rail402.dev/stellar

@@ -54,7 +54,11 @@ export const exactStellarCodes = defineCodes({
   },
 
   // --- upstream @x402/stellar exact scheme -------------------------------------------------------
-  unsupported_scheme: { status: 400, retryable: false, reason: "Only the exact scheme is supported." },
+  unsupported_scheme: {
+    status: 400,
+    retryable: false,
+    reason: "The payment scheme is not supported by this facilitator.",
+  },
   network_mismatch: {
     status: 400,
     retryable: false,
@@ -226,7 +230,8 @@ export const exactStellarCodes = defineCodes({
   invalid_exact_stellar_requirements_invalid_pay_to: {
     status: 400,
     retryable: false,
-    reason: "payTo must be a Stellar account (G…), contract (C…) or muxed account (M…) address.",
+    reason:
+      "payTo must be a Stellar account (G…) or contract (C…) address; muxed (M…) addresses are refused.",
   },
   invalid_exact_stellar_requirements_invalid_amount: {
     status: 400,
@@ -330,13 +335,18 @@ export const exactStellarCodes = defineCodes({
     retryable: true,
     reason: "Ledger state needed by the transfer is archived and must be restored first.",
   },
+  invalid_exact_stellar_payload_token_rejected: {
+    status: 400,
+    retryable: false,
+    reason: "The token contract rejected the transfer with one of its own errors.",
+  },
 
   // --- Rail402: settlement engine ----------------------------------------------------------------
   settle_exact_stellar_idempotency_conflict: {
     status: 409,
     retryable: false,
     reason:
-      "This authorization was already submitted for settlement inside a different transaction envelope.",
+      "This authorization was already submitted for settlement with a different transaction envelope or different payment terms.",
   },
   settle_exact_stellar_settlement_in_progress: {
     status: 409,
