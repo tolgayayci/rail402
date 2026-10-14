@@ -6,14 +6,17 @@ import {
   identityKey,
   narrowOptions,
   optionMatches,
+  type CatalogStats,
   type CatalogStore,
   type CatalogTransaction,
+  type DomainClaim,
   type ListFilter,
   type Listing,
   type ListingFacts,
   type ListingIdentity,
   type ListingVersion,
   type OriginCheck,
+  type QuarantineReason,
   type QueuedSettlement,
   type ResourceListings,
   type SettledPayment,
@@ -55,6 +58,16 @@ export class PostgresCatalogStore implements CatalogStore {
   async get(id: string): Promise<Listing | undefined> {
     const row = await this.db.selectFrom("listings").selectAll().where("id", "=", id).executeTakeFirst();
     return row === undefined ? undefined : toListing(row);
+  }
+
+  async getMany(ids: readonly string[]): Promise<Listing[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.db
+      .selectFrom("listings")
+      .selectAll()
+      .where("id", "in", [...new Set(ids)])
+      .execute();
+    return rows.map(toListing);
   }
 
   async list(filter: ListFilter): Promise<{ items: ResourceListings[]; total: number }> {
@@ -158,6 +171,7 @@ export class PostgresCatalogStore implements CatalogStore {
       owner: row.owner,
       trust: row.trust as Listing["trust"],
       state: row.state as Listing["state"],
+      ...(row.reason === null ? {} : { reason: row.reason as QuarantineReason }),
       content: row.content,
     }));
   }
@@ -294,6 +308,25 @@ export class PostgresCatalogStore implements CatalogStore {
     await this.db.deleteFrom("catalog_outbox").where("transaction", "=", transaction).execute();
   }
 
+  async stats(): Promise<CatalogStats> {
+    const [states, queued] = await Promise.all([
+      this.db
+        .selectFrom("listings")
+        .select(["state", (eb) => eb.fn.countAll<string>().as("count")])
+        .groupBy("state")
+        .execute(),
+      this.db
+        .selectFrom("catalog_outbox")
+        .select((eb) => eb.fn.countAll<string>().as("count"))
+        .executeTakeFirstOrThrow(),
+    ]);
+    const listings = { pending: 0, published: 0, quarantined: 0 };
+    for (const row of states) {
+      if (row.state in listings) listings[row.state] = Number(row.count);
+    }
+    return { listings, queuedSettlements: Number(queued.count) };
+  }
+
   private tx(db: Kysely<Database> | Transaction<Database>): CatalogTransaction {
     // The row lock this takes is held until commit: catalog changes commit one revision at a time.
     const bump = () =>
@@ -332,6 +365,7 @@ export class PostgresCatalogStore implements CatalogStore {
           owner: version.owner,
           trust: version.trust,
           state: version.state,
+          reason: version.reason ?? null,
           content: JSON.stringify(version.content),
         })
         .execute();
@@ -390,7 +424,8 @@ export class PostgresCatalogStore implements CatalogStore {
           .select((eb) => eb.fn.countAll<string>().as("count"))
           .where("owner", "=", owner)
           .where("first_cataloged_at", ">=", since)
-          .where("state", "<>", "quarantined")
+          .where("state", "=", "published")
+          .where("trust", "<>", "settled")
           .executeTakeFirstOrThrow();
         return Number(row.count);
       },
@@ -467,10 +502,16 @@ export class PostgresCatalogStore implements CatalogStore {
           await bump();
         }
       },
-      requestOriginCheck: async (listingId, reason, url, proposedOwner) => {
+      requestOriginCheck: async (listingId, reason, url, proposedOwner, settled) => {
         await db
           .insertInto("origin_checks")
-          .values({ listing_id: listingId, reason, url, proposed_owner: proposedOwner ?? null })
+          .values({
+            listing_id: listingId,
+            reason,
+            url,
+            proposed_owner: proposedOwner ?? null,
+            settled_option: settled === undefined ? null : JSON.stringify(settled),
+          })
           .onConflict((conflict) =>
             conflict.column("listing_id").doUpdateSet((eb) => ({
               // An ownership claim is never downgraded by a later, plainer request.
@@ -481,6 +522,7 @@ export class PostgresCatalogStore implements CatalogStore {
                 AND ${eb.ref("excluded.reason")} <> 'owner_conflict' THEN origin_checks.proposed_owner
                 ELSE ${eb.ref("excluded.proposed_owner")} END`,
               url: eb.ref("excluded.url"),
+              settled_option: eb.ref("excluded.settled_option"),
               attempts: 0,
               due_at: sql<Date>`now()`,
               claimed_until: null,
@@ -501,12 +543,23 @@ function toOriginCheck(row: Selectable<OriginChecksTable>): OriginCheck {
     attempts: row.attempts,
     requestId: row.request_id,
     ...(row.proposed_owner === null ? {} : { proposedOwner: row.proposed_owner }),
+    ...(row.settled_option === null ? {} : { settled: row.settled_option }),
   };
 }
 
 function factsOf(stored: unknown): ListingFacts {
-  const facts = stored as Omit<ListingFacts, "checkedAt"> & { checkedAt: string };
-  return { ...facts, checkedAt: new Date(facts.checkedAt) };
+  const { checkedAt, options, domain } = stored as Omit<ListingFacts, "checkedAt" | "domain"> & {
+    checkedAt: string;
+    domain?: Omit<DomainClaim, "homeDomainMatches"> & { homeDomainMatches?: boolean };
+  };
+  return {
+    checkedAt: new Date(checkedAt),
+    options,
+    // Facts read before homeDomainMatches was stored set claimsOwner only when both sides held.
+    ...(domain === undefined
+      ? {}
+      : { domain: { ...domain, homeDomainMatches: domain.homeDomainMatches ?? domain.claimsOwner } }),
+  };
 }
 
 function toListing(row: Selectable<ListingsTable>): Listing {

@@ -114,13 +114,16 @@ describe("SponsorBudget", () => {
 
   it("refuses while the sponsor is below its reserve, admits otherwise", async () => {
     let balance: bigint | undefined = 10n;
+    const refusals: string[] = [];
     const guard = new SponsorBudget({
       network: "stellar:testnet",
       ledger: new MemorySettlementLedger(),
       balance: () => balance,
       minBalanceStroops: 100n,
+      onRefusal: (limit) => refusals.push(limit),
     });
     expect(await guard.admit()).toMatchObject({ ok: false });
+    expect(refusals).toEqual(["reserve"]);
     balance = 1_000n;
     expect(await guard.admit()).toEqual({ ok: true });
     balance = undefined;
@@ -129,16 +132,21 @@ describe("SponsorBudget", () => {
 
   it("refuses once the hourly fee budget is committed", async () => {
     const ledger = new MemorySettlementLedger();
+    const refusals: string[] = [];
     const guard = new SponsorBudget({
       network: "stellar:testnet",
       ledger,
       balance: () => 10_000_000n,
       minBalanceStroops: 0n,
       maxSpendPerHourStroops: 50_000n,
+      onRefusal: (limit) => {
+        refusals.push(limit);
+        throw new Error("a failing hook never changes the answer");
+      },
     });
     const { record } = await ledger.claim(
       { network: "stellar:testnet", payer: "G1", nonce: "1" },
-      "p",
+      { payloadHash: "p", requestHash: "p" },
       "o",
       60_000,
     );
@@ -146,7 +154,7 @@ describe("SponsorBudget", () => {
     expect(await guard.admit()).toEqual({ ok: true });
     const second = await ledger.claim(
       { network: "stellar:testnet", payer: "G2", nonce: "1" },
-      "p",
+      { payloadHash: "p", requestHash: "p" },
       "o",
       60_000,
     );
@@ -154,5 +162,6 @@ describe("SponsorBudget", () => {
     const refused = await guard.admit();
     expect(refused.ok).toBe(false);
     expect(refused.ok ? "" : refused.reason).toContain("hourly fee budget");
+    expect(refusals).toEqual(["budget"]);
   });
 });

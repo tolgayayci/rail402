@@ -1,23 +1,35 @@
 import { Keypair, rpc } from "@stellar/stellar-sdk";
 import { x402Facilitator } from "@x402/core/facilitator";
 import { PUBNET, USDC, networkPassphrase, type StellarNetwork } from "@rail402.dev/stellar";
+import {
+  UPTO_DEPLOYMENTS,
+  isContractAddress,
+  type LedgerSecondsSource,
+  type ZeroSettlementMode,
+} from "@rail402.dev/upto";
+import { deriveAuthorityKeypair } from "./authority.ts";
 import { MemoryChannelPool, type ChannelPool } from "./channels.ts";
 import { SettlementEngine, type SettlementTiming, type SponsorGuard } from "./engine.ts";
 import { InclusionFeeOracle, type InclusionFeeOptions } from "./fees.ts";
 import { deriveChannelKeypairs } from "./keys.ts";
 import type { SettlementLedger } from "./ledger.ts";
+import { RpcLedgerSeconds } from "./ledger-seconds.ts";
 import { silentLogger, type Logger } from "./logger.ts";
 import { MemorySettlementLedger } from "./memory-ledger.ts";
+import type { SettlementObserver } from "./observer.ts";
 import {
   DEFAULT_EXPIRATION_MARGIN_LEDGERS,
   DEFAULT_MAX_TRANSACTION_FEE_STROOPS,
   DEFAULT_TIMEOUT_SECONDS,
+  DEFAULT_UPTO_MAX_TRANSACTION_FEE_STROOPS,
   MIN_INCLUSION_FEE_STROOPS,
   acceptedAsset,
   type AcceptedAsset,
   type NetworkPolicy,
+  type UptoPolicy,
 } from "./policy.ts";
 import { StellarExactScheme } from "./scheme.ts";
+import { StellarUptoScheme } from "./upto-scheme.ts";
 
 export interface NetworkSetup {
   readonly network: StellarNetwork;
@@ -36,11 +48,55 @@ export interface NetworkSetup {
   readonly inclusionFee?: InclusionFeeOptions;
   /** Refuses settlements while the sponsor cannot safely pay for them. */
   readonly guard?: SponsorGuard;
+  /**
+   * Answer a payment another party's transaction landed first, with the payer's authorization exactly
+   * as signed, as settled in that transaction. Default true.
+   */
+  readonly reconcileThirdParty?: boolean;
+  /**
+   * Settle `upto` payments on this network too. The settlement authority is derived from the sponsor
+   * (`deriveAuthorityKeypair`) and must exist on the network (`provisionAuthority`).
+   */
+  readonly upto?: UptoSetup;
+}
+
+/** `upto` on one network. */
+export interface UptoSetup {
+  /**
+   * The settlement contract. Defaults to the canonical deployment on the network; a network without
+   * one (a local network, or pubnet until it has one) needs it set.
+   */
+  readonly contract?: string;
+  /** Hex sha256 of the contract's WASM. Defaults to the canonical one when the contract is canonical. */
+  readonly contractWasmHash?: string;
+  /**
+   * `onchain` (default) or `offchain`; see `UptoPolicy.zeroSettlement`. An off-chain zero exists only
+   * in the settlement ledger, so `offchain` needs `NetworkSetup.ledger` set explicitly: a durable
+   * ledger shared by every process holding the settlement authority, or the in-memory one when a
+   * single process is all there is.
+   */
+  readonly zeroSettlement?: ZeroSettlementMode;
+  /** Fee ceiling for `upto` settlements, in stroops (default 500,000). */
+  readonly maxTransactionFeeStroops?: number;
+  /**
+   * Seconds per ledger for the expiration window. Defaults to the average close time over the ledgers
+   * the network's RPC (`rpcUrl`) retains, read at most once a minute (5 s when the RPC cannot tell);
+   * no other service is asked.
+   */
+  readonly ledgerSeconds?: LedgerSecondsSource;
+  /**
+   * Whether the settlement authority account exists now, e.g. from a background poll. While it
+   * answers false, `upto` payments are refused with `settle_upto_stellar_authority_unavailable`
+   * instead of failing at submission. Assumed ready when absent.
+   */
+  readonly authorityReady?: () => boolean;
 }
 
 export interface FacilitatorOptions {
   readonly networks: readonly NetworkSetup[];
   readonly log?: Logger;
+  /** Receives every network's settlement events, e.g. for metrics. */
+  readonly observer?: SettlementObserver;
 }
 
 export interface NetworkRuntime {
@@ -50,6 +106,8 @@ export interface NetworkRuntime {
   readonly engine: SettlementEngine;
   readonly channels: ChannelPool;
   readonly sponsorAddress: string;
+  /** The `upto` policy and settlement authority, when the network settles `upto`. */
+  readonly upto?: { readonly policy: UptoPolicy; readonly authorityAddress: string };
 }
 
 export interface StellarFacilitator {
@@ -71,7 +129,7 @@ export function createStellarFacilitator(options: FacilitatorOptions): StellarFa
 
   for (const setup of options.networks) {
     if (networks.has(setup.network)) throw new Error(`network ${setup.network} is configured twice`);
-    const runtime = buildNetwork(setup, log);
+    const runtime = buildNetwork(setup, log, options.observer);
     networks.set(setup.network, runtime);
     core.register(
       setup.network,
@@ -85,6 +143,21 @@ export function createStellarFacilitator(options: FacilitatorOptions): StellarFa
         log,
       }),
     );
+    if (runtime.upto !== undefined) {
+      core.register(
+        setup.network,
+        new StellarUptoScheme({
+          network: setup.network,
+          passphrase: networkPassphrase(setup.network),
+          server: runtime.server,
+          policy: runtime.policy,
+          upto: runtime.upto.policy,
+          engine: runtime.engine,
+          ...(setup.upto?.authorityReady === undefined ? {} : { authorityReady: setup.upto.authorityReady }),
+          log,
+        }),
+      );
+    }
   }
 
   return {
@@ -98,7 +171,7 @@ export function createStellarFacilitator(options: FacilitatorOptions): StellarFa
   };
 }
 
-function buildNetwork(setup: NetworkSetup, log: Logger): NetworkRuntime {
+function buildNetwork(setup: NetworkSetup, log: Logger, observer?: SettlementObserver): NetworkRuntime {
   const { network } = setup;
   const url = new URL(setup.rpcUrl);
   if (network === PUBNET && url.protocol !== "https:") throw new Error("pubnet RPC must use https");
@@ -116,6 +189,9 @@ function buildNetwork(setup: NetworkSetup, log: Logger): NetworkRuntime {
 
   const policy = resolvePolicy(setup);
   const server = new rpc.Server(setup.rpcUrl, { allowHttp: url.protocol === "http:" });
+  const upto =
+    setup.upto === undefined ? undefined : resolveUptoPolicy(setup, setup.upto, policy, server, log);
+  const authority = upto === undefined ? undefined : deriveAuthorityKeypair(sponsor, network);
   const engine = new SettlementEngine({
     network,
     passphrase: networkPassphrase(network),
@@ -126,14 +202,72 @@ function buildNetwork(setup: NetworkSetup, log: Logger): NetworkRuntime {
     channels,
     channelKeys: new Map(channelKeys.map((keypair) => [keypair.publicKey(), keypair])),
     sponsor,
+    ...(authority === undefined ? {} : { authority }),
     ...(setup.timing === undefined ? {} : { timing: setup.timing }),
     ...(setup.inclusionFee === undefined
       ? {}
       : { inclusionFee: new InclusionFeeOracle(server, setup.inclusionFee) }),
     ...(setup.guard === undefined ? {} : { guard: setup.guard }),
+    ...(setup.reconcileThirdParty === undefined ? {} : { reconcileThirdParty: setup.reconcileThirdParty }),
+    ...(observer === undefined ? {} : { observer }),
     log,
   });
-  return { network, policy, server, engine, channels, sponsorAddress: sponsor.publicKey() };
+  return {
+    network,
+    policy,
+    server,
+    engine,
+    channels,
+    sponsorAddress: sponsor.publicKey(),
+    ...(upto === undefined || authority === undefined
+      ? {}
+      : { upto: { policy: upto, authorityAddress: authority.publicKey() } }),
+  };
+}
+
+function resolveUptoPolicy(
+  setup: NetworkSetup,
+  upto: UptoSetup,
+  policy: NetworkPolicy,
+  server: rpc.Server,
+  log: Logger,
+): UptoPolicy {
+  const canonical = UPTO_DEPLOYMENTS[setup.network];
+  const contract = upto.contract ?? canonical?.address;
+  if (contract === undefined) {
+    throw new Error(`${setup.network}: no canonical upto settlement contract; configure one`);
+  }
+  if (!isContractAddress(contract)) throw new Error(`${setup.network}: upto contract must be a C… address`);
+  if (upto.zeroSettlement === "offchain" && setup.ledger === undefined) {
+    // Lost with the process or unseen by another, an off-chain zero leaves the authorization open to
+    // an on-chain settlement for more.
+    throw new Error(
+      `${setup.network}: upto zeroSettlement "offchain" needs an explicit settlement ledger, shared by every process holding the settlement authority`,
+    );
+  }
+  const contractWasmHash =
+    upto.contractWasmHash ?? (contract === canonical?.address ? canonical.wasmHash : undefined);
+  if (contractWasmHash !== undefined && !/^[0-9a-f]{64}$/.test(contractWasmHash)) {
+    throw new Error(`${setup.network}: upto contractWasmHash must be 64 lower-case hex characters`);
+  }
+  const maxTransactionFeeStroops = upto.maxTransactionFeeStroops ?? DEFAULT_UPTO_MAX_TRANSACTION_FEE_STROOPS;
+  if (!Number.isInteger(maxTransactionFeeStroops) || maxTransactionFeeStroops < policy.inclusionFeeStroops) {
+    throw new Error(
+      `${setup.network}: upto maxTransactionFeeStroops must be an integer of at least the inclusion fee`,
+    );
+  }
+  return {
+    contract,
+    contractWasmHash,
+    zeroSettlement: upto.zeroSettlement ?? "onchain",
+    maxTransactionFeeStroops,
+    ledgerSeconds: upto.ledgerSeconds ?? ledgerSecondsFrom(new RpcLedgerSeconds(server, { log })),
+  };
+}
+
+/** A ledger-seconds source read from the network's own RPC, cached (see `RpcLedgerSeconds`). */
+function ledgerSecondsFrom(estimate: RpcLedgerSeconds): LedgerSecondsSource {
+  return () => estimate.seconds();
 }
 
 function resolvePolicy(setup: NetworkSetup): NetworkPolicy {
@@ -152,6 +286,10 @@ function resolvePolicy(setup: NetworkSetup): NetworkPolicy {
   }
   if (policy.timeoutSeconds.min > policy.timeoutSeconds.max) {
     throw new Error(`${setup.network}: timeoutSeconds.min exceeds max`);
+  }
+  if (!Number.isInteger(policy.expirationMarginLedgers) || policy.expirationMarginLedgers < 1) {
+    // An authorization expiring at the current ledger can no longer be included.
+    throw new Error(`${setup.network}: expirationMarginLedgers must be an integer of at least 1`);
   }
   return policy;
 }

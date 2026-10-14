@@ -54,6 +54,21 @@ describe("settlement timing defaults", () => {
       confirmTimeoutMs: 25_000,
       duplicateWaitMs: 25_000,
       pollIntervalMs: 1_000,
+      reconcileIdleMs: 30_000,
+    });
+  });
+
+  it("leaves a recorded settlement to its request for confirmTimeoutMs plus 5 s before reconciling it", async () => {
+    const unfinishedOf = async (timing?: Partial<SettlementTiming>) => {
+      const { engine, ledger } = engineWith(timing === undefined ? {} : { timing });
+      const unfinished = vi.spyOn(ledger, "unfinished");
+      await engine.reconcile();
+      return unfinished.mock.calls[0]?.[1];
+    };
+    expect(await unfinishedOf()).toEqual({ idleForMs: 30_000 });
+    expect(await unfinishedOf({ confirmTimeoutMs: 60_000 })).toEqual({ idleForMs: 65_000 });
+    expect(await unfinishedOf({ confirmTimeoutMs: 60_000, reconcileIdleMs: 1_000 })).toEqual({
+      idleForMs: 1_000,
     });
   });
 
@@ -63,7 +78,13 @@ describe("settlement timing defaults", () => {
     const acquire = vi.spyOn(channels, "acquire").mockResolvedValue(undefined);
     const result = await engine.settle(payload, requirements, payment);
     expect(result).toMatchObject({ success: false, errorReason: "settle_exact_stellar_channel_unavailable" });
-    expect(claim).toHaveBeenCalledWith(expect.anything(), expect.any(String), expect.any(String), 30_000);
+    expect(claim).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.any(String),
+      30_000,
+      expect.anything(),
+    );
     expect(acquire).toHaveBeenCalledWith(5_000);
   });
 
@@ -73,7 +94,13 @@ describe("settlement timing defaults", () => {
     const acquire = vi.spyOn(channels, "acquire").mockResolvedValue(undefined);
     await engine.settle(payload, requirements, payment);
     expect(acquire).toHaveBeenCalledWith(10);
-    expect(claim).toHaveBeenCalledWith(expect.anything(), expect.any(String), expect.any(String), 30_000);
+    expect(claim).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.any(String),
+      30_000,
+      expect.anything(),
+    );
   });
 
   it("lets a duplicate request wait 25 s for the original", async () => {
@@ -104,6 +131,7 @@ describe("settlement timing defaults", () => {
     const record = {
       id: "settlement",
       key: { network: "stellar:testnet", payer: "GPAYER", nonce: "7" },
+      scheme: "exact",
       payloadHash: "hash",
       state: "submitted",
       owner: "owner",

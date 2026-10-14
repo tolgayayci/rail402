@@ -1,4 +1,9 @@
-import type { StellarNetwork, TokenInfo } from "@rail402.dev/stellar";
+import type { AssetKind, StellarNetwork, TokenInfo } from "@rail402.dev/stellar";
+import {
+  DEFAULT_MAX_TRANSACTION_FEE_STROOPS as UPTO_DEFAULT_MAX_TRANSACTION_FEE_STROOPS,
+  type LedgerSecondsSource,
+  type ZeroSettlementMode,
+} from "@rail402.dev/upto";
 
 /** Operator policy for one network. Every limit is configuration, never a constant in code. */
 export interface NetworkPolicy {
@@ -23,6 +28,11 @@ export interface AcceptedAsset extends TokenInfo {
   /** Inclusive bounds on `amount`, in the token's smallest unit. */
   readonly minAmount: bigint;
   readonly maxAmount: bigint;
+  /**
+   * A Stellar Asset Contract or another SEP-41 token, when known (the service reads it at startup).
+   * Unset, the facilitator reads it from the contract the first time a failure needs naming.
+   */
+  readonly kind?: AssetKind;
 }
 
 export const DEFAULT_TIMEOUT_SECONDS = { min: 10, max: 300 } as const;
@@ -47,3 +57,30 @@ export function acceptedAsset(
     maxAmount: bounds?.maxAmount ?? (1n << 127n) - 1n,
   };
 }
+
+/** Operator policy for `upto` on one network, on top of the network's `NetworkPolicy`. */
+export interface UptoPolicy {
+  /** The settlement contract (`C…`): the canonical deployment or an operator's own. */
+  readonly contract: string;
+  /** Hex sha256 of the contract's WASM, to recognise its archived code; unknown when absent. */
+  readonly contractWasmHash?: string | undefined;
+  /**
+   * What a zero-amount settlement does: `onchain` submits `settle(…, 0)`, which consumes the payer's
+   * nonce on-chain; `offchain` records the authorization as used and answers `transaction: ""`.
+   */
+  readonly zeroSettlement: ZeroSettlementMode;
+  /**
+   * Ceiling on the simulation-derived `upto` settlement fee, in stroops. An `upto` settlement costs
+   * more than an `exact` transfer: it runs the settlement contract, and the first payment to a
+   * recipient without a balance entry pays that entry's rent.
+   */
+  readonly maxTransactionFeeStroops: number;
+  /**
+   * Seconds per ledger for the expiration window. `createStellarFacilitator` sets it from the
+   * network's own RPC when its setup leaves it unset.
+   */
+  readonly ledgerSeconds?: LedgerSecondsSource | undefined;
+}
+
+/** The `upto` fee ceiling by default; see `UptoPolicy.maxTransactionFeeStroops`. */
+export const DEFAULT_UPTO_MAX_TRANSACTION_FEE_STROOPS = UPTO_DEFAULT_MAX_TRANSACTION_FEE_STROOPS;

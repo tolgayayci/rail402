@@ -10,6 +10,8 @@ export interface SponsorBudgetOptions {
   readonly minBalanceStroops: bigint;
   /** Refuse settlements once this much fee (stroops) was committed in the last hour; undefined = no cap. */
   readonly maxSpendPerHourStroops?: bigint;
+  /** Called on each refusal with the limit that refused: the reserve floor or the hourly budget. */
+  readonly onRefusal?: (limit: "reserve" | "budget") => void;
 }
 
 /**
@@ -28,6 +30,7 @@ export class SponsorBudget implements SponsorGuard {
   async admit(): Promise<{ ok: true } | { ok: false; reason: string }> {
     const balance = this.options.balance();
     if (balance !== undefined && balance < this.options.minBalanceStroops) {
+      this.refused("reserve");
       return {
         ok: false,
         reason: `The fee sponsor's balance is below its reserve floor on ${this.options.network}; settlement resumes once it is refunded.`,
@@ -40,6 +43,7 @@ export class SponsorBudget implements SponsorGuard {
         new Date(Date.now() - 3_600_000),
       );
       if (spent >= cap) {
+        this.refused("budget");
         return {
           ok: false,
           reason: `The hourly fee budget for ${this.options.network} is exhausted; retry later.`,
@@ -47,5 +51,13 @@ export class SponsorBudget implements SponsorGuard {
       }
     }
     return { ok: true };
+  }
+
+  private refused(limit: "reserve" | "budget"): void {
+    try {
+      this.options.onRefusal?.(limit);
+    } catch {
+      // Instrumentation never changes the guard's answer.
+    }
   }
 }

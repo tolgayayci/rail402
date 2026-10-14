@@ -13,6 +13,7 @@ import {
 import { exactStellarCodes } from "@rail402.dev/stellar";
 
 const key = { network: "stellar:testnet", payer: "GPAYER", nonce: "7" };
+const request = (hash: string) => ({ payloadHash: hash, requestHash: hash });
 const envelope = {
   channel: "GCHANNEL",
   transactionHash: "a".repeat(64),
@@ -25,24 +26,24 @@ const envelope = {
 describe("MemorySettlementLedger", () => {
   it("gives one claim per authorization and reports the holder to later callers", async () => {
     const ledger = new MemorySettlementLedger();
-    const first = await ledger.claim(key, "hash-1", "owner-1", 30_000);
-    const second = await ledger.claim(key, "hash-1", "owner-2", 30_000);
+    const first = await ledger.claim(key, request("hash-1"), "owner-1", 30_000);
+    const second = await ledger.claim(key, request("hash-1"), "owner-2", 30_000);
     expect(first.kind).toBe("claimed");
     expect(second).toMatchObject({ kind: "existing", record: { id: first.record.id, owner: "owner-1" } });
   });
 
   it("reports a conflict when the same authorization arrives in a different envelope", async () => {
     const ledger = new MemorySettlementLedger();
-    await ledger.claim(key, "hash-1", "owner-1", 30_000);
-    expect((await ledger.claim(key, "hash-2", "owner-2", 30_000)).kind).toBe("conflict");
+    await ledger.claim(key, request("hash-1"), "owner-1", 30_000);
+    expect((await ledger.claim(key, request("hash-2"), "owner-2", 30_000)).kind).toBe("conflict");
   });
 
   it("lets a stale claim without an envelope be taken over", async () => {
     let now = 1_000;
     const ledger = new MemorySettlementLedger(() => now);
-    const first = await ledger.claim(key, "hash-1", "owner-1", 5_000);
+    const first = await ledger.claim(key, request("hash-1"), "owner-1", 5_000);
     now += 5_000;
-    const taken = await ledger.claim(key, "hash-1", "owner-2", 5_000);
+    const taken = await ledger.claim(key, request("hash-1"), "owner-2", 5_000);
     expect(taken).toMatchObject({ kind: "claimed", record: { id: first.record.id, owner: "owner-2" } });
     await expect(ledger.recordEnvelope(first.record.id, "owner-1", envelope)).rejects.toBeInstanceOf(
       ClaimLostError,
@@ -52,10 +53,10 @@ describe("MemorySettlementLedger", () => {
   it("never lets a recorded envelope be taken over", async () => {
     let now = 1_000;
     const ledger = new MemorySettlementLedger(() => now);
-    const { record } = await ledger.claim(key, "hash-1", "owner-1", 5_000);
+    const { record } = await ledger.claim(key, request("hash-1"), "owner-1", 5_000);
     await ledger.recordEnvelope(record.id, "owner-1", envelope);
     now += 60_000;
-    expect(await ledger.claim(key, "hash-1", "owner-2", 5_000)).toMatchObject({
+    expect(await ledger.claim(key, request("hash-1"), "owner-2", 5_000)).toMatchObject({
       kind: "existing",
       record: { state: "submitted", transactionHash: envelope.transactionHash },
     });
@@ -64,7 +65,7 @@ describe("MemorySettlementLedger", () => {
 
   it("transitions to a terminal state exactly once", async () => {
     const ledger = new MemorySettlementLedger();
-    const { record } = await ledger.claim(key, "hash-1", "owner-1", 5_000);
+    const { record } = await ledger.claim(key, request("hash-1"), "owner-1", 5_000);
     await ledger.recordEnvelope(record.id, "owner-1", envelope);
     const success = settleSucceeded("stellar:testnet", envelope.transactionHash, "GPAYER");
     const first = await ledger.finish(record.id, "succeeded", success);
@@ -80,9 +81,9 @@ describe("MemorySettlementLedger", () => {
 
   it("drops an abandoned claim so the payment can be retried", async () => {
     const ledger = new MemorySettlementLedger();
-    const { record } = await ledger.claim(key, "hash-1", "owner-1", 5_000);
+    const { record } = await ledger.claim(key, request("hash-1"), "owner-1", 5_000);
     await ledger.abandon(record.id, "owner-1");
-    expect((await ledger.claim(key, "hash-1", "owner-2", 5_000)).kind).toBe("claimed");
+    expect((await ledger.claim(key, request("hash-1"), "owner-2", 5_000)).kind).toBe("claimed");
   });
 });
 

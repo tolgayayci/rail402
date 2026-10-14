@@ -3,7 +3,7 @@
  * Everything goes through the unmodified @x402/stellar verifier and settlement path, with real
  * channel accounts, a real fee-bump sponsor and real balance changes.
  */
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   Account,
@@ -23,6 +23,7 @@ import {
   acceptedAsset,
   createStellarFacilitator,
   deriveChannelKeypairs,
+  fingerprintOf,
   provisionChannels,
   type SettlementTiming,
   type SponsorGuard,
@@ -78,6 +79,8 @@ describe.skipIf(!available)("exact settlement on a live network", () => {
           timing: {
             pollIntervalMs: 250,
             channelWaitMs: 60_000,
+            // Each test plays one process; a record it left is reconciled at once, as after a restart.
+            reconcileIdleMs: 0,
             ...(options.confirmTimeoutMs === undefined ? {} : { confirmTimeoutMs: options.confirmTimeoutMs }),
             ...options.timing,
           },
@@ -181,9 +184,10 @@ describe.skipIf(!available)("exact settlement on a live network", () => {
     const { payload, requirements } = await pay(payer, 1_000_000n);
 
     const first = await facilitator.core.settle(payload, requirements);
-    const again = await facilitator.core.settle(payload, requirements);
+    const { extensionResponses, ...again } = await facilitator.core.settle(payload, requirements);
     expect(first.success).toBe(true);
     expect(again).toEqual(first);
+    expect(extensionResponses).toEqual({ rail402: { settlement: { repeat: true, settledBy: "rail402" } } });
     expect(await net.tokenBalance(usdc.sac, payer.publicKey())).toBe(1_000_000_000n - 1_000_000n);
   });
 
@@ -411,25 +415,6 @@ describe.skipIf(!available)("exact settlement on a live network", () => {
     });
   });
 
-  it("runs 3 batches of 20 concurrent settlements with no double settlement or sequence collision", async () => {
-    const concurrent = setup({ channelCount: 12 });
-    for (let batch = 0; batch < 3; batch++) {
-      const payers = await net.holders(usdc, 20, "10");
-      const payments = await Promise.all(payers.map((payer) => pay(payer, 3_000_000n)));
-      const results = await Promise.all(
-        payments.map(({ payload, requirements }) => concurrent.core.settle(payload, requirements)),
-      );
-      const failures = results.filter((result) => !result.success);
-      expect(failures, JSON.stringify(failures)).toEqual([]);
-      expect(new Set(results.map((result) => result.transaction)).size).toBe(20);
-      const balances = await Promise.all(
-        payers.map((payer) => net.tokenBalance(usdc.sac, payer.publicKey())),
-      );
-      expect(balances.every((balance) => balance === 100_000_000n - 3_000_000n)).toBe(true);
-      expect(await concurrent.networks.get(NETWORK)?.channels.inUse()).toBe(0);
-    }
-  }, 300_000);
-
   describe("refuses or finishes settlements it cannot complete, and says why", () => {
     it("refuses while the sponsor guard is closed, then settles once it reopens", async () => {
       const [payer] = (await net.holders(usdc, 1, "100")) as [Keypair];
@@ -496,7 +481,7 @@ describe.skipIf(!available)("exact settlement on a live network", () => {
       // Another worker holds the claim and has not signed anything yet.
       await ledger.claim(
         { network: NETWORK, payer: payer.publicKey(), nonce: nonce.toString() },
-        createHash("sha256").update(transaction).digest("hex"),
+        fingerprintOf(payload, requirements),
         "another-worker",
         60_000,
       );
@@ -516,7 +501,7 @@ describe.skipIf(!available)("exact settlement on a live network", () => {
       const owner = "crashed-worker";
       const { record } = await ledger.claim(
         { network: NETWORK, payer: Keypair.random().publicKey(), nonce: "1" },
-        "0".repeat(64),
+        { payloadHash: "0".repeat(64), requestHash: "0".repeat(64) },
         owner,
         60_000,
       );

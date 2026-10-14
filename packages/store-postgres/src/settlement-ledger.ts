@@ -3,13 +3,21 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import type { SettleResponse } from "@x402/core/types";
 import {
   ClaimLostError,
+  DEFAULT_SCHEME,
+  emptyStateCounts,
+  sameRequest,
   type Claim,
+  type ClaimDetails,
   type FinalState,
   type Finished,
+  type FinishDetails,
+  type RequestFingerprint,
   type SettlementEnvelope,
   type SettlementKey,
   type SettlementLedger,
   type SettlementRecord,
+  type SettlementState,
+  type UnfinishedOptions,
 } from "@rail402.dev/facilitator";
 import type { Database, SettlementsTable } from "./database.ts";
 
@@ -24,7 +32,13 @@ export class PostgresSettlementLedger implements SettlementLedger {
     this.db = db;
   }
 
-  async claim(key: SettlementKey, payloadHash: string, owner: string, ttlMs: number): Promise<Claim> {
+  async claim(
+    key: SettlementKey,
+    fingerprint: RequestFingerprint,
+    owner: string,
+    ttlMs: number,
+    details: ClaimDetails = {},
+  ): Promise<Claim> {
     const expiry = sql<Date>`now() + make_interval(secs => ${ttlMs / 1000})`;
     return this.db.transaction().execute(async (trx) => {
       const inserted = await trx
@@ -34,7 +48,10 @@ export class PostgresSettlementLedger implements SettlementLedger {
           network: key.network,
           payer: key.payer,
           nonce: key.nonce,
-          payload_hash: payloadHash,
+          payload_hash: fingerprint.payloadHash,
+          request_hash: fingerprint.requestHash,
+          scheme: details.scheme ?? DEFAULT_SCHEME,
+          amount: details.amount ?? null,
           state: "claimed",
           owner,
           claim_expires_at: expiry,
@@ -53,7 +70,8 @@ export class PostgresSettlementLedger implements SettlementLedger {
         .where("nonce", "=", key.nonce)
         .forUpdate()
         .executeTakeFirstOrThrow();
-      if (existing.payload_hash !== payloadHash) return { kind: "conflict", record: toRecord(existing) };
+      if (!sameRequest(toRecord(existing), fingerprint))
+        return { kind: "conflict", record: toRecord(existing) };
       if (existing.state !== "claimed" || !existing.stale)
         return { kind: "existing", record: toRecord(existing) };
 
@@ -87,14 +105,27 @@ export class PostgresSettlementLedger implements SettlementLedger {
     if (result.numUpdatedRows !== 1n) throw new ClaimLostError(id);
   }
 
-  async finish(id: string, state: FinalState, response: SettleResponse): Promise<Finished> {
-    const updated = await this.db
+  async finish(
+    id: string,
+    state: FinalState,
+    response: SettleResponse,
+    details: FinishDetails = {},
+  ): Promise<Finished> {
+    let update = this.db
       .updateTable("settlements")
-      .set({ state, response: JSON.stringify(response), updated_at: sql`now()` })
-      .where("id", "=", id)
-      .where("state", "in", ["claimed", "submitted"])
-      .returningAll()
-      .executeTakeFirst();
+      .set({
+        state,
+        response: JSON.stringify(response),
+        settled_by: details.settledBy ?? "rail402",
+        fee_charged_stroops: details.feeChargedStroops?.toString() ?? null,
+        updated_at: sql`now()`,
+      })
+      .where("id", "=", id);
+    update =
+      details.claimedBy === undefined
+        ? update.where("state", "in", ["claimed", "submitted"])
+        : update.where("state", "=", "claimed").where("owner", "=", details.claimedBy);
+    const updated = await update.returningAll().executeTakeFirst();
     if (updated !== undefined) return { record: toRecord(updated), transitioned: true };
     const current = await this.get(id);
     if (current === undefined) throw new Error(`unknown settlement ${id}`);
@@ -115,6 +146,30 @@ export class PostgresSettlementLedger implements SettlementLedger {
     return row === undefined ? undefined : toRecord(row);
   }
 
+  async find(key: SettlementKey): Promise<SettlementRecord | undefined> {
+    const row = await this.db
+      .selectFrom("settlements")
+      .selectAll()
+      .where("network", "=", key.network)
+      .where("payer", "=", key.payer)
+      .where("nonce", "=", key.nonce)
+      .executeTakeFirst();
+    return row === undefined ? undefined : toRecord(row);
+  }
+
+  async countByState(network: string, since: Date): Promise<Record<SettlementState, number>> {
+    const rows = await this.db
+      .selectFrom("settlements")
+      .select(["state", sql<string>`count(*)`.as("count")])
+      .where("network", "=", network)
+      .where("created_at", ">=", since)
+      .groupBy("state")
+      .execute();
+    const counts = emptyStateCounts();
+    for (const row of rows) counts[row.state] = Number(row.count);
+    return counts;
+  }
+
   async committedFeesSince(network: string, since: Date): Promise<bigint> {
     const row = await this.db
       .selectFrom("settlements")
@@ -126,14 +181,18 @@ export class PostgresSettlementLedger implements SettlementLedger {
     return BigInt(row.total ?? "0");
   }
 
-  async unfinished(network: string): Promise<SettlementRecord[]> {
-    const rows = await this.db
+  async unfinished(network: string, options: UnfinishedOptions = {}): Promise<SettlementRecord[]> {
+    let query = this.db
       .selectFrom("settlements")
       .selectAll()
       .where("network", "=", network)
-      .where("state", "=", "submitted")
-      .orderBy("updated_at")
-      .execute();
+      .where("state", "=", "submitted");
+    const idleForMs = options.idleForMs ?? 0;
+    if (idleForMs > 0) {
+      // The database's clock, shared by every replica, decides how long a record has been idle.
+      query = query.where("updated_at", "<=", sql<Date>`now() - make_interval(secs => ${idleForMs / 1_000})`);
+    }
+    const rows = await query.orderBy("updated_at").execute();
     return rows.map(toRecord);
   }
 }
@@ -142,6 +201,8 @@ function toRecord(row: Selectable<SettlementsTable>): SettlementRecord {
   return {
     id: row.id,
     key: { network: row.network, payer: row.payer, nonce: row.nonce },
+    scheme: row.scheme,
+    ...(row.amount === null ? {} : { amount: row.amount }),
     payloadHash: row.payload_hash,
     state: row.state,
     owner: row.owner,
@@ -155,5 +216,8 @@ function toRecord(row: Selectable<SettlementsTable>): SettlementRecord {
     ...(row.valid_until === null ? {} : { validUntil: Number(row.valid_until) }),
     ...(row.max_fee_stroops === null ? {} : { maxFeeStroops: row.max_fee_stroops }),
     ...(row.response === null ? {} : { response: row.response }),
+    ...(row.request_hash === null ? {} : { requestHash: row.request_hash }),
+    ...(row.fee_charged_stroops === null ? {} : { feeChargedStroops: row.fee_charged_stroops }),
+    ...(row.settled_by === null ? {} : { settledBy: row.settled_by }),
   };
 }

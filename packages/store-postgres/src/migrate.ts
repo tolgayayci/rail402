@@ -16,10 +16,15 @@ export async function migrate<DB>(db: Kysely<DB>, directory = MIGRATIONS_DIRECTO
   const files = (await readdir(directory)).filter((name) => name.endsWith(".sql")).sort();
   const applied: string[] = [];
 
-  await sql`CREATE TABLE IF NOT EXISTS schema_migrations (
-    name text PRIMARY KEY,
-    applied_at timestamptz NOT NULL DEFAULT now()
-  )`.execute(db);
+  // Under the lock too: two concurrent `CREATE TABLE IF NOT EXISTS` can both miss the table and one
+  // then fails on the catalog's unique index.
+  await db.transaction().execute(async (trx) => {
+    await sql`SELECT pg_advisory_xact_lock(${LOCK_ID})`.execute(trx);
+    await sql`CREATE TABLE IF NOT EXISTS schema_migrations (
+      name text PRIMARY KEY,
+      applied_at timestamptz NOT NULL DEFAULT now()
+    )`.execute(trx);
+  });
 
   for (const name of files) {
     const text = await readFile(`${directory}${name}`, "utf8");

@@ -140,18 +140,25 @@ describe("preflight", () => {
     }
   });
 
-  it("refuses a payment to the payer's own account, muxed or not", async () => {
+  it("refuses a payment to the payer's own account", async () => {
     const payer = Keypair.random();
-    const muxed = new MuxedAccount(new Account(payer.publicKey(), "0"), "7").accountId();
-    for (const to of [payer.publicKey(), muxed]) {
-      const required = requirements({ payTo: to });
-      const { payload } = await payment({ payer, to }, required);
-      expect(preflight(payload, required, context()), to).toMatchObject({
-        ok: false,
-        code: "invalid_exact_stellar_payload_self_payment",
-        payer: payer.publicKey(),
-      });
-    }
+    const required = requirements({ payTo: payer.publicKey() });
+    const { payload } = await payment({ payer, to: payer.publicKey() }, required);
+    expect(preflight(payload, required, context())).toMatchObject({
+      ok: false,
+      code: "invalid_exact_stellar_payload_self_payment",
+      payer: payer.publicKey(),
+    });
+  });
+
+  it("refuses a muxed payTo, which the exact verifier cannot match to the transfer event", async () => {
+    const seller = Keypair.random().publicKey();
+    const muxed = new MuxedAccount(new Account(seller, "0"), "7").accountId();
+    const required = requirements({ payTo: muxed });
+    const { payload } = await payment({ to: muxed }, required);
+    const result = preflight(payload, required, context());
+    expect(result).toMatchObject({ ok: false, code: "invalid_exact_stellar_requirements_invalid_pay_to" });
+    expect(!result.ok && result.reason).toContain("muxed");
   });
 
   it("protects facilitator accounts", async () => {

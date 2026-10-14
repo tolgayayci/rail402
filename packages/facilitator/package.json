@@ -1,6 +1,6 @@
 {
   "name": "@rail402.dev/facilitator",
-  "version": "0.2.1",
+  "version": "0.4.1",
   "description": "x402 facilitator for Stellar: strict verification and idempotent, crash-safe settlement on @x402/stellar.",
   "license": "Apache-2.0",
   "keywords": [
@@ -41,6 +41,7 @@
   "dependencies": {
     "@rail402.dev/errors": "workspace:*",
     "@rail402.dev/stellar": "workspace:*",
+    "@rail402.dev/upto": "workspace:*",
     "@stellar/stellar-sdk": "catalog:",
     "@x402/core": "catalog:",
     "@x402/stellar": "catalog:"
@@ -53,7 +54,17 @@
     "node": ">=24.11"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./testing": {
+        "types": "./dist/testing.d.ts",
+        "default": "./dist/testing.js"
+      }
+    }
   },
   "peerDependencies": {
     "vitest": ">=4"

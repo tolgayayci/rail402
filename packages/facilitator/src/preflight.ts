@@ -143,6 +143,15 @@ export function checkRequirements(
   if (typeof requirements.payTo !== "string" || !DESTINATION_ADDRESS.test(requirements.payTo)) {
     return reject("invalid_exact_stellar_requirements_invalid_pay_to");
   }
+  // A transfer to a muxed address emits its CAP-67 event with the base account as `to` and
+  // `{ amount, to_muxed_id }` as data, which the x402 exact verifier (@x402/stellar) cannot match to
+  // payTo. Such a payment could never verify, so it is refused here, before any RPC work.
+  if (requirements.payTo.startsWith("M")) {
+    return reject(
+      "invalid_exact_stellar_requirements_invalid_pay_to",
+      "payTo is a muxed (M…) address; exact payments go to a G… account or C… contract. Use the base G… account.",
+    );
+  }
   if (typeof requirements.amount !== "string" || !AMOUNT.test(requirements.amount)) {
     return reject("invalid_exact_stellar_requirements_invalid_amount");
   }

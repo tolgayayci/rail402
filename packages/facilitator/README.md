@@ -29,6 +29,8 @@ const server = new x402ResourceServer(inProcessClient(facilitator)).register(
 );
 ```
 
+A network with `upto: {}` also settles the x402 `upto` scheme through the same engine, with the canonical settlement contract on testnet and a settlement authority derived from the sponsor; create that account once with `provisionAuthority`.
+
 The full example, including provisioning the channel accounts, is in [In-process](https://docs.rail402.dev/facilitator/in-process).
 
 Part of [Rail402](https://github.com/tolgayayci/rail402), x402 payments and discovery for Stellar.

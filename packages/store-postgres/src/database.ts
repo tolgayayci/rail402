@@ -1,8 +1,8 @@
 import { Kysely, PostgresDialect, type ColumnType } from "kysely";
 import pg from "pg";
 import type { SettleResponse } from "@x402/core/types";
-import type { SettlementState } from "@rail402.dev/facilitator";
-import type { ListingContent } from "@rail402.dev/bazaar";
+import type { SettledBy, SettlementState } from "@rail402.dev/facilitator";
+import type { ListingContent, PaymentOption } from "@rail402.dev/bazaar";
 
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
@@ -12,6 +12,8 @@ export interface SettlementsTable {
   payer: string;
   nonce: string;
   payload_hash: string;
+  scheme: ColumnType<string, string | undefined, string>;
+  amount: ColumnType<string | null, string | null | undefined, string | null>;
   state: SettlementState;
   owner: string;
   claim_expires_at: Timestamp;
@@ -23,6 +25,9 @@ export interface SettlementsTable {
   valid_until: ColumnType<string | null, number | null, number | null>;
   max_fee_stroops: ColumnType<string | null, string | null, string | null>;
   response: ColumnType<SettleResponse | null, string | null, string | null>;
+  request_hash: ColumnType<string | null, string | null | undefined, string | null>;
+  fee_charged_stroops: ColumnType<string | null, string | null | undefined, string | null>;
+  settled_by: ColumnType<SettledBy | null, SettledBy | null | undefined, SettledBy | null>;
   created_at: ColumnType<Date, Date | string | undefined, Date | string>;
   updated_at: ColumnType<Date, Date | string | undefined, Date | string>;
 }
@@ -81,6 +86,7 @@ export interface ListingVersionsTable {
   owner: string;
   trust: string;
   state: string;
+  reason: ColumnType<string | null, string | null | undefined, string | null>;
   content: Json<ListingContent>;
 }
 
@@ -98,6 +104,7 @@ export interface OriginChecksTable {
   reason: "created" | "changed" | "owner_conflict";
   url: string;
   proposed_owner: string | null;
+  settled_option: ColumnType<PaymentOption | null, string | null | undefined, string | null>;
   attempts: ColumnType<number, number | undefined, number>;
   due_at: ColumnType<Date, Date | string | undefined, Date | string>;
   claimed_until: ColumnType<Date | null, Date | string | null | undefined, Date | string | null>;
