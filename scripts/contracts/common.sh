@@ -90,8 +90,9 @@ export_source() {
 # in_image <source-dir> [docker options...] -- <args...>: runs the image's stellar CLI (or another
 # entrypoint given in the docker options) with <source-dir> mounted at /source, the way
 # `stellar contract build --image` does, with the toolchain pinned to the image default.
-# Cargo's home is a cache directory mounted at a fixed path: the image's own home is private to its
-# default user, and the build must work for any host uid (no host path reaches the wasm).
+# Cargo's home is a cache directory mounted at a fixed path and HOME is /tmp: the image's own home is
+# private to its default user (git dependencies fail to fetch under any other uid), and the build
+# must work for any host uid (no host path reaches the wasm).
 in_image() {
   local src="$1" options=()
   shift
@@ -107,6 +108,7 @@ in_image() {
     --volume "$(cd "$CARGO_CACHE" && pwd):/cargo" \
     --workdir /source \
     --env CARGO_HOME=/cargo \
+    --env HOME=/tmp \
     --env CARGO_TARGET_DIR=/source/target \
     --env RUSTUP_TOOLCHAIN="$BUILD_TOOLCHAIN" \
     "${options[@]}" "$BUILD_IMAGE" "$@"
