@@ -52,7 +52,8 @@ describe("browser lint rules", () => {
     await expect(restricted(file)).resolves.toEqual({ globals: [], base64url: false });
   });
 
-  it("report a global Buffer, process and a base64url encoding", async () => {
+  // The first lint of a file builds the TypeScript program for the typed rules: seconds on a slow runner.
+  it("report a global Buffer, process and a base64url encoding", { timeout: 60_000 }, async () => {
     const [result] = await eslint.lintText(
       ['export const a = Buffer.from("x").toString("base64url");', "export const b = process.env;", ""].join(
         "\n",
