@@ -11,7 +11,7 @@ workspace's `@modelcontextprotocol/client`), from this directory, with `rail402-
 workspace's server, with `RAIL402_MCP_COMMAND="node ../../packages/mcp/dist/bin.js"`):
 
 ```sh
-npm install -g @rail402.dev/mcp@0.4.1
+npm install -g @rail402.dev/mcp@0.4.2
 export RAIL402_SECRET_KEY_FILE=~/.config/rail402/keys/stellar-testnet.key   # see below
 node src/index.ts
 node src/index.ts "current weather for a city"

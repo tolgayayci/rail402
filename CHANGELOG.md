@@ -1,5 +1,82 @@
 # Changelog
 
+## 0.4.2 — 2026-10-20
+
+Fixes since 0.4.1: a payer whose account refuses its signature is named a bad signature instead of expired
+terms or a token error, `upto` refuses timeouts too short to settle and a `C…` settlement authority, and the
+`upto` facilitator mechanism settles more safely around sequence conflicts, fee bumps and repeated requests.
+Every package moves to 0.4.2.
+
+### Facilitator
+
+- A `G…` payer whose account refuses the signature (a key that is not its signer, too little weight for its
+  thresholds) is refused with `invalid_upto_stellar_payload_invalid_signature` for `upto`; the host raises
+  that refusal as `Error(Contract, #5)` in the settlement contract's frame, which used to be read as the
+  contract's own `Expired` and answered `invalid_upto_stellar_signature_expired`. A `C…` payer's refusal is
+  `invalid_upto_stellar_payload_smart_account_rejected`, and the settlement contract's #4 and #5 still name
+  not-yet-valid and expired terms when no account failed authentication. The reason names the host's cause,
+  such as "signer does not belong to account".
+- `exact` had the same mix-up: a payer account's failed authentication is now decided before the token's own
+  errors, so it is `invalid_exact_stellar_payload_invalid_signature` (`G…`),
+  `invalid_exact_stellar_payload_smart_account_rejected` (`C…`) or
+  `invalid_exact_stellar_payload_account_missing` (a payer that does not exist) whatever the token's kind.
+  Through a SEP-41 token, or one whose kind is not known, it used to be
+  `invalid_exact_stellar_payload_token_rejected` with error #5.
+- When the RPC returns no diagnostic events, `upto` reads the event log in the simulation's error string, with
+  each error's contract and message, so the same failures get the same codes.
+- `upto` refuses a `maxTimeoutSeconds` shorter than one ledger more than `EXPIRATION_MARGIN_LEDGERS`
+  (`(EXPIRATION_MARGIN_LEDGERS + 1) × 5` seconds, 10 s with the service's default margin of 1), whose
+  authorization would expire before it can be settled. Verification and settlement check one range, and every
+  `invalid_upto_stellar_requirements_timeout_out_of_range` reason names it the same way. With `upto` on, the
+  service refuses to start when `TIMEOUT_MAX_SECONDS` is below that minimum.
+- The `upto` fee ceiling (`UPTO_MAX_TX_FEE_STROOPS`) is compared with the resource fee plus the inclusion bid
+  counted twice, once for the settlement transaction and once for its fee bump, which is what the sponsor
+  pays; a payment above it is refused with `invalid_upto_stellar_payload_fee_exceeds_maximum`.
+
+### upto
+
+- The client refuses a `C…` `extra.facilitatorAddress`: the settlement authority is the source of the settle
+  operation, which only a `G…` account can be.
+- `@rail402.dev/upto/facilitator` accepts `maxTimeoutSeconds` from `minTimeoutSeconds` (default one ledger
+  more than its expiration margin, 15 s for the default margin of 2) to `maxTimeoutSeconds`.
+  `minTimeoutSecondsFor(margin)` gives the default.
+- A settlement refused for a stale sequence number (`txBadSeq`) is rebuilt once with a fresh sequence number
+  (`badSequenceRetries`, default 1), then answered `settle_upto_stellar_channel_unavailable`, which may be
+  retried; no funds moved. Rail402 sets `badSequenceRetries: 0`, because its settlement ledger records every
+  envelope before broadcast and answers a refused one itself.
+- While a settlement's own hash is not found, the transaction inside its fee bump is also looked up by hash,
+  so a settlement that landed inside another party's fee bump is answered from there, with the hash of the
+  envelope that included it. With an RPC that reads ledger entries (`UptoRpc.getLedgerEntries`), a settlement
+  is answered `settle_upto_stellar_transaction_expired` only while the payer's authorization nonce is unused.
+- A second request to settle the same authorization for another amount is answered
+  `settle_upto_stellar_idempotency_conflict` only when the first reached the network: its reason says whether
+  the authorization was already settled, is being settled, or was submitted and failed on chain. When the
+  first failed before anything was broadcast, the second is settled on its own.
+- The test vectors settle the whole cap, a part and zero, for an account payer and a contract-account payer
+  (with and without its delegated signer), name the policy they are checked under, and add refusals for a
+  `payTo` that is the asset, the settlement contract or the contract-account payer, and for a timeout below
+  the minimum.
+
+### Contracts and tooling
+
+- `contracts/testing/upto-adversarial` runs the deployed `upto` WASM (its SHA-256 checked against the
+  deployment record) against hostile payers, tokens, sellers and relayers: replays, signatures moved onto
+  other terms or below a multisig threshold, overlapping authorizations, a token that tries to re-enter
+  `settle` or reports a transfer it never made, entries for another network or deployment, and expiration
+  bounds. CI runs it. The `upto` page explains which tokens a facilitator should trust, and why only listed
+  `ASSETS` are settled.
+- The testnet `upto` contract is verified on stellar.expert by the `upto-contract-v1.0.0` release.
+- The deployment record names the repository that holds the contract's source (`repository`, also for each
+  `previous` entry) and lists TTL extensions made after the deployment under `ttl_extensions`; the contract
+  page shows both. The testnet contract's instance and code now live until ledgers 8403670 and 8403673.
+  `pnpm upstream:export` accepts that repository's URL as a value in a deployment record.
+- Contract builds in the build image run with a writable `HOME`, so git dependencies fetch under any user.
+
+### Conformance
+
+- The hosted live Playground run drives the deployed Playground
+  (`--playground https://playground.rail402.dev`): 18 of 19 cases pass, the sell case included.
+
 ## 0.4.1 — 2026-10-09
 
 Fixes since 0.4.0: a muxed `payTo` is refused for `exact`, replicas no longer rebroadcast each other's

@@ -85,7 +85,7 @@ counts: set `METRICS_TOKEN_SHA256` on any deployment whose `/metrics` is reachab
   ```json
   {
     "status": "ok",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "state": "healthy",
     "checkedAt": "2026-09-30T12:00:00.000Z",
     "warnings": [],

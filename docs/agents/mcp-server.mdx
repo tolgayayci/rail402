@@ -9,7 +9,7 @@ the [buyer SDK](/agents/sdk), so every payment passes the same spending policy a
 stdio by default and, optionally, Streamable HTTP on a loopback address.
 
 ```sh
-npm install -g @rail402.dev/mcp@0.4.1
+npm install -g @rail402.dev/mcp@0.4.2
 rail402-mcp --help
 ```
 
@@ -17,7 +17,7 @@ The paying account's key stays in a key file that the server reads; the agent ne
 fund it on the testnet with the [CLI](/agents/cli):
 
 ```sh
-npm install -g @rail402.dev/cli@0.4.1
+npm install -g @rail402.dev/cli@0.4.2
 rail402 keys new                  # ~/.config/rail402/keys/stellar-testnet.key, mode 0600
 rail402 account setup --usdc 1    # Friendbot, USDC trustline, 1 testnet USDC
 ```

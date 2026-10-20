@@ -19,9 +19,9 @@ developers can find it with filters or plain-language search.
 - Hosted testnet instance, free and without an API key; or run your own with one command.
 - Apache-2.0.
 
-**Release state.** The npm packages are at **0.4.1** (2026-10-09): the facilitator, the Bazaar and search,
+**Release state.** The npm packages are at **0.4.2** (2026-10-20): the facilitator, the Bazaar and search,
 `upto`, the agent tools (`@rail402.dev/sdk`, `@rail402.dev/mcp`, `@rail402.dev/cli`) and their browser
-entries. The hosted testnet service runs 0.4.1 with `exact` and `upto`. The latest container image and GitHub
+entries. The hosted testnet service runs 0.4.2 with `exact` and `upto`. The latest container image and GitHub
 release is **0.2.1** (`exact` only); later versions of the service run from a checkout. The
 [changelog](CHANGELOG.md) lists what each release adds. The sections below say which release each command
 uses.
@@ -30,12 +30,14 @@ Documentation: **[docs.rail402.dev](https://docs.rail402.dev)**
 
 ## Try it in a minute
 
-The hosted testnet facilitator (0.4.1, `exact` and `upto`) is public:
+The hosted testnet facilitator (0.4.2, `exact` and `upto`) is public:
 
 ```sh
 curl https://testnet.rail402.dev/supported
 curl "https://testnet.rail402.dev/discovery/search?query=weather%20forecast%20under%201%20cent"
 ```
+
+To pay from a browser instead, open the Playground at [playground.rail402.dev](https://playground.rail402.dev).
 
 ## Sell an API
 
@@ -157,17 +159,17 @@ public dataset with one command, `pnpm eval` ([search evaluation](https://docs.r
 
 | Package                                                                                    | What it is                                                        | On npm |
 | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ------ |
-| [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator)       | The settlement engine, usable in-process as an x402 facilitator   | 0.4.1  |
-| [`@rail402.dev/bazaar`](https://www.npmjs.com/package/@rail402.dev/bazaar)                 | The Bazaar catalog built from settled payments                    | 0.4.1  |
-| [`@rail402.dev/search`](https://www.npmjs.com/package/@rail402.dev/search)                 | Natural-language search over the catalog                          | 0.4.1  |
-| [`@rail402.dev/store-postgres`](https://www.npmjs.com/package/@rail402.dev/store-postgres) | Postgres stores for settlements, channel accounts and the catalog | 0.4.1  |
-| [`@rail402.dev/stellar`](https://www.npmjs.com/package/@rail402.dev/stellar)               | Stellar payload inspection and failure diagnosis                  | 0.4.1  |
-| [`@rail402.dev/errors`](https://www.npmjs.com/package/@rail402.dev/errors)                 | Stable error codes and reasons                                    | 0.4.1  |
-| [`@rail402.dev/upto`](https://www.npmjs.com/package/@rail402.dev/upto)                     | The `upto` scheme: client, resource server and facilitator        | 0.4.1  |
-| [`@rail402.dev/sdk`](https://www.npmjs.com/package/@rail402.dev/sdk)                       | Buyer SDK: pay under a spending cap, discover through the Bazaar  | 0.4.1  |
-| [`@rail402.dev/mcp`](https://www.npmjs.com/package/@rail402.dev/mcp)                       | MCP server (`rail402-mcp`) for AI agents                          | 0.4.1  |
-| [`@rail402.dev/cli`](https://www.npmjs.com/package/@rail402.dev/cli)                       | Command-line tool (`rail402`)                                     | 0.4.1  |
-| [`@rail402.dev/safe-fetch`](https://www.npmjs.com/package/@rail402.dev/safe-fetch)         | Outbound HTTP for untrusted URLs, SSRF-safe                       | 0.4.1  |
+| [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator)       | The settlement engine, usable in-process as an x402 facilitator   | 0.4.2  |
+| [`@rail402.dev/bazaar`](https://www.npmjs.com/package/@rail402.dev/bazaar)                 | The Bazaar catalog built from settled payments                    | 0.4.2  |
+| [`@rail402.dev/search`](https://www.npmjs.com/package/@rail402.dev/search)                 | Natural-language search over the catalog                          | 0.4.2  |
+| [`@rail402.dev/store-postgres`](https://www.npmjs.com/package/@rail402.dev/store-postgres) | Postgres stores for settlements, channel accounts and the catalog | 0.4.2  |
+| [`@rail402.dev/stellar`](https://www.npmjs.com/package/@rail402.dev/stellar)               | Stellar payload inspection and failure diagnosis                  | 0.4.2  |
+| [`@rail402.dev/errors`](https://www.npmjs.com/package/@rail402.dev/errors)                 | Stable error codes and reasons                                    | 0.4.2  |
+| [`@rail402.dev/upto`](https://www.npmjs.com/package/@rail402.dev/upto)                     | The `upto` scheme: client, resource server and facilitator        | 0.4.2  |
+| [`@rail402.dev/sdk`](https://www.npmjs.com/package/@rail402.dev/sdk)                       | Buyer SDK: pay under a spending cap, discover through the Bazaar  | 0.4.2  |
+| [`@rail402.dev/mcp`](https://www.npmjs.com/package/@rail402.dev/mcp)                       | MCP server (`rail402-mcp`) for AI agents                          | 0.4.2  |
+| [`@rail402.dev/cli`](https://www.npmjs.com/package/@rail402.dev/cli)                       | Command-line tool (`rail402`)                                     | 0.4.2  |
+| [`@rail402.dev/safe-fetch`](https://www.npmjs.com/package/@rail402.dev/safe-fetch)         | Outbound HTTP for untrusted URLs, SSRF-safe                       | 0.4.2  |
 
 ## Develop
 

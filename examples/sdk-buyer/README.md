@@ -10,7 +10,7 @@ environment variables. It needs a testnet account with a USDC trustline and some
 `rail402` CLI sets up:
 
 ```sh
-npm install -g @rail402.dev/cli@0.4.1
+npm install -g @rail402.dev/cli@0.4.2
 rail402 keys new                       # prints the address and the key file
 rail402 account setup --usdc 1         # Friendbot, USDC trustline, 1 USDC bought on the testnet exchange
 export RAIL402_SECRET_KEY_FILE="$(rail402 keys path)"
