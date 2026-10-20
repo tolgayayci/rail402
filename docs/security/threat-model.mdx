@@ -126,14 +126,14 @@ its own payment within one ledger); the residual risk says what bounds it.
 | M6  | MCP paid calls    | A tampered payment or a false settlement report                           | TR     | Mitigated     | 12    |
 | M7  | MCP paid calls    | Another local process drives the MCP server over HTTP                     | SE     | Mitigated     | 3     |
 | U1  | The upto contract | Settling more than the cap                                                | TE     | Mitigated     | 4     |
-| U2  | The upto contract | Changing the recipient, token, expiry, nonce or tree                      | T      | Mitigated     | 6     |
+| U2  | The upto contract | Changing the recipient, token, expiry, nonce or tree                      | T      | Mitigated     | 9     |
 | U3  | The upto contract | Settling one authorization twice                                          | T      | Mitigated     | 4     |
 | U4  | The upto contract | Settling with an authority the payer did not name                         | SE     | Mitigated     | 3     |
 | U5  | The upto contract | The allowance left by a partial settlement                                | E      | Mitigated     | 5     |
 | U6  | The upto contract | Zero settlements paid by the sponsor                                      | D      | Accepted risk | 5     |
 | U7  | The upto contract | The settlement contract archived                                          | D      | Mitigated     | 5     |
 | U8  | The upto contract | A different or changed settlement contract                                | TE     | Mitigated     | 4     |
-| U9  | The upto contract | Token differences between SAC and SEP-41 contracts                        | T      | Mitigated     | 4     |
+| U9  | The upto contract | Token differences between SAC and SEP-41 contracts                        | T      | Mitigated     | 8     |
 | U10 | The upto contract | The settlement authority's key is compromised                             | E      | Accepted risk | 3     |
 | U11 | The upto contract | A served buyer defaults before settlement                                 | R      | Accepted risk | 0     |
 | E1  | exact payments    | Tampering with amount, recipient or asset                                 | T      | Mitigated     | 3     |
@@ -1414,6 +1414,9 @@ Mitigated · Tampering · boundary TB7 (Contracts) · asset: Payer funds
 
 - [`contracts/stellar/upto/src/test/auth.rs`](https://github.com/tolgayayci/rail402/blob/main/contracts/stellar/upto/src/test/auth.rs): mutated_terms_are_rejected
 - [`contracts/stellar/upto/src/test/signed.rs`](https://github.com/tolgayayci/rail402/blob/main/contracts/stellar/upto/src/test/signed.rs): a_signature_over_other_terms_fails
+- [`contracts/testing/upto-adversarial/src/test/classic.rs`](https://github.com/tolgayayci/rail402/blob/main/contracts/testing/upto-adversarial/src/test/classic.rs): a_classic_signature_over_other_terms_fails
+- [`contracts/testing/upto-adversarial/src/test/replay.rs`](https://github.com/tolgayayci/rail402/blob/main/contracts/testing/upto-adversarial/src/test/replay.rs): a_signature_for_another_network_fails
+- [`contracts/testing/upto-adversarial/src/test/replay.rs`](https://github.com/tolgayayci/rail402/blob/main/contracts/testing/upto-adversarial/src/test/replay.rs): an_entry_for_one_deployment_fails_on_another
 - [`packages/upto/test/upto.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/upto/test/upto.integration.test.ts): refuses terms changed consistently in the entry and the requirements
 - [`packages/upto/test/upto.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/upto/test/upto.integration.test.ts): refuses a changed nonce
 - [`packages/upto/test/upto.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/upto/test/upto.integration.test.ts): refuses a signature expiration moved later than signed
@@ -1586,11 +1589,16 @@ Mitigated · Tampering · boundary TB7 (Contracts) · asset: Payer funds
 **Mitigations**
 
 - Both event shapes are accepted and checked field by field; exactly one transfer of the amount from the payer to payTo, and no balance event involving a facilitator account. ([`packages/upto/src/facilitator/simulation.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/upto/src/facilitator/simulation.ts), `checkSimulationEvents`)
+- Only the tokens the operator lists for the network are settled; any other token is refused before simulation, because a token contract can report a transfer it never made. ([`packages/upto/src/facilitator/rules.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/upto/src/facilitator/rules.ts), `isAssetAccepted`)
 
 **Tests**
 
 - [`packages/upto/test/facilitator.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/upto/test/facilitator.test.ts): accepts SEP-41 token events (three topics, map data)
 - [`packages/upto/test/facilitator.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/upto/test/facilitator.test.ts): requires exactly one transfer of the cap from the payer to payTo
+- [`packages/facilitator/test/upto-preflight.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/facilitator/test/upto-preflight.test.ts): an asset outside the operator's list
+- [`contracts/testing/upto-adversarial/src/test/hostile_token.rs`](https://github.com/tolgayayci/rail402/blob/main/contracts/testing/upto-adversarial/src/test/hostile_token.rs): a_lying_token_settles_without_moving_value
+- [`contracts/testing/upto-adversarial/src/test/hostile_token.rs`](https://github.com/tolgayayci/rail402/blob/main/contracts/testing/upto-adversarial/src/test/hostile_token.rs): a_token_cannot_reenter_settle_even_with_a_second_valid_authorization
+- [`contracts/testing/upto-adversarial/src/test/hostile_token.rs`](https://github.com/tolgayayci/rail402/blob/main/contracts/testing/upto-adversarial/src/test/hostile_token.rs): a_token_cannot_use_the_payers_approve_authorization_on_another_asset
 - [`contracts/testing/test-token/src/test.rs`](https://github.com/tolgayayci/rail402/blob/main/contracts/testing/test-token/src/test.rs): approve_event_has_three_topics_and_map_data
 - [`tools/conformance/test/assets.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/tools/conformance/test/assets.integration.test.ts): refuses a payer holding less than the amount, or none of the token, as insufficient_funds
 

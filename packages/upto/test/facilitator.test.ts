@@ -3,13 +3,21 @@ import {
   Address,
   FeeBumpTransaction,
   Keypair,
+  Networks,
   SorobanDataBuilder,
   Transaction,
+  TransactionBuilder,
   rpc,
   xdr,
 } from "@stellar/stellar-sdk";
 import type { FacilitatorStellarSigner } from "@x402/stellar";
-import { UptoStellarScheme, type UptoStellarFacilitatorOptions } from "@rail402.dev/upto/facilitator";
+import {
+  UptoStellarScheme,
+  classifySimulationFailure,
+  hostErrors,
+  hostErrorsFromMessage,
+  type UptoStellarFacilitatorOptions,
+} from "@rail402.dev/upto/facilitator";
 import {
   CAP,
   CONTRACT,
@@ -38,6 +46,73 @@ import {
   successSimulation,
   terms,
 } from "./helpers.ts";
+
+/**
+ * The error events (oldest first) of failed settlement simulations, captured from a protocol 28
+ * network running the settlement contract; testnet at protocol 29 emits the same sequences. `g-…`
+ * payers are accounts: one signed with a key that is not its signer, one with one key of a 2-of-2
+ * multisig, one with an empty signature vector, and one whose terms expired. `c-…` is a simple
+ * ed25519 contract account signed with the wrong key, and with expired terms.
+ */
+const CAPTURED = {
+  contract: "CACMFU5TJ7K3REKE5NJO37Z6HP5EHJ6YDSD4DD5ER7DTG7W7NHQALTJB",
+  token: "CAELJW7TKS6L37VNSANWRX4DMYDZSIKPYF7PL7UZ7UFP4QD5KIQS2E6G",
+  recipient: "GBNE3RZDZXVRPDRJIQJQZW7POJS2XKSHQRGAABVGPWLUQZII7R6WHIBV",
+  authority: "GCLV7ROI5DNNH5KHH2JMJNNRW4FOWV7TWI2OE2QZQ72HBE74L3IKLY2B",
+  cases: {
+    "g-non-member-key": {
+      payer: "GAVAYBDG2ABDVDHOIVN7KIPTAWIZMUBPRKNI2YZSVN6WWLIZDWNSHQA6",
+      events: [
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAAAAAAFAAAAEAAAAAEAAAACAAAADgAAACFzaWduZXIgZG9lcyBub3QgYmVsb25nIHRvIGFjY291bnQAAAAAAAANAAAAIGtL6CcamYs9h1tVg/eavDUP2KX1vvQcCGl8+i2EYABg",
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAkAAAAGAAAAEAAAAAEAAAADAAAADgAAAChmYWlsZWQgYWNjb3VudCBhdXRoZW50aWNhdGlvbiB3aXRoIGVycm9yAAAAEgAAAAAAAAAAKgwEZtACOozuRVv1IfMFkZZQL4qajWMyq31rLRkdmyMAAAACAAAAAAAAAAU=",
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAkAAAAGAAAADgAAAFFlc2NhbGF0aW5nIGVycm9yIHRvIFZNIHRyYXAgZnJvbSBmYWlsZWQgaG9zdCBmdW5jdGlvbiBjYWxsOiByZXF1aXJlX2F1dGhfZm9yX2FyZ3MAAAA=",
+      ],
+    },
+    "g-multisig-under-threshold": {
+      payer: "GBHSZQ37N6IVWJBCU43B3J45OLFU4PRJO5R7QDQFI3NL475HVUBR67E4",
+      events: [
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAAAAAAFAAAAEAAAAAEAAAADAAAADgAAAChzaWduYXR1cmUgd2VpZ2h0IGlzIGxvd2VyIHRoYW4gdGhyZXNob2xkAAAAAwAAAAEAAAADAAAAAg==",
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAkAAAAGAAAAEAAAAAEAAAADAAAADgAAAChmYWlsZWQgYWNjb3VudCBhdXRoZW50aWNhdGlvbiB3aXRoIGVycm9yAAAAEgAAAAAAAAAATyzDf2+RWyQipzYdp51yy04+KXdj+A4FRtq+f6etAx8AAAACAAAAAAAAAAU=",
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAkAAAAGAAAADgAAAFFlc2NhbGF0aW5nIGVycm9yIHRvIFZNIHRyYXAgZnJvbSBmYWlsZWQgaG9zdCBmdW5jdGlvbiBjYWxsOiByZXF1aXJlX2F1dGhfZm9yX2FyZ3MAAAA=",
+      ],
+    },
+    "g-empty-signature-vec": {
+      payer: "GAVAYBDG2ABDVDHOIVN7KIPTAWIZMUBPRKNI2YZSVN6WWLIZDWNSHQA6",
+      events: [
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAAAAAAFAAAADgAAABtubyBhY2NvdW50IHNpZ25hdHVyZXMgZm91bmQA",
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAkAAAAGAAAAEAAAAAEAAAADAAAADgAAAChmYWlsZWQgYWNjb3VudCBhdXRoZW50aWNhdGlvbiB3aXRoIGVycm9yAAAAEgAAAAAAAAAAKgwEZtACOozuRVv1IfMFkZZQL4qajWMyq31rLRkdmyMAAAACAAAAAAAAAAU=",
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAkAAAAGAAAADgAAAFFlc2NhbGF0aW5nIGVycm9yIHRvIFZNIHRyYXAgZnJvbSBmYWlsZWQgaG9zdCBmdW5jdGlvbiBjYWxsOiByZXF1aXJlX2F1dGhfZm9yX2FyZ3MAAAA=",
+      ],
+    },
+    "g-terms-expired": {
+      payer: "GAVAYBDG2ABDVDHOIVN7KIPTAWIZMUBPRKNI2YZSVN6WWLIZDWNSHQA6",
+      events: [
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAAAAAAFAAAADgAAADZlc2NhbGF0aW5nIE9rKFNjRXJyb3JUeXBlOjpDb250cmFjdCkgZnJhbWUtZXhpdCB0byBFcnIAAA==",
+      ],
+    },
+    "c-wrong-key": {
+      payer: "CBFAPGR7KLSR72ODW7JGKZRFHKQF3FVH5KCDFRNYWHJUQP3EK262JDBB",
+      events: [
+        "AAAAAAAAAAAAAAABSgeaP1LlH+nDt9JlZiU6oF2Wp+qEMsW4sdNIP2RWvaQAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAUAAAACAAAADgAAABtmYWlsZWQgRUQyNTUxOSB2ZXJpZmljYXRpb24A",
+        "AAAAAAAAAAAAAAABSgeaP1LlH+nDt9JlZiU6oF2Wp+qEMsW4sdNIP2RWvaQAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAUAAAACAAAADgAAAE5lc2NhbGF0aW5nIGVycm9yIHRvIFZNIHRyYXAgZnJvbSBmYWlsZWQgaG9zdCBmdW5jdGlvbiBjYWxsOiB2ZXJpZnlfc2lnX2VkMjU1MTkAAA==",
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAkAAAAGAAAAEAAAAAEAAAADAAAADgAAAChmYWlsZWQgYWNjb3VudCBhdXRoZW50aWNhdGlvbiB3aXRoIGVycm9yAAAAEgAAAAFKB5o/UuUf6cO30mVmJTqgXZan6oQyxbix00g/ZFa9pAAAAAIAAAAFAAAAAg==",
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAkAAAAGAAAADgAAAFFlc2NhbGF0aW5nIGVycm9yIHRvIFZNIHRyYXAgZnJvbSBmYWlsZWQgaG9zdCBmdW5jdGlvbiBjYWxsOiByZXF1aXJlX2F1dGhfZm9yX2FyZ3MAAAA=",
+      ],
+    },
+    "c-terms-expired": {
+      payer: "CBFAPGR7KLSR72ODW7JGKZRFHKQF3FVH5KCDFRNYWHJUQP3EK262JDBB",
+      events: [
+        "AAAAAAAAAAAAAAABBMLTs0/VuJFE61Lt/z47+kOn2ByHwY+kj8czft9p4AUAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAAAAAAFAAAADgAAADZlc2NhbGF0aW5nIE9rKFNjRXJyb3JUeXBlOjpDb250cmFjdCkgZnJhbWUtZXhpdCB0byBFcnIAAA==",
+      ],
+    },
+  },
+  /** The error string of the non-member-key simulation, with the host's event log. */
+  nonMemberError:
+    'HostError: Error(Auth, InvalidAction)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CACMFU5TJ7K3REKE5NJO37Z6HP5EHJ6YDSD4DD5ER7DTG7W7NHQALTJB, topics:[error, Error(Auth, InvalidAction)], data:"escalating error to VM trap from failed host function call: require_auth_for_args"\n   1: [Diagnostic Event] contract:CACMFU5TJ7K3REKE5NJO37Z6HP5EHJ6YDSD4DD5ER7DTG7W7NHQALTJB, topics:[error, Error(Auth, InvalidAction)], data:["failed account authentication with error", GAVAYBDG2ABDVDHOIVN7KIPTAWIZMUBPRKNI2YZSVN6WWLIZDWNSHQA6, Error(Contract, #5)]\n   2: [Diagnostic Event] contract:CACMFU5TJ7K3REKE5NJO37Z6HP5EHJ6YDSD4DD5ER7DTG7W7NHQALTJB, topics:[error, Error(Contract, #5)], data:["signer does not belong to account", Bytes(6b4be8271a998b3d875b5583f79abc350fd8a5f5bef41c08697cfa2d84600060)]\n   3: [Diagnostic Event] topics:[fn_call, CACMFU5TJ7K3REKE5NJO37Z6HP5EHJ6YDSD4DD5ER7DTG7W7NHQALTJB, settle], data:[GAVAYBDG2ABDVDHOIVN7KIPTAWIZMUBPRKNI2YZSVN6WWLIZDWNSHQA6, {expiration_ledger: 518199, facilitator: GCLV7ROI5DNNH5KHH2JMJNNRW4FOWV7TWI2OE2QZQ72HBE74L3IKLY2B, max_amount: 1000, recipient: GBNE3RZDZXVRPDRJIQJQZW7POJS2XKSHQRGAABVGPWLUQZII7R6WHIBV, token: CAELJW7TKS6L37VNSANWRX4DMYDZSIKPYF7PL7UZ7UFP4QD5KIQS2E6G, valid_after_ledger: 0}, 0]\n',
+  /** The error string of the expired-terms simulation, with the host's event log. */
+  expiredError:
+    'HostError: Error(Contract, #5)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CACMFU5TJ7K3REKE5NJO37Z6HP5EHJ6YDSD4DD5ER7DTG7W7NHQALTJB, topics:[error, Error(Contract, #5)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"\n   1: [Diagnostic Event] topics:[fn_call, CACMFU5TJ7K3REKE5NJO37Z6HP5EHJ6YDSD4DD5ER7DTG7W7NHQALTJB, settle], data:[GAVAYBDG2ABDVDHOIVN7KIPTAWIZMUBPRKNI2YZSVN6WWLIZDWNSHQA6, {expiration_ledger: 518167, facilitator: GCLV7ROI5DNNH5KHH2JMJNNRW4FOWV7TWI2OE2QZQ72HBE74L3IKLY2B, max_amount: 1000, recipient: GBNE3RZDZXVRPDRJIQJQZW7POJS2XKSHQRGAABVGPWLUQZII7R6WHIBV, token: CAELJW7TKS6L37VNSANWRX4DMYDZSIKPYF7PL7UZ7UFP4QD5KIQS2E6G, valid_after_ledger: 0}, 0]\n',
+};
 
 function facilitator(fake: FakeRpc, options: UptoStellarFacilitatorOptions = {}) {
   return new UptoStellarScheme([channelSigner], {
@@ -204,6 +279,24 @@ describe("upto facilitator: verify", () => {
     );
   });
 
+  it("refuses a maxTimeoutSeconds too short to settle, naming the one accepted range", async () => {
+    const fake = honest(new FakeRpc());
+    const scheme = facilitator(fake);
+    expect(scheme.minTimeoutSeconds).toBe(15);
+    for (const maxTimeoutSeconds of [5, 14, 301]) {
+      const req = requirements({ maxTimeoutSeconds });
+      const result = await scheme.verify(await payment({ requirements: req }), req);
+      expect(result).toMatchObject({
+        isValid: false,
+        invalidReason: "invalid_upto_stellar_requirements_timeout_out_of_range",
+        invalidMessage: "maxTimeoutSeconds must be an integer from 15 to 300.",
+      });
+    }
+    expect(facilitator(fake, { expirationMarginLedgers: 1 }).minTimeoutSeconds).toBe(10);
+    expect(facilitator(fake, { minTimeoutSeconds: 30 }).minTimeoutSeconds).toBe(30);
+    expect(() => facilitator(fake, { minTimeoutSeconds: 301 })).toThrow(/minTimeoutSeconds/);
+  });
+
   it("refuses a payee that is a facilitator address, including configured channel accounts", async () => {
     const extra = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 40)).publicKey();
     const fake = honest(new FakeRpc());
@@ -219,14 +312,23 @@ describe("upto facilitator: verify", () => {
     expect(result.invalidReason).toBe("invalid_upto_stellar_requirements_invalid_pay_to");
   });
 
-  it("enforces the fee ceiling", async () => {
+  it("enforces the fee ceiling, counting the inclusion fee of the transaction and of its fee bump", async () => {
     const fake = new FakeRpc();
-    fake.simulations.push(successSimulation(settlementEvents(CAP), { minResourceFee: 499_900 }));
+    fake.simulations.push(successSimulation(settlementEvents(CAP), { minResourceFee: 499_800 }));
     expect((await facilitator(fake).verify(await payment(), requirements())).isValid).toBe(true);
-    fake.simulations.push(successSimulation(settlementEvents(CAP), { minResourceFee: 499_901 }));
+    fake.simulations.push(successSimulation(settlementEvents(CAP), { minResourceFee: 499_801 }));
     const result = await facilitator(fake).verify(await payment(), requirements());
     expect(result.invalidReason).toBe("invalid_upto_stellar_payload_fee_exceeds_maximum");
     expect(result.invalidMessage).toContain("500001");
+
+    // Without a fee bump the transaction bids the inclusion fee once.
+    const unbumped = facilitator(fake, { feeBumpSigner: undefined });
+    fake.simulations.push(successSimulation(settlementEvents(CAP), { minResourceFee: 499_900 }));
+    expect((await unbumped.verify(await payment(), requirements())).isValid).toBe(true);
+    fake.simulations.push(successSimulation(settlementEvents(CAP), { minResourceFee: 499_901 }));
+    expect((await unbumped.verify(await payment(), requirements())).invalidReason).toBe(
+      "invalid_upto_stellar_payload_fee_exceeds_maximum",
+    );
   });
 
   describe("simulation failures", () => {
@@ -419,6 +521,95 @@ describe("upto facilitator: verify", () => {
       expect(classifySimulationFailure(hostErrors(crypto), parties, "").code).toBe(
         "invalid_upto_stellar_payload_smart_account_rejected",
       );
+    });
+    describe("captured host errors", () => {
+      const partiesOf = (payerAddress: string) => ({
+        contract: CAPTURED.contract,
+        token: CAPTURED.token,
+        payer: payerAddress,
+        recipient: CAPTURED.recipient,
+        authority: CAPTURED.authority,
+        facilitatorAddresses: new Set([CAPTURED.authority]),
+      });
+      const classify = (name: keyof typeof CAPTURED.cases) => {
+        const captured = CAPTURED.cases[name];
+        const events = captured.events.map((event) => xdr.DiagnosticEvent.fromXDR(event, "base64"));
+        return classifySimulationFailure(hostErrors(events), partiesOf(captured.payer), "");
+      };
+
+      it.each([
+        ["g-non-member-key", "signer does not belong to account"],
+        ["g-multisig-under-threshold", "signature weight is lower than threshold"],
+        ["g-empty-signature-vec", "no account signatures found"],
+      ] as const)(
+        "names an account's failed authentication (%s) as a bad signature, not an expiry",
+        (name, cause) => {
+          // The host reports it as Error(Contract, #5) in the settlement contract's frame, the
+          // number of the contract's own Expired, followed by "failed account authentication".
+          const events = CAPTURED.cases[name].events.map((event) =>
+            xdr.DiagnosticEvent.fromXDR(event, "base64"),
+          );
+          expect(hostErrors(events)[0]).toMatchObject({
+            contract: CAPTURED.contract,
+            type: "Contract",
+            code: 5,
+          });
+          const rejection = classify(name);
+          expect(rejection.code).toBe("invalid_upto_stellar_payload_invalid_signature");
+          expect(rejection.reason).toContain(cause);
+        },
+      );
+
+      it("names a contract account's failed authentication as its smart account's refusal", () => {
+        expect(classify("c-wrong-key").code).toBe("invalid_upto_stellar_payload_smart_account_rejected");
+      });
+
+      it("keeps the settlement contract's #5 without an authentication failure as expired terms", () => {
+        expect(classify("g-terms-expired").code).toBe("invalid_upto_stellar_signature_expired");
+        expect(classify("c-terms-expired").code).toBe("invalid_upto_stellar_signature_expired");
+      });
+
+      it("classifies the same failures from the error string when no events are returned", () => {
+        const parties = partiesOf(CAPTURED.cases["g-non-member-key"].payer);
+        const fromMessage = (message: string) =>
+          classifySimulationFailure(hostErrorsFromMessage(message), parties, message).code;
+        expect(hostErrorsFromMessage(CAPTURED.nonMemberError)).toEqual([
+          {
+            contract: CAPTURED.contract,
+            type: "Contract",
+            code: 5,
+            message: "signer does not belong to account",
+            args: [],
+          },
+          {
+            contract: CAPTURED.contract,
+            type: "Auth",
+            code: "InvalidAction",
+            message: "failed account authentication with error",
+            args: [],
+          },
+          {
+            contract: CAPTURED.contract,
+            type: "Auth",
+            code: "InvalidAction",
+            message: "escalating error to VM trap from failed host function call: require_auth_for_args",
+            args: [],
+          },
+        ]);
+        expect(fromMessage(CAPTURED.nonMemberError)).toBe("invalid_upto_stellar_payload_invalid_signature");
+        expect(fromMessage(CAPTURED.expiredError)).toBe("invalid_upto_stellar_signature_expired");
+        // Only the error that ended the simulation, without the event log.
+        expect(fromMessage("HostError: Error(Contract, #5)")).toBe("invalid_upto_stellar_signature_expired");
+        expect(fromMessage("HostError: Error(Contract, #4)")).toBe(
+          "invalid_upto_stellar_payload_not_yet_valid",
+        );
+        expect(fromMessage("HostError: Error(Contract, #6)")).toBe(
+          "invalid_upto_stellar_payload_simulation_failed",
+        );
+        expect(fromMessage("HostError: Error(Auth, InvalidAction)")).toBe(
+          "invalid_upto_stellar_payload_invalid_signature",
+        );
+      });
     });
   });
 
@@ -709,6 +900,166 @@ describe("upto facilitator: settle", () => {
       expect(other.errorMessage).toContain("300000");
     }
     expect(fake.sent).toHaveLength(1);
+  });
+
+  it("settles a request whose conflicting predecessor failed before anything reached the network", async () => {
+    const fake = honest(new FakeRpc());
+    // The first request, for another amount, is refused by its simulation.
+    fake.simulations.push(errorSimulation([errorEvent(TOKEN, xdr.ScError.sceContract(10))]));
+    const scheme = facilitator(fake);
+    const { payload, settleRequirements } = await settleRequest(300_000n);
+    const [refused, settled] = await Promise.all([
+      scheme.settle(payload, requirements({ amount: "1" })),
+      scheme.settle(payload, settleRequirements),
+    ]);
+    expect(refused).toMatchObject({ success: false, errorReason: "insufficient_funds", transaction: "" });
+    expect(settled).toMatchObject({ success: true, amount: "300000" });
+    expect(fake.sent).toHaveLength(1);
+  });
+
+  it("answers a conflict with a pending settlement as being settled, naming its transaction", async () => {
+    const fake = honest(new FakeRpc());
+    fake.statuses = ["NOT_FOUND", "NOT_FOUND", "NOT_FOUND"] as rpc.Api.GetTransactionStatus[];
+    const scheme = facilitator(fake);
+    const { payload, settleRequirements } = await settleRequest(300_000n);
+    const pending = await scheme.settle(payload, settleRequirements);
+    expect(pending.errorReason).toBe("settlement_pending");
+    const conflict = await scheme.settle(payload, requirements({ amount: "1" }));
+    expect(conflict).toMatchObject({
+      success: false,
+      errorReason: "settle_upto_stellar_idempotency_conflict",
+      transaction: pending.transaction,
+    });
+    expect(conflict.errorMessage).toContain("is being settled for 300000");
+  });
+
+  it("answers a conflict with a settlement that failed on chain as already submitted", async () => {
+    const fake = honest(new FakeRpc());
+    fake.statuses = [rpc.Api.GetTransactionStatus.FAILED];
+    fake.failedResult = new xdr.TransactionResult({
+      feeCharged: xdr.Int64.fromString("100"),
+      result: xdr.TransactionResultResult.txFailed([]),
+      ext: new xdr.TransactionResultExt(0),
+    });
+    const scheme = facilitator(fake);
+    const { payload, settleRequirements } = await settleRequest(300_000n);
+    const original = await scheme.settle(payload, settleRequirements);
+    expect(original.errorReason).toBe("settle_upto_stellar_transaction_failed");
+    const conflict = await scheme.settle(payload, requirements({ amount: "1" }));
+    expect(conflict).toMatchObject({
+      success: false,
+      errorReason: "settle_upto_stellar_idempotency_conflict",
+      transaction: original.transaction,
+    });
+    expect(conflict.errorMessage).toContain("failed on chain");
+    expect(conflict.errorMessage).not.toContain("is being settled");
+    expect(fake.sent).toHaveLength(1);
+  });
+
+  it("finds a settlement that landed inside another party's fee bump by its inner hash", async () => {
+    const fake = honest(new FakeRpc());
+    fake.statuses = ["NOT_FOUND", "NOT_FOUND", "NOT_FOUND"] as rpc.Api.GetTransactionStatus[];
+    const outsider = Keypair.random();
+    let wrapperHash = "";
+    const send = fake.sendTransaction.bind(fake);
+    fake.sendTransaction = async (transaction) => {
+      const sent = await send(transaction);
+      const inner = (transaction as FeeBumpTransaction).innerTransaction;
+      const wrapper = TransactionBuilder.buildFeeBumpTransaction(outsider, "1000", inner, Networks.TESTNET);
+      wrapper.sign(outsider);
+      wrapperHash = wrapper.hash().toString("hex");
+      fake.byHash.set(inner.hash().toString("hex"), {
+        status: rpc.Api.GetTransactionStatus.SUCCESS,
+        latestLedger: fake.ledger,
+        oldestLedger: 1,
+        envelopeXdr: wrapper.toEnvelope(),
+      } as unknown as rpc.Api.GetTransactionResponse);
+      return sent;
+    };
+    const { payload, settleRequirements } = await settleRequest(300_000n);
+    const result = await facilitator(fake).settle(payload, settleRequirements);
+    expect(result).toMatchObject({ success: true, amount: "300000" });
+    expect(result.transaction).toBe(wrapperHash);
+    expect(result.transaction).not.toBe(fake.sent[0]?.hash().toString("hex"));
+  });
+
+  it("answers an absent settlement as expired only while the payer's nonce is unused", async () => {
+    const fake = honest(new FakeRpc());
+    fake.statuses = ["NOT_FOUND", "NOT_FOUND", "NOT_FOUND"] as rpc.Api.GetTransactionStatus[];
+    let nonceEntries: unknown[] = [{}];
+    const keys: xdr.LedgerKey[] = [];
+    fake.getLedgerEntries = (...read: xdr.LedgerKey[]) => {
+      keys.push(...read);
+      return Promise.resolve({ entries: nonceEntries, latestLedger: fake.ledger } as never);
+    };
+    const scheme = facilitator(fake);
+    const { payload, settleRequirements } = await settleRequest(300_000n);
+    const pending = await scheme.settle(payload, settleRequirements);
+    expect(pending.errorReason).toBe("settlement_pending");
+
+    // Past the expiration and proven absent by its hashes, but something consumed the nonce.
+    fake.ledger = LEDGER + 200;
+    fake.statuses = ["NOT_FOUND", "NOT_FOUND", "NOT_FOUND"] as rpc.Api.GetTransactionStatus[];
+    expect(await scheme.settle(payload, settleRequirements)).toMatchObject({
+      errorReason: "settlement_pending",
+      transaction: pending.transaction,
+    });
+    expect(keys[0]?.contractData().key().switch()).toBe(xdr.ScValType.scvLedgerKeyNonce());
+
+    nonceEntries = [];
+    fake.statuses = ["NOT_FOUND", "NOT_FOUND", "NOT_FOUND"] as rpc.Api.GetTransactionStatus[];
+    expect(await scheme.settle(payload, settleRequirements)).toMatchObject({
+      errorReason: "settle_upto_stellar_transaction_expired",
+      transaction: pending.transaction,
+    });
+  });
+
+  it("rebuilds a settlement refused for a stale sequence number once, then answers a retryable code", async () => {
+    const badSequence = new xdr.TransactionResult({
+      feeCharged: xdr.Int64.fromString("0"),
+      result: xdr.TransactionResultResult.txFeeBumpInnerFailed(
+        new xdr.InnerTransactionResultPair({
+          transactionHash: Buffer.alloc(32),
+          result: new xdr.InnerTransactionResult({
+            feeCharged: xdr.Int64.fromString("0"),
+            result: xdr.InnerTransactionResultResult.txBadSeq(),
+            ext: new xdr.InnerTransactionResultExt(0),
+          }),
+        }),
+      ),
+      ext: new xdr.TransactionResultExt(0),
+    });
+    const refused = { status: "ERROR", errorResult: badSequence } as const;
+
+    const fake = honest(new FakeRpc());
+    fake.sendResults = [refused];
+    const first = await settleRequest(300_000n);
+    expect(await facilitator(fake).settle(first.payload, first.settleRequirements)).toMatchObject({
+      success: true,
+    });
+    expect(fake.sent).toHaveLength(2);
+
+    const twice = honest(new FakeRpc());
+    twice.sendResults = [refused, refused];
+    const second = await settleRequest(300_000n);
+    const scheme = facilitator(twice);
+    expect(await scheme.settle(second.payload, second.settleRequirements)).toMatchObject({
+      success: false,
+      errorReason: "settle_upto_stellar_channel_unavailable",
+      transaction: "",
+    });
+    expect(twice.sent).toHaveLength(2);
+    // Nothing landed: the same payment settles on a retry.
+    expect((await scheme.settle(second.payload, second.settleRequirements)).success).toBe(true);
+
+    const none = honest(new FakeRpc());
+    none.sendResults = [refused];
+    const third = await settleRequest(300_000n);
+    expect(
+      (await facilitator(none, { badSequenceRetries: 0 }).settle(third.payload, third.settleRequirements))
+        .errorReason,
+    ).toBe("settle_upto_stellar_channel_unavailable");
+    expect(none.sent).toHaveLength(1);
   });
 
   it("returns settlement_pending with the hash, and confirms it on a repeat", async () => {

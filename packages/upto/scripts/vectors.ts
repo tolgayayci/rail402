@@ -1,6 +1,8 @@
 /**
  * Generates the test vectors of the x402 `upto` scheme on Stellar, `upto-stellar-vectors.json`.
- * Run this file to rewrite the fixture, or with `--check` to compare it with a fresh generation.
+ * Run this file to rewrite the fixture, or with `--check` to compare it with a fresh generation:
+ * `npx tsx <this file> [--check]` from the package directory. The vectors unit test runs the same
+ * check.
  *
  * Everything is deterministic: fixed test-only seeds, a fixed nonce, and ed25519 signatures (which
  * are deterministic by construction). Other implementations can replay the file to check that
@@ -39,6 +41,10 @@ const EXPIRATION = 123_456;
 const NONCE = 42n;
 const MAX_TIMEOUT_SECONDS = 60;
 const LEDGER_SECONDS = 5;
+/** The facilitator policy the negative vectors are checked under. */
+const POLICY = { maxTimeoutSeconds: 300, minTimeoutSeconds: 15, expirationMarginLedgers: 2 } as const;
+/** Amounts the settle vectors cover: the whole cap, part of it, and zero. */
+const SETTLE_AMOUNTS = [MAX_AMOUNT, 300_000n, 0n];
 /** The ledger the negative vectors are checked at: within the window of `EXPIRATION`. */
 const CURRENT_LEDGER = EXPIRATION - 10;
 
@@ -170,27 +176,61 @@ async function arm(credential: UptoCredential) {
   };
 }
 
-async function contractPayerArm() {
+/**
+ * The contract-account payer's entry, signed as a minimal ed25519 contract account does: its
+ * __check_auth takes the raw 64-byte signature of the payer key.
+ */
+async function contractPayerEntry(terms: UptoTerms = TERMS, signed = true) {
   const unsigned = unsignedPayerEntry({
     contract: CONTRACT,
     payer: CONTRACT_PAYER,
-    terms: TERMS,
+    terms,
     nonce: NONCE,
   });
   const payload = hash(authorizationPreimage(unsigned, PASSPHRASE).toXDR());
-  // A minimal ed25519 contract account: its __check_auth takes the raw 64-byte signature.
-  const signed = await authorizeEntry(
+  if (!signed) return { entry: unsigned, payload };
+  const entry = await authorizeEntry(
     unsigned,
     () => Promise.resolve({ signatureScVal: xdr.ScVal.scvBytes(payer.sign(payload)) }),
-    EXPIRATION,
+    terms.expirationLedger,
     PASSPHRASE,
   );
+  return { entry, payload };
+}
+
+/**
+ * A delegated signer's entry for the contract-account payer: `other` (a G… account) authorizes the
+ * payer's `__check_auth` over the payer entry's signature payload, as an OpenZeppelin smart account
+ * with a delegated signer asks for.
+ */
+async function delegatedEntry(
+  options: { signer?: Keypair; fn?: string; nonce?: bigint; signed?: boolean } = {},
+): Promise<xdr.SorobanAuthorizationEntry> {
+  const key = options.signer ?? other;
+  const { payload } = await contractPayerEntry();
+  const entry = new xdr.SorobanAuthorizationEntry({
+    credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
+      new xdr.SorobanAddressCredentials({
+        address: nativeToScVal(key.publicKey(), { type: "address" }).address(),
+        nonce: xdr.Int64.fromString((options.nonce ?? 7n).toString()),
+        signatureExpirationLedger: EXPIRATION,
+        signature: xdr.ScVal.scvVoid(),
+      }),
+    ),
+    rootInvocation: contractFn(CONTRACT_PAYER, options.fn ?? "__check_auth", [xdr.ScVal.scvBytes(payload)]),
+  });
+  return options.signed === false ? entry : sign(entry, key);
+}
+
+async function contractPayerArm() {
+  const { entry: signed, payload } = await contractPayerEntry();
   return {
     address: CONTRACT_PAYER,
     publicKey: payer.rawPublicKey().toString("hex"),
     payloadSha256: payload.toString("hex"),
     authorization: encodeAuthorizationEntry(signed),
-    settle: [300_000n, 0n].map((amount) => ({
+    delegatedSignerAuthorization: encodeAuthorizationEntry(await delegatedEntry()),
+    settle: SETTLE_AMOUNTS.map((amount) => ({
       amount: amount.toString(),
       invokeContractArgsXdr: settleInvokeArgs(CONTRACT, CONTRACT_PAYER, TERMS, amount).toXDR("base64"),
       authorityEntryXdr: authorityEntry(CONTRACT, CONTRACT_PAYER, TERMS, amount).toXDR("base64"),
@@ -393,6 +433,17 @@ async function negatives(): Promise<NegativeVector[]> {
     ),
   );
   add("not base64 XDR", "invalid_upto_stellar_payload_malformed", "AAAA");
+  // The same entry, base64 encoded other than canonically: the facilitator refuses every non-canonical form.
+  add(
+    "non-canonical base64 (line break)",
+    "invalid_upto_stellar_payload_malformed",
+    `${base.slice(0, 64)}\n${base.slice(64)}`,
+  );
+  add(
+    "non-canonical base64 (padding removed)",
+    "invalid_upto_stellar_payload_malformed",
+    base.replace(/=+$/, ""),
+  );
   add("oversized", "invalid_upto_stellar_payload_too_large", "A".repeat(8 * 1024 + 4));
 
   // Parties.
@@ -412,6 +463,61 @@ async function negatives(): Promise<NegativeVector[]> {
     { signerAuthorizations: [base] },
   );
 
+  // A contract-account payer and its delegated signers (rule 9).
+  const contractBase = encodeAuthorizationEntry((await contractPayerEntry()).entry);
+  const delegated = encodeAuthorizationEntry(await delegatedEntry());
+  add(
+    "contract payer is payTo",
+    "invalid_upto_stellar_payload_self_payment",
+    encodeAuthorizationEntry((await contractPayerEntry(withTerms({ recipient: CONTRACT_PAYER }))).entry),
+    { requirements: { payTo: CONTRACT_PAYER } },
+  );
+  add(
+    "contract payer unsigned",
+    "invalid_upto_stellar_payload_missing_payer_signature",
+    encodeAuthorizationEntry((await contractPayerEntry(TERMS, false)).entry),
+  );
+  add(
+    "contract payer with five signer authorizations",
+    "invalid_upto_stellar_payload_invalid_signer_authorization",
+    contractBase,
+    {
+      signerAuthorizations: await Promise.all(
+        [1n, 2n, 3n, 4n, 5n].map(async (nonce) => encodeAuthorizationEntry(await delegatedEntry({ nonce }))),
+      ),
+    },
+  );
+  add(
+    "contract payer with a repeated signer authorization",
+    "invalid_upto_stellar_payload_invalid_signer_authorization",
+    contractBase,
+    { signerAuthorizations: [delegated, delegated] },
+  );
+  add(
+    "contract payer with an unsigned signer authorization",
+    "invalid_upto_stellar_payload_invalid_signer_authorization",
+    contractBase,
+    { signerAuthorizations: [encodeAuthorizationEntry(await delegatedEntry({ signed: false }))] },
+  );
+  add(
+    "contract payer with a signer authorization for another function",
+    "invalid_upto_stellar_payload_invalid_signer_authorization",
+    contractBase,
+    { signerAuthorizations: [encodeAuthorizationEntry(await delegatedEntry({ fn: "transfer" }))] },
+  );
+  add(
+    "contract payer with a signer authorization signed by the authority",
+    "invalid_upto_stellar_payload_invalid_signer_authorization",
+    contractBase,
+    { signerAuthorizations: [encodeAuthorizationEntry(await delegatedEntry({ signer: authority }))] },
+  );
+  add(
+    "contract payer with a settle entry as a signer authorization",
+    "invalid_upto_stellar_payload_invalid_signer_authorization",
+    contractBase,
+    { signerAuthorizations: [base] },
+  );
+
   // Requirements.
   add("muxed payTo", "invalid_upto_stellar_payload_unsupported_recipient", base, {
     requirements: {
@@ -427,6 +533,12 @@ async function negatives(): Promise<NegativeVector[]> {
   add("payTo is the authority", "invalid_upto_stellar_requirements_invalid_pay_to", base, {
     requirements: { payTo: authority.publicKey() },
   });
+  add("payTo is the asset", "invalid_upto_stellar_requirements_invalid_pay_to", base, {
+    requirements: { payTo: TERMS.token },
+  });
+  add("payTo is the settlement contract", "invalid_upto_stellar_requirements_invalid_pay_to", base, {
+    requirements: { payTo: CONTRACT },
+  });
   add("verify amount differs from the cap", "invalid_upto_stellar_payload_accepted_mismatch", base, {
     requirements: { amount: "999999" },
     accepted: { amount: MAX_AMOUNT.toString() },
@@ -438,6 +550,9 @@ async function negatives(): Promise<NegativeVector[]> {
   });
   add("timeout above the policy", "invalid_upto_stellar_requirements_timeout_out_of_range", base, {
     requirements: { maxTimeoutSeconds: 3_600 },
+  });
+  add("timeout below the policy", "invalid_upto_stellar_requirements_timeout_out_of_range", base, {
+    requirements: { maxTimeoutSeconds: POLICY.minTimeoutSeconds - 1 },
   });
   return vectors;
 }
@@ -473,7 +588,7 @@ export async function buildUptoVectors() {
     approveInvocationXdr: approveInvocation(CONTRACT, payer.publicKey(), TERMS).toXDR("base64"),
     rootInvocationXdr: payerInvocation(CONTRACT, payer.publicKey(), TERMS).toXDR("base64"),
     credentials: { address: await arm("address"), address_v2: await arm("address_v2") },
-    settle: [300_000n, 0n].map((amount) => ({
+    settle: SETTLE_AMOUNTS.map((amount) => ({
       amount: amount.toString(),
       invokeContractArgsXdr: settleInvokeArgs(CONTRACT, payer.publicKey(), TERMS, amount).toXDR("base64"),
       authorityEntryXdr: authorityEntry(CONTRACT, payer.publicKey(), TERMS, amount).toXDR("base64"),
@@ -483,6 +598,7 @@ export async function buildUptoVectors() {
       requirements: REQUIREMENTS,
       currentLedger: CURRENT_LEDGER,
       ledgerSeconds: LEDGER_SECONDS,
+      ...POLICY,
     },
     negatives: await negatives(),
   };
@@ -494,16 +610,28 @@ export async function renderUptoVectors(): Promise<string> {
   return `${JSON.stringify(await buildUptoVectors(), null, 2)}\n`;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+/**
+ * Writes the fixture, or with `--check` compares it with a fresh generation.
+ */
+async function main(): Promise<void> {
   const rendered = await renderUptoVectors();
   if (process.argv.includes("--check")) {
     if (readFileSync(VECTORS_PATH, "utf8") !== rendered) {
       process.stderr.write(`${VECTORS_PATH} is out of date; run this script without --check\n`);
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
     process.stdout.write("upto vectors are up to date\n");
   } else {
     writeFileSync(VECTORS_PATH, rendered);
     process.stdout.write(`wrote ${VECTORS_PATH}\n`);
   }
+}
+
+// Not top-level await: the file also runs as CommonJS (tsx in a package without "type": "module").
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error: unknown) => {
+    process.stderr.write(`${String(error)}\n`);
+    process.exitCode = 1;
+  });
 }

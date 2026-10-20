@@ -216,6 +216,14 @@ describe("loadConfig", () => {
       upto: undefined,
       ttlContracts: [expect.objectContaining({ alias: "USDC" })],
     });
+    // upto needs a timeout of one ledger more than the margin to be acceptable at all.
+    expect(() =>
+      loadConfig({ ...base, TESTNET_EXPIRATION_MARGIN_LEDGERS: "60", TESTNET_TIMEOUT_MAX_SECONDS: "300" }),
+    ).toThrow(/TESTNET_TIMEOUT_MAX_SECONDS must be at least 305/);
+    expect(
+      loadConfig({ ...base, TESTNET_EXPIRATION_MARGIN_LEDGERS: "59", TESTNET_TIMEOUT_MAX_SECONDS: "300" })
+        .networks[0]?.upto,
+    ).toBeDefined();
 
     const pubnet = {
       ...base,

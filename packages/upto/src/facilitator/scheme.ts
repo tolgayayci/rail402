@@ -1,6 +1,7 @@
 import { Buffer } from "buffer";
 import {
   Account,
+  Address,
   BASE_FEE,
   FeeBumpTransaction,
   Operation,
@@ -35,7 +36,13 @@ import {
   UPTO_X402_VERSION,
 } from "../constants.ts";
 import { reject, type UptoRejection } from "../errors.ts";
-import { isAccountAddress, parseAtomicAmount, resolveLedgerSeconds, resolveUptoContract } from "../shared.ts";
+import {
+  isAccountAddress,
+  minTimeoutSecondsFor,
+  parseAtomicAmount,
+  resolveLedgerSeconds,
+  resolveUptoContract,
+} from "../shared.ts";
 import { authorityEntry, settleInvokeArgs } from "../terms.ts";
 import type { LedgerSecondsSource, UptoContractOverride, ZeroSettlementMode } from "../types.ts";
 import { checkUptoPayment, type CheckedUptoPayment, type UptoPhase } from "./rules.ts";
@@ -55,6 +62,11 @@ export interface UptoRpc {
   simulateTransaction(transaction: Transaction): Promise<rpc.Api.SimulateTransactionResponse>;
   sendTransaction(transaction: Transaction | FeeBumpTransaction): Promise<rpc.Api.SendTransactionResponse>;
   getTransaction(hash: string): Promise<rpc.Api.GetTransactionResponse>;
+  /**
+   * Reads ledger entries; used to read the payer's authorization nonce before a settlement is
+   * answered as never included. Without it, that answer rests on the transaction lookups alone.
+   */
+  getLedgerEntries?(...keys: xdr.LedgerKey[]): Promise<rpc.Api.GetLedgerEntriesResponse>;
 }
 
 export interface UptoStellarFacilitatorOptions {
@@ -90,12 +102,24 @@ export interface UptoStellarFacilitatorOptions {
   readonly feeBumpSigner?: FacilitatorStellarSigner;
   /** Largest `maxTimeoutSeconds` accepted (default 300). */
   readonly maxTimeoutSeconds?: number;
+  /**
+   * Smallest `maxTimeoutSeconds` accepted (default: one ledger more than the expiration margin at
+   * 5 s per ledger, 15 s for the default margin). A shorter timeout gives authorizations that expire
+   * before they can be settled.
+   */
+  readonly minTimeoutSeconds?: number;
   /** Minimum ledgers between now and the authorization's expiration (default 2, at least 1). */
   readonly expirationMarginLedgers?: number;
   /** Asset allow-list; every SEP-41 asset is accepted when absent. */
   readonly isAssetAccepted?: (asset: string, network: string) => boolean;
   /** More addresses to treat as facilitator-controlled (never a payer or payee). */
   readonly facilitatorAddresses?: readonly string[];
+  /**
+   * Times a settlement refused for a stale sequence number (`txBAD_SEQ`, another transaction of the
+   * same signer took it) is rebuilt with a fresh sequence and submitted again (default 1). When none
+   * is left, the answer is `settle_upto_stellar_channel_unavailable`, which may be retried.
+   */
+  readonly badSequenceRetries?: number;
   /** Confirmation polling (default 30 attempts, 1 s apart). */
   readonly confirmation?: { readonly attempts?: number; readonly intervalMs?: number };
 }
@@ -127,6 +151,13 @@ interface SettlementContext {
   readonly expirationLedger: number;
   /** The latest ledger when the settlement was requested: the transaction cannot be in an earlier one. */
   readonly requestedLedger: number;
+  /** The payer's authorization nonce. */
+  readonly nonce: bigint;
+  /**
+   * The hash of the transaction inside the fee bump, when one wraps it. Anyone can wrap the public
+   * inner transaction in a fee bump of their own, so it can land under another hash.
+   */
+  innerTransactionHash?: string | undefined;
 }
 
 interface SettlementRecord extends SettlementContext {
@@ -179,6 +210,7 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
   readonly maxTransactionFeeStroops: number;
   readonly inclusionFeeStroops: number;
   readonly maxTimeoutSeconds: number;
+  readonly minTimeoutSeconds: number;
   readonly expirationMarginLedgers: number;
   /** Every address this facilitator controls; none may pay, be paid or appear in a client entry. */
   readonly facilitatorAddresses: ReadonlySet<string>;
@@ -213,6 +245,14 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
     if (!Number.isInteger(this.expirationMarginLedgers) || this.expirationMarginLedgers < 1) {
       // An authorization expiring at the current ledger can no longer be included.
       throw new Error("expirationMarginLedgers must be an integer of at least 1");
+    }
+    this.minTimeoutSeconds = options.minTimeoutSeconds ?? minTimeoutSecondsFor(this.expirationMarginLedgers);
+    if (
+      !Number.isInteger(this.minTimeoutSeconds) ||
+      this.minTimeoutSeconds < 1 ||
+      this.minTimeoutSeconds > this.maxTimeoutSeconds
+    ) {
+      throw new Error("minTimeoutSeconds must be an integer from 1 to maxTimeoutSeconds");
     }
     this.selectSigner = options.selectSigner ?? roundRobin();
     this.facilitatorAddresses = new Set([
@@ -307,11 +347,22 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
       if (existing !== undefined) {
         if (existing.payloadHash !== payloadHash) {
           const original = await existing.result;
+          if (!original.success && !isPending(original) && original.transaction === "") {
+            // The other request failed before anything reached the network: nothing was settled,
+            // so this one is settled on its own.
+            if (this.settlements.get(key) === existing) this.forget(key, existing);
+            return await this.settle(payload, requirements);
+          }
+          const state = original.success
+            ? "was already settled"
+            : isPending(original)
+              ? "is being settled"
+              : "was already submitted, and failed on chain,";
           return failed(
             network,
             reject(
               "settle_upto_stellar_idempotency_conflict",
-              `This authorization was already settled for ${existing.amount}; it cannot be settled again for ${checked.payment.amount}.`,
+              `This authorization ${state} for ${existing.amount}; it cannot be settled again for ${checked.payment.amount}.`,
             ),
             payer,
             amount,
@@ -322,18 +373,15 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
       }
 
       const record: SettlementRecord = {
-        network,
-        payer,
-        amount: checked.payment.amount,
+        ...contextOf(checked, latest),
         payTo: requirements.payTo,
         asset: requirements.asset,
-        expirationLedger: checked.payment.authorization.terms.expirationLedger,
-        requestedLedger: latest,
         payloadHash,
         state: "running",
         keepUntilLedger: checked.payment.authorization.terms.expirationLedger,
-        result: this.execute(checked, latest),
+        result: Promise.resolve(failed(network, reject("unexpected_settle_error"), payer, amount)),
       };
+      record.result = this.execute(checked, record);
       this.settlements.set(key, record);
       this.byPayload.set(`${network}:${payloadHash}`, key);
       const response = await record.result;
@@ -390,6 +438,7 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
       currentLedger: latest.sequence,
       ledgerSeconds,
       maxTimeoutSeconds: this.maxTimeoutSeconds,
+      minTimeoutSeconds: this.minTimeoutSeconds,
       expirationMarginLedgers: this.expirationMarginLedgers,
       isAssetAccepted: this.options.isAssetAccepted,
     });
@@ -455,7 +504,9 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
     const archived = archivedStateRejection(data, parties);
     if (archived !== undefined) return { ok: false, rejection: archived };
 
-    const fee = Number(simulation.minResourceFee) + this.inclusionFeeStroops;
+    // A fee bump bids the inclusion fee once for itself and once for the transaction it wraps.
+    const inclusionBids = this.options.feeBumpSigner === undefined ? 1 : 2;
+    const fee = Number(simulation.minResourceFee) + this.inclusionFeeStroops * inclusionBids;
     if (!Number.isFinite(fee) || fee > this.maxTransactionFeeStroops) {
       return {
         ok: false,
@@ -509,13 +560,13 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
    * rejects.
    *
    * @param checked - The checked payment
-   * @param requestedLedger - The latest ledger when the settlement was requested
+   * @param context - The settlement; its inner transaction hash is set once a fee bump wraps it
    * @returns The settlement response
    */
-  private async execute(checked: Checked, requestedLedger: number): Promise<SettleResponse> {
+  private async execute(checked: Checked, context: SettlementContext): Promise<SettleResponse> {
     const { payment, network } = checked;
     try {
-      return await this.submit(checked, requestedLedger);
+      return await this.submit(checked, context);
     } catch (error) {
       // Thrown before anything was broadcast (`submit` answers a failed broadcast itself).
       return failed(
@@ -531,10 +582,10 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
    * `execute` without the catch-all: a throw means nothing was broadcast.
    *
    * @param checked - The checked payment
-   * @param requestedLedger - The latest ledger when the settlement was requested
+   * @param context - The settlement; its inner transaction hash is set once a fee bump wraps it
    * @returns The settlement response
    */
-  private async submit(checked: Checked, requestedLedger: number): Promise<SettleResponse> {
+  private async submit(checked: Checked, context: SettlementContext): Promise<SettleResponse> {
     const { payment, network } = checked;
     const amount = payment.amount.toString();
     const payer = payment.payer;
@@ -549,6 +600,40 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
     if (signer === undefined) {
       return failed(network, reject("settle_upto_stellar_signer_selection_failed"), payer, amount);
     }
+    const retries = this.options.badSequenceRetries ?? 1;
+    for (let attempt = 0; ; attempt++) {
+      const submitted = await this.submitOnce(checked, context, signer);
+      if (submitted !== "bad_sequence") return submitted;
+      if (attempt >= retries) {
+        return failed(
+          network,
+          reject(
+            "settle_upto_stellar_channel_unavailable",
+            `Another transaction of the settlement account ${signer.address} took its sequence number (txBadSeq); no funds moved, retry.`,
+          ),
+          payer,
+          amount,
+        );
+      }
+    }
+  }
+
+  /**
+   * Builds the settlement on the signer's current sequence number, signs, fee-bumps and submits it.
+   *
+   * @param checked - The checked payment
+   * @param context - The settlement; its inner transaction hash is set once a fee bump wraps it
+   * @param signer - The transaction source
+   * @returns The settlement response, or `bad_sequence` when the network refused the sequence number
+   */
+  private async submitOnce(
+    checked: Checked,
+    context: SettlementContext,
+    signer: FacilitatorStellarSigner,
+  ): Promise<SettleResponse | "bad_sequence"> {
+    const { payment, network } = checked;
+    const amount = payment.amount.toString();
+    const payer = payment.payer;
     const account = await checked.rpc.getAccount(signer.address);
     const simulated = await this.simulate(checked, account);
     if (!simulated.ok) return failed(network, simulated.rejection, payer, amount);
@@ -577,9 +662,9 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
         return failed(network, reject("settle_upto_stellar_fee_bump_signing_failed"), payer, amount);
       }
       envelope = new FeeBumpTransaction(result.signedTxXdr, passphrase);
+      context.innerTransactionHash = envelope.innerTransaction.hash().toString("hex");
     }
 
-    const context = contextOf(checked, requestedLedger);
     const transactionHash = envelope.hash().toString("hex");
     let sent: rpc.Api.SendTransactionResponse;
     try {
@@ -589,7 +674,8 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
       return failed(network, reject("settlement_pending"), payer, amount, transactionHash);
     }
     if (sent.status === "ERROR" || sent.status === "TRY_AGAIN_LATER") {
-      const code = sent.errorResult?.result().switch().name;
+      const code = sent.errorResult === undefined ? undefined : resultCode(sent.errorResult);
+      if (code === "txBadSeq") return "bad_sequence";
       return failed(
         network,
         reject(
@@ -605,8 +691,12 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
 
   /**
    * Polls a submitted settlement until it succeeds, fails, is proven absent or the polling budget
-   * runs out. Absent is proven by NOT_FOUND from an RPC that has ingested a ledger past the
-   * authorization's expiration and still retains every ledger since the settlement was requested.
+   * runs out. While its own hash is not found, the transaction inside the fee bump is looked up by
+   * its hash too: anyone can wrap that public transaction in a fee bump of their own, and a
+   * settlement that landed so is answered from that transaction. Absent is proven by NOT_FOUND for
+   * both hashes from an RPC that has ingested a ledger past the authorization's expiration and still
+   * retains every ledger since the settlement was requested; when the RPC can read ledger entries,
+   * the payer's authorization nonce must also be unused, or the settlement stays pending.
    *
    * @param client - The network's RPC client
    * @param context - The settlement
@@ -622,15 +712,29 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
     const amount = context.amount.toString();
     const attempts = this.options.confirmation?.attempts ?? 30;
     const intervalMs = this.options.confirmation?.intervalMs ?? 1000;
+    const inner = context.innerTransactionHash;
     for (let attempt = 0; attempt < attempts; attempt++) {
-      let result: rpc.Api.GetTransactionResponse | undefined;
-      try {
-        result = await client.getTransaction(transactionHash);
-      } catch {
-        result = undefined;
+      let result = await lookup(client, transactionHash);
+      let landedIn = transactionHash;
+      if (
+        result?.status === rpc.Api.GetTransactionStatus.NOT_FOUND &&
+        inner !== undefined &&
+        inner !== transactionHash
+      ) {
+        const wrapped = await lookup(client, inner);
+        if (
+          wrapped?.status === rpc.Api.GetTransactionStatus.SUCCESS ||
+          wrapped?.status === rpc.Api.GetTransactionStatus.FAILED
+        ) {
+          result = wrapped;
+          landedIn = envelopeHash(wrapped, network) ?? inner;
+        } else if (wrapped === undefined) {
+          // Unknown whether the inner transaction landed: absence is not proven this round.
+          result = undefined;
+        }
       }
       if (result?.status === rpc.Api.GetTransactionStatus.SUCCESS) {
-        return { success: true, transaction: transactionHash, network: network as Network, payer, amount };
+        return { success: true, transaction: landedIn, network: network as Network, payer, amount };
       }
       if (result?.status === rpc.Api.GetTransactionStatus.FAILED) {
         const code = resultCode(result.resultXdr);
@@ -644,10 +748,14 @@ export class UptoStellarScheme implements SchemeNetworkFacilitator {
               ),
           payer,
           amount,
-          transactionHash,
+          landedIn,
         );
       }
-      if (result?.status === rpc.Api.GetTransactionStatus.NOT_FOUND && provenAbsent(result, context)) {
+      if (
+        result?.status === rpc.Api.GetTransactionStatus.NOT_FOUND &&
+        provenAbsent(result, context) &&
+        (await nonceUnused(client, context))
+      ) {
         return failed(
           network,
           reject("settle_upto_stellar_transaction_expired"),
@@ -772,6 +880,77 @@ function isPending(response: SettleResponse): boolean {
 }
 
 /**
+ * A transaction lookup; `undefined` when the RPC call failed.
+ *
+ * @param client - The network's RPC client
+ * @param hash - The transaction hash
+ * @returns The answer, or `undefined`
+ */
+async function lookup(client: UptoRpc, hash: string): Promise<rpc.Api.GetTransactionResponse | undefined> {
+  try {
+    return await client.getTransaction(hash);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The hash of the envelope a found transaction was included in: the fee bump that wrapped it.
+ *
+ * @param result - A SUCCESS or FAILED answer
+ * @param network - CAIP-2 network
+ * @returns The hash, or `undefined` when the envelope cannot be read
+ */
+function envelopeHash(
+  result: rpc.Api.GetSuccessfulTransactionResponse | rpc.Api.GetFailedTransactionResponse,
+  network: string,
+): string | undefined {
+  try {
+    return TransactionBuilder.fromXDR(result.envelopeXdr, getNetworkPassphrase(network as Network))
+      .hash()
+      .toString("hex");
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Whether the payer's authorization nonce is unused, so no transaction carried the authorization.
+ * An RPC that cannot read ledger entries leaves the transaction lookups as the only evidence; a
+ * failed read is not evidence.
+ *
+ * @param client - The network's RPC client
+ * @param context - The settlement
+ * @returns False when the nonce was consumed or could not be read
+ */
+async function nonceUnused(client: UptoRpc, context: SettlementContext): Promise<boolean> {
+  if (client.getLedgerEntries === undefined) return true;
+  try {
+    const { entries } = await client.getLedgerEntries(nonceLedgerKey(context.payer, context.nonce));
+    return entries.length === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The ledger key of a payer's authorization nonce: a temporary entry of the payer's address.
+ *
+ * @param payer - The payer (`G…` or `C…`)
+ * @param nonce - The authorization's nonce
+ * @returns The ledger key
+ */
+function nonceLedgerKey(payer: string, nonce: bigint): xdr.LedgerKey {
+  return xdr.LedgerKey.contractData(
+    new xdr.LedgerKeyContractData({
+      contract: Address.fromString(payer).toScAddress(),
+      key: xdr.ScVal.scvLedgerKeyNonce(new xdr.ScNonceKey({ nonce: xdr.Int64.fromString(nonce.toString()) })),
+      durability: xdr.ContractDataDurability.temporary(),
+    }),
+  );
+}
+
+/**
  * Whether a NOT_FOUND answer proves the transaction was never included: the RPC has ingested a
  * ledger after the last one it could be included in (`E`; its ledger bounds end at `E + 1`), and it
  * still retains the ledger in which the settlement was requested.
@@ -807,6 +986,7 @@ function contextOf(checked: Checked, requestedLedger: number): SettlementContext
     asset: payment.authorization.terms.token,
     expirationLedger: payment.authorization.terms.expirationLedger,
     requestedLedger,
+    nonce: payment.authorization.nonce,
   };
 }
 

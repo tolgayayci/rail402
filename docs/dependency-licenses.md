@@ -24,6 +24,7 @@ exceptions flagged below. The policy is enforced on every CI run by `pnpm licens
 | Contract contracts/testing/approve-spending-limit (Rust)                                                                                      | 218      |
 | Contract contracts/testing/composition (Rust)                                                                                                 | 216      |
 | Contract contracts/testing/test-token (Rust)                                                                                                  | 219      |
+| Contract contracts/testing/upto-adversarial (Rust)                                                                                            | 215      |
 
 ## Flagged items
 
@@ -250,6 +251,24 @@ into the deployed contract.
 | Apache-2.0 OR MIT                                   | 31       |
 | MIT                                                 | 22       |
 | Apache-2.0                                          | 20       |
+| Unlicense OR MIT                                    | 7        |
+| BSD-3-Clause                                        | 4        |
+| Apache-2.0 WITH LLVM-exception                      | 2        |
+| BSD-2-Clause OR Apache-2.0 OR MIT                   | 2        |
+| MIT OR Apache-2.0 OR BSD-1-Clause                   | 2        |
+| Zlib OR MIT OR Apache-2.0                           | 2        |
+| (MIT OR Apache-2.0) AND Unicode-3.0                 | 1        |
+| Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | 1        |
+| Zlib OR Apache-2.0 OR MIT                           | 1        |
+
+### contracts/testing/upto-adversarial
+
+| Licence                                             | Packages |
+| --------------------------------------------------- | -------- |
+| MIT OR Apache-2.0                                   | 124      |
+| Apache-2.0 OR MIT                                   | 31       |
+| Apache-2.0                                          | 19       |
+| MIT                                                 | 19       |
 | Unlicense OR MIT                                    | 7        |
 | BSD-3-Clause                                        | 4        |
 | Apache-2.0 WITH LLVM-exception                      | 2        |

@@ -69,16 +69,17 @@ does not match, `Error(Auth, ExistingValue)` when the payer's entry was already 
 `@rail402.dev/upto` uses this deployment on `stellar:testnet` unless a contract is configured
 (`UPTO_TESTNET_DEPLOYMENT`). There is no pubnet deployment.
 
-The deployment record holds the source commit, the WASM and source-archive hashes, the build image, options and
+The deployment record holds the source commit and the repository that holds it
+(`https://github.com/tolgayayci/rail402`), the WASM and source-archive hashes, the build image, options and
 CLI, the deployer, the salt, the hash and ledger of every deployment transaction (upload, deploy, both TTL
-extensions), the ledgers until which the instance and the code live, the CLI version that sent them, and under
-`previous` the deployment it replaced: its address, WASM hash, source commit, salt and deploy transaction, and a
-note on how it was built.
+extensions), the ledgers until which the instance and the code live, the CLI version that sent them, later TTL
+extensions under `ttl_extensions`, and under `previous` the deployment it replaced: its address, WASM hash,
+repository and source commit, salt and deploy transaction, and a note on how it was built.
 
 The address depends only on the network, the deployer and the salt `sha256("x402-upto-stellar/v1.1")`
 (`37971407…f7330b`), so it can be computed before anything is sent, and only the deployer can create a contract
 there. The contract has no admin and cannot be upgraded, so the deployer holds no privilege over it
-afterwards. It replaces `CCNU3CYA…AYPB` (salt `sha256("x402-upto-stellar/v1")`), which runs the same source
+afterwards. It has not had a third-party security review. It replaces `CCNU3CYA…AYPB` (salt `sha256("x402-upto-stellar/v1")`), which runs the same source
 built with the SEP-58 recipe of the test contracts (no `--optimize`, no SEP-55 `source_repo` metadata) and stays
 on chain unchanged. `verify.sh --contract upto --recipe sep58 --rev <commit> --wasm <file>` rebuilds it from the
 commit its record names.
@@ -146,7 +147,9 @@ stellar contract restore --wasm-hash <wasm sha256> --network testnet --source <a
 ```
 
 `3110399` is the largest extension testnet accepts today (`max_entry_ttl − 1`). The deployment record's
-`live_until_ledger` shows where the entries stood right after deployment.
+`live_until_ledger` shows where the entries stood right after deployment, and `ttl_extensions` lists the
+extensions sent by hand since then, with where each left the entries. A Rail402 service's TTL keeper also
+extends them when they run low; those rounds are not recorded here.
 
 ### Tests
 
@@ -164,7 +167,8 @@ allowance; the absence of contract storage; and a resource-cost snapshot.
 The crate, its tests included, is frozen byte for byte: the deployment record names the SHA-256 of the crate's
 source archive, which covers every file in `upto/`, so changing even a test would no longer match the deployed
 contract's record and would require a new deployment under a new salt. New tests of the deployed contract go in a separate crate that depends on it by path, like
-[`../testing/composition`](../testing/README.md).
+[`../testing/composition`](../testing/README.md), or that loads the deployed wasm fixture, like
+[`../testing/upto-adversarial`](../testing/README.md).
 
 ### Reproducible build
 

@@ -95,10 +95,14 @@ export const DEFAULT_EXPIRATION_MARGIN_LEDGERS = 2;
 export const DEFAULT_MAX_TIMEOUT_SECONDS = 300;
 
 /**
- * Default ceiling on the settlement transaction's fee (inclusion fee plus simulated resource fee),
- * in stroops. With current testnet fee settings a settlement from a `G…` payer simulates to about
- * 175,000 stroops through a Stellar Asset Contract to an existing trustline, and to about 385,000
- * stroops through a contract token whose recipient has no balance entry yet (the new entry's rent
- * is part of the fee). Smart-account payers cost more.
+ * Default ceiling on the settlement transaction's fee (the simulated resource fee plus the inclusion
+ * fee, counted twice when a fee bump pays it), in stroops. Measured on testnet at protocol 29, a
+ * settlement from a `G…` payer through a Stellar Asset Contract to an existing trustline declares
+ * about 40,000–50,000 stroops (and is charged less). The default does not cover every payer: the
+ * first payment through a contract token to a recipient without a balance entry declared about
+ * 910,000 (the new entry's rent is part of the fee), an OpenZeppelin smart account paying through a
+ * delegated signer about 1,560,000, and one with a spending-limit policy about 2,690,000 on its first
+ * payment. Above the ceiling a payment is refused with `fee_exceeds_maximum` before anything is
+ * submitted; operators size it for the payers and recipients they serve.
  */
 export const DEFAULT_MAX_TRANSACTION_FEE_STROOPS = 500_000;

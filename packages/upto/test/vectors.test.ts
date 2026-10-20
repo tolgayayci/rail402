@@ -84,7 +84,8 @@ describe("upto test vectors", () => {
       );
       expect(entry.rootInvocation().subInvocations()).toHaveLength(0);
     }
-    expect(vectors.settle.map((settle) => settle.amount)).toEqual(["300000", "0"]);
+    expect(vectors.settle.map((settle) => settle.amount)).toEqual(["1000000", "300000", "0"]);
+    expect(vectors.contractPayer.settle.map((settle) => settle.amount)).toEqual(["1000000", "300000", "0"]);
   });
 
   it("sign the contract-account payer's entry with a raw ed25519 signature", () => {
@@ -121,38 +122,67 @@ describe("upto test vectors", () => {
           facilitatorAddresses,
           currentLedger: vectors.check.currentLedger,
           ledgerSeconds: vectors.check.ledgerSeconds,
-          maxTimeoutSeconds: 300,
-          expirationMarginLedgers: 2,
+          maxTimeoutSeconds: vectors.check.maxTimeoutSeconds,
+          minTimeoutSeconds: vectors.check.minTimeoutSeconds,
+          expirationMarginLedgers: vectors.check.expirationMarginLedgers,
         });
         expect(result.ok ? "accepted" : result.rejection.code).toBe(negative.expectedCode);
         if (!result.ok) expect(result.rejection.reason.trim()).not.toBe("");
       });
     }
 
-    it("accept the unmodified payment at both phases", () => {
+    const policy = {
+      contract: vectors.contract,
+      authority: vectors.authority,
+      facilitatorAddresses,
+      currentLedger: vectors.check.currentLedger,
+      ledgerSeconds: vectors.check.ledgerSeconds,
+      maxTimeoutSeconds: vectors.check.maxTimeoutSeconds,
+      minTimeoutSeconds: vectors.check.minTimeoutSeconds,
+      expirationMarginLedgers: vectors.check.expirationMarginLedgers,
+    };
+
+    it("accept the unmodified payment at both phases, up to the whole cap", () => {
       const requirements = vectors.check.requirements as PaymentRequirements;
-      for (const phase of ["verify", "settle"] as const) {
+      for (const [phase, amount] of [
+        ["verify", "1000000"],
+        ["settle", "1000000"],
+        ["settle", "300000"],
+        ["settle", "0"],
+      ] as const) {
         const result = checkUptoPayment(
           {
             x402Version: 2,
             accepted: requirements,
             payload: { authorization: vectors.credentials.address.authorization },
           },
-          phase === "verify" ? requirements : { ...requirements, amount: "300000" },
-          {
-            phase,
-            contract: vectors.contract,
-            authority: vectors.authority,
-            facilitatorAddresses,
-            currentLedger: vectors.check.currentLedger,
-            ledgerSeconds: vectors.check.ledgerSeconds,
-            maxTimeoutSeconds: 300,
-            expirationMarginLedgers: 2,
-          },
+          { ...requirements, amount },
+          { phase, ...policy },
         );
         if (!result.ok) throw new Error(result.rejection.code);
-        expect(result.payment.amount).toBe(phase === "verify" ? 1_000_000n : 300_000n);
+        expect(result.payment.amount).toBe(BigInt(amount));
         expect(result.payment.maxAmount).toBe(1_000_000n);
+      }
+    });
+
+    it("accept the contract-account payer with and without its delegated signer", () => {
+      const requirements = vectors.check.requirements as PaymentRequirements;
+      for (const signerAuthorizations of [undefined, [vectors.contractPayer.delegatedSignerAuthorization]]) {
+        const result = checkUptoPayment(
+          {
+            x402Version: 2,
+            accepted: requirements,
+            payload: {
+              authorization: vectors.contractPayer.authorization,
+              ...(signerAuthorizations === undefined ? {} : { signerAuthorizations }),
+            },
+          },
+          requirements,
+          { phase: "verify", ...policy },
+        );
+        if (!result.ok) throw new Error(result.rejection.code);
+        expect(result.payment.payer).toBe(vectors.contractPayer.address);
+        expect(result.payment.signerAuthorizations).toHaveLength(signerAuthorizations?.length ?? 0);
       }
     });
   });

@@ -1,7 +1,7 @@
 import { StrKey } from "@stellar/stellar-sdk";
 import type { Network } from "@x402/core/types";
 import { getEstimatedLedgerCloseTimeSeconds, isStellarNetwork } from "@x402/stellar";
-import { I128_MAX, UPTO_DEPLOYMENTS } from "./constants.ts";
+import { I128_MAX, NOMINAL_LEDGER_SECONDS, UPTO_DEPLOYMENTS } from "./constants.ts";
 import type { LedgerSecondsSource, UptoContractOverride } from "./types.ts";
 
 /**
@@ -102,6 +102,19 @@ export async function resolveLedgerSeconds(network: string, source?: LedgerSecon
  */
 export function ledgersFor(maxTimeoutSeconds: number, ledgerSeconds: number): number {
   return Math.ceil(maxTimeoutSeconds / ledgerSeconds);
+}
+
+/**
+ * The smallest `maxTimeoutSeconds` a facilitator accepts by default for its expiration margin: one
+ * ledger more than the margin, at the nominal ledger time (15 s for the default margin of 2). A
+ * shorter timeout gives an authorization that expires before verification and settlement can both
+ * pass the margin, so the payment would be refused however the payer signs it.
+ *
+ * @param expirationMarginLedgers - The facilitator's expiration margin, in ledgers
+ * @returns The minimum timeout, in seconds
+ */
+export function minTimeoutSecondsFor(expirationMarginLedgers: number): number {
+  return (expirationMarginLedgers + 1) * NOMINAL_LEDGER_SECONDS;
 }
 
 /**

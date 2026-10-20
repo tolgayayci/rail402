@@ -18,6 +18,7 @@ import {
 import { DEFAULT_MAX_TIMEOUT_SECONDS, MAX_SIGNER_AUTHORIZATIONS, UPTO_SCHEME } from "../constants.ts";
 import {
   expirationLedgerFor,
+  isAccountAddress,
   isAccountOrContract,
   isContractAddress,
   parseAtomicAmount,
@@ -207,8 +208,10 @@ export class UptoStellarScheme implements SchemeNetworkClient {
     if (extra["areFeesSponsored"] !== true)
       throw new Error("upto on Stellar requires extra.areFeesSponsored to be true");
     const facilitator = extra["facilitatorAddress"];
-    if (!isAccountOrContract(facilitator)) {
-      throw new Error("extra.facilitatorAddress must be the facilitator's G… or C… settlement authority");
+    // The settlement authority is the settle operation's source, which only a G… account can be: a
+    // C… address could never settle through a facilitator, only through whoever controls it.
+    if (!isAccountAddress(facilitator)) {
+      throw new Error("extra.facilitatorAddress must be the facilitator's G… settlement authority");
     }
     if (facilitator === this.signer.address || payTo === this.signer.address) {
       throw new Error("the payer cannot be the settlement authority or the recipient");

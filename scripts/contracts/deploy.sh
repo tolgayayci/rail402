@@ -232,9 +232,9 @@ fetched="$(sha256 "$work/fetched.wasm")"
 previous="[]"
 if [[ -f "$record" ]] && [[ "$(jq -r '.contract_id // empty' "$record")" != "$contract_id" ]]; then
   previous="$(jq '[{
-      contract_id, wasm_sha256, commit, salt_preimage,
+      contract_id, wasm_sha256, repository, commit, salt_preimage,
       deploy: .transactions.deploy
-    }] + (.previous // [])' "$record")"
+    } | if .repository == null then del(.repository) else . end] + (.previous // [])' "$record")"
 fi
 
 constructor="null"
@@ -253,6 +253,7 @@ jq -n \
   --argjson constructor "$constructor" \
   --arg wasm_sha256 "$wasm_sha256" \
   --slurpfile provenance "$FIXTURE_PROVENANCE" \
+  --arg repository "https://github.com/${SOURCE_REPO#github:}" \
   --arg commit "$commit" \
   --arg deployer "$deployer" \
   --arg salt "$salt" \
@@ -282,6 +283,7 @@ jq -n \
     bldimg: $provenance[0].bldimg,
     bldopt: $provenance[0].bldopt,
     build_cli: $provenance[0].stellar_cli,
+    repository: $repository,
     commit: $commit,
     deployer: $deployer,
     salt: $salt,

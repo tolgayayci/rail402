@@ -7,6 +7,7 @@ Contracts that exist to test payments on test networks. None of them is meant fo
 | `test-token/`             | SEP-41 token with configurable decimals and an open faucet                                  | `soroban-sdk` 27.0.2 |
 | `approve-spending-limit/` | Spending-limit policy for OpenZeppelin smart accounts that budgets `approve` and `transfer` | `soroban-sdk` 27.0.2 |
 | `composition/`            | Tests only: the `upto` contract with an OpenZeppelin smart account, verifier and the policy | `soroban-sdk` 28.0.0 |
+| `upto-adversarial/`       | Tests only: the deployed `upto` wasm against hostile payers, tokens, sellers and relayers   | `soroban-sdk` 28.0.0 |
 
 Each crate is its own Cargo project with its own lockfile and `rust-toolchain.toml` (rust 1.98.0). The two
 contracts depend on [OpenZeppelin Stellar Contracts](https://github.com/OpenZeppelin/stellar-contracts) (MIT)
@@ -129,6 +130,32 @@ authorization, including the owner's rule setup, carries real ed25519 signatures
 (legacy and CAP-71 V2), the settle arguments and the authority's entry are byte-identical to the contract's own
 encoding, and the vectors' contract-account payer entry settles 300000 once (a second use fails with
 `ExistingValue`) and settles zero.
+
+## `upto-adversarial/`
+
+Tests that load the deployed `upto` contract from `packages/testkit/fixtures/x402_upto_stellar.wasm` (a test
+checks its SHA-256 against the deployment record), so the frozen crate stays untouched and the code under
+test is the code on chain. Payers sign for real wherever authentication is the point; the host checks
+signatures, thresholds, nonces and expirations. They show that:
+
+- a classic `G…` payer with a trustline settles once with a real signature; a replay fails with
+  `ExistingValue`; a signature moved onto other terms, by a key that is not a signer, empty, or below a
+  multisig account's medium threshold fails; an amount over the balance fails and leaves the entry usable;
+- two live authorizations of one payer, settled in either order, never take more than each one's cap, and
+  the leftover allowance of one cannot be spent through the other; the same terms signed under two nonces
+  are two payments; an allowance the payer set beforehand is overwritten, not added to;
+- a token chosen by the seller can settle and emit `upto_settled` without moving any value (events are only
+  as trustworthy as `terms.token`), but cannot re-enter `settle`, even holding a second valid authorization,
+  and cannot use the payer's `approve` authorization to move another asset;
+- a contract cannot settle a payment without the authority named in the terms; an entry signed for another
+  network or another deployment fails;
+- the authority as payer still needs both authorizations; paying oneself moves nothing; paying the token
+  contract sends exactly the amount there; an `approve` for another spender authorizes nothing;
+- an expiration at the maximum TTL settles; past it or at `u32::MAX` no funds can move (a zero settlement
+  still records); an inverted window is never valid; an `i128::MAX` cap takes only the amount;
+- a contract-account payer's `__check_auth` sees the contexts `[settle, approve]` for a payment and also for
+  a zero settlement, so a policy sees the upto contract as spender and finds the recipient only in the
+  `settle` context's terms.
 
 ## Tests and builds
 

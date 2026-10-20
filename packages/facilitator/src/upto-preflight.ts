@@ -2,7 +2,7 @@ import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import type { UptoResponseCode } from "@rail402.dev/stellar";
 import { parseAtomicAmount } from "@rail402.dev/upto";
 import { checkUptoPayment, type CheckedUptoPayment, type UptoPhase } from "@rail402.dev/upto/facilitator";
-import type { NetworkPolicy, UptoPolicy } from "./policy.ts";
+import { uptoTimeoutSeconds, type NetworkPolicy, type UptoPolicy } from "./policy.ts";
 
 export interface UptoPreflightContext {
   /** `verify` checks the payment for its cap; `settle` for the amount being settled. */
@@ -45,6 +45,7 @@ export function uptoPreflight(
   const policyViolation = checkPolicy(payload, requirements, policy);
   if (policyViolation !== undefined) return policyViolation;
 
+  const timeoutSeconds = uptoTimeoutSeconds(policy);
   const checked = checkUptoPayment(payload, requirements, {
     phase: context.phase,
     contract: context.upto.contract,
@@ -52,7 +53,8 @@ export function uptoPreflight(
     facilitatorAddresses: context.facilitatorAddresses,
     currentLedger: context.currentLedger,
     ledgerSeconds: context.ledgerSeconds,
-    maxTimeoutSeconds: policy.timeoutSeconds.max,
+    maxTimeoutSeconds: timeoutSeconds.max,
+    minTimeoutSeconds: timeoutSeconds.min,
     expirationMarginLedgers: policy.expirationMarginLedgers,
     isAssetAccepted: (asset) => policy.assets.has(asset),
   });
@@ -62,8 +64,8 @@ export function uptoPreflight(
 
 /**
  * The operator's limits beyond the scheme's rules, checked with the requirements (rule 2) once the
- * request is an x402 v2 `upto` request: the served network, the lower bound on `maxTimeoutSeconds`
- * (the scheme checks the upper one) and the accepted asset's bounds on the cap. Anything malformed
+ * request is an x402 v2 `upto` request: the served network and the accepted asset's bounds on the cap.
+ * The `maxTimeoutSeconds` range is the scheme's rule 2, given the policy's bounds. Anything malformed
  * is left to the scheme's rules.
  */
 function checkPolicy(
@@ -78,13 +80,6 @@ function checkPolicy(
   }
   if (requirements.network !== policy.network) {
     return reject("invalid_network", `This facilitator settles upto payments on ${policy.network} here.`);
-  }
-  const timeout = requirements.maxTimeoutSeconds;
-  if (Number.isInteger(timeout) && timeout > 0 && timeout < policy.timeoutSeconds.min) {
-    return reject(
-      "invalid_upto_stellar_requirements_timeout_out_of_range",
-      `maxTimeoutSeconds must be an integer between ${policy.timeoutSeconds.min} and ${policy.timeoutSeconds.max}.`,
-    );
   }
   const asset = policy.assets.get(requirements.asset);
   const cap = parseAtomicAmount(payload.accepted.amount);

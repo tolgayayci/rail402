@@ -116,6 +116,7 @@ jobs:
           - contracts/testing/test-token
           - contracts/testing/approve-spending-limit
           - contracts/testing/composition
+          - contracts/testing/upto-adversarial
     defaults:
       run:
         working-directory: ${{ matrix.crate }}

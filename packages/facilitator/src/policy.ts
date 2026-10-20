@@ -1,6 +1,7 @@
 import type { AssetKind, StellarNetwork, TokenInfo } from "@rail402.dev/stellar";
 import {
   DEFAULT_MAX_TRANSACTION_FEE_STROOPS as UPTO_DEFAULT_MAX_TRANSACTION_FEE_STROOPS,
+  minTimeoutSecondsFor,
   type LedgerSecondsSource,
   type ZeroSettlementMode,
 } from "@rail402.dev/upto";
@@ -84,3 +85,16 @@ export interface UptoPolicy {
 
 /** The `upto` fee ceiling by default; see `UptoPolicy.maxTransactionFeeStroops`. */
 export const DEFAULT_UPTO_MAX_TRANSACTION_FEE_STROOPS = UPTO_DEFAULT_MAX_TRANSACTION_FEE_STROOPS;
+
+/**
+ * The `maxTimeoutSeconds` range of `upto` payments: the network's range, raised at the bottom to one
+ * ledger more than the expiration margin (10 s for the default margin of one ledger), below which an
+ * authorization expires before it can be settled. One bound, checked once, so every refusal names
+ * the same range.
+ */
+export function uptoTimeoutSeconds(policy: NetworkPolicy): { readonly min: number; readonly max: number } {
+  return {
+    min: Math.max(policy.timeoutSeconds.min, minTimeoutSecondsFor(policy.expirationMarginLedgers)),
+    max: policy.timeoutSeconds.max,
+  };
+}

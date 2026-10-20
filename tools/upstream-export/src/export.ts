@@ -57,6 +57,14 @@ export interface Comparison {
 const LOCAL_TEXT = /rail402/i;
 
 /**
+ * The repository the upto contract's release is built and attested from. The deployed WASM names it
+ * in its SEP-55 `source_repo` metadata, so a deployment record may name it as a JSON string value;
+ * any other mention is still refused.
+ */
+const RELEASE_REPOSITORY = '"https://github.com/tolgayayci/rail402"';
+const DEPLOYMENT_RECORD = /^contracts\/stellar\/deployments\/[^/]+\.json$/;
+
+/**
  * Builds every exported file from the working tree of `root` (tracked and untracked, not
  * ignored) for the checkout at `target`.
  */
@@ -95,7 +103,9 @@ export async function planExport(root: string, target: string, format: Formatter
   }
 
   for (const file of files) {
-    if (LOCAL_TEXT.test(file.content.toString("utf8"))) {
+    let text = file.content.toString("utf8");
+    if (DEPLOYMENT_RECORD.test(file.target)) text = text.replaceAll(RELEASE_REPOSITORY, '""');
+    if (LOCAL_TEXT.test(text)) {
       problems.push(
         `${file.source}: mentions ${LOCAL_TEXT.source}, which means nothing in the x402 checkout`,
       );

@@ -19,15 +19,19 @@
  * Needs `docker compose --profile stellar up -d` and Postgres.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Address, Keypair, xdr } from "@stellar/stellar-sdk";
+import { Address, Keypair, Operation, xdr } from "@stellar/stellar-sdk";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import { authorityEntry, settleInvokeArgs } from "@rail402.dev/upto";
 import { hostErrors } from "@rail402.dev/upto/facilitator";
 import {
   LocalNetwork,
+  accountSigner,
   addressCredentialsOf,
+  deploySimpleAccount,
   deployUpto,
+  mintTo,
   pinHorizon,
+  simpleAccountSigner,
   submitInvocation,
   type HorizonPin,
   type Invocation,
@@ -101,6 +105,8 @@ describe.skipIf(!available)("tampered upto payments", () => {
     };
   }
 
+  const SIGNATURE = "invalid_upto_stellar_payload_invalid_signature";
+
   const pay = (accepted = requirements()) =>
     uptoPayment(net, { contract: contract.address, payer, accepted });
 
@@ -112,9 +118,9 @@ describe.skipIf(!available)("tampered upto payments", () => {
   }
 
   /** Refused by /verify and /settle with `code`: nothing submitted, nothing paid, nothing moved. */
-  async function expectRefused(tampered: Tampered, code: string) {
+  async function expectRefused(tampered: Tampered, code: string, payerAddress = payerKeys.publicKey()) {
     const sponsor = await net.nativeBalance(service.sponsor.publicKey());
-    const funds = await net.tokenBalance(usdc.sac, payerKeys.publicKey());
+    const funds = await net.tokenBalance(usdc.sac, payerAddress);
     const verified = await post(service.url, "/verify", tampered.payload, tampered.requirements);
     expect(verified.body).toMatchObject({ isValid: false, invalidReason: code });
     expect(verified.body["invalidMessage"]).toEqual(expect.any(String));
@@ -127,7 +133,7 @@ describe.skipIf(!available)("tampered upto payments", () => {
     expect(settled.body).toMatchObject({ success: false, errorReason: code, transaction: "" });
     expect(settled.body["errorMessage"]).toEqual(expect.any(String));
     expect(await net.nativeBalance(service.sponsor.publicKey())).toBe(sponsor);
-    expect(await net.tokenBalance(usdc.sac, payerKeys.publicKey())).toBe(funds);
+    expect(await net.tokenBalance(usdc.sac, payerAddress)).toBe(funds);
   }
 
   const setRoot = (entry: xdr.SorobanAuthorizationEntry, edit: (call: xdr.InvokeContractArgs) => void) => {
@@ -284,6 +290,16 @@ describe.skipIf(!available)("tampered upto payments", () => {
         }),
       ],
       [
+        "empty signature vector",
+        "invalid_upto_stellar_payload_missing_payer_signature",
+        async () => ({
+          payload: editEntry(await pay(), (entry) =>
+            addressCredentialsOf(entry).signature(xdr.ScVal.scvVec([])),
+          ),
+          requirements: requirements(),
+        }),
+      ],
+      [
         "missing signature",
         "invalid_upto_stellar_payload_missing_payer_signature",
         async () => ({
@@ -316,7 +332,6 @@ describe.skipIf(!available)("tampered upto payments", () => {
   });
 
   describe("consistent changes keep the old signature, so the network refuses them", () => {
-    const SIGNATURE = "invalid_upto_stellar_payload_invalid_signature";
     const cases: [string, () => Promise<Tampered>][] = [
       [
         "recipient",
@@ -448,6 +463,61 @@ describe.skipIf(!available)("tampered upto payments", () => {
       );
       const settled = await post(service.url, "/settle", payload, withAmount(requirements(), 100n));
       expect(settled.body).toMatchObject({ success: true, amount: "100" });
+    });
+  });
+
+  describe("an account that refuses the payer's signature", () => {
+    // A G… account's own refusal is raised by the host as Error(Contract, #5) in the settlement
+    // contract's frame, the number of the contract's Expired; it must be named a bad signature.
+    it("refuses a G… payer signed with a key that is not its signer as a bad signature", async () => {
+      const stranger = Keypair.random();
+      const forged = await signedPayment(net, {
+        contract: contract.address,
+        payer: { address: payerKeys.publicKey(), sign: accountSigner(stranger) },
+        accepted: requirements(),
+      });
+      await expectRefused({ payload: forged, requirements: requirements() }, SIGNATURE);
+    });
+
+    it("refuses a 2-of-2 multisig G… payer signed with one key as a bad signature", async () => {
+      const multisig = await net.holder(usdc, "10");
+      const second = Keypair.random();
+      await net.classic(multisig, [
+        Operation.setOptions({
+          signer: { ed25519PublicKey: second.publicKey(), weight: 1 },
+          lowThreshold: 2,
+          medThreshold: 2,
+          highThreshold: 2,
+        }),
+      ]);
+      const underThreshold = await signedPayment(net, {
+        contract: contract.address,
+        payer: accountPayer(multisig),
+        accepted: requirements(),
+      });
+      await expectRefused(
+        { payload: underThreshold, requirements: requirements() },
+        SIGNATURE,
+        multisig.publicKey(),
+      );
+    });
+
+    it("refuses a contract account signed with the wrong key as its smart account's refusal", async () => {
+      const deployer = Keypair.random();
+      await net.fund(deployer);
+      const owner = Keypair.random();
+      const account = await deploySimpleAccount(net, deployer, owner);
+      await mintTo(net, usdc, account, 10_000_000n);
+      const forged = await signedPayment(net, {
+        contract: contract.address,
+        payer: { address: account, sign: simpleAccountSigner(Keypair.random()) },
+        accepted: requirements(),
+      });
+      await expectRefused(
+        { payload: forged, requirements: requirements() },
+        "invalid_upto_stellar_payload_smart_account_rejected",
+        account,
+      );
     });
   });
 

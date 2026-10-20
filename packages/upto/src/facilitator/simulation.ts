@@ -68,25 +68,63 @@ export function hostErrors(events: readonly xdr.DiagnosticEvent[]): HostError[] 
 }
 
 /**
- * Host errors named in a simulation's error string (`HostError: Error(Auth, ExistingValue)`), for
- * RPC responses that carry no diagnostic events.
+ * Host errors named in a simulation's error string, for RPC responses that carry no diagnostic
+ * events. The string starts with the error that ended the simulation (`HostError: Error(Auth,
+ * InvalidAction)`) and may append the host's event log, newest first, one event per line:
+ * `[Diagnostic Event] contract:C…, topics:[error, Error(Contract, #5)], data:["message", …]`. Errors
+ * of the log keep their contract and message and are returned oldest first, like {@link hostErrors};
+ * without a log, the leading error is returned without a contract.
  *
  * @param message - The simulation's error string
  * @returns The host errors it names
  */
 export function hostErrorsFromMessage(message: string): HostError[] {
-  const errors: HostError[] = [];
-  for (const match of message.matchAll(/Error\((\w+), #?(\w+)\)/g)) {
-    const [, type = "", code = ""] = match;
-    errors.push({
-      contract: undefined,
+  const logged: HostError[] = [];
+  for (const line of message.split("\n")) {
+    const topic = /topics:\[error, Error\((\w+), #?(\w+)\)\]/.exec(line);
+    if (topic === null) continue;
+    const [, type = "", code = ""] = topic;
+    logged.push({
+      contract: /contract:(C[A-Z2-7]{55})\b/.exec(line)?.[1],
       type,
-      code: /^\d+$/.test(code) ? Number(code) : code,
-      message: undefined,
+      code: parseCode(code),
+      message: /data:\[?"([^"]*)"/.exec(line)?.[1],
       args: [],
     });
   }
-  return errors;
+  if (logged.length > 0) return logged.reverse();
+  const leading = /Error\((\w+), #?(\w+)\)/.exec(message);
+  if (leading === null) return [];
+  const [, type = "", code = ""] = leading;
+  return [{ contract: undefined, type, code: parseCode(code), message: undefined, args: [] }];
+}
+
+/**
+ * A host error code: the contract error number, or the error code's name.
+ *
+ * @param code - The code as the host prints it, without `#`
+ * @returns The number or the name
+ */
+function parseCode(code: string): number | string {
+  return /^\d+$/.test(code) ? Number(code) : code;
+}
+
+/**
+ * Whether the host failed to authenticate an address in the settlement: a `G…` account's signature,
+ * weights or thresholds, or a contract account's `__check_auth`, refused the payer's entry. The host
+ * reports it as `Error(Auth, InvalidAction)` "failed account authentication", raised in the frame
+ * that required the authorization, after the account's own error. For a `G…` account that own error
+ * is `Error(Contract, #5)` (the host's AuthenticationError, e.g. "signer does not belong to
+ * account"), in the settlement contract's frame: the same number as the contract's `Expired`, which
+ * is why authentication is decided first.
+ *
+ * @param errors - The host errors
+ * @returns Whether an account failed authentication
+ */
+function accountAuthenticationFailed(errors: readonly HostError[]): boolean {
+  return errors.some(
+    (e) => e.type === "Auth" && e.message?.includes("failed account authentication") === true,
+  );
 }
 
 /**
@@ -110,7 +148,25 @@ export function classifySimulationFailure(
     return reject("invalid_upto_stellar_payload_nonce_already_used");
   }
 
-  const fromContract = errors.find((e) => e.type === "Contract" && e.contract === parties.contract);
+  const authenticationFailed = accountAuthenticationFailed(errors);
+
+  // A contract error of the settlement contract's frame is the contract's own only when no account
+  // failed authentication there. With an RPC that returns neither events nor an event log, the
+  // error that ended the simulation has no contract; the settlement contract's numbers 1–5 are
+  // still read as its own (a token's errors in a settlement are trustline, balance and account
+  // errors, and #6 is also the Stellar Asset Contract's missing account).
+  const fromContract = authenticationFailed
+    ? undefined
+    : errors.find(
+        (e) =>
+          e.type === "Contract" &&
+          (e.contract === parties.contract ||
+            (e.contract === undefined &&
+              errors.length === 1 &&
+              typeof e.code === "number" &&
+              e.code >= UptoContractError.InvalidMaxAmount &&
+              e.code <= UptoContractError.Expired)),
+      );
   if (fromContract !== undefined) {
     const mapped = contractErrorRejection(fromContract.code);
     if (mapped !== undefined) return mapped;
@@ -149,11 +205,17 @@ export function classifySimulationFailure(
   for (const error of errors) {
     if (error.type !== "Auth") continue;
     if (error.message?.includes("expired") === true) return reject("invalid_upto_stellar_signature_expired");
-    if (error.message?.includes("failed account authentication") === true) {
-      return payerIsContract
-        ? reject("invalid_upto_stellar_payload_smart_account_rejected")
-        : reject("invalid_upto_stellar_payload_invalid_signature");
-    }
+  }
+  if (authenticationFailed) {
+    const cause = errors.find((e) => e.type === "Contract" && e.message !== undefined);
+    return payerIsContract
+      ? reject("invalid_upto_stellar_payload_smart_account_rejected")
+      : reject(
+          "invalid_upto_stellar_payload_invalid_signature",
+          cause?.message === undefined
+            ? undefined
+            : `The payer's account rejected the signature: ${cause.message}.`,
+        );
   }
 
   const unauthorized = errors.find((e) => e.type === "Auth" && e.code === "InvalidAction");

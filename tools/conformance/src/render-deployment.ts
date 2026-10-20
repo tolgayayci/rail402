@@ -11,6 +11,8 @@ export const UPTO_DEPLOYMENT_RECORD = "contracts/stellar/deployments/testnet.jso
 
 const transaction = z.object({ tx: z.string().regex(/^[0-9a-f]{64}$/), ledger: z.number().int().positive() });
 
+const liveUntil = z.object({ instance: z.number().int(), code: z.number().int() });
+
 const deploymentRecord = z.object({
   caip2: z.string().min(1),
   contract_id: z.string().regex(/^C[A-Z2-7]{55}$/),
@@ -22,6 +24,8 @@ const deploymentRecord = z.object({
   bldopt: z.array(z.string()),
   /** The stellar-cli version that built the WASM (records before it was kept: the deploying CLI). */
   build_cli: z.string().min(1).optional(),
+  /** The repository that holds `commit`. */
+  repository: z.url(),
   commit: z.string().regex(/^[0-9a-f]{40}$/),
   deployer: z.string().regex(/^G[A-Z2-7]{55}$/),
   salt: z.string().regex(/^[0-9a-f]{64}$/),
@@ -33,13 +37,27 @@ const deploymentRecord = z.object({
     extend_instance: transaction,
     extend_code: transaction,
   }),
-  live_until_ledger: z.object({ instance: z.number().int(), code: z.number().int() }),
+  /** Where the instance and code TTLs stood right after deployment. */
+  live_until_ledger: liveUntil,
+  /** TTL extensions sent after deployment, oldest first. */
+  ttl_extensions: z
+    .array(
+      z.object({
+        instance: transaction,
+        code: transaction,
+        extend_to: z.number().int().positive(),
+        stellar_cli: z.string().min(1),
+        live_until_ledger: liveUntil,
+      }),
+    )
+    .optional(),
   /** Earlier deployments this one replaced, newest first, each with an optional note on how it was built. */
   previous: z
     .array(
       z.object({
         contract_id: z.string().regex(/^C[A-Z2-7]{55}$/),
         wasm_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+        repository: z.url(),
         commit: z.string().regex(/^[0-9a-f]{40}$/),
         salt_preimage: z.string().min(1),
         deploy: transaction,
@@ -65,6 +83,10 @@ const table = (header: readonly string[], rows: readonly (readonly string[])[]):
 
 const code = (value: string | number): string => `\`${String(value)}\``;
 
+/** A commit linked to its page in the repository that holds it. */
+const revision = (repository: string, commit: string): string =>
+  `[${code(commit)}](${repository.replace(/\/$/, "")}/commit/${commit})`;
+
 /** The network, address and code hash of the deployment, with a link to it in an explorer. */
 export function renderDeployments(record: DeploymentRecord): string {
   const network = record.caip2.replace(/^stellar:/, "");
@@ -84,7 +106,7 @@ export function renderDeploymentRecord(record: DeploymentRecord): string {
   return table(
     ["Field", "Value"],
     [
-      ["Source revision", `${code(record.commit)} (${code(record.source)})`],
+      ["Source revision", `${revision(record.repository, record.commit)} (${code(record.source)})`],
       ["Source archive SHA-256", code(record.source_sha256)],
       ["Build image", code(record.bldimg)],
       ["Build options", record.bldopt.map(code).join(" ")],
@@ -97,10 +119,20 @@ export function renderDeploymentRecord(record: DeploymentRecord): string {
       ["Instance TTL extension", `${tx(txs.extend_instance)}, live until ledger ${liveUntil.instance}`],
       ["Code TTL extension", `${tx(txs.extend_code)}, live until ledger ${liveUntil.code}`],
       ["Deployment CLI", `${code(`stellar`)} ${record.stellar_cli}`],
+      ...(record.ttl_extensions ?? []).flatMap((extension) => [
+        [
+          "Instance TTL extension",
+          `${tx(extension.instance)}, live until ledger ${extension.live_until_ledger.instance}`,
+        ],
+        [
+          "Code TTL extension",
+          `${tx(extension.code)}, live until ledger ${extension.live_until_ledger.code}`,
+        ],
+      ]),
       ...(record.previous ?? []).map((entry) => [
         "Replaces",
         `${code(entry.contract_id)} (WASM ${code(entry.wasm_sha256)}, salt ${code(`sha256("${entry.salt_preimage}")`)}), ` +
-          `deployed in ${tx(entry.deploy)} from source revision ${code(entry.commit)}` +
+          `deployed in ${tx(entry.deploy)} from source revision ${revision(entry.repository, entry.commit)}` +
           (entry.note === undefined ? "" : `. ${entry.note}`),
       ]),
     ],

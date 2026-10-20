@@ -11,7 +11,7 @@ import {
   acceptedAsset,
   type AcceptedAsset,
 } from "@rail402.dev/facilitator";
-import { UPTO_DEPLOYMENTS, type ZeroSettlementMode } from "@rail402.dev/upto";
+import { UPTO_DEPLOYMENTS, minTimeoutSecondsFor, type ZeroSettlementMode } from "@rail402.dev/upto";
 
 /**
  * Service configuration, read once from the environment and validated before anything starts.
@@ -488,6 +488,12 @@ function loadUpto(
     (network === TESTNET ? TESTNET_UPTO_MAX_TX_FEE_STROOPS : DEFAULT_UPTO_MAX_TRANSACTION_FEE_STROOPS);
   if (maxTransactionFeeStroops < values.INCLUSION_FEE_STROOPS) {
     throw new ConfigError(`${prefix}INCLUSION_FEE_STROOPS exceeds ${prefix}UPTO_MAX_TX_FEE_STROOPS`);
+  }
+  // upto refuses timeouts shorter than one ledger more than the margin; some must remain.
+  if (minTimeoutSecondsFor(values.EXPIRATION_MARGIN_LEDGERS) > values.TIMEOUT_MAX_SECONDS) {
+    throw new ConfigError(
+      `${prefix}TIMEOUT_MAX_SECONDS must be at least ${minTimeoutSecondsFor(values.EXPIRATION_MARGIN_LEDGERS)} for upto with ${prefix}EXPIRATION_MARGIN_LEDGERS=${values.EXPIRATION_MARGIN_LEDGERS}`,
+    );
   }
   const extendTo = values.UPTO_TTL_EXTEND_TO_LEDGERS;
   if (extendTo !== undefined && extendTo <= values.UPTO_TTL_EXTEND_BELOW_LEDGERS) {

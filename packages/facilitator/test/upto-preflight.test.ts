@@ -70,6 +70,31 @@ describe("upto preflight", () => {
     expect(check(payment({ authorization: entry({ credential: "address_v2" }) })).ok).toBe(true);
   });
 
+  it("names one maxTimeoutSeconds range, raised to a ledger more than the expiration margin", () => {
+    const refusal = (maxTimeoutSeconds: number, overrides: Partial<UptoPreflightContext> = {}) =>
+      check(
+        payment({ accepted: requirements({ maxTimeoutSeconds }) }),
+        requirements({ maxTimeoutSeconds }),
+        overrides,
+      );
+    // The policy accepts 10 s and up; its margin of 2 ledgers needs 15 s.
+    for (const maxTimeoutSeconds of [5, 14, 301]) {
+      expect(refusal(maxTimeoutSeconds)).toEqual({
+        ok: false,
+        code: "invalid_upto_stellar_requirements_timeout_out_of_range",
+        reason: "maxTimeoutSeconds must be an integer from 15 to 300.",
+      });
+    }
+    const oneLedger = { policy: { ...policy, expirationMarginLedgers: 1 } };
+    expect(refusal(9, oneLedger)).toMatchObject({
+      reason: "maxTimeoutSeconds must be an integer from 10 to 300.",
+    });
+    const atMinimum = refusal(10, oneLedger);
+    expect(atMinimum.ok ? "accepted" : atMinimum.code).not.toBe(
+      "invalid_upto_stellar_requirements_timeout_out_of_range",
+    );
+  });
+
   describe("maps every static rule to its code", () => {
     const cases: [string, () => ReturnType<typeof check>, string][] = [
       // Rule 1: protocol envelope.

@@ -10,7 +10,7 @@ import {
   nativeToScVal,
   rpc,
   xdr,
-  type FeeBumpTransaction,
+  FeeBumpTransaction,
   type Transaction,
 } from "@stellar/stellar-sdk";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
@@ -252,6 +252,14 @@ export class FakeRpc implements UptoRpc {
   sendStatus: rpc.Api.SendTransactionStatus = "PENDING";
   statuses: rpc.Api.GetTransactionResponse["status"][] = [];
   failedResult: xdr.TransactionResult | undefined;
+  /** Answers for specific hashes, ahead of `statuses`. */
+  byHash = new Map<string, rpc.Api.GetTransactionResponse>();
+  /** Hashes of the transactions inside the fee bumps sent; not found unless `byHash` has them. */
+  innerHashes = new Set<string>();
+  /** Set by a test to give the RPC ledger-entry reads. */
+  getLedgerEntries?: UptoRpc["getLedgerEntries"];
+  /** `sendTransaction` answers, ahead of `sendStatus`. */
+  sendResults: Partial<rpc.Api.SendTransactionResponse>[] = [];
   /** The oldest ledger the RPC retains, as `getTransaction` reports it. */
   oldestLedger = 1;
 
@@ -270,17 +278,30 @@ export class FakeRpc implements UptoRpc {
     return Promise.resolve(next);
   }
 
-  sendTransaction(transaction: Transaction | FeeBumpTransaction) {
+  sendTransaction(transaction: Transaction | FeeBumpTransaction): Promise<rpc.Api.SendTransactionResponse> {
     this.sent.push(transaction);
+    if (transaction instanceof FeeBumpTransaction) {
+      this.innerHashes.add(transaction.innerTransaction.hash().toString("hex"));
+    }
     return Promise.resolve({
       status: this.sendStatus,
       hash: transaction.hash().toString("hex"),
       latestLedger: this.ledger,
       latestLedgerCloseTime: 0,
-    } as rpc.Api.SendTransactionResponse);
+      ...this.sendResults.shift(),
+    });
   }
 
-  getTransaction(_hash: string) {
+  getTransaction(hash: string) {
+    const known = this.byHash.get(hash);
+    if (known !== undefined) return Promise.resolve(known);
+    if (this.innerHashes.has(hash)) {
+      return Promise.resolve({
+        status: rpc.Api.GetTransactionStatus.NOT_FOUND,
+        latestLedger: this.ledger,
+        oldestLedger: this.oldestLedger,
+      } as unknown as rpc.Api.GetTransactionResponse);
+    }
     const status = this.statuses.shift() ?? rpc.Api.GetTransactionStatus.SUCCESS;
     return Promise.resolve({
       status,

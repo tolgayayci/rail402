@@ -120,6 +120,39 @@ export function classifyTransferFailure(
     };
   }
 
+  // The host authenticates a G… payer in the token's frame: a signature from a key that is not the
+  // account's signer, too little weight or no signature raises Error(Contract, #5) (the host's
+  // AuthenticationError) there, before "failed account authentication". That number is not the
+  // token's own error, so authentication is decided before the token's errors.
+  const authentication = errors.find(
+    (e) => e.type === "Auth" && e.message?.includes("failed account authentication") === true,
+  );
+  if (authentication !== undefined) {
+    // A G… payer that does not exist fails authentication on reading its own account entry.
+    const accountMissing = errors.some(
+      (e) =>
+        e.type === "Storage" &&
+        e.code === "MissingValue" &&
+        e.message?.includes("non-existing value for account") === true,
+    );
+    if (accountMissing) {
+      return {
+        code: "invalid_exact_stellar_payload_account_missing",
+        reason: `The payer account ${context.from} does not exist on this network.`,
+      };
+    }
+    const cause = errors.find((e) => e.type === "Contract" && e.message !== undefined)?.message;
+    return {
+      code: context.from.startsWith("C")
+        ? "invalid_exact_stellar_payload_smart_account_rejected"
+        : "invalid_exact_stellar_payload_invalid_signature",
+      reason:
+        cause === undefined
+          ? "The payer's account rejected the authorization."
+          : `The payer's account rejected the authorization: ${cause}.`,
+    };
+  }
+
   const assetError = errors.find((e) => e.type === "Contract" && e.contract === context.asset);
   if (assetError !== undefined && context.assetKind !== "sac") {
     // Error numbers are each contract's own: #10 of one token is not #10 of another.
@@ -164,27 +197,6 @@ export function classifyTransferFailure(
 
   const unauthorized = errors.find((e) => e.type === "Auth" && e.code === "InvalidAction");
   if (unauthorized !== undefined) {
-    // A G… payer that does not exist fails authentication on reading its own account entry.
-    const accountMissing = errors.some(
-      (e) =>
-        e.type === "Storage" &&
-        e.code === "MissingValue" &&
-        e.message?.includes("non-existing value for account") === true,
-    );
-    if (accountMissing && unauthorized.message?.includes("failed account authentication") === true) {
-      return {
-        code: "invalid_exact_stellar_payload_account_missing",
-        reason: `The payer account ${context.from} does not exist on this network.`,
-      };
-    }
-    if (unauthorized.message?.includes("failed account authentication") === true) {
-      return {
-        code: context.from.startsWith("C")
-          ? "invalid_exact_stellar_payload_smart_account_rejected"
-          : "invalid_exact_stellar_payload_invalid_signature",
-        reason: "The payer's account rejected the authorization.",
-      };
-    }
     return {
       code: "invalid_exact_stellar_payload_unauthorized_invocation",
       reason: "The transfer performed differs from what the payer's authorization covers.",

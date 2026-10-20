@@ -86,6 +86,27 @@ describe("classifyTransferFailure", () => {
     ).toBe("invalid_exact_stellar_payload_invalid_signature");
   });
 
+  it("an account that fails authentication → invalid_signature, whatever the token's kind", () => {
+    // Captured from a protocol 28 simulation of a Stellar Asset Contract transfer whose G… payer
+    // signed with a key that is not its signer: the host raises Error(Contract, #5) in the token's
+    // frame, then "failed account authentication". #5 is not the token's own error.
+    const sac = "CAUWHFLFUPOX6ZQSGKIZZBILK555G32CKHEEXV2HMK5C5PANDRU2T3TS";
+    const events = [
+      "AAAAAAAAAAAAAAABKWOVZaPdf2YSMpGchQtXe9NvQlHIS9dHYrouvA0caakAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAAAAAAFAAAAEAAAAAEAAAACAAAADgAAACFzaWduZXIgZG9lcyBub3QgYmVsb25nIHRvIGFjY291bnQAAAAAAAANAAAAINVxH1DEP8BEGfWNxCkt0Ror6k7UCrz5owejbbz12IS/",
+      "AAAAAAAAAAAAAAABKWOVZaPdf2YSMpGchQtXe9NvQlHIS9dHYrouvA0caakAAAACAAAAAAAAAAIAAAAPAAAABWVycm9yAAAAAAAAAgAAAAkAAAAGAAAAEAAAAAEAAAADAAAADgAAAChmYWlsZWQgYWNjb3VudCBhdXRoZW50aWNhdGlvbiB3aXRoIGVycm9yAAAAEgAAAAAAAAAATZScq/G2qeZXYZnYd/rFExfcZtupDU7na2w6JSmbyeEAAAACAAAAAAAAAAU=",
+    ].map((event) => xdr.DiagnosticEvent.fromXDR(event, "base64"));
+    const errors = hostErrors(events);
+    expect(errors[0]).toMatchObject({ contract: sac, type: "Contract", code: 5 });
+    for (const assetKind of ["sac", "sep41", undefined] as const) {
+      const result = classifyTransferFailure(errors, { ...context, asset: sac, assetKind });
+      expect(result.code).toBe("invalid_exact_stellar_payload_invalid_signature");
+      expect(result.reason).toContain("signer does not belong to account");
+    }
+    expect(classifyTransferFailure(errors, { ...context, asset: sac, from: randomContractId() }).code).toBe(
+      "invalid_exact_stellar_payload_smart_account_rejected",
+    );
+  });
+
   it("a payer account that does not exist → account_missing", () => {
     expect(
       classify(

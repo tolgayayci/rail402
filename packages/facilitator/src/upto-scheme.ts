@@ -31,7 +31,7 @@ import { uptoFingerprintOf } from "./fingerprint.ts";
 import type { SettlementKey } from "./ledger.ts";
 import { LEDGER_FRESH_MS, LatestLedger } from "./latest-ledger.ts";
 import { silentLogger, type Logger } from "./logger.ts";
-import type { NetworkPolicy, UptoPolicy } from "./policy.ts";
+import { uptoTimeoutSeconds, type NetworkPolicy, type UptoPolicy } from "./policy.ts";
 import { existingAccounts } from "./provision.ts";
 import { reasonFor, settleFailed, verifyAccepted, verifyRejected } from "./responses.ts";
 import { uptoPreflight, type UptoPreflight } from "./upto-preflight.ts";
@@ -356,6 +356,7 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
       simulateTransaction: (transaction) => server.simulateTransaction(transaction),
       sendTransaction: (transaction) => server.sendTransaction(transaction),
       getTransaction: (hash) => server.getTransaction(hash),
+      getLedgerEntries: (...keys) => server.getLedgerEntries(...keys),
     };
     const options: UptoStellarFacilitatorOptions = {
       rpc: () => client,
@@ -367,11 +368,15 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
       ledgerSeconds: prepared.ledgerSeconds,
       maxTransactionFeeStroops: upto.maxTransactionFeeStroops,
       inclusionFeeStroops,
-      maxTimeoutSeconds: policy.timeoutSeconds.max,
+      maxTimeoutSeconds: uptoTimeoutSeconds(policy).max,
+      minTimeoutSeconds: uptoTimeoutSeconds(policy).min,
       expirationMarginLedgers: policy.expirationMarginLedgers,
       isAssetAccepted: (asset) => policy.assets.has(asset),
       facilitatorAddresses: [...engine.facilitatorAddresses],
       feeBumpSigner: context?.feeBumpSigner ?? verificationOnlySigner(engine.sponsorAddress),
+      // The engine records every envelope before broadcast and answers a refused one itself; a
+      // rebuilt envelope would be a second record.
+      badSequenceRetries: 0,
       ...(context === undefined ? {} : { selectSigner: () => context.channel }),
     };
     const signers =

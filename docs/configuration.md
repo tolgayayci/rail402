@@ -106,6 +106,8 @@ Validation rules beyond the formats:
 - `REQUIRE_API_KEY=true` needs at least one digest in `API_KEY_SHA256`.
 - `TIMEOUT_MIN_SECONDS` may not exceed `TIMEOUT_MAX_SECONDS`, `INCLUSION_FEE_STROOPS` may not exceed
   `MAX_TX_FEE_STROOPS`, and `INCLUSION_FEE_CAP_STROOPS` must lie between the two.
+- With `upto` on, `TIMEOUT_MAX_SECONDS` must be at least `(EXPIRATION_MARGIN_LEDGERS + 1) × 5`: `upto`
+  refuses a shorter `maxTimeoutSeconds`, whose authorization would expire before it can be settled.
 - `ASSETS` entries need a `C…` contract address, a symbol of 1 to 12 letters or digits, decimals of 0
   to 38, and a minimum no larger than the maximum; no contract may be listed twice.
 - At startup every `ASSETS` contract is read from the network: a token whose `decimals()` differs from
@@ -128,7 +130,8 @@ Validation rules beyond the formats:
 
 The sponsor pays every settlement fee, so each network has a ceiling on the fee a settlement may cost:
 `MAX_TX_FEE_STROOPS` for `exact` and `UPTO_MAX_TX_FEE_STROOPS` for `upto`. Verification and settlement
-compare the fee the simulation asks for (resource fee plus the inclusion bid) with the ceiling and refuse a
+compare the fee the simulation asks for (resource fee plus the inclusion bid; for `upto`, the bid counted twice,
+for the settlement transaction and for its fee bump) with the ceiling and refuse a
 payment above it before anything is signed, with `invalid_exact_stellar_payload_fee_exceeds_maximum` or
 `invalid_upto_stellar_payload_fee_exceeds_maximum`.
 

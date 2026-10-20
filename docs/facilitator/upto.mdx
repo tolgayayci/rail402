@@ -196,6 +196,20 @@ The Bazaar lists an `upto` resource at its cap, never at an amount settled. A ze
 a resource, on chain (`bazaar_settlement_zero`) or off (`bazaar_settlement_offchain`): a listing needs a
 settlement that moved value to its `payTo`, and a zero needs neither a balance nor a trustline.
 
+## Which tokens are trusted
+
+The settlement contract calls whichever token the signed terms name, and the seller chooses that token. A
+token contract written to deceive can report a transfer it never made, and `upto_settled` is then emitted all
+the same: the event is only as trustworthy as `terms.token`. The payer risks nothing from such a token, which
+cannot re-enter `settle` or use the payer's `approve` authorization against another asset
+(`contracts/testing/upto-adversarial`).
+
+Rail402 settles only the tokens its operator lists for the network in `ASSETS` (by default Circle USDC on each
+network, see [Accepted assets](/facilitator/assets)) and refuses any other with
+`invalid_upto_stellar_requirements_asset_not_accepted` before simulating. A pubnet facilitator should list
+only tokens whose contracts it trusts. Anyone indexing `upto_settled` events should likewise count them only for
+tokens they trust.
+
 ## Duplicates and idempotency
 
 One authorization settles at most once. Rail402's settlement ledger keys it by network, payer and nonce, the
@@ -271,15 +285,15 @@ zero there has a public transaction.
 
 ## Limits
 
-| Limit                          | Value                                                                                           |
-| ------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `payload.authorization`        | one entry, at most 8 KiB of base64                                                              |
-| `payload.signerAuthorizations` | at most 4 entries of at most 8 KiB each, `C…` payers only                                       |
-| Credentials                    | address credentials, legacy or CAP-71 V2                                                        |
-| Cap                            | a positive integer in base units up to the `i128` maximum, within the asset's configured bounds |
-| `maxTimeoutSeconds`            | `TIMEOUT_MIN_SECONDS`–`TIMEOUT_MAX_SECONDS` (10–300 by default)                                 |
-| `payTo`                        | `G…` or `C…`; not the payer, a facilitator account, the settlement contract or the token        |
-| Assets                         | the network's accepted SEP-41 tokens, any number of decimals                                    |
+| Limit                          | Value                                                                                                             |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `payload.authorization`        | one entry, at most 8 KiB of base64                                                                                |
+| `payload.signerAuthorizations` | at most 4 entries of at most 8 KiB each, `C…` payers only                                                         |
+| Credentials                    | address credentials, legacy or CAP-71 V2                                                                          |
+| Cap                            | a positive integer in base units up to the `i128` maximum, within the asset's configured bounds                   |
+| `maxTimeoutSeconds`            | `TIMEOUT_MIN_SECONDS`–`TIMEOUT_MAX_SECONDS` (10–300 by default), at least `(EXPIRATION_MARGIN_LEDGERS + 1) × 5` s |
+| `payTo`                        | `G…` or `C…`; not the payer, a facilitator account, the settlement contract or the token                          |
+| Assets                         | the network's accepted SEP-41 tokens, any number of decimals                                                      |
 
 ## Codes
 

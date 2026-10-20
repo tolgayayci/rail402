@@ -1586,6 +1586,9 @@
       "tests": [
         "contracts/stellar/upto/src/test/auth.rs::mutated_terms_are_rejected",
         "contracts/stellar/upto/src/test/signed.rs::a_signature_over_other_terms_fails",
+        "contracts/testing/upto-adversarial/src/test/classic.rs::a_classic_signature_over_other_terms_fails",
+        "contracts/testing/upto-adversarial/src/test/replay.rs::a_signature_for_another_network_fails",
+        "contracts/testing/upto-adversarial/src/test/replay.rs::an_entry_for_one_deployment_fails_on_another",
         "packages/upto/test/upto.integration.test.ts::refuses terms changed consistently in the entry and the requirements",
         "packages/upto/test/upto.integration.test.ts::refuses a changed nonce",
         "packages/upto/test/upto.integration.test.ts::refuses a signature expiration moved later than signed",
@@ -1799,11 +1802,19 @@
         {
           "text": "Both event shapes are accepted and checked field by field; exactly one transfer of the amount from the payer to payTo, and no balance event involving a facilitator account.",
           "code": "packages/upto/src/facilitator/simulation.ts#checkSimulationEvents"
+        },
+        {
+          "text": "Only the tokens the operator lists for the network are settled; any other token is refused before simulation, because a token contract can report a transfer it never made.",
+          "code": "packages/upto/src/facilitator/rules.ts#isAssetAccepted"
         }
       ],
       "tests": [
         "packages/upto/test/facilitator.test.ts::accepts SEP-41 token events (three topics, map data)",
         "packages/upto/test/facilitator.test.ts::requires exactly one transfer of the cap from the payer to payTo",
+        "packages/facilitator/test/upto-preflight.test.ts::an asset outside the operator's list",
+        "contracts/testing/upto-adversarial/src/test/hostile_token.rs::a_lying_token_settles_without_moving_value",
+        "contracts/testing/upto-adversarial/src/test/hostile_token.rs::a_token_cannot_reenter_settle_even_with_a_second_valid_authorization",
+        "contracts/testing/upto-adversarial/src/test/hostile_token.rs::a_token_cannot_use_the_payers_approve_authorization_on_another_asset",
         "contracts/testing/test-token/src/test.rs::approve_event_has_three_topics_and_map_data",
         "tools/conformance/test/assets.integration.test.ts::refuses a payer holding less than the amount, or none of the token, as insufficient_funds"
       ],

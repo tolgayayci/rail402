@@ -19,6 +19,7 @@ import {
   isRecord,
   isSubsetOf,
   ledgersFor,
+  minTimeoutSecondsFor,
   parseAtomicAmount,
 } from "../shared.ts";
 import type { UptoStellarPayload } from "../types.ts";
@@ -38,6 +39,8 @@ export interface UptoRuleContext {
   readonly currentLedger: number;
   readonly ledgerSeconds: number;
   readonly maxTimeoutSeconds: number;
+  /** Smallest `maxTimeoutSeconds` accepted (default: one ledger more than the margin, see `minTimeoutSecondsFor`). */
+  readonly minTimeoutSeconds?: number | undefined;
   readonly expirationMarginLedgers: number;
   /** Asset allow-list; every asset is accepted when absent. */
   readonly isAssetAccepted?: ((asset: string, network: string) => boolean) | undefined;
@@ -256,14 +259,17 @@ function checkRequirements(
       "payTo is a facilitator account, the settlement contract or the asset itself.",
     );
   }
+  const minTimeoutSeconds =
+    context.minTimeoutSeconds ?? minTimeoutSecondsFor(context.expirationMarginLedgers);
   if (
     !Number.isInteger(maxTimeoutSeconds) ||
+    maxTimeoutSeconds < minTimeoutSeconds ||
     maxTimeoutSeconds <= 0 ||
     maxTimeoutSeconds > context.maxTimeoutSeconds
   ) {
     return reject(
       "invalid_upto_stellar_requirements_timeout_out_of_range",
-      `maxTimeoutSeconds must be an integer from 1 to ${context.maxTimeoutSeconds}.`,
+      `maxTimeoutSeconds must be an integer from ${minTimeoutSeconds} to ${context.maxTimeoutSeconds}.`,
     );
   }
   if (extra["areFeesSponsored"] !== true)

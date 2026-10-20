@@ -152,6 +152,7 @@ describe("upto client", () => {
     ["a zero timeout", { maxTimeoutSeconds: 0 }],
     ["unsponsored fees", { extra: { areFeesSponsored: false, facilitatorAddress: authority.publicKey() } }],
     ["a missing facilitator address", { extra: { areFeesSponsored: true } }],
+    ["a C… facilitator address", { extra: { areFeesSponsored: true, facilitatorAddress: CONTRACT } }],
     [
       "the payer as facilitator",
       { extra: { areFeesSponsored: true, facilitatorAddress: payer.publicKey() } },
@@ -159,6 +160,15 @@ describe("upto client", () => {
     ["the payer as payTo", { payTo: payer.publicKey() }],
   ])("refuses %s", async (_name, overrides) => {
     await expect(client().createPaymentPayload(2, requirements(overrides))).rejects.toThrow();
+  });
+
+  it("names the G… account a settlement authority must be", async () => {
+    await expect(
+      client().createPaymentPayload(
+        2,
+        requirements({ extra: { areFeesSponsored: true, facilitatorAddress: CONTRACT } }),
+      ),
+    ).rejects.toThrow(/G… settlement authority/);
   });
 
   it("applies the core spend cap to the upto cap", async () => {

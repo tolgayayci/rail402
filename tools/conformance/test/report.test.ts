@@ -65,19 +65,46 @@ describe("the settlement contract page", () => {
     const replaced = {
       contract_id: record.contract_id,
       wasm_sha256: record.wasm_sha256,
+      repository: "https://example.com/earlier",
       commit: "e".repeat(40),
       salt_preimage: "earlier",
       deploy: record.transactions.deploy,
     };
     const plain = renderDeploymentRecord({ ...record, previous: [replaced] });
     expect(plain).toContain(
-      `deployed in \`${record.transactions.deploy.tx}\` (ledger ${record.transactions.deploy.ledger}) from source revision \`${"e".repeat(40)}\` |`,
+      `deployed in \`${record.transactions.deploy.tx}\` (ledger ${record.transactions.deploy.ledger}) from source revision [\`${"e".repeat(40)}\`](https://example.com/earlier/commit/${"e".repeat(40)}) |`,
     );
     const noted = renderDeploymentRecord({
       ...record,
       previous: [{ ...replaced, note: "Built another way." }],
     });
-    expect(noted).toContain(`\`${"e".repeat(40)}\`. Built another way. |`);
+    expect(noted).toContain(`/commit/${"e".repeat(40)}). Built another way. |`);
+  });
+
+  it("links the source revision to the repository that holds it", () => {
+    const record = loadDeploymentRecord(REPO_ROOT);
+    expect(record.repository).toBe("https://github.com/tolgayayci/rail402");
+    const line = renderDeploymentRecord(record)
+      .split("\n")
+      .find((row) => row.startsWith("| Source revision"));
+    expect(line).toContain(`[\`${record.commit}\`](${record.repository}/commit/${record.commit})`);
+  });
+
+  it("lists every later TTL extension after the deployment's own", () => {
+    const record = loadDeploymentRecord(REPO_ROOT);
+    const later = {
+      instance: { tx: "a".repeat(64), ledger: 7 },
+      code: { tx: "b".repeat(64), ledger: 8 },
+      extend_to: 100,
+      stellar_cli: "28.1.0",
+      live_until_ledger: { instance: 107, code: 108 },
+    };
+    const rows = renderDeploymentRecord({ ...record, ttl_extensions: [later] })
+      .split("\n")
+      .filter((row) => row.includes("TTL extension"));
+    expect(rows).toHaveLength(4);
+    expect(rows[2]).toContain(`\`${"a".repeat(64)}\` (ledger 7), live until ledger 107`);
+    expect(rows[3]).toContain(`\`${"b".repeat(64)}\` (ledger 8), live until ledger 108`);
   });
 });
 

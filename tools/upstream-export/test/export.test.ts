@@ -88,6 +88,22 @@ describe("planExport", () => {
     ]);
   });
 
+  it("lets a deployment record name the contract's release repository, and nothing else from here", async () => {
+    write(root, {
+      "contracts/stellar/deployments/testnet.json":
+        '{ "repository": "https://github.com/tolgayayci/rail402" }\n',
+    });
+    expect((await planExport(root, target, identity)).problems).toEqual([]);
+
+    write(root, {
+      "contracts/stellar/deployments/testnet.json":
+        '{ "repository": "https://github.com/tolgayayci/rail402", "note": "see rail402.dev" }\n',
+    });
+    expect((await planExport(root, target, identity)).problems).toEqual([
+      "contracts/stellar/deployments/testnet.json: mentions rail402, which means nothing in the x402 checkout",
+    ]);
+  });
+
   it("reports what the formatter finds", async () => {
     const plan = await planExport(root, target, (text, path) =>
       Promise.resolve({
