@@ -350,11 +350,23 @@ impl Replay {
         }
     }
 
-    /// Settles with the vectors' payer entry and the authority entry for `index` of
+    /// The `contractPayer.settle` vector that settles `amount`.
+    fn settle_vector(&self, amount: i128) -> &Value {
+        self.v.json["contractPayer"]["settle"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|settle| {
+                settle["amount"].as_str().and_then(|text| text.parse().ok()) == Some(amount)
+            })
+            .unwrap_or_else(|| panic!("no contract payer settle vector for {amount}"))
+    }
+
+    /// Settles `amount` with the vectors' payer entry and the matching authority entry of
     /// `contractPayer.settle`, through the host so that granular errors are visible.
-    fn settle(&self, index: usize) -> Result<i128, Error> {
+    fn settle(&self, amount: i128) -> Result<i128, Error> {
         let env = &self.v.env;
-        let settle = &self.v.json["contractPayer"]["settle"][index];
+        let settle = self.settle_vector(amount);
         env.set_auths(&[
             entry(self.v.str("/contractPayer/authorization")),
             entry(settle["authorityEntryXdr"].as_str().unwrap()),
@@ -386,12 +398,12 @@ impl Replay {
 #[test]
 fn the_contract_payer_entry_settles_once() {
     let r = Replay::new();
-    assert_eq!(r.settle(0), Ok(300_000));
+    assert_eq!(r.settle(300_000), Ok(300_000));
     assert_eq!(r.balance(&r.payer), FUNDED - 300_000);
     assert_eq!(r.balance(&r.recipient), 300_000);
     assert_eq!(r.balance(&r.upto), 0);
     assert_eq!(
-        r.settle(0),
+        r.settle(300_000),
         Err(Error::from_type_and_code(
             ScErrorType::Auth,
             ScErrorCode::ExistingValue
@@ -401,9 +413,17 @@ fn the_contract_payer_entry_settles_once() {
 }
 
 #[test]
+fn the_contract_payer_entry_settles_the_whole_cap() {
+    let r = Replay::new();
+    assert_eq!(r.settle(1_000_000), Ok(1_000_000));
+    assert_eq!(r.balance(&r.payer), FUNDED - 1_000_000);
+    assert_eq!(r.balance(&r.recipient), 1_000_000);
+}
+
+#[test]
 fn the_contract_payer_entry_settles_zero() {
     let r = Replay::new();
-    assert_eq!(r.settle(1), Ok(0));
+    assert_eq!(r.settle(0), Ok(0));
     assert_eq!(r.balance(&r.payer), FUNDED);
     assert_eq!(r.balance(&r.recipient), 0);
 }
@@ -424,7 +444,7 @@ fn a_changed_signature_does_not_settle() {
     raw[0] ^= 0xff;
     *signature = ScVal::Bytes(raw.try_into().unwrap());
     let env = &r.v.env;
-    let settle = &r.v.json["contractPayer"]["settle"][0];
+    let settle = r.settle_vector(300_000);
     env.set_auths(&[signed, entry(settle["authorityEntryXdr"].as_str().unwrap())]);
     let args: Vec<Val> = (r.payer.clone(), r.v.terms(), 300_000i128).into_val(env);
     let result = env.host().call(
