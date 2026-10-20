@@ -136,8 +136,10 @@ for `contracts/stellar/upto`. That workflow builds the contract with the command
 GitHub release, attests it with GitHub build provenance and asks stellar.expert to validate it. The last job requires the released
 WASM to be the deployed one and its attestation to come from stellar.expert's workflow
 (`gh attestation verify <wasm> --repo tolgayayci/rail402 --signer-repo stellar-expert/soroban-build-workflow`).
-stellar.expert shows the repository and commit on the contract's page once it has processed that request; until
-a tagged release has run, the contract page shows the source as unavailable.
+The release `upto-contract-v1.0.0` ran on 2026-10-15, and stellar.expert
+[shows the testnet contract as verified](https://stellar.expert/explorer/testnet/contract/CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U),
+built from commit `77a4ddb` of this repository. `contracts/stellar/upto` is the same there as at `b63695c`, the
+revision in the deployment record, and both build WASM `cc2d2fef…ca797`.
 
 The committed WASM is `packages/testkit/fixtures/x402_upto_stellar.wasm`, with its provenance in
 `x402_upto_stellar.provenance.json`; CI rebuilds it on every change and fails if the hash differs. The contract

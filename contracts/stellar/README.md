@@ -111,8 +111,8 @@ a tag `upto-contract-v<crate version>` (for this crate `upto-contract-v1.0.0`) r
 3. `confirm` downloads the released WASM, requires it to be the deployed one, and verifies its attestation
    (`gh attestation verify <wasm> --repo tolgayayci/rail402 --signer-repo stellar-expert/soroban-build-workflow`).
 
-stellar.expert shows the repository and commit on the contract's page once it has processed the request; until a
-tagged release has run, it shows the source as unavailable. A tag `upto-contract-v1.0.0-<n>` releases the same
+stellar.expert shows the repository and commit on the contract's page once it has processed the request. The
+testnet contract was verified this way by the `upto-contract-v1.0.0` release, built from commit `77a4ddb`. A tag `upto-contract-v1.0.0-<n>` releases the same
 version again: a new release and attestation of the same bytes, and a new validation request.
 
 ### Deploying
