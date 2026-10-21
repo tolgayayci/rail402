@@ -7,6 +7,7 @@ import {
   authorizationView,
   listingVerdict,
   listingView,
+  pathExampleOf,
   mcpRequestOf,
   mcpResponseView,
   requiredFromHeader,
@@ -302,12 +303,153 @@ describe("bazaar views", () => {
         version: 2,
         settlements: 3,
         price: { scheme: "exact", amount: "5000000", decimal: "0.5", symbol: "USDC" },
-        input: { pathParams: [], example: { city: "Izmir", hours: 6 }, required: ["city"] },
+        input: {
+          fields: [
+            {
+              name: "city",
+              in: "argument",
+              kind: "string",
+              required: false,
+              description: null,
+              example: "Izmir",
+              options: null,
+            },
+            {
+              name: "hours",
+              in: "argument",
+              kind: "number",
+              required: false,
+              description: null,
+              example: "6",
+              options: null,
+            },
+          ],
+        },
         callable: false,
         notPayable: null,
         rank: 1,
       },
     );
+  });
+
+  it("turns a tool's input schema into call fields, typed, with the seller's words cleaned", () => {
+    const hit = {
+      listingId: "0b3c4c02-73d1-4f4a-9e7b-6f0b8f3f0d11",
+      type: "mcp",
+      resource: "https://seller.example/mcp",
+      method: null,
+      toolName: "hourly_forecast",
+      owner: PAY_TO,
+      trust: "settled",
+      settlements: 1,
+      callable: true,
+      withinPolicy: true,
+      prices: [],
+      seller: { description: null, serviceName: null, tags: [], mimeType: null },
+      input: {
+        schema: {
+          type: "object",
+          required: ["city", "hours"],
+          properties: {
+            city: { type: "string", description: "City name" },
+            hours: { type: "integer", minimum: 1, maximum: 48 },
+            pollutant: { type: "string", enum: ["pm25", "pm10"] },
+            "bad name!": { type: "string" },
+          },
+        },
+        example: { city: "Izmir", hours: 6, extra: true },
+        pathParams: [],
+      },
+    } as unknown as SearchHit;
+    const view = listingView(hit, { network: "stellar:testnet", version: 1, state: "published", rank: null });
+    expect(
+      view.input?.fields.map((field) => [field.name, field.kind, field.required, field.example]),
+    ).toEqual([
+      ["city", "string", true, "Izmir"],
+      ["hours", "integer", true, "6"],
+      ["pollutant", "string", false, null],
+      ["extra", "boolean", false, "true"],
+    ]);
+    expect(view.input?.fields[0]?.description).toBe("City name");
+    expect(view.input?.fields[2]?.options).toEqual(["pm25", "pm10"]);
+  });
+
+  it("reads an HTTP listing's path, query and body fields from its Bazaar schema", () => {
+    const base = {
+      listingId: "0b3c4c02-73d1-4f4a-9e7b-6f0b8f3f0d11",
+      type: "http",
+      resource: "https://seller.example/users/:id",
+      toolName: null,
+      owner: PAY_TO,
+      trust: "settled",
+      settlements: 1,
+      callable: true,
+      withinPolicy: true,
+      prices: [],
+      seller: { description: null, serviceName: null, tags: [], mimeType: null },
+    };
+    const get = {
+      ...base,
+      method: "GET",
+      input: {
+        schema: {
+          input: {
+            properties: {
+              queryParams: {
+                required: ["lang"],
+                properties: { lang: { type: "string", description: "Language" } },
+              },
+            },
+          },
+        },
+        example: { lang: "en" },
+        pathParams: ["id"],
+      },
+    } as unknown as SearchHit;
+    const view = listingView(get, {
+      network: "stellar:testnet",
+      version: 1,
+      state: "published",
+      rank: null,
+      pathExample: { id: "42" },
+    });
+    expect(view.input?.fields.map((field) => [field.name, field.in, field.required, field.example])).toEqual([
+      ["id", "path", true, "42"],
+      ["lang", "query", true, "en"],
+    ]);
+    const post = {
+      ...base,
+      resource: "https://seller.example/translate",
+      method: "POST",
+      input: {
+        schema: {
+          input: {
+            properties: {
+              body: { required: ["text"], properties: { text: { type: "string" }, to: { type: "string" } } },
+            },
+          },
+        },
+        example: { text: "Hello", to: "tr" },
+        pathParams: [],
+      },
+    } as unknown as SearchHit;
+    expect(
+      listingView(post, {
+        network: "stellar:testnet",
+        version: 1,
+        state: "published",
+        rank: null,
+      }).input?.fields.map((field) => [field.name, field.in, field.required]),
+    ).toEqual([
+      ["text", "body", true],
+      ["to", "body", false],
+    ]);
+    expect(
+      pathExampleOf({ extensions: { bazaar: { info: { input: { pathParams: { id: "42" } } } } } }),
+    ).toEqual({
+      id: "42",
+    });
+    expect(pathExampleOf({})).toBeUndefined();
   });
 
   it("says which rule refuses a listing the buyer cannot pay, with its code", async () => {

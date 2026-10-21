@@ -1,7 +1,7 @@
 ---
 title: How the Playground works
 sidebarTitle: How it works
-description: Where the Playground keeps its testnet key, what it can sign, how caps are enforced, what its server relays and sees, and what each swimlane row is based on.
+description: Where the Playground keeps its testnet key, what it can sign, how caps are enforced, what its server relays and sees, and what each step of a run is based on.
 ---
 
 The Playground is two parts. The **page** holds the testnet key and runs the [buyer SDK](/agents/sdk) in the
@@ -44,12 +44,12 @@ capping a trustline, another asset, several operations). There is no other signi
 - A per-call cap is required before a run starts: 0.01 USDC by default, and at most the operator's ceiling of
   0.10 USDC (a higher value is shown clamped). Exceeding it is refused at option selection, before anything is
   signed, and again by the guard on the exact amount.
-- The session budget is 1.00 USDC per 24-hour window. The page can only lower it.
+- The session budget is 1.00 USDC per 24-hour window; the page has no way to raise it.
 - The budget ledger is kept in the browser's localStorage, so a reload keeps what was spent and what is held.
   A corrupt ledger is refused (`payment_ledger_unavailable`) until it is reset, never silently emptied.
 - A payment whose outcome is still open (a held `upto` cap, a payment whose answer was lost) is checked
   against the chain every 20 seconds, when the tab regains focus and on load, and released or settled from
-  on-chain proof. The wallet panel can ask for that check at once.
+  on-chain proof. The wallet menu says how many payments still wait for that proof.
 - One run at a time: a second one is refused with `playground_run_in_progress`. Each run's payments use the
   idempotency key `pg_<run id>`.
 
@@ -104,11 +104,10 @@ same way the relay does.
 | Relayed requests in flight         | 4; 32 to one host; 128 for all clients                                                       | `playground_relay_busy`      |
 | Relayed requests to one host       | 300 per minute for all clients (the demo seller: 1,200), of which one network gets its share | `playground_relay_host_busy` |
 | Relayed answer bytes               | 100 MiB per day; 400 MiB per network; 10 GiB for all clients                                 | `playground_rate_limited`    |
-| Seller checks                      | 10 per minute; 60 per minute for all clients                                                 | `playground_rate_limited`    |
 | Bazaar and `/supported` proxies    | 120 per minute; 240 upstream fetches per minute for all clients                              | `playground_rate_limited`    |
 | Lab sellers                        | 120 unpaid and 20 paid per minute; 60 paid per minute for all clients                        | `playground_rate_limited`    |
 
-`RELAY_ENABLED`, `LAB_ENABLED` and `SELLER_CHECK_ENABLED` switch each feature off
+`RELAY_ENABLED` and `LAB_ENABLED` switch each feature off
 (`playground_feature_disabled`). The page then shows the scenarios, experiments and checks that need it as
 turned off, with that code, instead of offering them.
 
@@ -134,18 +133,19 @@ Each lab answer carries a `Rail402-Trace` header with what the facilitator answe
 outcomes and codes, the settled and requested amounts, the catalog's outcome) and a `Server-Timing` header.
 The trace never holds a payment payload.
 
-## What a row is based on
+## What a step is based on
 
-Each swimlane row and inspector field is tagged with its source, and claims no more than that source shows:
+Each step on the stage and each fact in the inspector comes from one of these sources, and claims no more
+than that source shows:
 
 | Source     | What it is                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------ |
 | **you**    | what your browser sent or your signer signed                                                     |
 | **seller** | what the seller answered: its 402, `PAYMENT-RESPONSE`, a lab seller's `Rail402-Trace`, an error  |
 | **chain**  | what the page read from the Stellar RPC: the transaction, its fee source, transfers and balances |
-| **bazaar** | what the page read from the Bazaar: search results, listings and their versions                  |
+| **bazaar** | what the page read from the Bazaar: search results and listings                                  |
 
-A seller that sends no trace (the demo seller) does not report its calls to Rail402, so that row says what the
+A seller that sends no trace (the demo seller) does not report its calls to Rail402, so that step says what the
 `PAYMENT-RESPONSE` and the chain show instead. The inspector never shows XDR, signatures, preimages or payment
 headers.
 

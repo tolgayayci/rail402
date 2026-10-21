@@ -1,5 +1,0 @@
-# a testnet key and test USDC, once
-rail402 keys new
-rail402 account setup --usdc 1
-# pay the URL; anything above --max is refused before signing
-rail402 pay {{urlShell}} --max {{cap}}

@@ -1,0 +1,512 @@
+/*
+ * The Sell and Agents pages: a headline with a few facts on the paper, and beside it a dark panel of
+ * numbered setup steps with code to copy. `data-mode` on the page picks the accent: exact orange for
+ * selling, agent violet for agents.
+ */
+
+.guide-page {
+  display: flex;
+  flex: 1;
+  gap: 40px;
+  min-height: 0;
+  padding: 24px var(--gutter);
+}
+
+.guide-intro {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 22px;
+  width: 400px;
+}
+
+[data-mode="agent"] .guide-intro {
+  width: 420px;
+}
+
+.guide-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: rise var(--duration-slow) var(--ease-out) both;
+}
+
+.guide-heading .page-lede {
+  margin: 0;
+}
+
+.guide-facts,
+.guide-stats {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-facts li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+  animation: rise var(--duration-slow) var(--ease-out) both;
+}
+
+.guide-facts li:nth-child(2),
+.guide-stats div:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.guide-facts li:nth-child(3),
+.guide-stats div:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.guide-facts b {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.guide-facts span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.guide-stats div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  animation: rise var(--duration-slow) var(--ease-out) both;
+}
+
+.guide-stats dt {
+  order: 2;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.guide-stats dd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+.guide-stats b {
+  color: var(--mode-ink);
+  font-family: var(--font-head);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 38px;
+  letter-spacing: -0.02em;
+}
+
+.guide-stats dd span {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.guide-cta {
+  align-self: flex-start;
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 11px;
+  background: var(--mode);
+  color: var(--on-ink);
+  font-size: 15px;
+}
+
+.guide-cta:hover {
+  background: var(--mode-ink);
+  color: var(--on-ink);
+}
+
+.guide-cta span {
+  transition: transform var(--duration-fast) ease;
+}
+
+.guide-cta:hover span {
+  transform: translateX(3px);
+}
+
+.guide-links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+}
+
+/* The dark panel */
+
+.guide-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 20px 36px;
+  overflow-y: auto;
+  border-radius: 20px;
+  background: var(--stage);
+  animation: fade var(--duration-slow) ease both;
+}
+
+/* Centred when it fits, scrolled from the top when it does not. */
+.guide-panel > :first-child {
+  margin-top: auto;
+}
+
+.guide-panel > :last-child {
+  margin-bottom: auto;
+}
+
+.guide-panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.guide-eyebrow {
+  color: var(--mode-dark);
+}
+
+.guide-panel-head h2 {
+  font-size: 26px;
+  line-height: 30px;
+}
+
+.guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: rise var(--duration-slow) var(--ease-out) both;
+  animation-delay: calc(var(--step, 1) * 70ms);
+}
+
+.guide-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-height: 24px;
+}
+
+.guide-step-head h3 {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.guide-step-number {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-family: var(--font-head);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+[data-mode="exact"] .guide-step-number {
+  background: var(--accent-bright);
+  color: var(--ink);
+}
+
+[data-mode="agent"] .guide-step-number {
+  border-radius: 50%;
+  background: var(--mode);
+  color: var(--on-ink);
+}
+
+.on-dark .guide-step-doc,
+.guide-step-head > [role="tablist"] {
+  margin-left: auto;
+}
+
+.guide-step-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+}
+
+.guide-note,
+.guide-where {
+  margin: 0;
+  color: var(--stage-muted);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.guide-where {
+  margin-top: 8px;
+  font-size: 12.5px;
+}
+
+/* Code */
+
+.code-block {
+  position: relative;
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-l);
+  background: var(--stage-field);
+}
+
+/* A long line wraps instead of running out of sight. */
+.code-block pre {
+  margin: 0;
+  padding: 10px 52px 10px 16px;
+  border-radius: inherit;
+  color: var(--stage-text);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 19px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.code-fold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 52px 0 10px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--stage-faint);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.code-fold:hover {
+  background: var(--stage-chip);
+  color: var(--stage-text);
+}
+
+.code-fold svg {
+  transform: rotate(-90deg);
+  transition: transform var(--duration-fast) ease;
+}
+
+.code-fold[aria-expanded="true"] svg {
+  transform: none;
+}
+
+.code-fold + pre {
+  padding-top: 4px;
+}
+
+.code-block-small pre {
+  font-size: 11.5px;
+  line-height: 17px;
+}
+
+.code-string {
+  color: var(--code-string);
+}
+
+.code-comment {
+  color: var(--stage-faint);
+}
+
+.code-keyword {
+  color: var(--code-keyword);
+}
+
+.on-dark .code-copy {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  background: var(--stage-raised);
+  color: var(--stage-muted);
+  border-radius: 7px;
+}
+
+.on-dark .code-copy:hover {
+  background: var(--stage-line-strong);
+  color: var(--stage-text);
+}
+
+.on-dark .code-copy[data-state="copied"] {
+  color: var(--stage-ok);
+  animation: pop var(--duration) var(--ease-out) both;
+}
+
+/* Client tabs */
+
+.guide-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--stage-field);
+}
+
+.guide-tabs [role="tab"] {
+  height: 32px;
+  white-space: nowrap;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: transparent;
+  color: var(--stage-muted);
+  font-size: 13px;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.guide-tabs [role="tab"]:hover {
+  color: var(--stage-text);
+}
+
+.guide-tabs [role="tab"][aria-selected="true"] {
+  background: var(--stage-line);
+  color: var(--stage-text);
+  font-weight: 600;
+}
+
+.guide-tabpanel {
+  animation: fade var(--duration) ease both;
+}
+
+/* The prompt to try */
+
+.guide-prompt {
+  position: relative;
+  padding: 14px 52px 14px 18px;
+  border: 1px solid var(--agent-dark-line);
+  border-radius: var(--radius-l);
+  background: var(--agent-dark-tint);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.guide-prompt p {
+  margin: 0;
+}
+
+.on-dark .guide-prompt .code-copy {
+  background: var(--agent-dark-tint-strong);
+}
+
+.guide-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  color: var(--stage-muted);
+  font-size: 13px;
+}
+
+.guide-tools ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-tools code {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: var(--radius-m);
+  background: var(--stage-raised);
+  color: var(--mode-dark);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.guide-tools-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+@media (max-width: 1180px) {
+  .guide-page {
+    gap: 28px;
+  }
+
+  .guide-intro,
+  [data-mode="agent"] .guide-intro {
+    width: 330px;
+  }
+
+  .guide-panel {
+    padding: 24px 26px;
+  }
+}
+
+/* On a short screen the page grows and scrolls as a whole, so no step hides inside the panel. */
+@media (max-height: 860px) {
+  .app:has(.guide-page) {
+    height: auto;
+  }
+
+  .guide-panel {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 1023px) {
+  .guide-page {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .guide-intro,
+  [data-mode="agent"] .guide-intro {
+    width: auto;
+  }
+
+  .guide-panel {
+    flex: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 560px) {
+  .guide-panel {
+    padding: 20px 16px;
+    border-radius: var(--radius-xl);
+  }
+
+  .guide-step-head > [role="tablist"] {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .guide-tabs [role="tab"] {
+    flex: 1;
+    padding: 0 8px;
+  }
+
+  .guide-tools-doc {
+    margin-left: 0;
+  }
+}

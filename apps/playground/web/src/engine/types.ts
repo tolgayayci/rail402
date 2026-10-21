@@ -10,7 +10,6 @@ import type {
   JsonValue,
   LabEvent,
   ListingView,
-  RequiredView,
   ScenarioId,
   ToolName,
   Trust,
@@ -74,6 +73,11 @@ export interface BudgetView {
 export interface EngineState {
   readonly wallet: WalletState;
   readonly balances: BalancesView | null;
+  /**
+   * Whether the balances were read for this wallet: not yet, read, or the last read failed (the
+   * balances then keep the last good read, or stay null).
+   */
+  readonly balancesRead: "pending" | "ok" | "failed";
   readonly budget: BudgetView | null;
   /** The run in progress; only one runs at a time. */
   readonly activeRun: string | null;
@@ -119,7 +123,7 @@ export interface ScenarioRequest {
 
 export type HttpMethod = "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-/** Pay any URL, or a Bazaar listing, from the Pay page. */
+/** Pay any URL (the Lab), or a Bazaar listing (the Bazaar). */
 export type PayRequest =
   | {
       readonly target: string;
@@ -168,48 +172,6 @@ export interface ListPage {
   readonly limit: number;
 }
 
-export interface SellerCheckRequest {
-  readonly url: string;
-  readonly method?: HttpMethod;
-  /** Checks the MCP tool of that name at `url` instead of an HTTP resource. */
-  readonly toolName?: string;
-  readonly arguments?: Readonly<Record<string, JsonValue>>;
-}
-
-/** The checklist of "Check your endpoint": the catalog's own validation plus Stellar facts. */
-export interface SellerCheckView {
-  readonly url: string;
-  readonly type: "http" | "mcp";
-  readonly ok: boolean;
-  /** The unpaid response's HTTP status, when one arrived. */
-  readonly status: number | null;
-  readonly required: RequiredView | null;
-  readonly validation: {
-    readonly catalogable: boolean;
-    readonly code: string | null;
-    readonly reason: string | null;
-    readonly dropped: readonly string[];
-    readonly lint: readonly { readonly code: string; readonly reason: string }[];
-    /** The listing the catalog would create, as public JSON. */
-    readonly preview: JsonValue;
-  } | null;
-  readonly findings: readonly {
-    readonly code: string;
-    readonly reason: string;
-    readonly details?: JsonValue;
-  }[];
-  readonly receivable: readonly {
-    readonly asset: string;
-    readonly payTo: string;
-    readonly receivable: boolean | null;
-  }[];
-  readonly domain: {
-    readonly host: string;
-    readonly claimsOwner: boolean;
-    readonly homeDomainMatches: boolean | null;
-  } | null;
-}
-
 /** A rail402-mcp tool, as the agent and the code panel show it. */
 export interface ToolDefinitionView {
   readonly name: ToolName;
@@ -244,8 +206,11 @@ export interface WalletActions {
   create(): RunHandle;
   /** Imports a testnet secret seed; the caller clears its input field right after. */
   import(seed: string): RunHandle;
-  /** Friendbot, the asset trustline, then a small purchase of the asset: each a real transaction. */
-  fund(): RunHandle;
+  /**
+   * Friendbot, the asset trustline, then a small purchase of the asset: each a real transaction, each
+   * skipped when done. `topUp` buys again even when the wallet already holds some.
+   */
+  fund(options?: { readonly topUp?: boolean }): RunHandle;
   /**
    * Downloads the key as a file (the seed on one line), after the page confirmed with the user. The
    * engine starts the download itself; the seed never reaches the page.
@@ -275,7 +240,6 @@ export interface Engine {
   list(request: ListRequest): Promise<ListPage>;
   listing(id: string): Promise<ListingView>;
   versions(id: string): Promise<readonly VersionView[]>;
-  sellerCheck(request: SellerCheckRequest): Promise<SellerCheckView>;
   /**
    * The price an HTTP URL asks, read from one unpaid request: nothing is signed or reserved. Null when
    * it asks for no payment, or before a wallet is set up (the buyer's policy judges the options).

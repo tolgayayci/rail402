@@ -1267,20 +1267,22 @@ From `tools/conformance/evidence/live-agent-stellar-testnet.json`: **19 of 21 ca
 ## Playground
 
 `tools/conformance/src/live-playground.ts` drives the [Playground](/playground/overview)'s production page in
-headless Chromium, as a visitor would, served by the Playground server with its real headers and CSP. It
-imports a fresh testnet key through the wallet panel and sets it up (Friendbot, a USDC trustline and USDC
-bought on the testnet exchange), runs every lab scenario and experiment (pay with `exact`, a cap below the
-price, the same payment sent twice, pay per use with `upto`, a seller asking to settle twice its cap, an
-agent paying an MCP tool it found in the Bazaar, and selling through the sandbox route), runs the refusal
-checks of the Pay page, and pays a loopback literal, the cloud metadata address and a seller that redirects to
-another origin from "Pay any URL". Each lab run's swimlane must match the rows the browser tests expect, row
-by row. Every transaction the page links is read back from the chain in Node (the payer's transfer, a fee
-paid by an account the facilitator advertises, the scheme's shape) and must open in stellar.expert; every
-refusal must name its code and leave the payer's balance where it was, except the session budget check, whose
-first payment is read back from the chain like any other settlement and recorded with the refusal. The refused overcharge's held cap
-must return to the session budget once its authorization expires. Last, a canary scan looks for the wallet's
-seed and every payment the page sent in every request and answer, the Playground server's trace-level logs,
-the console, the page's text, the run reports, localStorage, sessionStorage and IndexedDB.
+headless Chromium, as a visitor would, served by the Playground server with its real headers and CSP. The first
+visit makes a test wallet on its own and sets it up (Friendbot, a USDC trustline and USDC bought on the testnet
+exchange); the key file saved from the wallet menu gives the canary seed. The Lab then plays each mode to its
+proof (a fixed price with `exact`, pay for what you use with `upto`, an agent paying an MCP tool it found in the
+Bazaar), refuses a cap typed below the price, and runs every refusal of "Try a refusal": the spending policy's
+checks, the session budget, the same payment sent twice and a seller asking to settle twice its cap. A tool is
+paid from its Bazaar listing, and a loopback literal, the cloud metadata address and a seller that redirects to
+another origin are pasted into the Lab and refused. Each Lab run's swimlane must match the steps the browser
+tests expect, row by row. Every transaction the page links is read back from the chain in Node (the payer's
+transfer, a fee paid by an account the facilitator advertises, the scheme's shape) and must open in
+stellar.expert; every refusal must name its code and leave the payer's balance where it was, except the session
+budget check, whose first payment is read back from the chain like any other settlement and recorded with the
+refusal. Last, a canary scan looks for the wallet's seed and every payment the page sent in every request and
+answer, the Playground server's trace-level logs, the console, the page's text, the run reports, localStorage,
+sessionStorage and IndexedDB. Runs recorded before the current page also have the cases `sell-listed` and
+`overcharge-release`, which the page no longer offers.
 
 ```sh
 node --conditions=@rail402/source tools/conformance/src/live-playground.ts
@@ -1290,8 +1292,8 @@ node --conditions=@rail402/source tools/conformance/src/live-playground.ts --baz
 Without flags it starts Rail402 (in memory, against the public testnet RPC, with a Friendbot-funded fee
 sponsor and loopback discovery), the demo seller and the Playground server in local mode on the machine
 running it. With `--bazaar` and `--seller` the Playground server runs locally in its hosted configuration
-against a deployed Rail402 and demo seller; its lab sellers then listen on that machine, which a hosted
-catalog refuses to reach, so the sandbox listing and the redirect case are skipped with that reason.
+against a deployed Rail402 and demo seller; the redirecting seller the run needs would listen on that machine,
+which only a local Playground's relay may reach, so the redirect case is skipped with that reason.
 `--playground <url>` runs against a Playground that is already deployed.
 
 ### Recorded runs

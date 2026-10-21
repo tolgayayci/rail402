@@ -1,0 +1,6 @@
+claude mcp add rail402 \
+  -e RAIL402_NETWORK=stellar:testnet \
+  -e "RAIL402_SECRET_KEY_FILE=~/.config/rail402/keys/stellar-testnet.key" \
+  -e "RAIL402_MAX_PER_CALL={{perCall}} {{asset}}" \
+  -e "RAIL402_MAX_TOTAL={{total}} {{asset}}" \
+  -- rail402-mcp

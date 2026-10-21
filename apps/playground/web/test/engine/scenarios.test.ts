@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { paymentError, type PaymentTarget, type PayOptions } from "@rail402.dev/sdk/browser";
-import { encodeTrace } from "../../../src/shared/trace.ts";
 import { PICK_RULE, defaultPlan, pickHit, runAgent } from "../../src/engine/agent/planner.ts";
 import { checkOutcome, runCheck } from "../../src/engine/checks/refusals.ts";
 import type { LabEvent } from "../../src/engine/events.ts";
@@ -8,7 +7,6 @@ import type { RunBuyer } from "../../src/engine/scenarios/context.ts";
 import { runOvercharge } from "../../src/engine/experiments/overcharge.ts";
 import { runReplay } from "../../src/engine/experiments/replay.ts";
 import { runPay } from "../../src/engine/scenarios/pay.ts";
-import { lastBazaarTrace, runSell } from "../../src/engine/scenarios/sell.ts";
 import { runUpto } from "../../src/engine/scenarios/upto.ts";
 import { HASH, LISTING_ID, fakeBuyer, fakeContext, hit, paidResult, policyFor, view } from "./fakes.ts";
 import { DEMO, ORIGIN, PAY_TO, exactRequired, header, testConfig } from "./helpers.ts";
@@ -310,123 +308,6 @@ describe("pay per use", () => {
   });
 });
 
-describe("sell and get listed", () => {
-  it("ends refused with the catalog's code when the Bazaar will not list the route", async () => {
-    const trace = encodeTrace({
-      v: 1,
-      bazaar: { status: "rejected", code: "bazaar_resource_unsafe", reason: "A loopback URL." },
-    });
-    const buyer = fakeBuyer(policy, {
-      pay: () => {
-        run.emit({
-          kind: "http",
-          phase: "response",
-          id: "direct-2",
-          status: 200,
-          ms: 1,
-          trace: decodeTraceOf(trace),
-        });
-        return Promise.resolve(paidResult());
-      },
-    });
-    const { context, run } = fakeContext({ buyer, balances: ["1", "0.99"] });
-    const outcome = await runSell(context);
-    expect(outcome).toMatchObject({ status: "refused", code: "bazaar_resource_unsafe" });
-    expect(outcome.reason).toBe("Paid, but the Bazaar refused to list this route: A loopback URL.");
-  });
-
-  it("pays the sandbox seller, waits for the origin check and finds the listing", async () => {
-    const trace = encodeTrace({
-      v: 1,
-      bazaar: {
-        status: "processing",
-        code: "awaiting_origin_verification",
-        listingId: LISTING_ID,
-        version: 1,
-      },
-    });
-    let reads = 0;
-    const listed = view(hit({ type: "http", toolName: null, method: "GET" }), null);
-    const buyer = fakeBuyer(policy, {
-      pay: (target) => {
-        expect(target.url).toBe(`${ORIGIN}/lab/sell/forecast/Ankara`);
-        run.emit({
-          kind: "http",
-          phase: "response",
-          id: "direct-2",
-          status: 200,
-          ms: 1,
-          trace: decodeTraceOf(trace),
-        });
-        return Promise.resolve(paidResult());
-      },
-    });
-    const { context, run } = fakeContext({
-      buyer,
-      catalog: {
-        listing: () => {
-          reads++;
-          return Promise.resolve({
-            hit: hit(),
-            view: { ...listed, state: reads < 3 ? "pending" : "published" },
-          });
-        },
-        // The origin check after this payment (catalog version 1) shows up as version 2.
-        versions: () =>
-          Promise.resolve([
-            {
-              version: 1,
-              createdAt: "t",
-              cause: "settlement",
-              transaction: HASH,
-              owner: PAY_TO,
-              trust: "settled",
-              state: "pending",
-              reason: null,
-            },
-            ...(reads < 3
-              ? []
-              : [
-                  {
-                    version: 2,
-                    createdAt: "t2",
-                    cause: "origin_verification",
-                    transaction: null,
-                    owner: PAY_TO,
-                    trust: "origin_verified" as const,
-                    state: "published",
-                    reason: null,
-                  },
-                ]),
-          ]),
-        search: () =>
-          Promise.resolve({
-            page: { hits: [], nextCursor: null, partialResults: false, method: "hybrid" },
-            views: [{ ...listed, rank: 2 }],
-          }),
-      },
-    });
-    const outcome = await runSell(context);
-    expect(lastBazaarTrace(run.events)?.code).toBe("awaiting_origin_verification");
-    expect(reads).toBe(3);
-    expect(outcome).toEqual({ status: "ok", reason: "Listed · origin_verified; search ranks it #2." });
-    expect(kinds(run.events)).toEqual([
-      "http:response",
-      "delivery",
-      "chain:tx",
-      "chain:balance",
-      "bazaar:listing",
-      "bazaar:listing",
-      "bazaar:versions",
-      "bazaar:search",
-    ]);
-  });
-});
-
-function decodeTraceOf(value: string) {
-  return JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as never;
-}
-
 describe("refusal checks", () => {
   it("pays the lab offer and passes on the expected code", async () => {
     const urls: string[] = [];
@@ -601,7 +482,7 @@ describe("scripted agent", () => {
   const plan = defaultPlan("0.01", "USDC", undefined, "https://demo.example");
 
   it("picks by the stated rule", () => {
-    expect(PICK_RULE).toContain("hourly_forecast");
+    expect(PICK_RULE).toContain("air_quality");
     const wrongTool = hit({ toolName: "forecast" });
     const lowTrust = hit({ trust: "settled" });
     const outOfPolicy = hit({ withinPolicy: false });
@@ -634,7 +515,7 @@ describe("scripted agent", () => {
       buyer,
       catalog: {
         search: (query, filters) => {
-          expect(query).toBe("hourly weather forecast");
+          expect(query).toBe("air quality");
           expect(filters).toMatchObject({ type: "mcp", maxPrice: "0.05" });
           const decoy = hit({ toolName: "forecast", listingId: "1f8c0f0e-0000-4000-8000-000000000002" });
           return Promise.resolve({
@@ -646,7 +527,7 @@ describe("scripted agent", () => {
     });
     const outcome = await runAgent(context, plan);
     expect(outcome.status).toBe("ok");
-    expect(payListing).toEqual([[LISTING_ID, { arguments: { city: "Izmir", hours: 6 } }, "pg_run-1"]]);
+    expect(payListing).toEqual([[LISTING_ID, { arguments: { city: "Istanbul" } }, "pg_run-1"]]);
     expect(kinds(run.events)).toEqual([
       "tool:call",
       "bazaar:search",

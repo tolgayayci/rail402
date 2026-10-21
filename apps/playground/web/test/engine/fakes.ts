@@ -96,7 +96,7 @@ export function hit(overrides: Partial<SearchHit> = {}): SearchHit {
     type: "mcp",
     resource: "https://demo.example/mcp",
     method: null,
-    toolName: "hourly_forecast",
+    toolName: "air_quality",
     transport: "streamable-http",
     routeTemplate: null,
     owner: PAY_TO,
@@ -105,8 +105,8 @@ export function hit(overrides: Partial<SearchHit> = {}): SearchHit {
     prices: [
       {
         scheme: "exact",
-        amount: "0.0012",
-        atomic: "12000",
+        amount: "0.001",
+        atomic: "10000",
         asset: "USDC",
         assetContract: USDC_CONTRACT,
         decimals: 7,
@@ -120,7 +120,7 @@ export function hit(overrides: Partial<SearchHit> = {}): SearchHit {
     callable: true,
     notCallableReason: null,
     withinPolicy: true,
-    seller: { serviceName: "Demo", description: "Hourly forecast", tags: [], mimeType: null },
+    seller: { serviceName: "Demo", description: "Air quality", tags: [], mimeType: null },
     input: { schema: null, example: null, pathParams: [] },
     output: { example: null },
     lastUpdated: "2026-10-03T00:00:00.000Z",
@@ -213,9 +213,6 @@ export function fakeContext(options: FakeContextOptions): { context: RunContext;
     },
     catalog: {
       search: unscripted,
-      list: unscripted,
-      listing: unscripted,
-      versions: unscripted,
       ...options.catalog,
     },
     replay: () =>

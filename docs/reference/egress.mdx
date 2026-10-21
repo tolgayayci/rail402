@@ -121,7 +121,6 @@ The [Playground](/playground/how-it-works#the-relay)'s page cannot reach most se
 relays each seller request with safe-fetch under a fixed policy: https on port 443 to public addresses only,
 redirects refused except same-origin hops for unpaid probes, and the limits above. It never relays to the
 Playground itself, the facilitator, the Bazaar or a host the operator denies, and forwards only allowlisted
-headers both ways. Its seller check (`POST /api/seller-check`) runs the SDK's seller checks with the same
-https-only, public-only policy. The server's tests cover every private and metadata literal, DNS answers
-with a private address, every spelling of the denied hosts and redirects off the seller's origin, through
-both the relay and the seller check (`apps/playground/test/ssrf.test.ts`).
+headers both ways. The server's tests cover every private and metadata literal, DNS answers with a private
+address, every spelling of the denied hosts and redirects off the seller's origin, through the relay
+(`apps/playground/test/ssrf.test.ts`).

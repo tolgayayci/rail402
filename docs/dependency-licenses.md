@@ -51,15 +51,16 @@ Dual or compound licences (a permissive branch is always available):
 
 ## Artifacts outside the package manager
 
-| Artifact                                                               | Licence                                                      | Where                                                                                     |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| sentence-transformers/all-MiniLM-L6-v2 (ONNX weights and tokenizer)    | Apache-2.0                                                   | service image; pinned revision and hashes in packages/search/models/all-minilm-l6-v2.json |
-| node:24 trixie-slim base image                                         | MIT (Node.js); Debian packages under their own free licences | service image                                                                             |
-| rs-soroban-env simple_account.wasm                                     | Apache-2.0                                                   | tests only; packages/testkit/fixtures/README.md                                           |
-| OpenZeppelin stellar-contracts smart account and ed25519 verifier wasm | MIT                                                          | tests only; pinned commit in scripts/contracts/fixtures.sh                                |
-| stellar/stellar-cli build image                                        | Apache-2.0                                                   | contract builds only; pinned digest in scripts/contracts/common.sh                        |
-| postgres:18 image                                                      | PostgreSQL                                                   | docker-compose and CI only                                                                |
-| stellar/quickstart image                                               | Apache-2.0                                                   | docker-compose and CI only                                                                |
+| Artifact                                                                                | Licence                                                      | Where                                                                                                             |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| sentence-transformers/all-MiniLM-L6-v2 (ONNX weights and tokenizer)                     | Apache-2.0                                                   | service image; pinned revision and hashes in packages/search/models/all-minilm-l6-v2.json                         |
+| node:24 trixie-slim base image                                                          | MIT (Node.js); Debian packages under their own free licences | service image                                                                                                     |
+| rs-soroban-env simple_account.wasm                                                      | Apache-2.0                                                   | tests only; packages/testkit/fixtures/README.md                                                                   |
+| OpenZeppelin stellar-contracts smart account and ed25519 verifier wasm                  | MIT                                                          | tests only; pinned commit in scripts/contracts/fixtures.sh                                                        |
+| stellar/stellar-cli build image                                                         | Apache-2.0                                                   | contract builds only; pinned digest in scripts/contracts/common.sh                                                |
+| Space Grotesk, Archivo and JetBrains Mono fonts (Latin woff2 subsets, Fontsource 5.3.0) | OFL-1.1                                                      | Playground page; files and licence texts in apps/playground/web/src/ui/fonts and apps/playground/web/public/fonts |
+| postgres:18 image                                                                       | PostgreSQL                                                   | docker-compose and CI only                                                                                        |
+| stellar/quickstart image                                                                | Apache-2.0                                                   | docker-compose and CI only                                                                                        |
 
 ## Service packages
 

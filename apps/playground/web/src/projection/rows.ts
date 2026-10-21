@@ -18,7 +18,6 @@ import type {
   Source,
   Trust,
   TxView,
-  VersionView,
 } from "../engine/events.ts";
 import type { LabEvent } from "../engine/events.ts";
 import { SCENARIO_DEFAULTS, SESSION_CHECK_WINDOW, type StepId } from "../../../src/shared/lab.ts";
@@ -96,9 +95,6 @@ export const STEP_ORDER: readonly StepId[] = Object.freeze([
   "resend",
   "replay-refused",
   "charged-once",
-  "catalog",
-  "origin-check",
-  "listed",
   "search",
   "results",
   "pick",
@@ -164,7 +160,7 @@ class RowBuilder {
     this.mcp = paysMcpTool(facts);
   }
 
-  // ---------------------------------------------------------------- HTTP flows: pay, upto, sell, checks
+  // ---------------------------------------------------------------- HTTP flows: pay, upto, checks
 
   httpRows(): Row[] {
     const { probe, paid, resend } = httpExchanges(this.facts);
@@ -180,17 +176,17 @@ class RowBuilder {
       ...requests.map((exchange) => this.requestRow(exchange)),
       probe === undefined ? undefined : this.quoteRow(probe, option),
       this.refusedRow(),
-      this.scenario === "sell" ? undefined : this.signRow(option),
+      this.signRow(option),
       paid === undefined ? undefined : this.paidRequestRow(paid, option),
-      paid === undefined || this.scenario !== "upto" ? undefined : this.workRow(paid, option),
+      // A metered seller charges after the work, whichever way the run reached it.
+      paid === undefined || !this.metered(option) ? undefined : this.workRow(paid, option),
       paid === undefined ? undefined : this.settleRow(paid, option),
       paid === undefined ? undefined : this.settleRefusedRow(paid, option),
-      this.scenario === "sell" ? undefined : this.submitRow(),
-      paid === undefined || this.scenario === "sell" ? undefined : this.deliverRow(paid),
+      this.submitRow(),
+      paid === undefined ? undefined : this.deliverRow(paid),
       resend === undefined ? undefined : this.resendRow(resend),
       resend?.response === undefined ? undefined : this.replayRefusedRow(resend),
       resend?.response === undefined ? undefined : this.chargedOnceRow(),
-      ...(this.scenario === "sell" && paid !== undefined ? this.sellRows(paid) : []),
     ];
     return rows.filter((row): row is Row => row !== undefined);
   }
@@ -313,11 +309,9 @@ class RowBuilder {
         ? priceText === ""
           ? "tools/call error with the payment terms"
           : `tools/call error with the price: ${priceText}`
-        : this.scenario === "sell" && required.bazaar.declared
-          ? "price + discovery metadata"
-          : upto
-            ? `scheme: upto · cap ${price ?? "unknown"}`
-            : `PAYMENT-REQUIRED: ${priceText}`,
+        : upto
+          ? `scheme: upto · cap ${price ?? "unknown"}`
+          : `PAYMENT-REQUIRED: ${priceText}`,
       status: "done",
       source: "seller",
       step: "quote",
@@ -497,27 +491,25 @@ class RowBuilder {
           },
           { key: "sent via", value: viaText(request.via), source: "you" },
         ];
-    if (this.scenario === "sell") fields.unshift(...this.signFields(option));
     if (exchange.failure !== undefined) fields.push(...this.failureFields(exchange.failure));
     return {
       id: `paid-${request.id}`,
       lane: this.arrow("buyer", "seller"),
       label: this.mcp
         ? `tools/call ${request.rpc?.toolName ?? "tool"}, paid`
-        : this.scenario === "sell"
-          ? "Paid retry"
-          : "Retry with PAYMENT-SIGNATURE",
-      sub: this.mcp
-        ? "the same call, with the payment in _meta"
-        : this.scenario === "sell"
-          ? "signed within your cap"
-          : `payload: ${this.payloadText(option)}`,
+        : "Retry with PAYMENT-SIGNATURE",
+      sub: this.mcp ? "the same call, with the payment in _meta" : `payload: ${this.payloadText(option)}`,
       status: this.exchangeStatus(exchange),
       source: "you",
       step: "paid-request",
       fields,
-      doc: this.scenario === "sell" ? DOCS.x402 : DOCS.x402Headers,
+      doc: DOCS.x402Headers,
     };
+  }
+
+  /** Whether the payment is metered (upto): signed as one, or quoted as one. */
+  private metered(option: OptionView | undefined): boolean {
+    return (this.facts.auth?.scheme ?? option?.scheme) === "upto";
   }
 
   /** The payment payload's shape: exact sends a signed transaction, upto signed authorizations. */
@@ -642,21 +634,17 @@ class RowBuilder {
           ? `/settle ${reportedText}`
           : this.scenario === "upto" && amountText !== undefined
             ? `/settle ${amountText}`
-            : this.scenario === "sell"
-              ? "/settle"
-              : "/verify → /settle",
+            : "/verify → /settle",
       sub:
         success === false
           ? this.overCap(trace?.settle?.requested)
             ? "more than you authorized"
             : (trace?.settle?.code ?? settle?.errorReason ?? "settlement failed")
-          : this.scenario === "sell"
-            ? "with the bazaar extension"
-            : traced
-              ? "reported by the seller's trace"
-              : tx === undefined
-                ? `reported in ${this.mcp ? "the result's _meta" : "PAYMENT-RESPONSE"}`
-                : `reported in ${this.mcp ? "the result's _meta" : "PAYMENT-RESPONSE"}, proven on chain`,
+          : traced
+            ? "reported by the seller's trace"
+            : tx === undefined
+              ? `reported in ${this.mcp ? "the result's _meta" : "PAYMENT-RESPONSE"}`
+              : `reported in ${this.mcp ? "the result's _meta" : "PAYMENT-RESPONSE"}, proven on chain`,
       status: success === false ? "error" : "done",
       source: "seller",
       step: "settle",
@@ -974,126 +962,6 @@ class RowBuilder {
       fields,
       doc: DOCS.verificationRules,
     };
-  }
-
-  // ---------------------------------------------------------------- Sell: catalog, origin check, search
-
-  private sellRows(paid: Exchange): Row[] {
-    const outcome = paid.response?.trace?.bazaar;
-    if (outcome === undefined) return [];
-    const rows: Row[] = [];
-    const listing = this.facts.listing;
-    const catalogFields: RowField[] = [
-      { key: "outcome", value: `${outcome.status} · ${outcome.code}`, source: "seller" },
-    ];
-    if (outcome.reason !== undefined)
-      catalogFields.push({ key: "reason", value: outcome.reason, source: "seller" });
-    if (listing !== undefined) catalogFields.push(...listingFields(listing));
-    else if (outcome.listingId !== undefined)
-      catalogFields.push({ key: "listing", value: outcome.listingId, source: "seller" });
-    const rejected = outcome.status === "rejected";
-    rows.push({
-      id: "catalog",
-      lane: this.arrow("rail", "bazaar"),
-      label: "Catalog the route",
-      sub: rejected ? `not cataloged: ${outcome.code}` : "from the settled payment",
-      status: rejected ? "error" : listing !== undefined ? "done" : this.openStatus(),
-      source: listing === undefined ? "seller" : "bazaar",
-      step: "catalog",
-      fields: catalogFields,
-      doc: DOCS.cataloging,
-    });
-    if (rejected) return rows;
-
-    const firstHand = outcome.code !== "recorded";
-    // The latest check: versions are listed oldest first.
-    const origin = this.facts.versions?.versions
-      .filter((version) => version.cause === "origin_verification")
-      .reduce<VersionView | undefined>(
-        (latest, version) => (latest === undefined || version.version > latest.version ? version : latest),
-        undefined,
-      );
-    const newCheck = origin !== undefined && origin.version > (outcome.version ?? 0);
-    const originFields: RowField[] = [];
-    if (origin !== undefined) {
-      originFields.push(
-        { key: "version", value: String(origin.version), source: "bazaar" },
-        { key: "checked at", value: origin.createdAt, source: "bazaar" },
-        { key: "state", value: origin.state, source: "bazaar" },
-        { key: "trust", value: trustLabel(origin.trust), source: "bazaar" },
-      );
-      if (origin.reason !== null)
-        originFields.push({ key: "reason", value: origin.reason, source: "bazaar" });
-    }
-    if (origin !== undefined || this.facts.versions !== undefined || ended(this.facts)) {
-      originFields.push({
-        key: "this run",
-        value: !firstHand
-          ? "checked when the route was listed; unchanged since"
-          : newCheck
-            ? "created or changed the listing, so the check ran after this payment"
-            : "created or changed the listing; no check after this payment was recorded yet",
-        source: "seller",
-      });
-    }
-    rows.push({
-      id: "origin-check",
-      lane: this.arrow("rail", "seller"),
-      label: "Origin check",
-      sub:
-        origin === undefined
-          ? firstHand
-            ? "waiting for the catalog to call the route"
-            : "no check recorded"
-          : firstHand && !newCheck
-            ? "no check after this payment yet"
-            : firstHand
-              ? `the route asks the same price: ${origin.state}`
-              : "checked when the route was listed; unchanged since",
-      status:
-        origin !== undefined && (!firstHand || newCheck)
-          ? origin.state === "quarantined"
-            ? "error"
-            : "done"
-          : this.openStatus(),
-      source: "bazaar",
-      step: "origin-check",
-      fields: originFields,
-      doc: DOCS.listingTrust,
-    });
-
-    const search = this.facts.searches.at(-1);
-    if (search !== undefined) {
-      const id = outcome.listingId ?? listing?.id;
-      const hit = search.top.find((item) => item.id === id);
-      rows.push({
-        id: "listed",
-        lane: { self: LANE.sell.bazaar },
-        label: hit === undefined ? "Not in the results yet" : `Listed · ${trustLabel(hit.trust)}`,
-        sub:
-          hit === undefined
-            ? `“${search.query}”: ${String(search.count)} results`
-            : `rank ${String(hit.rank ?? "?")} for “${search.query}”`,
-        status: hit === undefined ? "pending" : "done",
-        source: "bazaar",
-        step: "listed",
-        fields: [
-          { key: "search", value: `“${search.query}”`, source: "you" },
-          { key: "results", value: String(search.count), source: "bazaar" },
-          ...(search.method === null
-            ? []
-            : [{ key: "ranking", value: search.method, source: "bazaar" as const }]),
-          ...(hit === undefined
-            ? []
-            : [
-                { key: "rank", value: String(hit.rank ?? "?"), source: "bazaar" as const },
-                { key: "trust", value: trustLabel(hit.trust), source: "bazaar" as const },
-              ]),
-        ],
-        doc: DOCS.search,
-      });
-    }
-    return rows;
   }
 
   // ---------------------------------------------------------------- Agent: rail402-mcp tools
@@ -1416,14 +1284,6 @@ class RowBuilder {
             : name === "tool" || name === "seller"
               ? LANE.agent.tool
               : LANE.agent.rail;
-      case "sell":
-        return name === "buyer" || name === "agent"
-          ? LANE.sell.buyer
-          : name === "seller" || name === "tool"
-            ? LANE.sell.api
-            : name === "rail"
-              ? LANE.sell.rail
-              : LANE.sell.bazaar;
       case "pay":
       case "upto":
         return name === "buyer" || name === "agent"
@@ -1610,7 +1470,7 @@ function detailText(details: JsonValue | undefined, ...path: readonly string[]):
   return number === undefined ? undefined : String(number);
 }
 
-/** Most characters of a delivered body a row field shows; the Pay page shows all of it. */
+/** Most characters of a delivered body a row field shows. */
 const BODY_FIELD_CHARS = 300;
 
 /** The delivered body, as the row's inspector shows it: its type and text, untrusted. */
@@ -1642,17 +1502,6 @@ function priceText(listing: ListingView): string {
       ? `${price.amount} base units`
       : `${price.decimal} ${price.symbol ?? ""}`.trimEnd();
   return price.scheme === "upto" ? `up to ${amount}` : amount;
-}
-
-function listingFields(listing: ListingView): RowField[] {
-  return [
-    { key: "listing", value: listing.id, source: "bazaar" },
-    { key: "owner", value: short(listing.owner), source: "bazaar" },
-    { key: "state", value: listing.state ?? "unknown", source: "bazaar" },
-    { key: "trust", value: trustLabel(listing.trust), source: "bazaar" },
-    { key: "version", value: String(listing.version), source: "bazaar" },
-    { key: "settlements", value: String(listing.settlements), source: "bazaar" },
-  ];
 }
 
 const STATUS_TEXT: Readonly<Record<number, string>> = {

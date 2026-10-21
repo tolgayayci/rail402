@@ -1,91 +1,40 @@
 /**
  * The runs the pages started, kept above the pages: leaving a page during a run (or after it) and
- * coming back shows the same run, with its rows, outcome and report. The refusal checks' "run all"
- * sequence lives here too, so it is never left running unseen by a page that went away; leaving the
- * Pay page stops the sequence after the check in progress.
+ * coming back shows the same run, with its steps, outcome and report. While the Lab plays a payment
+ * step by step, it holds the header's balance at what it was before the run, so the header does not
+ * give the ending away before the transfer is shown.
  */
 import {
   createContext,
   useCallback,
   useContext,
   useMemo,
-  useRef,
   useState,
   type ReactElement,
   type ReactNode,
 } from "react";
-import type { CheckId } from "../engine/events.ts";
-import type { CodedError, RunHandle } from "../engine/types.ts";
-import { toCodedError, useEngine } from "./engine.tsx";
-
-interface ChecksState {
-  readonly handles: Partial<Record<CheckId, RunHandle>>;
-  readonly sequence: boolean;
-  readonly error: CodedError | null;
-}
+import type { RunHandle } from "../engine/types.ts";
 
 interface RunsStore {
   readonly handle: (key: string) => RunHandle | null;
   readonly setHandle: (key: string, handle: RunHandle | null) => void;
-  /** The lab's last path (with its scenario and experiment), for the Playground link. */
+  /** The Lab's last path (with its mode), for the header's links back to it. */
   readonly labPath: string;
   readonly setLabPath: (path: string) => void;
-  readonly checks: ChecksState;
-  readonly startCheck: (id: CheckId) => RunHandle | undefined;
-  readonly runAllChecks: (ids: readonly CheckId[]) => Promise<void>;
-  /** Stops a running sequence after the check in progress. */
-  readonly stopChecks: () => void;
-  readonly clearCheckError: () => void;
+  /** The balance the header shows while a run plays; null shows the engine's. */
+  readonly heldBalance: string | null;
+  readonly holdBalance: (balance: string | null) => void;
 }
 
 const RunsContext = createContext<RunsStore | null>(null);
 
 export function RunsProvider({ children }: { readonly children: ReactNode }): ReactElement {
-  const engine = useEngine();
   const [handles, setHandles] = useState<Readonly<Record<string, RunHandle | null>>>({});
   const [labPath, setLabPath] = useState("/");
-  const [checks, setChecks] = useState<ChecksState>({ handles: {}, sequence: false, error: null });
-  const stopped = useRef(false);
+  const [heldBalance, holdBalance] = useState<string | null>(null);
 
   const setHandle = useCallback((key: string, handle: RunHandle | null) => {
     setHandles((current) => ({ ...current, [key]: handle }));
-  }, []);
-
-  const startCheck = useCallback(
-    (id: CheckId): RunHandle | undefined => {
-      try {
-        const handle = engine.check(id);
-        setChecks((current) => ({ ...current, error: null, handles: { ...current.handles, [id]: handle } }));
-        return handle;
-      } catch (reason) {
-        setChecks((current) => ({ ...current, error: toCodedError(reason) }));
-        return undefined;
-      }
-    },
-    [engine],
-  );
-
-  const runAllChecks = useCallback(
-    async (ids: readonly CheckId[]): Promise<void> => {
-      stopped.current = false;
-      const stop = (): boolean => stopped.current;
-      setChecks((current) => ({ ...current, sequence: true, error: null }));
-      for (const id of ids) {
-        if (stop()) break;
-        const handle = startCheck(id);
-        if (handle === undefined) break;
-        await handle.done;
-      }
-      setChecks((current) => ({ ...current, sequence: false }));
-    },
-    [startCheck],
-  );
-
-  const stopChecks = useCallback(() => {
-    stopped.current = true;
-  }, []);
-  const clearCheckError = useCallback(() => {
-    setChecks((current) => ({ ...current, error: null }));
   }, []);
 
   const store = useMemo<RunsStore>(
@@ -94,13 +43,10 @@ export function RunsProvider({ children }: { readonly children: ReactNode }): Re
       setHandle,
       labPath,
       setLabPath,
-      checks,
-      startCheck,
-      runAllChecks,
-      stopChecks,
-      clearCheckError,
+      heldBalance,
+      holdBalance,
     }),
-    [handles, setHandle, labPath, checks, startCheck, runAllChecks, stopChecks, clearCheckError],
+    [handles, setHandle, labPath, heldBalance],
   );
   return <RunsContext.Provider value={store}>{children}</RunsContext.Provider>;
 }
@@ -122,4 +68,9 @@ export function usePageRun(key: string): readonly [RunHandle | null, (handle: Ru
     [store, key],
   );
   return [handle, set] as const;
+}
+
+/** The runs key of the Bazaar's last payment of a listing, which the Lab can play (`?watch=`). */
+export function bazaarRunKey(listingId: string): string {
+  return `bazaar:${listingId}`;
 }

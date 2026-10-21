@@ -1,265 +1,318 @@
 /**
- * The Bazaar: search every API and MCP tool paid through Rail402 in plain language, and pay one from
- * the Pay page. Listings come from real payments; sellers never register.
+ * The Bazaar: every paid API and MCP tool listed on Stellar, on one page. Search it in plain words,
+ * narrow it with filters, and try a listing with the test wallet in the panel beside the list.
+ * Listings come from real payments: sellers never register.
  */
-import { useCallback, useEffect, useState, type SubmitEvent, type ReactElement } from "react";
-import type { ListingView, VersionView } from "../../engine/events.ts";
-import type { CodedError, SearchPage, SearchRequest } from "../../engine/types.ts";
-import { hostOf } from "../../projection/format.ts";
-import { listingName, priceText, trustLabel } from "../../projection/rows.ts";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from "react";
+import type { ListingView } from "../../engine/events.ts";
+import { DOCS } from "../../projection/docs.ts";
+import {
+  BAZAAR_FILTERS,
+  filterCounts,
+  isBazaarFilter,
+  listingPrice,
+  listingTitle,
+  matchesFilter,
+  schemeOf,
+  type BazaarFilter,
+} from "../../projection/listings.ts";
+import { displayUrl } from "../../projection/format.ts";
+import { Spinner } from "../../ui/icons.tsx";
 import { DocLink } from "../../ui/links.tsx";
 import { Notice } from "../../ui/Notice.tsx";
-import { DOCS } from "../../projection/docs.ts";
+import { useAllListings, useSearch } from "../bazaar/data.ts";
+import { ListingPanel } from "../bazaar/ListingPanel.tsx";
+import type { FocusRequest } from "../bazaar/TryIt.tsx";
 import { toCodedError, useEngine } from "../engine.tsx";
-import { Link } from "../router.tsx";
-import { payListingPath } from "./Pay.tsx";
-import { VersionList } from "./Sell.tsx";
+import { navigate, useLocation } from "../router.tsx";
 
-type Filter = "all" | "http" | "mcp" | "exact" | "upto" | "verified";
-
-const FILTERS: readonly { readonly id: Filter; readonly label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "http", label: "HTTP" },
-  { id: "mcp", label: "MCP tools" },
-  { id: "exact", label: "Fixed price" },
-  { id: "upto", label: "Pay per use" },
-  { id: "verified", label: "Verified sellers" },
-];
-
-const DEFAULT_QUERY = "weather for a city";
-
-/** The Bazaar request for a query and filter. Scheme filters apply to the returned page. */
-export function searchRequest(query: string, filter: Filter, cursor?: string): SearchRequest {
-  return {
-    query,
-    limit: 10,
-    ...(filter === "http" || filter === "mcp" ? { type: filter } : {}),
-    ...(filter === "verified" ? { minimumTrust: "domain_verified" as const } : {}),
-    ...(cursor === undefined ? {} : { cursor }),
-  };
-}
-
-function shown(items: readonly ListingView[], filter: Filter): readonly ListingView[] {
-  if (filter !== "exact" && filter !== "upto") return items;
-  return items.filter((item) => item.price?.scheme === filter);
+function SearchIcon(): ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" className="bazaar-search-icon">
+      <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
+      <path d="M10.5 10.5 L14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 export function BazaarPage(): ReactElement {
   const engine = useEngine();
   const { config } = engine;
-  const [query, setQuery] = useState(DEFAULT_QUERY);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [submitted, setSubmitted] = useState({ query: DEFAULT_QUERY, filter: "all" as Filter });
-  const [pages, setPages] = useState<readonly SearchPage[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<CodedError | null>(null);
-
-  const load = useCallback(
-    (request: SearchRequest, append: boolean): (() => void) => {
-      let live = true;
-      setBusy(true);
-      setError(null);
-      engine
-        .search(request)
-        .then(
-          (page) => {
-            if (live) setPages((current) => (append ? [...current, page] : [page]));
-          },
-          (reason: unknown) => {
-            if (live) setError(toCodedError(reason));
-          },
-        )
-        .finally(() => {
-          if (live) setBusy(false);
-        });
-      return () => {
-        live = false;
-      };
-    },
-    [engine],
+  const { search } = useLocation();
+  const all = useAllListings(engine);
+  const [query, setQuery] = useState(() => search.get("q") ?? "");
+  const requestedFilter = search.get("filter");
+  const [filter, setFilter] = useState<BazaarFilter>(
+    isBazaarFilter(requestedFilter) ? requestedFilter : "all",
   );
+  const found = useSearch(engine, query);
+  const searching = query.trim() !== "";
+  const linkedId = search.get("listing");
 
-  useEffect(() => load(searchRequest(submitted.query, submitted.filter), false), [load, submitted]);
-
-  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
-    event.preventDefault();
-    if (query.trim() === "") return;
-    setSubmitted({ query: query.trim(), filter });
+  // The query, the filter and the chosen listing stay in the address, so a link shows the same view.
+  const writeAddress = (next: { q?: string; filter?: BazaarFilter; listing?: string | null }): void => {
+    const params = new URLSearchParams(window.location.search);
+    const set = (key: string, value: string | null | undefined, empty: string): void => {
+      if (value === undefined) return;
+      if (value === null || value === empty) params.delete(key);
+      else params.set(key, value);
+    };
+    set("q", next.q?.trim(), "");
+    set("filter", next.filter, "all");
+    set("listing", next.listing, "");
+    const text = params.toString();
+    navigate(text === "" ? "/bazaar" : `/bazaar?${text}`, { replace: true });
   };
 
-  const items = pages.flatMap((page) => shown(page.items, submitted.filter));
-  const last = pages.at(-1);
-  const partial = pages.some((page) => page.partialResults);
+  const base: readonly ListingView[] | null = searching ? (found.data?.items ?? null) : all.data;
+  const counts = useMemo(() => filterCounts(base ?? []), [base]);
+  const shown = useMemo(() => (base ?? []).filter((item) => matchesFilter(item, filter)), [base, filter]);
+
+  // A listing linked by id that the list does not show (another filter, or not listed) is read alone.
+  const [linked, setLinked] = useState<ListingView | null>(null);
+  const [linkedError, setLinkedError] = useState<ReturnType<typeof toCodedError> | null>(null);
+  const inList = (id: string): ListingView | undefined =>
+    shown.find((item) => item.id === id) ?? all.data?.find((item) => item.id === id);
+  const missingId =
+    linkedId !== null && all.data !== null && inList(linkedId) === undefined ? linkedId : null;
+  useEffect(() => {
+    if (missingId === null) {
+      setLinked(null);
+      setLinkedError(null);
+      return undefined;
+    }
+    let live = true;
+    engine.listing(missingId).then(
+      (item) => {
+        if (live) setLinked(item);
+      },
+      (reason: unknown) => {
+        if (live) setLinkedError(toCodedError(reason));
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [engine, missingId]);
+
+  const selected: ListingView | undefined =
+    linkedId !== null ? (inList(linkedId) ?? linked ?? undefined) : shown[0];
+
+  const panelRef = useRef<HTMLElement>(null);
+  const [focusForm, setFocusForm] = useState<FocusRequest | null>(null);
+  const choose = (listing: ListingView, tryIt: boolean): void => {
+    writeAddress({ listing: listing.id });
+    if (!tryIt) return;
+    setFocusForm((current) => ({ id: listing.id, n: (current?.n ?? 0) + 1 }));
+    // Beside the list the panel is in view; below it (narrow screens), bring it up.
+    const panel = panelRef.current;
+    if (panel !== null && window.matchMedia("(max-width: 1023px)").matches) {
+      const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      panel.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+    }
+  };
+
+  const loading = searching ? found.busy && found.data === null : all.busy && all.data === null;
+  const error = searching ? found.error : all.error;
+  const total = all.data?.length;
 
   return (
-    <>
-      <div className="page-head">
-        <div>
-          <h1>Bazaar</h1>
-          <p className="lead">
-            Every API and MCP tool paid through Rail402, searchable in plain language. Listings come from real
-            payments: sellers never register.
-          </p>
+    <div className="bazaar">
+      <div className="bazaar-top">
+        <div className="bazaar-title">
+          <span className="eyebrow">Bazaar{total === undefined ? "" : ` · ${String(total)} listings`}</span>
+          <h1>Find paid APIs and tools on Stellar, and try them</h1>
         </div>
-        <span className="endpoint-pill mono">GET /discovery/search?query=…</span>
+        <p className="bazaar-lede">
+          Listed only after a real payment. Try any of them with your test wallet.
+        </p>
       </div>
 
-      <form role="search" className="search-form" onSubmit={submit}>
-        <label htmlFor="bazaar-query" className="visually-hidden">
-          Search the Bazaar
-        </label>
-        <input
-          id="bazaar-query"
-          className="text-input search-input"
-          type="search"
-          maxLength={500}
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-          }}
-        />
-        <button type="submit" className="button-dark" disabled={busy || query.trim() === ""}>
-          Search
-        </button>
-      </form>
-      <div className="filters" role="group" aria-label="Filters">
-        {FILTERS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="chip"
-            aria-pressed={item.id === filter}
-            onClick={() => {
-              setFilter(item.id);
-              setSubmitted({ query: query.trim() === "" ? submitted.query : query.trim(), filter: item.id });
+      <div className="bazaar-body">
+        <div className="bazaar-main">
+          <form
+            role="search"
+            className="bazaar-search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              found.reload();
             }}
           >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      {error !== null ? <Notice error={error} /> : null}
-      {partial ? (
-        <p className="note" role="status">
-          Partial results: the Bazaar answered from part of its index, so the ranking may be incomplete.
-        </p>
-      ) : null}
-
-      <div className="card table-card" aria-busy={busy}>
-        <table className="listings">
-          <thead>
-            <tr>
-              <th scope="col">Resource</th>
-              <th scope="col">Type</th>
-              <th scope="col">Price</th>
-              <th scope="col">Seller</th>
-              <th scope="col">
-                <span className="visually-hidden">Action</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <ListingRow key={item.id} listing={item} />
-            ))}
-          </tbody>
-        </table>
-        {items.length === 0 && !busy ? (
-          <p className="card-body muted">No listing matches. Try other words or another filter.</p>
-        ) : null}
-        <div className="table-foot">
-          <span className="muted">
-            {last?.method === null || last === undefined ? "" : `Ranked by ${last.method} search`}
-          </span>
-          {last?.cursor !== null && last?.cursor !== undefined ? (
-            <button
-              type="button"
-              className="button-secondary"
-              disabled={busy}
-              onClick={() => {
-                load(searchRequest(submitted.query, submitted.filter, last.cursor ?? undefined), true);
+            <SearchIcon />
+            <label htmlFor="bazaar-query" className="visually-hidden">
+              Search the Bazaar
+            </label>
+            <input
+              id="bazaar-query"
+              type="search"
+              maxLength={500}
+              autoComplete="off"
+              placeholder="Search in plain words, e.g. weather in Ankara under a cent"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                writeAddress({ q: event.target.value, listing: null });
               }}
-            >
-              More results
-            </button>
+            />
+            {found.busy ? <Spinner /> : null}
+            <DocLink
+              className="bazaar-search-doc"
+              doc={{ ...DOCS.search, label: "How search works" }}
+              docsUrl={config.urls.docs}
+            />
+          </form>
+
+          <div className="bazaar-filters" role="group" aria-label="Filters">
+            {BAZAAR_FILTERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="chip"
+                aria-pressed={item.id === filter}
+                onClick={() => {
+                  setFilter(item.id);
+                  writeAddress({ filter: item.id, listing: null });
+                }}
+              >
+                {item.label}{" "}
+                <span className="chip-count">· {base === null ? "…" : String(counts[item.id])}</span>
+              </button>
+            ))}
+          </div>
+
+          {error !== null ? (
+            <Notice error={error}>
+              <button type="button" className="text-button" onClick={searching ? found.reload : all.reload}>
+                Try again
+              </button>
+            </Notice>
           ) : null}
+          {searching && found.data?.partialResults === true ? (
+            <p className="bazaar-note" role="status">
+              Partial results: the Bazaar answered from part of its index, so the ranking may be incomplete.
+            </p>
+          ) : null}
+
+          <div className="listing-head" aria-hidden="true">
+            <span>Listing</span>
+            <span>Type</span>
+            <span>Scheme</span>
+            <span className="listing-head-price">Price</span>
+            <span />
+          </div>
+          <div className="listing-scroll" aria-busy={loading}>
+            {loading ? (
+              <ol className="listing-rows" aria-label="Loading listings">
+                {[0, 1, 2, 3, 4].map((index) => (
+                  <li key={index} className="listing-row listing-row-ghost" />
+                ))}
+              </ol>
+            ) : (
+              <ol
+                className="listing-rows"
+                aria-label={searching ? `Results for ${query.trim()}` : "Listings"}
+                key={`${searching ? query.trim() : ""}:${filter}`}
+              >
+                {shown.map((item, index) => (
+                  <ListingRow
+                    key={item.id}
+                    listing={item}
+                    index={index}
+                    symbol={config.asset.symbol}
+                    selected={item.id === selected?.id}
+                    onChoose={choose}
+                  />
+                ))}
+              </ol>
+            )}
+            {!loading && base !== null && shown.length === 0 ? (
+              <p className="bazaar-empty">
+                {searching
+                  ? "No listing matches these words. Try other words, or clear the search to see every listing."
+                  : "No listing matches this filter yet."}
+              </p>
+            ) : null}
+            {searching && found.data !== null && shown.length > 0 ? (
+              <p className="bazaar-foot muted">
+                {String(shown.length)} {shown.length === 1 ? "result" : "results"}
+                {found.data.method === null ? "" : `, ranked by ${found.data.method} search`}.
+              </p>
+            ) : null}
+          </div>
         </div>
+
+        <ListingPanel
+          ref={panelRef}
+          listing={selected}
+          error={selected === undefined ? linkedError : null}
+          loading={loading || (missingId !== null && linked === null && linkedError === null)}
+          focusForm={focusForm}
+        />
       </div>
-      <p className="muted">
-        <span className="verified-mark">✓</span> verified: the seller&apos;s domain publishes its Stellar
-        address in stellar.toml. <Link to="/sell">List your own API →</Link>{" "}
-        <DocLink doc={DOCS.search} docsUrl={config.urls.docs} />
-      </p>
-    </>
+    </div>
   );
 }
 
-function ListingRow({ listing }: { readonly listing: ListingView }): ReactElement {
-  const engine = useEngine();
-  const [versions, setVersions] = useState<readonly VersionView[] | null>(null);
-  const [error, setError] = useState<CodedError | null>(null);
-  const [open, setOpen] = useState(false);
+function ListingRow({
+  listing,
+  index,
+  symbol,
+  selected,
+  onChoose,
+}: {
+  readonly listing: ListingView;
+  readonly index: number;
+  readonly symbol: string;
+  readonly selected: boolean;
+  readonly onChoose: (listing: ListingView, tryIt: boolean) => void;
+}): ReactElement {
+  const scheme = schemeOf(listing);
+  const price = listingPrice(listing, symbol);
+  const title = listingTitle(listing);
   return (
-    <>
-      <tr>
-        <td>
-          <div className="mono listing-name">{listingName(listing)}</div>
-          <div className="muted">{listing.description ?? ""}</div>
-        </td>
-        <td>{listing.type === "mcp" ? "MCP tool" : "HTTP"}</td>
-        <td className="mono">{priceText(listing)}</td>
-        <td>
-          {hostOf(listing.resource)}{" "}
-          <span className="trust" data-trust={listing.trust} title={trustLabel(listing.trust)}>
-            {listing.trust === "domain_verified" ? "✓" : trustLabel(listing.trust)}
-          </span>
-        </td>
-        <td className="actions">
-          <button
-            type="button"
-            className="link-button"
-            aria-expanded={open}
-            onClick={() => {
-              setOpen(!open);
-              if (versions === null) {
-                engine.versions(listing.id).then(setVersions, (reason: unknown) => {
-                  setError(toCodedError(reason));
-                });
-              }
-            }}
-          >
-            History
-          </button>
-          {listing.callable === false ? (
-            <span className="not-payable">
-              <span className="muted">not payable here</span>
-              {listing.notPayable !== undefined && listing.notPayable !== null ? (
-                <>
-                  <code>{listing.notPayable.code}</code>
-                  <span className="muted">{listing.notPayable.reason}</span>
-                </>
-              ) : null}
-            </span>
-          ) : (
-            <Link className="button-secondary" to={payListingPath(listing.id)}>
-              Try
-            </Link>
-          )}
-        </td>
-      </tr>
-      {open ? (
-        <tr className="listing-details">
-          <td colSpan={5}>
-            {error !== null ? <Notice error={error} /> : null}
-            {versions !== null ? (
-              <VersionList versions={versions} />
-            ) : error === null ? (
-              <span aria-busy="true">Loading…</span>
-            ) : null}
-          </td>
-        </tr>
-      ) : null}
-    </>
+    <li
+      className="listing-row"
+      aria-current={selected ? "true" : undefined}
+      style={{ "--order": Math.min(index, 12) } as CSSProperties}
+    >
+      <span className="listing-name">
+        {/* The name's button covers the whole row, so a click anywhere on it shows the listing. */}
+        <button
+          type="button"
+          className="listing-name-button"
+          aria-pressed={selected}
+          onClick={() => {
+            onChoose(listing, false);
+          }}
+        >
+          {title}
+        </button>
+        <span className="listing-url mono">{displayUrl(listing.resource)}</span>
+      </span>
+      <span className="listing-type">{listing.type === "mcp" ? "MCP" : "HTTP"}</span>
+      <span className="scheme-badge mono" data-mode={scheme ?? undefined}>
+        {listing.price?.scheme.toUpperCase() ?? "—"}
+      </span>
+      <span className="listing-price">
+        {price === null ? (
+          "—"
+        ) : (
+          <>
+            {price.upto ? "≤ " : ""}
+            {price.amount} <span className="listing-symbol">{price.symbol}</span>
+          </>
+        )}
+      </span>
+      <button
+        type="button"
+        className="listing-try"
+        aria-label={`Try ${title}`}
+        onClick={() => {
+          onChoose(listing, true);
+        }}
+      >
+        Try
+      </button>
+    </li>
   );
 }

@@ -16,7 +16,13 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { KeyHolder, createBuyer, exactScheme, uptoScheme } from "@rail402.dev/sdk";
 import { TESTNET } from "@rail402.dev/stellar";
 import { LocalNetwork, SecretScanner, startDecoyOrigin, type DecoyOrigin } from "@rail402.dev/testkit";
-import { CHECK_EXPECTED_CODES, CHECK_IDS, LAB_PRICES } from "../../../src/shared/lab.ts";
+import {
+  CHECK_EXPECTED_CODES,
+  CHECK_IDS,
+  LAB_PRICES,
+  SANDBOX_EXAMPLE_CITY,
+  sellPath,
+} from "../../../src/shared/lab.ts";
 import { RELAY_HEADER_PREFIX } from "../../../src/shared/relay-protocol.ts";
 import { TRACE_HEADER, decodeTrace } from "../../../src/shared/trace.ts";
 import type { LabEvent, SdkPaymentEvent, TxView } from "../../src/engine/events.ts";
@@ -31,7 +37,7 @@ const HASH = /^[0-9a-f]{64}$/;
 /** Demo seller prices in base units (7 decimals). */
 const WEATHER = 10_000n;
 const HISTORY_DAY = 3_000n;
-const FORECAST_HOUR = 2_000n;
+const AIR_QUALITY = 10_000n;
 const SELL = BigInt(LAB_PRICES.sell.atomic);
 
 const sdkEvents = (events: readonly LabEvent[]): SdkPaymentEvent[] =>
@@ -228,7 +234,7 @@ describe.skipIf(!available)("the Playground engine on the local network", () => 
 
   it("refuses a cap below the price before anything is signed", async () => {
     const before = await balances();
-    const run = await finish(page.engine.run({ scenario: "pay", experiment: "low-cap", cap: "0.01" }));
+    const run = await finish(page.engine.run({ scenario: "pay", experiment: "normal", cap: "0.0005" }));
     expect(run.summary).toMatchObject({ status: "refused", code: "payment_per_call_cap_exceeded" });
     expect(run.summary.reason).not.toBe("");
     nothingSigned(run.events);
@@ -330,7 +336,8 @@ describe.skipIf(!available)("the Playground engine on the local network", () => 
     const primer = await createBuyer({
       network: TESTNET,
       signer: KeyHolder.fromSecret(holder.secret()),
-      rpcUrl: net.rpcUrl,
+      // The https proxy: the exact scheme's client refuses a plain http RPC.
+      rpcUrl: stack.rpcUrl,
       bazaarUrl: stack.rail402.url,
       facilitatorUrl: stack.rail402.url,
       policy: {
@@ -345,8 +352,8 @@ describe.skipIf(!available)("the Playground engine on the local network", () => 
         {
           kind: "mcp",
           url: `${stack.demoSeller.url}/mcp`,
-          toolName: "hourly_forecast",
-          arguments: { city: "Ankara", hours: 1 },
+          toolName: "air_quality",
+          arguments: { city: "Ankara" },
         },
         { maxAmount: { amount: "0.01", asset: "USDC" } },
       );
@@ -357,8 +364,8 @@ describe.skipIf(!available)("the Playground engine on the local network", () => 
       .poll(
         async () => {
           await stack.nudgeCatalog();
-          const found = await page.engine.search({ query: "hourly weather forecast", type: "mcp" });
-          return found.items.find((item) => item.toolName === "hourly_forecast")?.trust;
+          const found = await page.engine.search({ query: "air quality", type: "mcp" });
+          return found.items.find((item) => item.toolName === "air_quality")?.trust;
         },
         { timeout: 60_000, interval: 1_000 },
       )
@@ -382,7 +389,7 @@ describe.skipIf(!available)("the Playground engine on the local network", () => 
       false,
       true,
     ]);
-    const charged = FORECAST_HOUR * 6n;
+    const charged = AIR_QUALITY;
     settledTx(run.events, stack.demoSeller.payTo, charged);
     expect(await balances()).toEqual({
       ...before,
@@ -394,41 +401,41 @@ describe.skipIf(!available)("the Playground engine on the local network", () => 
   it("sells through the sandbox route: settled, cataloged, origin-checked and found by search", async () => {
     // The hosted catalog checks origins on a timer; here the test runs those workers.
     const nudger = setInterval(() => void stack.nudgeCatalog().catch(() => undefined), 500);
+    const target = `${stack.publicUrl}${sellPath(SANDBOX_EXAMPLE_CITY)}`;
+    const bazaarOutcome = (events: readonly LabEvent[]) =>
+      events.flatMap((event) =>
+        event.kind === "http" && event.phase === "response" && event.trace?.bazaar !== undefined
+          ? [event.trace.bazaar]
+          : [],
+      );
     try {
       const before = await balances();
-      const first = await finish(page.engine.run({ scenario: "sell", experiment: "normal", cap: "0.01" }));
+      const first = await finish(page.engine.pay({ target, cap: "0.01" }));
       expect(first.summary).toMatchObject({ status: "ok" });
-      const traced = first.events.flatMap((event) =>
-        event.kind === "http" && event.phase === "response" && event.trace?.bazaar !== undefined
-          ? [event.trace.bazaar]
-          : [],
-      );
-      expect(traced).toEqual([expect.objectContaining({ code: "awaiting_origin_verification" })]);
+      expect(bazaarOutcome(first.events)).toEqual([
+        expect.objectContaining({ code: "awaiting_origin_verification" }),
+      ]);
       settledTx(first.events, stack.labPayTo, SELL);
-      const listings = first.events.flatMap((event) =>
-        event.kind === "bazaar" && event.phase === "listing" ? [event.listing] : [],
-      );
-      expect(listings.at(-1)).toMatchObject({ state: "published", owner: stack.labPayTo, type: "http" });
-      const versions = first.events.flatMap((event) =>
-        event.kind === "bazaar" && event.phase === "versions" ? event.versions : [],
-      );
-      expect(versions.length).toBeGreaterThan(0);
-      const found = first.events.flatMap((event) =>
-        event.kind === "bazaar" && event.phase === "search" ? event.top.map((listing) => listing.id) : [],
-      );
-      expect(found).toContain(listings.at(-1)?.id);
       expect(await balances()).toEqual({ ...before, payer: before.payer - SELL, lab: before.lab + SELL });
 
+      // The catalog calls the route back, then publishes the listing.
+      let listing = (await page.engine.list({ payTo: stack.labPayTo, type: "http" })).items[0];
+      for (let waited = 0; listing?.state !== "published" && waited < 120_000; waited += 1_000) {
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+        listing = (await page.engine.list({ payTo: stack.labPayTo, type: "http" })).items[0];
+      }
+      expect(listing).toMatchObject({ state: "published", owner: stack.labPayTo, type: "http" });
+      const id = listing?.id ?? "";
+      const versions = await page.engine.versions(id);
+      expect(versions.some((version) => version.cause === "origin_verification")).toBe(true);
+      const found = await page.engine.search({ query: "seven-day forecast", type: "http" });
+      expect(found.items.map((item) => item.id)).toContain(id);
+
       // Every visitor shares the one listing: a second sale records a settlement on it.
-      const second = await finish(page.engine.run({ scenario: "sell", experiment: "normal", cap: "0.01" }));
+      const second = await finish(page.engine.pay({ target, cap: "0.01" }));
       expect(second.summary).toMatchObject({ status: "ok" });
-      const recorded = second.events.flatMap((event) =>
-        event.kind === "http" && event.phase === "response" && event.trace?.bazaar !== undefined
-          ? [event.trace.bazaar]
-          : [],
-      );
-      expect(recorded).toEqual([
-        expect.objectContaining({ code: "recorded", listingId: listings.at(-1)?.id }),
+      expect(bazaarOutcome(second.events)).toEqual([
+        expect.objectContaining({ code: "recorded", listingId: id }),
       ]);
       const mine = await page.engine.list({ payTo: stack.labPayTo });
       expect(mine.items).toHaveLength(1);
@@ -436,14 +443,6 @@ describe.skipIf(!available)("the Playground engine on the local network", () => 
       clearInterval(nudger);
     }
   }, 240_000);
-
-  it("checks a seller's endpoint like the catalog would", async () => {
-    const report = await page.engine.sellerCheck({ url: `${stack.demoSeller.url}/weather?city=Ankara` });
-    expect(report).toMatchObject({ type: "http", status: 402, ok: true });
-    expect(report.receivable).toEqual([
-      expect.objectContaining({ payTo: stack.demoSeller.payTo, receivable: true }),
-    ]);
-  });
 
   describe("refusal checks", () => {
     it.each(CHECK_IDS)("%s: refused with its code, nothing signed", async (check) => {

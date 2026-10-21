@@ -1,26 +1,22 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { checkSellerOrigin, type OriginReport } from "@rail402.dev/sdk/seller";
-import { SELLER_CHECK_PATH } from "../src/seller-check.ts";
 import { RELAY_PATH, encodeRelayRequest } from "../src/shared/relay-protocol.ts";
 import { testApp, testConfig, type TestApp } from "./support.ts";
 
 /** Limits high enough for a matrix of requests from one client. */
 const ROOMY = {
-  SELLER_CHECK_PER_MINUTE: "1000",
-  SELLER_CHECK_GLOBAL_PER_MINUTE: "1000",
   RELAY_UNPAID_PER_MINUTE: "1000",
   RELAY_UNPAID_BURST: "1000",
 } as const;
 
 type Resolver = (host: string) => Promise<{ address: string; family: 4 | 6 }[]>;
 
-/** Endpoints that refuse connections, so the seller check's other reads stay off the network. */
+/** An endpoint that refuses connections. */
 const CLOSED = "http://127.0.0.1:9";
 
 /**
- * Where a hosted Playground must never send a request, through the relay or the seller check, and
+ * Where a hosted Playground must never send a request through the relay, and
  * the egress code each one is refused with before any DNS lookup or connection.
  */
 const LITERAL_REFUSALS: readonly (readonly [string, string])[] = [
@@ -78,7 +74,7 @@ const DNS_ANSWERS: Readonly<Record<string, readonly { address: string; family: 4
   "loopback6.example": [{ address: "::1", family: 6 }],
 };
 
-describe("egress controls of the relay and the seller check", () => {
+describe("egress controls of the relay", () => {
   let app: TestApp | undefined;
   afterEach(() => {
     app?.close();
@@ -86,11 +82,7 @@ describe("egress controls of the relay and the seller check", () => {
   });
 
   function hosted(resolve: Resolver, env: Record<string, string> = {}): TestApp {
-    // No request here gets a 402, so the check never reads the RPC or the facilitator.
-    app = testApp(testConfig({ ...ROOMY, ...env }), {
-      egress: { resolve },
-      sellerCheck: checkSellerOrigin,
-    });
+    app = testApp(testConfig({ ...ROOMY, ...env }), { egress: { resolve } });
     return app;
   }
 
@@ -111,17 +103,6 @@ describe("egress controls of the relay and the seller check", () => {
     return body.error;
   }
 
-  async function checked(url: string): Promise<OriginReport> {
-    if (app === undefined) throw new Error("no app");
-    const response = await app.request(SELLER_CHECK_PATH, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
-    expect(response.status, url).toBe(200);
-    return (await response.json()) as OriginReport;
-  }
-
   it("refuses every private, local, reserved or off-policy literal before any lookup", async () => {
     const lookups: string[] = [];
     hosted((host) => {
@@ -130,11 +111,6 @@ describe("egress controls of the relay and the seller check", () => {
     });
     for (const [target, code] of LITERAL_REFUSALS) {
       expect(await relayed(target), target).toMatchObject({ code, details: { stage: "url" } });
-      const report = await checked(target);
-      expect(report.ok, target).toBe(false);
-      expect(report.findings, target).toEqual([
-        expect.objectContaining({ code: "seller_origin_unreachable", details: { cause: code } }),
-      ]);
     }
     expect(lookups).toEqual([]);
   });
@@ -147,30 +123,14 @@ describe("egress controls of the relay and the seller check", () => {
         code: "egress_destination_not_allowed",
         details: { stage: "dns" },
       });
-      const report = await checked(target);
-      expect(report.findings, target).toEqual([
-        expect.objectContaining({ details: { cause: "egress_destination_not_allowed" } }),
-      ]);
     }
   });
 
-  it("refuses targets with control characters or past 2 KiB", async () => {
+  it("refuses targets past 2 KiB", async () => {
     hosted(() => Promise.reject(new Error("no lookup expected")));
     expect((await relayed(`https://seller.example/${"a".repeat(2_100)}`)).code).toBe(
       "playground_relay_target_invalid",
     );
-    if (app === undefined) throw new Error("no app");
-    for (const url of ["https://seller.example/a\tb", "https://seller.\nexample/"]) {
-      const response = await app.request(SELLER_CHECK_PATH, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      expect(response.status).toBe(400);
-      expect(await response.json()).toMatchObject({
-        error: { code: "playground_request_invalid", reason: "url: must not contain control characters" },
-      });
-    }
   });
 
   it("does not let the relay reach the Playground, the facilitator, the Bazaar or a denied host by any spelling", async () => {
@@ -220,12 +180,9 @@ describe("egress controls of the relay and the seller check", () => {
           RPC_URL: CLOSED,
           FACILITATOR_URL: CLOSED,
         }),
-        { sellerCheck: checkSellerOrigin },
       );
       for (const path of ["/to-metadata", "/to-other-port"]) {
         expect((await relayed(`${origin}${path}`)).code, path).toBe("egress_redirect_not_allowed");
-        const report = await checked(`${origin}${path}`);
-        expect(report.findings[0]?.details, path).toEqual({ cause: "egress_redirect_not_allowed" });
       }
     });
   });

@@ -5,6 +5,7 @@ import {
   compareDecimal,
   decimalDelta,
   displayUrl,
+  groupedAmount,
   safeHttpsUrl,
   short,
   signedAmount,
@@ -35,11 +36,20 @@ describe("amounts", () => {
     expect(atomicWithDecimal("10000", null, null)).toBe("10000 base units");
   });
 
+  it("groups thousands and trims decimals for display", () => {
+    expect(groupedAmount("9999.9900000")).toBe("9,999.99");
+    expect(groupedAmount("1234567")).toBe("1,234,567");
+    expect(groupedAmount("0.5", 4)).toBe("0.5");
+    expect(groupedAmount("0.99749", 4)).toBe("0.9974");
+    expect(groupedAmount("junk")).toBe("junk");
+  });
+
   it("shortens ids and shows URLs", () => {
     expect(short("GBSVAAAAAAAAAAAAELYP")).toBe("GBSV…ELYP");
     expect(displayUrl("https://demo.rail402.dev/weather?city=Ankara")).toBe(
       "demo.rail402.dev/weather?city=Ankara",
     );
+    expect(displayUrl("mcp://tool/exact_stellar")).toBe("mcp://tool/exact_stellar");
   });
 
   it("links only https URLs without credentials", () => {

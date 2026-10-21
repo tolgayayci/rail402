@@ -6,20 +6,21 @@
 import { describe, expect, it } from "vitest";
 import type { LabEvent, SdkPaymentEvent } from "../../src/engine/events.ts";
 import { collectFacts, flowKindOf, paidAmount } from "../../src/projection/facts.ts";
-import { inspectorFor } from "../../src/projection/inspector.ts";
-import { lanesFor } from "../../src/projection/lanes.ts";
-import { projectCheck, projectOutcome } from "../../src/projection/outcome.ts";
+import { projectCheck } from "../../src/projection/checks.ts";
+import { projectProof, projectVerdict } from "../../src/projection/proof.ts";
 import { projectRows, type Row } from "../../src/projection/rows.ts";
+import { projectStage } from "../../src/projection/stage.ts";
+import { CONFIG } from "../fixtures/config.ts";
 import { CHECK_RUNS, PAY_MCP_LISTING_RUN, scenarioRun } from "../fixtures/runs.ts";
 
-const context = {
-  asset: { symbol: "USDC", decimals: 7 },
-  sellerLabel: "Seller",
-  facilitatorLabel: "Rail402",
-};
-const rowContext = { asset: context.asset };
-const money = (log: readonly LabEvent[]): string[] =>
-  (projectOutcome(log, context)?.money ?? []).map((line) => `${line.who}: ${line.delta}`);
+const context = { config: CONFIG, ours: true };
+const rowContext = { asset: { symbol: "USDC", decimals: 7 } };
+const proofOf = (log: readonly LabEvent[]) => projectProof(log, context);
+const verdictOf = (log: readonly LabEvent[]) => projectVerdict(log, context);
+const stepOf = (log: readonly LabEvent[], kind: string) =>
+  projectStage(log, { mode: "exact", plan: "normal", config: CONFIG }).steps.find(
+    (step) => step.kind === kind,
+  );
 const rowOf = (log: readonly LabEvent[], step: string): Row | undefined =>
   projectRows(log, rowContext).find((row) => row.step === step);
 const field = (row: Row | undefined, key: string): string | undefined =>
@@ -82,12 +83,10 @@ describe("a paid call that did not end ok", () => {
         },
       ],
     });
-    const outcome = projectOutcome(log, context);
-    expect(outcome?.badge).toBe("Paid, the call failed");
-    expect(outcome?.headline).toContain("did not deliver");
-    // The settlement is still proven and linked, and the money lines show it.
-    expect(outcome?.tx).not.toBeNull();
-    expect(money(log)[1]).toBe("Seller: + 0.001 USDC");
+    const verdict = verdictOf(log);
+    expect(verdict).toMatchObject({ title: "Paid, but the call failed", good: false });
+    // The settlement is still proven and linked as this payment's.
+    expect(verdict?.transactions).toEqual([expect.objectContaining({ label: "Transaction" })]);
   });
 
   it("says the outcome is unknown when a payment was sent and not proven", () => {
@@ -95,7 +94,8 @@ describe("a paid call that did not end ok", () => {
       map: unverified,
       end: { status: "error", code: "payment_settlement_unconfirmed", reason: "The relay was lost." },
     });
-    expect(projectOutcome(log, context)).toMatchObject({ badge: "Outcome unknown", tx: null });
+    expect(proofOf(log)).toBeUndefined();
+    expect(verdictOf(log)).toMatchObject({ title: "Sent, not proven on chain yet", badge: "Not proven" });
   });
 
   it("reads as paid once a reconciliation proves the payment after the run", () => {
@@ -106,7 +106,7 @@ describe("a paid call that did not end ok", () => {
       map: unverified,
       end: { status: "info", code: "payment_settlement_unconfirmed", reason: "not proven" },
     });
-    expect(projectOutcome(notYet, context)?.tx).toBeNull();
+    expect(proofOf(notYet)).toBeUndefined();
     const later = rewrite(base, {
       map: unverified,
       end: { status: "info", code: "payment_settlement_unconfirmed", reason: "not proven" },
@@ -120,8 +120,7 @@ describe("a paid call that did not end ok", () => {
         }),
       ],
     });
-    expect(projectOutcome(later, context)).toMatchObject({ kind: "ok", badge: "Paid, proven later" });
-    expect(projectOutcome(later, context)?.tx?.hash).toBe(tx.hash);
+    expect(proofOf(later)).toMatchObject({ paid: "0.001", tx: { hash: tx.hash } });
   });
 });
 
@@ -146,8 +145,7 @@ describe("events of other payments", () => {
         }),
       ],
     });
-    expect(money(stray)).toEqual(money(base));
-    expect(projectOutcome(stray, context)?.headline).toBe(projectOutcome(base, context)?.headline);
+    expect(proofOf(stray)).toEqual(proofOf(base));
     expect(collectFacts(stray).sdk).toHaveLength(collectFacts(base).sdk.length);
   });
 });
@@ -164,8 +162,7 @@ describe("amounts", () => {
           : event,
     });
     expect(paidAmount(collectFacts(claimed))).toEqual(proven);
-    const headline = projectOutcome(claimed, context)?.headline ?? "";
-    expect(headline).not.toContain("0.0000001");
+    expect(proofOf(claimed)?.paid).toBe("0.0021");
     expect(field(rowOf(claimed, "settle"), "proven amount")).toBeDefined();
   });
 
@@ -212,25 +209,28 @@ describe("rows that describe what was sent", () => {
     expect(field(quote, "payTo")).toBeDefined();
     const flow = flowKindOf(collectFacts(PAY_MCP_LISTING_RUN));
     expect(flow.mcp).toBe(true);
-    const lanes = lanesFor("pay", { sellerHost: "demo.rail402.dev" });
-    const paid = rowOf(PAY_MCP_LISTING_RUN, "paid-request");
-    expect(inspectorFor(paid, lanes, "pay", flow).note).toContain('_meta["x402/payment"]');
-    expect(inspectorFor(quote, lanes, "pay", flow).note).not.toContain("PAYMENT-REQUIRED");
+    const paid = stepOf(PAY_MCP_LISTING_RUN, "paid");
+    expect(paid?.chip).toBe("retry + payment");
+    expect(paid?.explain).toContain('_meta["x402/payment"]');
+    expect(paid?.facts[0]).toEqual({ label: "Carries", value: '_meta["x402/payment"]', mono: true });
+    expect(stepOf(PAY_MCP_LISTING_RUN, "quote")?.explain).toMatch(
+      /^It answers with a payment-required error/,
+    );
+    expect(stepOf(PAY_MCP_LISTING_RUN, "request")?.chip).toBe("tools/call hourly_forecast");
   });
 
   it("explains a refused settlement and an unproven transaction as what they are", () => {
-    const lanes = lanesFor("upto", { sellerHost: "demo.rail402.dev" });
     const overcharge = scenarioRun("upto", "overcharge");
-    const settle = rowOf(overcharge, "settle");
-    expect(inspectorFor(settle, lanes, "upto", flowKindOf(collectFacts(overcharge))).title).toBe(
-      "The facilitator refuses to settle",
-    );
+    expect(stepOf(overcharge, "settle")).toMatchObject({
+      title: "Rail402 refuses to settle",
+      state: "error",
+    });
     const unproven = rewrite(scenarioRun("pay", "normal"), { map: unverified });
-    const submit = rowOf(unproven, "submit");
-    expect(submit?.label).toBe("Reported transaction");
-    expect(inspectorFor(submit, lanesFor("pay", { sellerHost: "x" }), "pay").title).toBe(
-      "The reported transaction is not this payment",
-    );
+    expect(rowOf(unproven, "submit")?.label).toBe("Reported transaction");
+    expect(stepOf(unproven, "submit")).toMatchObject({
+      title: "The reported transaction is not this payment",
+      state: "error",
+    });
   });
 
   it("calls the replay check what it read, not a chain-wide count", () => {
@@ -242,22 +242,23 @@ describe("rows that describe what was sent", () => {
 describe("the facilitator's name", () => {
   it("is Rail402 only when /supported advertises the fee payer", () => {
     const base = scenarioRun("pay", "normal");
-    expect(money(base).at(-1)).toMatch(/^Rail402: /);
+    expect(proofOf(base)?.facilitator).toBe("Rail402");
     const notAdvertised = rewrite(base, {
       map: (event) =>
         event.kind === "chain" && event.phase === "tx"
           ? { ...event, view: { ...event.view, feeSourceAdvertised: false } }
           : event,
     });
-    expect(money(notAdvertised).at(-1)).toMatch(/^Fee payer \(not advertised by the facilitator\): /);
-    expect(lanesFor("pay", { sellerHost: "x", facilitatorLabel: "Facilitator" })[2]?.label).toBe(
-      "Facilitator",
-    );
+    expect(proofOf(notAdvertised)?.facilitator).toBe("Facilitator");
+    expect(proofOf(notAdvertised)?.parties.map((party) => party.role)).toContain("Facilitator");
+    expect(
+      projectStage(notAdvertised, { mode: "exact", plan: "normal", config: CONFIG }).lanes[2]?.label,
+    ).toBe("Facilitator");
   });
 });
 
 describe("a held cap released later", () => {
-  it("replaces the hold with what came back, on the row and in the money", () => {
+  it("replaces the hold with what came back on the row", () => {
     const base = scenarioRun("upto", "overcharge");
     const released = rewrite(base, {
       after: [
@@ -272,9 +273,6 @@ describe("a held cap released later", () => {
     });
     expect(field(rowOf(base, "deliver"), "hold")).toContain("kept until the authorization expires");
     expect(field(rowOf(released, "deliver"), "hold")).toContain("0.01 USDC back in your budget");
-    expect(money(released)).toContain(
-      "Held cap: 0.01 USDC back in your budget: the authorization expired unused",
-    );
   });
 });
 

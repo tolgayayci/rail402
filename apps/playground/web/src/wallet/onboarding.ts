@@ -2,7 +2,7 @@
  * Funding a fresh testnet wallet, step by step, each a real transaction: Friendbot creates the account
  * with XLM, the account adds a trustline for the policy asset, then buys a little of it with XLM on the
  * testnet exchange (keeping XLM for reserves and fees). Steps already done are skipped, so funding can
- * resume after a failure. The key signs only the onboarding envelopes the SDK's `account` module builds.
+ * resume after a failure; a top-up buys again even when the account already holds some. The key signs only the onboarding envelopes the SDK's `account` module builds.
  */
 import { Asset, type rpc } from "@stellar/stellar-sdk";
 import { AssetDirectory } from "@rail402.dev/stellar";
@@ -31,6 +31,8 @@ export interface OnboardingOptions {
   readonly buyAmount: string;
   /** XLM kept back for reserves and fees, decimal. */
   readonly keepXlm: string;
+  /** Buy the asset even when the account already holds some. */
+  readonly topUp?: boolean;
   readonly signal?: AbortSignal;
   /** Called after each step that ran, with its transaction hash when it has one. */
   readonly onStep: (step: OnboardingStep, transaction?: string) => void;
@@ -114,7 +116,7 @@ export async function fundAccount(
   if (!status.trustline) {
     options.onStep("trustline", await operations.trustline(chain, signer, asset));
   }
-  if (!status.funded) {
+  if (!status.funded || options.topUp === true) {
     const keep = toAtomic(options.keepXlm, 7);
     options.onStep(
       "bought",

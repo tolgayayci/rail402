@@ -15,7 +15,7 @@ import {
   type SearchPage as BuyerSearchPage,
 } from "@rail402.dev/sdk/browser";
 import type { StellarNetwork } from "@rail402.dev/stellar";
-import { listingView, versionView } from "./decode.ts";
+import { listingView, pathExampleOf, versionView } from "./decode.ts";
 import type { ListingView, VersionView } from "./events.ts";
 
 /** Discovery and search show published listings only; one listing's own read says its state. */
@@ -61,6 +61,7 @@ export class Catalog {
       version,
       state,
       rank,
+      pathExample: pathExampleOf(item),
       judge: { policy, adapters },
     });
   }

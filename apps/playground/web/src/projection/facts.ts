@@ -6,13 +6,11 @@ import type {
   AuthorizationView,
   DeliveryView,
   LabEvent,
-  ListingView,
   RequiredView,
   SdkPaymentEvent,
   SettleView,
   ToolName,
   TxView,
-  VersionView,
 } from "../engine/events.ts";
 
 type Of<K extends LabEvent["kind"], P = unknown> = Extract<LabEvent, { kind: K } & P>;
@@ -63,8 +61,6 @@ export interface RunFacts {
   readonly provenLater: ReadonlySet<string>;
   readonly tools: readonly ToolExchange[];
   readonly searches: readonly BazaarSearch[];
-  readonly listing: ListingView | undefined;
-  readonly versions: { readonly listingId: string; readonly versions: readonly VersionView[] } | undefined;
 }
 
 /** SDK events that open a call: a run owns a call it saw opened. */
@@ -91,8 +87,6 @@ export function collectFacts(events: readonly LabEvent[]): RunFacts {
   const opened = new Set<string>();
   const tools: { name: ToolName; call: ToolCall; result?: ToolResult }[] = [];
   const searches: BazaarSearch[] = [];
-  let listing: ListingView | undefined;
-  let versions: RunFacts["versions"];
 
   for (const event of events) {
     switch (event.kind) {
@@ -152,8 +146,6 @@ export function collectFacts(events: readonly LabEvent[]): RunFacts {
         break;
       case "bazaar":
         if (event.phase === "search") searches.push(event);
-        else if (event.phase === "listing") listing = event.listing;
-        else versions = { listingId: event.listingId, versions: event.versions };
         break;
       case "wallet":
         break;
@@ -179,8 +171,6 @@ export function collectFacts(events: readonly LabEvent[]): RunFacts {
     provenLater,
     tools: tools.map((tool) => ({ name: tool.name, call: tool.call, result: tool.result })),
     searches,
-    listing,
-    versions,
   };
 }
 
@@ -206,7 +196,7 @@ function runBalance(reads: readonly Balance[]): Balance | undefined {
 }
 
 /**
- * Whether a run outside the agent scenario pays an MCP tool (a Bazaar listing paid from the Pay page):
+ * Whether a run outside the agent scenario pays an MCP tool (a Bazaar listing tried with your wallet):
  * the run says so, or its paid exchanges are JSON-RPC `tools/call`s.
  */
 export function paysMcpTool(facts: RunFacts): boolean {

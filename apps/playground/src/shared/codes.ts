@@ -1,6 +1,6 @@
 /**
- * Codes the Playground returns or shows: its server's refusals (relay, proxies, lab sellers, seller
- * check), its startup refusal, and the browser app's own errors. Codes of the packages it builds on
+ * Codes the Playground returns or shows: its server's refusals (relay, proxies, lab sellers), its
+ * startup refusal, and the browser app's own errors. Codes of the packages it builds on
  * (`egress_*`, `account_*`, `payment_*`, `key_invalid`, the discovery codes) are reused, never copied.
  */
 import { defineCodes, errorFactory, mergeCodes } from "@rail402.dev/errors";
@@ -111,6 +111,11 @@ export const playgroundClientCodes = defineCodes({
     status: 400,
     retryable: false,
     reason: "Create or import a testnet wallet first.",
+  },
+  playground_wallet_not_set_up: {
+    status: 409,
+    retryable: true,
+    reason: "The test wallet is not set up yet: it needs testnet XLM and test USDC before it can pay.",
   },
   playground_config_unavailable: {
     status: 503,

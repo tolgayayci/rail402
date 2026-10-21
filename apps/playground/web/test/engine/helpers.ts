@@ -81,7 +81,6 @@ export function testConfig(overrides: Partial<PublicConfig> = {}): PublicConfig 
       limits: { ...RELAY_LIMITS },
       timeoutMaxima: { ...RELAY_TIMEOUT_MAXIMA },
     },
-    sellerCheck: { enabled: true },
     onboarding: { buyAmount: "1", keepXlm: "10", faucetUrl: "https://faucet.example" },
     ...overrides,
   };

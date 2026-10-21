@@ -21,7 +21,7 @@ import type {
 } from "../engine/types.ts";
 import { CodedFailure, clientError } from "../app/engine.tsx";
 import { toAtomic, toDecimal } from "../projection/format.ts";
-import { ALL_LISTINGS, SAMPLE_VERSIONS, SELLER_CHECK, TOOL_DEFINITIONS } from "../../test/fixtures/bazaar.ts";
+import { ALL_LISTINGS, SAMPLE_VERSIONS, TOOL_DEFINITIONS } from "../../test/fixtures/bazaar.ts";
 import { CONFIG } from "../../test/fixtures/config.ts";
 import { IDS } from "../../test/fixtures/ids.ts";
 import { CHECK_RUNS, SCENARIO_RUNS, WALLET_FUND } from "../../test/fixtures/runs.ts";
@@ -92,6 +92,7 @@ class FakeEngine implements Engine {
           this.update({
             wallet: { ...this.readyWallet(), setup: { account: false, trustline: false, funded: false } },
             balances: { xlm: null, asset: null, readAt: Date.now() },
+            balancesRead: "ok",
             budget: this.budget("0"),
           });
         }),
@@ -101,6 +102,7 @@ class FakeEngine implements Engine {
               this.update({
                 wallet: this.readyWallet(),
                 balances: { xlm: "100", asset: "0.5", readAt: Date.now() },
+                balancesRead: "ok",
                 budget: this.budget("0"),
               });
             })
@@ -109,21 +111,27 @@ class FakeEngine implements Engine {
               reason: "The secret key is not a valid Stellar secret seed.",
               retryable: false,
             }),
-      fund: () => {
+      fund: (request) => {
         const wallet = this.current.wallet;
         if (wallet.status !== "ready") return this.refused(clientError("playground_wallet_missing"));
-        return this.walletRun(fundLog, (events) => {
+        const topUp = request?.topUp === true && wallet.setup.funded;
+        const log = topUp
+          ? fundLog.filter((event) => event.kind !== "wallet" || event.step === "bought")
+          : fundLog;
+        return this.walletRun(log, (events) => {
           const steps = new Set(events.flatMap((event) => (event.kind === "wallet" ? [event.step] : [])));
           const setup = {
             account: wallet.setup.account || steps.has("friendbot"),
             trustline: wallet.setup.trustline || steps.has("trustline"),
             funded: wallet.setup.funded || steps.has("bought"),
           };
+          const bought = steps.has("bought") ? (toAtomic(this.config.onboarding.buyAmount, 7) ?? 0n) : 0n;
+          const held = toAtomic(this.current.balances?.asset ?? "0", 7) ?? 0n;
           this.update({
             wallet: { ...wallet, setup },
             balances: {
               xlm: setup.account ? (setup.funded ? "9989.9" : "9999.99") : null,
-              asset: setup.trustline ? (setup.funded ? this.config.onboarding.buyAmount : "0") : null,
+              asset: setup.trustline ? (toDecimal((held + bought).toString(), 7) ?? "0") : null,
               readAt: Date.now(),
             },
           });
@@ -138,6 +146,7 @@ class FakeEngine implements Engine {
           this.update({
             wallet: { status: "none", storage: "persistent" },
             balances: null,
+            balancesRead: "pending",
             budget: null,
             unfinished: 0,
           });
@@ -188,11 +197,11 @@ class FakeEngine implements Engine {
     if ("target" in request && /^https?:\/\/(127\.|169\.254\.|localhost)/.test(request.target)) {
       return this.replay(CHECK_RUNS["private-address"]);
     }
-    const target =
-      "target" in request
-        ? request.target
-        : (ALL_LISTINGS.find((item) => item.id === request.listingId)?.resource ?? "");
-    const log = SCENARIO_RUNS["pay:normal"] ?? [];
+    const listing =
+      "target" in request ? undefined : ALL_LISTINGS.find((item) => item.id === request.listingId);
+    const target = "target" in request ? request.target : (listing?.resource ?? "");
+    // A pay-per-use listing replays the metered run; any other the fixed-price one.
+    const log = SCENARIO_RUNS[listing?.price?.scheme === "upto" ? "upto:normal" : "pay:normal"] ?? [];
     return this.replay(
       log.map((event) =>
         event.kind === "http" && event.phase === "request" ? { ...event, url: target } : event,
@@ -264,13 +273,6 @@ class FakeEngine implements Engine {
         reason: null,
       },
     ]);
-  }
-
-  sellerCheck(request: { readonly url: string }): ReturnType<Engine["sellerCheck"]> {
-    if (!URL.canParse(request.url)) {
-      return Promise.reject(error("egress_url_invalid", "The URL is not an absolute http(s) URL."));
-    }
-    return Promise.resolve({ ...SELLER_CHECK, url: request.url });
   }
 
   quote(url: string): ReturnType<Engine["quote"]> {
@@ -494,15 +496,17 @@ function initialState(wallet: FakeWallet, unfinished: number, engine: FakeEngine
         ...base,
         wallet: { status: "none", storage: wallet === "memory" ? "memory" : "persistent" },
         balances: null,
+        balancesRead: "pending",
         budget: null,
       };
     case "locked":
-      return { ...base, wallet: { status: "locked" }, balances: null, budget: null };
+      return { ...base, wallet: { status: "locked" }, balances: null, balancesRead: "pending", budget: null };
     case "unfunded":
       return {
         ...base,
         wallet: { ...engine.readyWallet(), setup: { account: false, trustline: false, funded: false } },
         balances: { xlm: null, asset: null, readAt: Date.now() },
+        balancesRead: "ok",
         budget: engine.budget("0"),
       };
     case "ready":
@@ -510,6 +514,7 @@ function initialState(wallet: FakeWallet, unfinished: number, engine: FakeEngine
         ...base,
         wallet: engine.readyWallet(),
         balances: { xlm: "9989.9", asset: "1", readAt: Date.now() },
+        balancesRead: "ok",
         budget: engine.budget("0"),
       };
   }

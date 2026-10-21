@@ -3,7 +3,7 @@ import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
 import { TESTNET } from "@rail402.dev/stellar";
 import { exact, httpRoute, param, type HttpRouteDeclaration } from "@rail402.dev/sdk/seller";
 import type { PlaygroundConfig } from "../config.ts";
-import { LAB_PATHS, LAB_PRICES, SCENARIO_DEFAULTS } from "../shared/lab.ts";
+import { LAB_PATHS, LAB_PRICES, SANDBOX_EXAMPLE_CITY } from "../shared/lab.ts";
 
 /**
  * The sandbox seller: `GET /lab/sell/forecast/:city`, exact, 0.01 of the configured asset, paid to the
@@ -57,7 +57,7 @@ export const sellBazaarExtension: ResourceServerExtension = {
   enrichDeclaration(declaration, transportContext) {
     const enrich = bazaarResourceServerExtension.enrichDeclaration;
     const enriched: unknown = enrich === undefined ? declaration : enrich(declaration, transportContext);
-    return withExamplePathParams(enriched, { city: SCENARIO_DEFAULTS.sell.city });
+    return withExamplePathParams(enriched, { city: SANDBOX_EXAMPLE_CITY });
   },
 };
 
@@ -71,7 +71,7 @@ function withExamplePathParams(declaration: unknown, example: Readonly<Record<st
 
 /** The route declaration, priced in the configured asset. */
 export function declareSellRoute(config: PlaygroundConfig, payTo: string): HttpRouteDeclaration {
-  const city = SCENARIO_DEFAULTS.sell.city;
+  const city = SANDBOX_EXAMPLE_CITY;
   return httpRoute({
     method: "GET",
     path: LAB_PATHS.sell,

@@ -1,5 +1,5 @@
 /** Builders for the public views the Bazaar fixtures carry, with fixture defaults. */
-import type { ListingView, OptionView, RequiredView } from "../../src/engine/events.ts";
+import type { ListingField, ListingView, OptionView, RequiredView } from "../../src/engine/events.ts";
 import { IDS } from "./ids.ts";
 
 export function option(overrides: Partial<OptionView> = {}): OptionView {
@@ -33,6 +33,17 @@ export function required(
     error: null,
     options,
     bazaar: { declared: false, type: null, method: null, toolName: null },
+    ...overrides,
+  };
+}
+
+export function field(overrides: Partial<ListingField> & Pick<ListingField, "name" | "in">): ListingField {
+  return {
+    kind: "string",
+    required: false,
+    description: null,
+    example: null,
+    options: null,
     ...overrides,
   };
 }

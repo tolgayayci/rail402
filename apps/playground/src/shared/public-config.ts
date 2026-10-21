@@ -90,7 +90,6 @@ export const publicConfigSchema = z.strictObject({
     }),
     timeoutMaxima: z.strictObject({ headersMs: positiveInt, idleMs: positiveInt, totalMs: positiveInt }),
   }),
-  sellerCheck: z.strictObject({ enabled: z.boolean() }),
   onboarding: z.strictObject({
     /** Test funds bought with Friendbot XLM, in whole units of the asset. */
     buyAmount: decimal,

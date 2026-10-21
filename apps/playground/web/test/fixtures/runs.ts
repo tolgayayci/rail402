@@ -14,11 +14,10 @@ import checkPerCallCap from "./recorded/check-per-call-cap.json" with { type: "j
 import checkPrivateAddress from "./recorded/check-private-address.json" with { type: "json" };
 import checkRecipient from "./recorded/check-recipient.json" with { type: "json" };
 import checkSessionBudget from "./recorded/check-session-budget.json" with { type: "json" };
-import payLowCap from "./recorded/pay-low-cap.json" with { type: "json" };
+import payBelowCap from "./recorded/pay-below-cap.json" with { type: "json" };
 import payMcpListing from "./recorded/pay-mcp-listing.json" with { type: "json" };
 import payNormal from "./recorded/pay-normal.json" with { type: "json" };
 import payReplay from "./recorded/pay-replay.json" with { type: "json" };
-import sellNormal from "./recorded/sell-normal.json" with { type: "json" };
 import uptoNormal from "./recorded/upto-normal.json" with { type: "json" };
 import uptoOvercharge from "./recorded/upto-overcharge.json" with { type: "json" };
 import walletFund from "./recorded/wallet-fund.json" with { type: "json" };
@@ -35,12 +34,10 @@ function events(recorded: unknown): readonly LabEvent[] {
 /** Runs by `scenario:experiment`, for every combination the lab offers. */
 export const SCENARIO_RUNS: Readonly<Record<string, readonly LabEvent[]>> = {
   "pay:normal": events(payNormal),
-  "pay:low-cap": events(payLowCap),
   "pay:replay": events(payReplay),
   "upto:normal": events(uptoNormal),
   "upto:overcharge": events(uptoOvercharge),
   "agent:normal": events(agentNormal),
-  "sell:normal": events(sellNormal),
 };
 
 /** The run of a scenario and experiment; every offered combination has one. */
@@ -50,7 +47,10 @@ export function scenarioRun(scenario: ScenarioId, experiment: ExperimentId): rea
   return log;
 }
 
-/** An MCP tool from the Bazaar, paid on the Pay page (the Bazaar's Try on an MCP listing). */
+/** The weather API paid with a cap below its price: refused before anything is signed. */
+export const PAY_BELOW_CAP_RUN: readonly LabEvent[] = events(payBelowCap);
+
+/** An MCP tool from the Bazaar, paid as a listing (the Bazaar's "Try it with your wallet"). */
 export const PAY_MCP_LISTING_RUN: readonly LabEvent[] = events(payMcpListing);
 
 export const CHECK_RUNS: Readonly<Record<CheckId, readonly LabEvent[]>> = {

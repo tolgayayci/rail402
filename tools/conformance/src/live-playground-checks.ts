@@ -13,16 +13,16 @@ export const PLAYGROUND_CASES = [
   "pay-upto",
   "overcharge",
   "agent-mcp",
-  "sell-listed",
+  "bazaar-mcp",
   "refusal-network",
   "refusal-asset",
   "refusal-amount",
   "refusal-recipient",
+  "refusal-per-call-cap",
   "refusal-session",
   "ssrf-literal",
   "ssrf-metadata",
   "redirect",
-  "overcharge-release",
   "explorer",
   "secret-scan",
 ] as const;
@@ -31,7 +31,7 @@ export const PLAYGROUND_CASES = [
  * Cases that pay: each records the settlement it showed. The session check pays once on purpose before
  * its second payment is refused, so it records that first payment too.
  */
-const PAYING = ["pay-exact", "replay", "pay-upto", "agent-mcp", "sell-listed", "refusal-session"] as const;
+const PAYING = ["pay-exact", "replay", "pay-upto", "agent-mcp", "bazaar-mcp", "refusal-session"] as const;
 /** Cases that are refused: each records a coded rejection. */
 const REFUSED = [
   "cap-below-price",
@@ -41,6 +41,7 @@ const REFUSED = [
   "refusal-asset",
   "refusal-amount",
   "refusal-recipient",
+  "refusal-per-call-cap",
   "refusal-session",
   "ssrf-literal",
   "ssrf-metadata",
@@ -49,12 +50,15 @@ const REFUSED = [
 /** Refusals that move nothing: the payer's balance is recorded unchanged. */
 const UNCHANGED = REFUSED.filter((id) => id !== "replay" && id !== "refusal-session");
 /** Cases that only a run with every service in reach can do; any other run must say why it skipped them. */
-const SKIPPABLE = new Set<string>(["sell-listed", "ssrf-literal", "redirect"]);
+const SKIPPABLE = new Set<string>(["ssrf-literal", "redirect"]);
+
+/** The setup transactions the wallet dialog links: Friendbot's, and the purchase of test USDC. */
+const SETUP_TRANSACTIONS = 2;
 
 /**
  * Problems with a live-playground document: a required case missing, failed or skipped without being
  * allowed to; a paying case without its transaction; a refusal without its code or with a balance
- * that moved; onboarding without its three transactions; a transaction the explorer did not answer
+ * that moved; onboarding without its setup transactions; a transaction the explorer did not answer
  * 200 for; or a secret scan that found anything, or did not prove itself on a planted leak.
  */
 export function livePlaygroundProblems(evidence: Evidence): string[] {
@@ -79,8 +83,8 @@ export function livePlaygroundProblems(evidence: Evidence): string[] {
 
   const onboarding = ran("onboarding");
   const classic = onboarding?.observations?.["classicTransactions"];
-  if (onboarding !== undefined && (!Array.isArray(classic) || classic.length !== 3)) {
-    problems.push("onboarding must record its three setup transactions");
+  if (onboarding !== undefined && (!Array.isArray(classic) || classic.length !== SETUP_TRANSACTIONS)) {
+    problems.push("onboarding must record its two setup transactions");
   }
   for (const id of PAYING) {
     const entry = ran(id);

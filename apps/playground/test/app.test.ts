@@ -107,7 +107,7 @@ describe("Playground server", () => {
 
   it("serves the page: index.html for its routes (revalidated) and immutable hashed assets", async () => {
     app = testApp(testConfig());
-    for (const path of ["/", "/pay", "/sell/", "/agents", "/bazaar"]) {
+    for (const path of ["/", "/sell/", "/agents", "/bazaar"]) {
       const response = await app.request(path);
       expect(response.status, path).toBe(200);
       expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
@@ -121,6 +121,11 @@ describe("Playground server", () => {
     const revalidated = await app.request("/assets/index-abc123.js", { headers: { "if-none-match": etag } });
     expect(revalidated.status).toBe(304);
     expect((await app.request("/favicon.svg")).headers.get("content-type")).toBe("image/svg+xml");
+    // The Pay page moved into the Lab: a permanent redirect on this origin, query kept.
+    const moved = await app.request("/pay?url=https%3A%2F%2Fdemo.example%2Fweather");
+    expect(moved.status).toBe(301);
+    expect(moved.headers.get("location")).toBe("/?url=https%3A%2F%2Fdemo.example%2Fweather");
+    expect((await app.request("/pay/")).headers.get("location")).toBe("/");
     expect((await app.request("/assets/../index.html")).status).toBe(404);
     expect((await app.request("/assets/%2e%2e/%2e%2e/package.json")).status).toBe(404);
   });
@@ -149,7 +154,7 @@ describe("Playground server", () => {
 
   it("logs one line per request with a hashed address, never the query or headers", async () => {
     app = testApp(testConfig({ TRUSTED_PROXY_HOPS: "1" }));
-    const response = await app.request("/pay?token=query-canary", {
+    const response = await app.request("/sell?token=query-canary", {
       headers: { "x-forwarded-for": "203.0.113.9", "x-request-id": "req-1", cookie: "session=cookie-canary" },
     });
     expect(response.headers.get("x-request-id")).toBe("req-1");
@@ -157,7 +162,7 @@ describe("Playground server", () => {
     expect(line).toMatchObject({ reqId: "req-1", route: "page", method: "GET", status: 200, msg: "request" });
     expect(line?.["ipHash"]).toMatch(/^[0-9a-f]{16}$/);
     const text = app.logs.text();
-    for (const canary of ["query-canary", "cookie-canary", "203.0.113.9", "/pay"])
+    for (const canary of ["query-canary", "cookie-canary", "203.0.113.9", "/sell"])
       expect(text).not.toContain(canary);
   });
 
@@ -177,7 +182,7 @@ describe("Playground server", () => {
     expect(routeOf("/lab/greedy/history")).toBe("/lab/greedy/history");
     expect(routeOf("/lab/offers/zero")).toBe("/lab/offers/zero");
     expect(routeOf("/lab/sell/forecast/a/b")).toBe("unmatched");
-    expect(routeOf("/api/seller-check")).toBe("/api/seller-check");
+    expect(routeOf("/api/seller-check")).toBe("unmatched");
     expect(routeOf("/.well-known/stellar.toml")).toBe("/.well-known/stellar.toml");
     expect(routeOf("/whatever")).toBe("unmatched");
   });

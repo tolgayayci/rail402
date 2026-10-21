@@ -1,13 +1,15 @@
 /**
  * Live Playground run on the public Stellar testnet: Chromium drives the Playground's real page, as a
- * visitor would. A test wallet is imported and funded through the wallet panel; every lab scenario
- * and experiment runs (pay with `exact`, a cap below the price, the same payment sent twice, pay per
- * use with `upto`, a seller charging over the cap, an agent paying an MCP tool, selling through the
- * sandbox route); the refusal checks run from the Pay page; private addresses and a cross-origin
- * redirect are refused. Every transaction the page shows is read back from the chain in Node and
- * proven to open in stellar.expert; every refusal is checked to leave the payer's balance where it
- * was; and a canary scan finds neither the wallet's key nor any payment in anything the browser sent,
- * stored, logged or showed.
+ * visitor would. The first visit makes a test wallet on its own and funds it (Friendbot, a USDC
+ * trustline, USDC from the testnet exchange); its key file, saved from the wallet menu, gives the
+ * canary seed. The Lab plays each mode to its proof (a fixed price with `exact`, pay for what you use
+ * with `upto`, an agent paying an MCP tool), a cap typed below the price is refused, every refusal of
+ * "Try a refusal" ends with its code (the policy checks, the session budget, the same payment sent
+ * twice, a seller charging over the cap), a listing is paid from the Bazaar, and private addresses and
+ * a cross-origin redirect pasted into the Lab are refused. Every transaction the page shows is read
+ * back from the chain in Node and proven to open in stellar.expert; every refusal is checked to leave
+ * the payer's balance where it was; and a canary scan finds neither the wallet's key nor any payment
+ * in anything the browser sent, stored, logged or showed.
  *
  *   node --conditions=@rail402/source tools/conformance/src/live-playground.ts [--skip-build] \
  *     [--only id,id] [--bazaar https://… --seller https://… [--pay-to G…] | --playground https://…] \
@@ -18,13 +20,18 @@
  *   (apps/rail402) as a local process in memory against the public testnet RPC, with a
  *   Friendbot-funded fee sponsor and loopback discovery; the demo seller (apps/demo-seller) on
  *   loopback; and the Playground server in local mode, its lab sellers paid to a fresh account. The
- *   demo seller's MCP tool is paid once by a separate buyer first, so the Bazaar lists it for the
- *   agent. Needs no secrets.
+ *   demo seller's MCP tools are paid once by a separate buyer first, so the Bazaar lists them for the
+ *   agent (air_quality) and the Bazaar case (hourly_forecast). Needs no secrets.
  * - hosted, local page (`--bazaar` and `--seller`): the Playground server runs here, in its hosted
  *   configuration, against a deployed Rail402 and demo seller. Its lab sellers are paid to `--pay-to`
- *   (a fresh account when it is not given). They listen on this machine, which a hosted catalog
- *   refuses to reach, so the sandbox listing and the redirect case are skipped.
+ *   (a fresh account when it is not given). The redirecting seller would listen on this machine,
+ *   which only a local Playground's relay may reach, so the redirect case is skipped.
  * - deployed (`--playground`): a Playground that is already running, read from its `/api/config`.
+ *
+ * Cases earlier runs recorded that this one no longer has, because the page no longer offers them:
+ * `sell-listed` (the Lab no longer pays the sandbox seller route; the integration suite still proves
+ * the route settles, is cataloged and found) and `overcharge-release` (the page no longer shows the
+ * session budget's held amount; the integration suite proves a refused hold returns after expiry).
  *
  * The page is the production build (`vite build`, skipped with --skip-build or --playground), served
  * by the Playground server with its real CSP. Without --write the evidence document is printed; with
@@ -43,7 +50,7 @@ import { ok, strictEqual } from "node:assert/strict";
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { Keypair, Operation, StrKey, rpc } from "@stellar/stellar-sdk";
 import { HTTPFacilitatorClient } from "@x402/core/server";
-import { METERED_PRICES, PRICES, createSeller } from "@rail402.dev/demo-seller";
+import { METERED_PRICES, PRICES, TOOL_PRICES, createSeller } from "@rail402.dev/demo-seller";
 import { KeyHolder, createBuyer, exactScheme, inspectTransaction, uptoScheme } from "@rail402.dev/sdk";
 import { TESTNET } from "@rail402.dev/stellar";
 import { LocalNetwork, SecretScanner, ServiceProcess, startDecoyOrigin } from "@rail402.dev/testkit";
@@ -54,10 +61,24 @@ import {
 } from "../../../apps/playground/src/shared/public-config.ts";
 import {
   CHECK_EXPECTED_CODES,
-  LAB_PRICES,
+  OVERCHARGE_REFUSAL_CODE,
   PRIVATE_ADDRESS_TARGETS,
+  REPLAY_REFUSAL_CODES,
+  type CheckId,
 } from "../../../apps/playground/src/shared/lab.ts";
-import { LAB_BADGES, LAB_ROWS } from "../../../apps/playground/e2e/expected.ts";
+import { LAB_STEPS } from "../../../apps/playground/e2e/expected.ts";
+import {
+  exportKeyFile,
+  followSetup,
+  hashOfLink,
+  labEnd,
+  payListing,
+  runLab,
+  saveReport,
+  tryRefusal,
+  walletAddress,
+  type LabEnd,
+} from "../../../apps/playground/e2e/page.ts";
 import {
   Traffic,
   addPaymentNeedles,
@@ -90,19 +111,11 @@ import {
 import { checkStellarExpert, type ExplorerCheck } from "./live-agent-checks.ts";
 import { livePlaygroundProblems } from "./live-playground-checks.ts";
 import {
-  hashOfLink,
-  importAndFund,
   lastRefusal,
-  meterLabel,
-  payUrl,
-  reconcileNow,
+  parseReport,
   reportedTransactions,
-  runCheck,
-  runLab,
   sdkEventCount,
   until,
-  type CheckTitleId,
-  type LabResult,
   type RunReport,
 } from "./live-playground-page.ts";
 import {
@@ -170,8 +183,6 @@ const PASSPHRASE = "Test SDF Network ; September 2015";
 const DECIMALS = 7;
 /** How long the Bazaar may take to list the primed MCP tool (settlement, then the origin check). */
 const CATALOG_WAIT_MS = 180_000;
-/** How long a refused hold may take to come back: the greedy route's 60 s expiry plus reconciliation. */
-const RELEASE_WAIT_MS = 300_000;
 
 const atomic = (amount: string): bigint => {
   const [whole = "0", fraction = ""] = amount.split(".");
@@ -181,7 +192,9 @@ const atomic = (amount: string): bigint => {
 const WEATHER = atomic(PRICES.weather);
 const HISTORY_WEEK = 7n * atomic(METERED_PRICES.perDay);
 const FORECAST_SIX_HOURS = 6n * atomic(METERED_PRICES.perHour);
-const SELL = BigInt(LAB_PRICES.sell.atomic);
+const AIR_QUALITY = atomic(TOOL_PRICES.airQuality);
+/** A cap below the weather route's price, typed into the Lab. */
+const BELOW_PRICE = "0.0001";
 
 // --- services ---------------------------------------------------------------------------------------
 
@@ -212,7 +225,7 @@ async function startPlayground(env: Record<string, string>, publicHost: string):
 
 /**
  * Local: Rail402, the demo seller and the Playground server on this machine, on the public testnet.
- * The demo seller's MCP tool is paid once first, so the Bazaar lists it for the agent scenario.
+ * The demo seller's MCP tools are paid once first, so the Bazaar lists them for the agent and the Bazaar.
  */
 async function startLocal(net: LocalNetwork): Promise<Services> {
   const cleanups: (() => Promise<void>)[] = [];
@@ -264,8 +277,9 @@ async function startLocal(net: LocalNetwork): Promise<Services> {
   const sellerPort = (seller.address() as AddressInfo).port;
   const demoUrl = `http://127.0.0.1:${String(sellerPort)}`;
 
-  // The agent finds the tool in the Bazaar: its first settlement, by any buyer, lists it.
-  log("paying the demo seller's MCP tool once so the Bazaar lists it");
+  // The agent and the Bazaar case find the tools in the Bazaar: a tool's first settlement, by any
+  // buyer, lists it.
+  log("paying the demo seller's MCP tools once so the Bazaar lists them");
   const primer = await createBuyer({
     network: TESTNET,
     signer: KeyHolder.fromSecret(primerKey.secret()),
@@ -276,28 +290,35 @@ async function startLocal(net: LocalNetwork): Promise<Services> {
     schemes: [exactScheme(), uptoScheme()],
   });
   try {
-    await primer.pay(
+    const tools = [
       {
-        kind: "mcp",
-        url: `${demoUrl}/mcp`,
         toolName: "hourly_forecast",
         arguments: { city: "Ankara", hours: 1 },
+        query: "hourly weather forecast",
       },
-      { maxAmount: { amount: "0.01", asset: "USDC" } },
-    );
-    await until(
-      async () => {
-        const page = await primer.search("hourly weather forecast", { type: "mcp" });
-        return page.hits.some(
-          (hit) => hit.toolName === "hourly_forecast" && hit.listingId !== null && hit.trust !== "settled",
-        )
-          ? true
-          : undefined;
-      },
-      "the Bazaar to list the demo seller's tool",
-      CATALOG_WAIT_MS,
-      3_000,
-    );
+      { toolName: "air_quality", arguments: { city: "Ankara" }, query: "air quality" },
+    ] as const;
+    for (const tool of tools) {
+      await primer.pay(
+        { kind: "mcp", url: `${demoUrl}/mcp`, toolName: tool.toolName, arguments: { ...tool.arguments } },
+        { maxAmount: { amount: "0.01", asset: "USDC" } },
+      );
+    }
+    for (const tool of tools) {
+      await until(
+        async () => {
+          const page = await primer.search(tool.query, { type: "mcp" });
+          return page.hits.some(
+            (hit) => hit.toolName === tool.toolName && hit.listingId !== null && hit.trust !== "settled",
+          )
+            ? true
+            : undefined;
+        },
+        `the Bazaar to list the demo seller's ${tool.toolName} tool`,
+        CATALOG_WAIT_MS,
+        3_000,
+      );
+    }
   } finally {
     await primer.close();
   }
@@ -448,8 +469,9 @@ async function main() {
     const reports: { name: string; text: string }[] = [];
     const explorerHashes = new Map<string, string>();
 
-    const canary = Keypair.random();
-    const payer = canary.publicKey();
+    /** The wallet the page makes, and the seed its key file holds: the canary of the scan. */
+    let payer = "";
+    let canarySeed = "";
     const balance = (account: string) => net.tokenBalance(config.asset.contract, account);
     const snapshot = async (name: string) => {
       domTexts.push({ name, text: await page.locator("body").innerText() });
@@ -535,25 +557,30 @@ async function main() {
       return refusal;
     };
 
-    const lab = async (name: string, scenario: string, experiment: string): Promise<LabResult> => {
-      const result = await runLab(page, scenario, experiment);
-      reports.push({ name, text: result.reportText });
+    /** A Lab run played to its end, with the run report the page saved. */
+    const lab = async (name: string, run: () => Promise<LabEnd>): Promise<LabEnd & { report: RunReport }> => {
+      const end = await run();
+      const text = await saveReport(page);
+      reports.push({ name, text });
       await snapshot(name);
-      return result;
+      return { ...end, report: parseReport(text) };
     };
 
     // --- onboarding -----------------------------------------------------------------------------------
     await recorder.run(
       spec(
         "onboarding",
-        "The wallet panel imports a testnet key and sets it up: Friendbot, a USDC trustline, USDC from the testnet exchange",
+        "The first visit makes a test wallet on its own and funds it: Friendbot, then a USDC trustline and USDC from the testnet exchange; a reload keeps it",
         [],
       ),
       async (context) => {
-        const links = await importAndFund(page, canary.secret(), payer);
-        strictEqual(links.length, 3, "three setup transactions");
+        await page.goto("/");
+        const setup = await followSetup(page);
+        payer = setup.address;
+        // The dialog links Friendbot's transaction and the purchase; the trustline is checked by the balance.
+        strictEqual(setup.links.length, 2, "the dialog links two setup transactions");
         const classic = [];
-        for (const link of links) {
+        for (const link of setup.links) {
           const hash = hashOfLink(link);
           strictEqual(link, explorerLink(hash));
           const response = await rpcServer.getTransaction(hash);
@@ -566,258 +593,320 @@ async function main() {
           atomic(config.onboarding.buyAmount),
           "the wallet holds the bought USDC",
         );
+        // The key is never on the page: its key file, saved after a confirmation, is the canary.
+        const keyFile = await exportKeyFile(page);
+        strictEqual(Keypair.fromSecret(keyFile.seed).publicKey(), payer, "the key file holds this wallet");
+        canarySeed = keyFile.seed;
+        await page.reload();
+        strictEqual(await walletAddress(page), payer, "a reload keeps the wallet");
         await snapshot("onboarding");
         noProblems();
         context.observe("payer", payer);
+        context.observe("dialog", setup.titles);
         context.observe("classicTransactions", classic);
       },
     );
-    const funded = (await balance(payer).catch(() => 0n)) > 0n;
-    if (!funded) throw new Error("the wallet could not be funded; nothing else can run");
+    const funded = payer !== "" && (await balance(payer).catch(() => 0n)) > 0n;
+    if (!funded || canarySeed === "")
+      throw new Error("the wallet could not be made and funded; nothing else can run");
 
-    // --- lab: pay for an API --------------------------------------------------------------------------
+    // --- the Lab: pay a fixed price --------------------------------------------------------------------
     await recorder.run(
       spec(
         "pay-exact",
-        "Lab, pay for an API: one exact payment, settled on chain and sponsored",
+        "Lab, pay a fixed price: one exact payment played step by step, settled on chain and sponsored",
         ["scheme-exact", "fees-sponsored"],
         "exact",
       ),
       async (context) => {
         const before = await balance(payer);
-        const result = await lab("pay-normal", "pay", "normal");
-        assertRows(result, LAB_ROWS["pay-normal"], LAB_BADGES["pay-normal"]);
-        await settled(context, result, { scheme: "exact", amount: WEATHER, to: demoPayTo });
+        const result = await lab("exact-normal", () => runLab(page, "/"));
+        steps(result, LAB_STEPS["exact-normal"]);
+        strictEqual(result.proof?.paid, `${PRICES.weather} ${config.asset.symbol}`, "the proof's amount");
+        await settled(
+          context,
+          { txLink: result.proof.txLink, report: result.report },
+          {
+            scheme: "exact",
+            amount: WEATHER,
+            to: demoPayTo,
+          },
+        );
         strictEqual(await balance(payer), before - WEATHER, "the payer paid the price once");
         strictEqual(sdkEventCount(result.report, "signed"), 1, "one authorization was signed");
         noProblems();
-        context.observe("rows", result.rows);
+        context.observe("steps", result.steps);
+        context.observe("proof", { paid: result.proof.paid, tiles: result.proof.tiles });
       },
     );
 
     await recorder.run(
       spec(
         "cap-below-price",
-        "Lab: a per-call cap below the price is refused before anything is signed",
+        "Lab: a cap typed below the price is refused before anything is signed",
         ["rejection-codes"],
         "exact",
       ),
       async (context) => {
         const before = await balance(payer);
-        const result = await lab("pay-low-cap", "pay", "low-cap");
-        assertRows(result, LAB_ROWS["pay-low-cap"], LAB_BADGES["pay-low-cap"]);
-        strictEqual(result.code, "payment_per_call_cap_exceeded");
-        strictEqual(result.txLink, undefined, "no transaction");
-        refusedRun(
-          context,
-          result.report,
-          "playground lab: pay with a cap below the price",
-          "payment_per_call_cap_exceeded",
-        );
+        const result = await lab("exact-low-cap", () => runLab(page, "/", { cap: BELOW_PRICE }));
+        steps(result, LAB_STEPS["exact-low-cap"]);
+        const code = "payment_per_call_cap_exceeded";
+        strictEqual(result.verdict?.facts["Code"], code);
+        strictEqual(result.verdict.facts["Signed"], "nothing");
+        refusedRun(context, result.report, `playground lab: pay with a cap of ${BELOW_PRICE}`, code);
         strictEqual(sdkEventCount(result.report, "reserved"), 0, "nothing reserved");
         strictEqual(sdkEventCount(result.report, "signed"), 0, "nothing signed");
         strictEqual(await balance(payer), before);
         noProblems();
         context.observe("balancesUnchanged", true);
-        context.observe("rows", result.rows);
+        context.observe("steps", result.steps);
       },
     );
 
     await recorder.run(
       spec(
         "replay",
-        "Lab: the same payment sent twice is refused the second time and charged once",
+        "Lab, try a refusal: the same payment sent twice is refused the second time and charged once",
         ["rejection-codes"],
         "exact",
       ),
       async (context) => {
         const before = await balance(payer);
-        const result = await lab("pay-replay", "pay", "replay");
-        deepRows(result.rows.slice(7), LAB_ROWS["pay-replay-tail"]);
-        strictEqual(result.badge, LAB_BADGES["pay-replay"]);
-        await settled(context, result, { scheme: "exact", amount: WEATHER, to: demoPayTo });
-        const code = result.report.summary?.code ?? "";
-        ok(
-          [
-            "invalid_exact_stellar_payload_nonce_already_used",
-            "invalid_exact_stellar_signature_expired",
-          ].includes(code),
-          `the resend was refused: ${code}`,
+        const result = await lab("replay", () => tryRefusal(page, "Send it twice"));
+        steps(result, LAB_STEPS.replay);
+        strictEqual(result.verdict?.txLinks.length, 1, "the verdict links the one payment");
+        await settled(
+          context,
+          { txLink: result.verdict.txLinks[0], report: result.report },
+          {
+            scheme: "exact",
+            amount: WEATHER,
+            to: demoPayTo,
+          },
         );
+        const code = result.report.summary?.code ?? "";
+        ok(Object.keys(REPLAY_REFUSAL_CODES).includes(code), `the resend was refused: ${code}`);
+        strictEqual(result.verdict.facts["Code"], code);
         refusedRun(context, result.report, "playground lab: the same PAYMENT-SIGNATURE sent again", code);
         strictEqual(sdkEventCount(result.report, "signed"), 1, "one authorization was signed");
         strictEqual(await balance(payer), before - WEATHER, "charged once");
         noProblems();
-        context.observe("rows", result.rows);
+        context.observe("steps", result.steps);
       },
     );
 
-    // --- lab: pay per use -----------------------------------------------------------------------------
+    // --- the Lab: pay for what you use -----------------------------------------------------------------
     await recorder.run(
       spec(
         "pay-upto",
-        "Lab, pay per use: an upto authorization of 0.01 settles the 0.0021 used",
+        "Lab, pay for what you use: an upto authorization of 0.01 settles the 0.0021 used",
         ["scheme-upto", "fees-sponsored"],
         "upto",
       ),
       async (context) => {
         const before = await balance(payer);
-        const result = await lab("upto-normal", "upto", "normal");
-        assertRows(result, LAB_ROWS["upto-normal"], LAB_BADGES["upto-normal"]);
-        await settled(context, result, { scheme: "upto", amount: HISTORY_WEEK, to: demoPayTo });
+        const result = await lab("upto-normal", () => runLab(page, "/?mode=upto"));
+        steps(result, LAB_STEPS["upto-normal"]);
+        await settled(
+          context,
+          { txLink: result.proof?.txLink, report: result.report },
+          {
+            scheme: "upto",
+            amount: HISTORY_WEEK,
+            to: demoPayTo,
+          },
+        );
         strictEqual(await balance(payer), before - HISTORY_WEEK, "the payer paid what was used");
+        ok(
+          result.proof?.tiles.some((tile) => tile.endsWith("of your cap never taken")) === true,
+          "the proof says how much of the cap was never taken",
+        );
         noProblems();
-        context.observe("rows", result.rows);
+        context.observe("steps", result.steps);
+        context.observe("proof", { paid: result.proof.paid, tiles: result.proof.tiles });
       },
     );
 
-    let overchargeHeld = false;
     await recorder.run(
       spec(
         "overcharge",
-        "Lab: a seller asking to settle twice the authorized cap is refused, and nothing moves",
+        "Lab, try a refusal: a seller asking to settle twice the authorized cap is refused, and nothing moves",
         ["scheme-upto", "rejection-codes"],
         "upto",
       ),
       async (context) => {
         const before = await balance(payer);
-        const result = await lab("upto-overcharge", "upto", "overcharge");
-        assertRows(result, LAB_ROWS["upto-overcharge"], LAB_BADGES["upto-overcharge"]);
-        const code = "invalid_upto_stellar_payload_settlement_exceeds_amount";
-        strictEqual(result.code, code);
-        strictEqual(result.txLink, undefined, "no transaction");
+        const result = await lab("overcharge", () => tryRefusal(page, "Seller charges over the cap"));
+        steps(result, LAB_STEPS.overcharge);
+        strictEqual(result.verdict?.facts["Code"], OVERCHARGE_REFUSAL_CODE);
+        strictEqual(result.verdict.txLinks.length, 0, "no transaction");
         strictEqual(reportedTransactions(result.report).length, 0, "no transaction was read");
-        refusedRun(context, result.report, "playground lab: settle 0.02 against a 0.01 upto cap", code);
+        refusedRun(
+          context,
+          result.report,
+          "playground lab: settle 0.02 against a 0.01 upto cap",
+          OVERCHARGE_REFUSAL_CODE,
+        );
         strictEqual(await balance(payer), before, "nothing moved");
-        const label = await meterLabel(page);
-        ok(/ 0\.01 held/.test(label), `the authorization is held until it expires: ${label}`);
-        overchargeHeld = true;
         noProblems();
         context.observe("balancesUnchanged", true);
-        context.observe("meter", label);
-        context.observe("rows", result.rows);
+        context.observe("steps", result.steps);
       },
     );
 
-    // --- lab: an agent pays a tool --------------------------------------------------------------------
+    // --- the Lab: let an agent pay ---------------------------------------------------------------------
     await recorder.run(
       spec(
         "agent-mcp",
-        "Lab: a scripted agent finds an MCP tool in the Bazaar, checks its budget and pays it with the rail402-mcp tools",
-        ["mcp", "discovery", "scheme-upto"],
-        "upto",
+        "Lab, let an agent pay: a scripted agent finds an MCP tool in the Bazaar, checks its budget and pays it with the rail402-mcp tools",
+        ["mcp", "discovery", "scheme-exact"],
+        "exact",
       ),
       async (context) => {
         const before = await balance(payer);
-        const result = await lab("agent-normal", "agent", "normal");
-        assertRows(result, LAB_ROWS["agent-normal"], LAB_BADGES["agent-normal"]);
-        await settled(context, result, { scheme: "upto", amount: FORECAST_SIX_HOURS, to: demoPayTo });
-        strictEqual(await balance(payer), before - FORECAST_SIX_HOURS);
+        const result = await lab("agent-normal", () => runLab(page, "/?mode=agent"));
+        steps(result, LAB_STEPS["agent-normal"]);
+        await settled(
+          context,
+          { txLink: result.proof?.txLink, report: result.report },
+          {
+            scheme: "exact",
+            amount: AIR_QUALITY,
+            to: demoPayTo,
+          },
+        );
+        strictEqual(await balance(payer), before - AIR_QUALITY);
         const search = result.report.events.find(
           (event) => event.kind === "bazaar" && event.phase === "search",
         );
         ok(search !== undefined, "the agent searched the Bazaar");
         noProblems();
         context.observe("search", { query: search.query, results: search.top?.length ?? 0 });
-        context.observe("rows", result.rows);
+        context.observe("steps", result.steps);
       },
     );
 
-    // --- lab: sell and get listed ---------------------------------------------------------------------
-    const sellSpec = spec(
-      "sell-listed",
-      "Lab, sell: a paid call to the sandbox route settles, is cataloged, origin-checked and found by search",
-      ["discovery", "scheme-exact"],
-      "exact",
-    );
-    if (mode === "hosted") {
-      recorder.skip(
-        sellSpec,
-        "the Playground's lab sellers listen on this machine, which a hosted catalog refuses to reach",
-      );
-    } else {
-      await recorder.run(sellSpec, async (context) => {
-        ok(payTo !== null, "the lab is on");
+    // --- the Bazaar: try a listing with the wallet -----------------------------------------------------
+    await recorder.run(
+      spec(
+        "bazaar-mcp",
+        "Bazaar: an MCP tool found by a plain-words search is paid from its listing's form with the arguments it declares",
+        ["mcp", "discovery", "scheme-upto"],
+        "upto",
+      ),
+      async (context) => {
         const before = await balance(payer);
-        const result = await lab("sell-normal", "sell", "normal");
-        assertRows(result, LAB_ROWS["sell-normal"], LAB_BADGES["sell-normal"]);
-        await settled(context, result, { scheme: "exact", amount: SELL, to: payTo });
-        strictEqual(await balance(payer), before - SELL);
-        const listing = result.report.events
-          .filter((event) => event.kind === "bazaar" && event.phase === "listing")
-          .at(-1)?.listing;
-        ok(listing?.id !== undefined, "the run read the listing");
-        const search = result.report.events.find(
-          (event) => event.kind === "bazaar" && event.phase === "search",
-        );
-        ok(search?.top?.some((hit) => hit.id === listing.id) === true, "search finds the listing");
-        noProblems();
-        context.observe("listing", {
-          id: listing.id,
-          state: listing.state ?? null,
-          trust: listing.trust ?? null,
+        const paid = await payListing(page, {
+          query: "hourly weather forecast",
+          shows: "hourly_forecast",
+          fields: { city: "Izmir", hours: "6" },
         });
-        context.observe("rows", result.rows);
-      });
-    }
+        await snapshot("bazaar-mcp");
+        ok(paid.txLink !== undefined, `the result card links the transaction: ${paid.result}`);
+        ok(paid.result.includes("Izmir"), "the result card shows what came back");
+        // The payment plays in the Lab, whose report is the run's event log.
+        await page.getByRole("link", { name: "Watch this payment in the Lab →" }).click();
+        const watched = await lab("bazaar-mcp", () => labEnd(page));
+        strictEqual(watched.proof?.txLink, paid.txLink, "the Lab plays the same payment");
+        await settled(
+          context,
+          { txLink: paid.txLink, report: watched.report },
+          {
+            scheme: "upto",
+            amount: FORECAST_SIX_HOURS,
+            to: demoPayTo,
+          },
+        );
+        strictEqual(await balance(payer), before - FORECAST_SIX_HOURS);
+        noProblems();
+        context.observe("result", paid.result);
+      },
+    );
 
-    // --- refusal checks -------------------------------------------------------------------------------
-    const checkCase = async (id: string, check: CheckTitleId, title: string) => {
+    // --- the Lab: refusals before signing --------------------------------------------------------------
+    const checkCase = async (id: string, check: CheckId, menuTitle: string, title: string) => {
       await recorder.run(spec(id, title, ["rejection-codes"]), async (context) => {
         const before = await balance(payer);
-        const result = await runCheck(page, check);
-        await snapshot(id);
+        const result = await lab(id, () => tryRefusal(page, menuTitle));
         const code = CHECK_EXPECTED_CODES[check];
-        strictEqual(result.state, "passed", JSON.stringify(result.fields));
-        strictEqual(result.fields["Code"], code);
-        ok((result.fields["Reason"] ?? "") !== "", "the check shows a reason");
+        const facts = result.verdict?.facts ?? {};
+        strictEqual(result.verdict?.badge, "Refused as expected", JSON.stringify(facts));
+        strictEqual(facts["Code"], code);
+        refusedRun(context, result.report, `playground lab, try a refusal: ${menuTitle}`, code);
         const after = await balance(payer);
         if (check === "session-budget") {
-          // The first payment fits the window and is paid; the second would exceed it. The check links
+          // The first payment fits the window and is paid; the second would exceed it. The verdict links
           // the first payment's transaction, which the chain shows paying the price to the demo seller.
-          strictEqual(result.fields["Signed"], "1 authorization(s)");
+          steps(result, LAB_STEPS["check-session-budget"]);
+          strictEqual(facts["Signed"], "1 payment");
           strictEqual(after, before - WEATHER, "only the first payment moved funds");
-          strictEqual(result.txLinks.length, 1, "the check links the first payment's transaction");
+          strictEqual(result.verdict.txLinks.length, 1, "the verdict links the first payment");
           const hash = await settled(
             context,
-            { txLink: result.txLinks[0] },
-            { scheme: "exact", amount: WEATHER, to: demoPayTo },
+            { txLink: result.verdict.txLinks[0] },
+            {
+              scheme: "exact",
+              amount: WEATHER,
+              to: demoPayTo,
+            },
           );
           context.observe("paidBeforeRefusal", { amount: WEATHER.toString(), transaction: hash });
         } else {
-          strictEqual(result.txLinks.length, 0, "the check links no transaction");
-          strictEqual(result.fields["Signed"], "nothing");
-          strictEqual(result.fields["Balance"], "unchanged");
+          steps(result, LAB_STEPS["check-before-signing"]);
+          strictEqual(result.verdict.txLinks.length, 0, "the verdict links no transaction");
+          strictEqual(facts["Signed"], "nothing");
+          strictEqual(facts["Your balance"], "unchanged");
+          strictEqual(sdkEventCount(result.report, "signed"), 0, "nothing signed");
           strictEqual(after, before, "the balance did not move");
           context.observe("balancesUnchanged", true);
         }
-        context.rejection({
-          surface: "http",
-          operation: `playground check: ${title}`,
-          code,
-          reason: result.fields["Reason"] ?? "",
-        });
-        context.observe("layer", result.fields["Refused by"] ?? null);
         noProblems();
       });
     };
-    await checkCase("refusal-network", "network", "A 402 asking for payment on stellar:pubnet is refused");
-    await checkCase("refusal-asset", "asset", "A 402 priced in an asset outside the policy is refused");
-    await checkCase("refusal-amount", "amount", "A 402 asking for an amount of 0 is refused");
-    await checkCase("refusal-recipient", "recipient", "A payTo on the buyer's deny list is refused");
-    await checkCase("refusal-session", "session-budget", "A payment past the session budget is refused");
+    await checkCase(
+      "refusal-network",
+      "network",
+      "Another network",
+      "A 402 asking for payment on stellar:pubnet is refused",
+    );
+    await checkCase(
+      "refusal-asset",
+      "asset",
+      "Unknown asset",
+      "A 402 priced in an asset outside the policy is refused",
+    );
+    await checkCase("refusal-amount", "amount", "Zero amount", "A 402 asking for an amount of 0 is refused");
+    await checkCase(
+      "refusal-recipient",
+      "recipient",
+      "Recipient not allowed",
+      "A payTo on the buyer's deny list is refused",
+    );
+    await checkCase(
+      "refusal-per-call-cap",
+      "per-call-cap",
+      "Cap below the price",
+      "A price above the per-call cap is refused",
+    );
+    await checkCase(
+      "refusal-session",
+      "session-budget",
+      "Session budget used up",
+      "A payment past the session budget is refused",
+    );
 
-    // --- egress ---------------------------------------------------------------------------------------
+    // --- egress: URLs pasted into the Lab ----------------------------------------------------------------
     const egressCase = async (id: string, title: string, url: string, expected: RegExp) => {
       await recorder.run(spec(id, title, ["rejection-codes"]), async (context) => {
         const before = await balance(payer);
-        const result = await payUrl(page, url);
-        reports.push({ name: id, text: result.reportText });
-        await snapshot(id);
-        ok(result.code !== undefined && expected.test(result.code), `refused with ${String(result.code)}`);
-        strictEqual(result.txLink, undefined, "no transaction");
+        const result = await lab(id, () => runLab(page, "/", { url }));
+        const code = result.verdict?.facts["Code"] ?? "";
+        ok(expected.test(code), `refused with ${code}`);
+        steps(result, LAB_STEPS["egress-refused"]);
+        strictEqual(result.verdict?.facts["Signed"], "nothing");
         strictEqual(sdkEventCount(result.report, "signed"), 0, "nothing signed");
-        refusedRun(context, result.report, `playground pay: ${url}`, result.code);
+        refusedRun(context, result.report, `playground lab: pay ${url}`, code);
         strictEqual(await balance(payer), before, "the balance did not move");
         context.observe("balancesUnchanged", true);
         noProblems();
@@ -826,7 +915,7 @@ async function main() {
     const [loopbackTarget, metadataTarget] = PRIVATE_ADDRESS_TARGETS;
     const literalSpec = spec(
       "ssrf-literal",
-      "Pay any URL: a loopback address literal is refused by the relay",
+      "Lab, a pasted URL: a loopback address literal is refused by the relay",
       ["rejection-codes"],
     );
     if (mode === "local") {
@@ -844,13 +933,13 @@ async function main() {
     }
     await egressCase(
       "ssrf-metadata",
-      "Pay any URL: the cloud metadata address is refused by the relay",
+      "Lab, a pasted URL: the cloud metadata address is refused by the relay",
       metadataTarget ?? "",
       /^egress_destination_not_allowed$/,
     );
     const redirectSpec = spec(
       "redirect",
-      "Pay any URL: a seller redirecting to another origin is refused, and that origin receives nothing",
+      "Lab, a pasted URL: a seller redirecting to another origin is refused, and that origin receives nothing",
       ["rejection-codes"],
     );
     if (services.redirect === undefined) {
@@ -870,33 +959,6 @@ async function main() {
         },
       );
     }
-
-    // --- the refused overcharge's hold comes back -----------------------------------------------------
-    await recorder.run(
-      spec(
-        "overcharge-release",
-        "The refused overcharge's held cap returns to the session budget once its authorization expires",
-        ["scheme-upto"],
-        "upto",
-      ),
-      async (context) => {
-        ok(overchargeHeld, "the overcharge case held the cap");
-        const started = Date.now();
-        const label = await until(
-          async () => {
-            await reconcileNow(page);
-            const value = await meterLabel(page);
-            return / 0 held/.test(value) ? value : undefined;
-          },
-          "the held cap to return",
-          RELEASE_WAIT_MS,
-          10_000,
-        );
-        noProblems();
-        context.observe("meter", label);
-        context.observe("releasedAfterMs", Date.now() - started);
-      },
-    );
 
     // --- explorer -------------------------------------------------------------------------------------
     await recorder.run(
@@ -923,7 +985,7 @@ async function main() {
     );
 
     // --- secret scan ----------------------------------------------------------------------------------
-    const scan = new SecretScanner(canary.secret());
+    const scan = new SecretScanner(canarySeed);
     await recorder.run(
       spec(
         "secret-scan",
@@ -937,11 +999,11 @@ async function main() {
         ok(payments >= 7, `payments sent: ${String(payments)}`);
         const chain = { rpcUrl: config.urls.rpc, friendbotUrl: config.urls.friendbot };
         // RPC calls and payment-carrying requests are exempt from the payment needles, never from the seed.
-        const seedOnly = new SecretScanner(canary.secret());
+        const seedOnly = new SecretScanner(canarySeed);
         captureExchanges(scan, traffic.exchanges, chain, seedOnly);
         const seedFindings = seedOnly.findings();
         const plantedSeedFound = seedFoundInPlantedRpcBody(
-          canary.secret(),
+          canarySeed,
           traffic.exchanges,
           chain,
           (seed) => new SecretScanner(seed),
@@ -966,7 +1028,7 @@ async function main() {
         );
         const findings = scan.findings();
         // The scan finds a payment where one does not belong.
-        const planted = new SecretScanner(canary.secret());
+        const planted = new SecretScanner(canarySeed);
         addPaymentNeedles(planted, traffic.exchanges, PASSPHRASE);
         planted.capture(
           "planted",
@@ -1074,14 +1136,9 @@ async function main() {
   }
 }
 
-/** The swimlane and the badge are the ones the page must draw for this run. */
-function assertRows(result: LabResult, rows: readonly string[], badge: string): void {
-  deepRows(result.rows, rows);
-  strictEqual(result.badge, badge, "the outcome badge");
-}
-
-function deepRows(actual: readonly string[], expected: readonly string[]): void {
-  strictEqual(JSON.stringify(actual), JSON.stringify(expected), "the swimlane's rows, in order");
+/** The swimlane is the one the page must draw for this run, row by row. */
+function steps(result: LabEnd, expected: readonly string[]): void {
+  strictEqual(JSON.stringify(result.steps), JSON.stringify(expected), "the swimlane's steps, in order");
 }
 
 /** The Playground's public configuration, as the page reads it. */

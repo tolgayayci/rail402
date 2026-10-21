@@ -1,37 +1,35 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import type { CodedError, Engine } from "../engine/types.ts";
-import { BudgetMeter, NetworkBadge, WalletChip } from "../ui/header.tsx";
-import { ExternalLink } from "../ui/links.tsx";
+import { Spinner } from "../ui/icons.tsx";
 import { Notice } from "../ui/Notice.tsx";
-import { EngineProvider, toCodedError, useEngine, useEngineState } from "./engine.tsx";
+import { EngineProvider, toCodedError, useEngineState } from "./engine.tsx";
+import { SiteHeader } from "./Header.tsx";
 import { AgentsPage } from "./pages/Agents.tsx";
 import { BazaarPage } from "./pages/Bazaar.tsx";
 import { LabPage } from "./pages/Lab.tsx";
-import { PayPage } from "./pages/Pay.tsx";
 import { SellPage } from "./pages/Sell.tsx";
-import { WALLET_PANEL_ID, WalletPanelProvider, useWalletPanel } from "./wallet.tsx";
-import { WalletPanel } from "./WalletPanel.tsx";
-import { Link, useLocation } from "./router.tsx";
-import { PAGES, documentTitle, pageFor, type PageId } from "./routes.ts";
-import { RunsProvider, useRuns } from "./runs.tsx";
+import { navigate, useLocation } from "./router.tsx";
+import { documentTitle, movedTo, pageFor, type PageId } from "./routes.ts";
+import { RunsProvider } from "./runs.tsx";
+import { WalletDialog } from "./WalletDialog.tsx";
+import { WalletSetupProvider, useWalletSetup } from "./wallet-setup.tsx";
 
 const VIEWS: Readonly<Record<PageId, () => ReactElement>> = {
   lab: LabPage,
-  pay: PayPage,
+  bazaar: BazaarPage,
   sell: SellPage,
   agents: AgentsPage,
-  bazaar: BazaarPage,
 };
 
 /** The page with a ready engine. */
 export function App({ engine }: { readonly engine: Engine }): ReactElement {
   return (
     <EngineProvider engine={engine}>
-      <WalletPanelProvider>
+      <WalletSetupProvider>
         <RunsProvider>
           <Shell />
         </RunsProvider>
-      </WalletPanelProvider>
+      </WalletSetupProvider>
     </EngineProvider>
   );
 }
@@ -57,101 +55,63 @@ export function Boot({ load }: { readonly load: () => Promise<Engine> }): ReactE
   if (engine !== null) return <App engine={engine} />;
   return (
     <div className="boot">
-      <span className="brand-mark" aria-hidden="true" />
-      {error === null ? <p aria-busy="true">Loading the Playground…</p> : <Notice error={error} />}
+      <span className="logo-block">RAIL402</span>
+      {error === null ? (
+        <p className="boot-status" aria-busy="true">
+          <Spinner /> Loading the Playground…
+        </p>
+      ) : (
+        <Notice error={error} />
+      )}
     </div>
   );
 }
 
+/**
+ * Background problems the page says elsewhere, not in the banner: a browser that cannot store the
+ * wallet is told in the wallet dialog and menu, in plain words.
+ */
+const QUIET_CODES: ReadonlySet<string> = new Set(["playground_wallet_storage_unavailable"]);
+
 function Shell(): ReactElement {
   const { pathname } = useLocation();
+  const setup = useWalletSetup();
+  const state = useEngineState();
   const page = pageFor(pathname);
   const View = VIEWS[page];
   useEffect(() => {
     document.title = documentTitle(page);
   }, [page]);
+  // Moving to another page moves focus to its content, so a screen reader starts there; the first
+  // page of a visit keeps the browser's own focus.
+  const shownPage = useRef(page);
+  useEffect(() => {
+    if (shownPage.current === page) return;
+    shownPage.current = page;
+    document.getElementById("main")?.focus({ preventScroll: true });
+  }, [page]);
+  // A page that moved (the Pay page is now the Lab) keeps its query, such as `?url=`.
+  useEffect(() => {
+    const target = movedTo(pathname, window.location.search);
+    if (target !== null) navigate(target, { replace: true });
+  }, [pathname]);
   return (
-    <div className="app">
-      <a className="skip-link" href="#main">
-        Skip to content
-      </a>
-      <SiteHeader page={page} />
-      <main id="main" className="page" tabIndex={-1}>
-        <View />
-      </main>
-      <SiteFooter />
-    </div>
-  );
-}
-
-function SiteHeader({ page }: { readonly page: PageId }): ReactElement {
-  const engine = useEngine();
-  const state = useEngineState();
-  const panel = useWalletPanel();
-  const runs = useRuns();
-  const { config } = engine;
-  return (
-    <header className="site-header">
-      <div className="site-header-inner">
-        <div className="site-nav-group">
-          <Link to="/" className="brand">
-            <span className="brand-mark" aria-hidden="true" />
-            Rail402
-          </Link>
-          <nav aria-label="Pages" className="site-nav">
-            {PAGES.map((entry) => (
-              <Link
-                key={entry.id}
-                // The Playground link returns to the scenario the visitor last looked at.
-                to={entry.id === "lab" ? runs.labPath : entry.path}
-                aria-current={entry.id === page ? "page" : undefined}
-              >
-                {entry.title}
-              </Link>
-            ))}
-            <ExternalLink href={config.urls.docs}>
-              Docs <span aria-hidden="true">↗</span>
-            </ExternalLink>
-          </nav>
-        </div>
-        <div className="site-status">
-          <NetworkBadge network={config.network} />
-          <BudgetMeter budget={state.budget} symbol={config.asset.symbol} />
-          <WalletChip
-            wallet={state.wallet}
-            balances={state.balances}
-            symbol={config.asset.symbol}
-            expanded={panel.open}
-            controls={WALLET_PANEL_ID}
-            onToggle={() => {
-              panel.setOpen(!panel.open);
-            }}
-          />
-        </div>
+    <>
+      <div className="app" inert={setup.dialogOpen}>
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
+        <SiteHeader page={page} />
+        {state.lastError !== null && !setup.dialogOpen && !QUIET_CODES.has(state.lastError.code) ? (
+          <div className="site-alert">
+            <Notice error={state.lastError} />
+          </div>
+        ) : null}
+        <main id="main" className="page" data-page={page} tabIndex={-1}>
+          <View key={page} />
+        </main>
       </div>
-      {panel.open ? (
-        <div className="site-header-inner">
-          <WalletPanel />
-        </div>
-      ) : null}
-      {state.lastError !== null ? (
-        <div className="site-header-inner">
-          <Notice error={state.lastError} />
-        </div>
-      ) : null}
-    </header>
-  );
-}
-
-function SiteFooter(): ReactElement {
-  const { config } = useEngine();
-  return (
-    <footer className="site-footer">
-      <span>
-        Stellar testnet only: test funds, real transactions. Playground {config.version}
-        {config.commit === "" ? "" : ` (${config.commit})`}.
-      </span>
-      <ExternalLink href={config.urls.docs}>Documentation</ExternalLink>
-    </footer>
+      <WalletDialog />
+    </>
   );
 }

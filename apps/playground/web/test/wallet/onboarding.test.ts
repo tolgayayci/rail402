@@ -70,6 +70,17 @@ describe("onboarding", () => {
     expect(calls).toEqual(["buy 1 keep 100000000"]);
   });
 
+  it("buys again for a top-up, and only then, once the account holds some", async () => {
+    const funded = { account: true, trustline: true, funded: true };
+    const plain = setup([funded]);
+    await fundAccount(KeyHolder.random(), plain.options, plain.operations);
+    expect(plain.calls).toEqual([]);
+    const topUp = setup([funded]);
+    await fundAccount(KeyHolder.random(), { ...topUp.options, topUp: true }, topUp.operations);
+    expect(topUp.calls).toEqual(["buy 1 keep 100000000"]);
+    expect(topUp.steps).toEqual([["bought", "b".repeat(64)]]);
+  });
+
   it("fails when Friendbot answered but the account never appears", async () => {
     const { operations, options } = setup([none]);
     await expect(fundAccount(KeyHolder.random(), options, operations)).rejects.toMatchObject({

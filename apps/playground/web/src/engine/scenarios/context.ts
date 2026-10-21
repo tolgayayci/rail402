@@ -50,7 +50,8 @@ export interface RunContext {
   /** The run's idempotency key (`pg_` and the run id). */
   readonly key: string;
   readonly chain: Pick<ChainFacts, "assetBalance" | "tx">;
-  readonly catalog: Pick<Catalog, "search" | "list" | "listing" | "versions">;
+  /** The Bazaar search the agent's tools call. */
+  readonly catalog: Pick<Catalog, "search">;
   /** Holds the run's next paid HTTP request for one resend. */
   readonly replay: () => ReplayHandle;
   /** A buyer with the same signer and ledger under other policy or session settings. */

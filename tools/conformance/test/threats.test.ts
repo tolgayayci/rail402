@@ -184,7 +184,6 @@ describe("the operational exercises", () => {
       "PG4",
       "PG5",
       "PG6",
-      "PG7",
     ]);
     for (const entry of registry.threats) {
       expect(exercised.has(entry.id) !== unitOnly.has(entry.id), `${entry.id}: exercised or unit-only`).toBe(

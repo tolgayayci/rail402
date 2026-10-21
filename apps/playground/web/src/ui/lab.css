@@ -1,0 +1,1204 @@
+/*
+ * The Lab's stage: the request bar, the progress, the swimlane and the inspector. Everything here sits
+ * on the dark stage; the mode (exact, upto, agent) colours the current step, the progress and Run.
+ */
+
+.stage {
+  gap: 12px;
+  min-height: 560px;
+}
+
+/* Request bar */
+
+.run-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.run-method {
+  flex: none;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  background: var(--stage-chip);
+  color: var(--mode-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.run-url {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-m);
+  background: var(--stage-field);
+  color: var(--stage-text);
+  font-size: 13px;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.run-url:hover:not(:disabled) {
+  border-color: var(--stage-line-strong);
+}
+
+.run-url:focus-visible {
+  border-color: var(--mode-dark);
+  outline-offset: 1px;
+}
+
+.run-url::placeholder {
+  color: var(--stage-faint);
+}
+
+.run-url:disabled {
+  color: var(--stage-muted);
+}
+
+.run-url-fixed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.run-url-text {
+  overflow: hidden;
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-url-clear {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: var(--stage-chip);
+  color: var(--stage-muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.run-url-clear:hover:not(:disabled) {
+  background: var(--stage-line-strong);
+  color: var(--stage-text);
+}
+
+.run-cap {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  color: var(--stage-muted);
+  font-size: 12px;
+}
+
+.run-cap-field {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  border: 1px solid var(--stage-edge);
+  border-radius: var(--radius-m);
+  background: var(--stage-chip);
+  overflow: hidden;
+}
+
+.run-cap-field:focus-within {
+  border-color: var(--mode-dark);
+}
+
+.run-cap-field input {
+  width: 72px;
+  height: 100%;
+  padding: 0 4px 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--stage-text);
+  font-size: 12px;
+}
+
+.run-cap-field input:focus-visible {
+  outline: none;
+}
+
+.run-cap-unit {
+  padding-right: 10px;
+  color: var(--stage-muted);
+  font-size: 12px;
+}
+
+.stage-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-m);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    filter var(--duration-fast) ease,
+    transform var(--duration-fast) ease;
+}
+
+.stage-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.stage-button:disabled {
+  opacity: 0.5;
+}
+
+.stage-button-run {
+  min-width: 96px;
+  background: var(--mode);
+  color: var(--on-ink);
+}
+
+.stage-button-run:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.stage-button-run[aria-busy="true"] {
+  opacity: 1;
+}
+
+.stage-button-ghost {
+  padding: 0 12px;
+  border-color: var(--stage-line-strong);
+  background: transparent;
+  color: var(--stage-text);
+}
+
+.stage-button-ghost:hover:not(:disabled),
+.stage-button-ghost[aria-expanded="true"] {
+  border-color: var(--stage-edge-hover);
+  background: var(--stage-chip);
+}
+
+.stage-text-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mode-dark);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.stage-text-button:hover {
+  color: var(--on-ink);
+}
+
+/* Try a refusal */
+
+.refusal-menu {
+  position: relative;
+  flex: none;
+}
+
+.refusal-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(520px, 70vh);
+  padding: 12px;
+  overflow-y: auto;
+  border: 1px solid var(--stage-line-strong);
+  border-radius: var(--radius-l);
+  background: var(--stage-well);
+  box-shadow: var(--shadow-dialog);
+  animation: pop var(--duration) var(--ease-out) both;
+}
+
+.refusal-popover section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.refusal-popover h3 {
+  padding: 0 6px;
+  color: var(--stage-muted);
+}
+
+.refusal-popover ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.refusal-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: transparent;
+  color: var(--stage-text);
+  text-align: left;
+}
+
+.refusal-item:hover,
+.refusal-item:focus-visible {
+  background: var(--stage-chip);
+}
+
+.refusal-item-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.refusal-item-how {
+  color: var(--stage-muted);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.refusal-item-code {
+  color: var(--stage-faint);
+  font-size: 11px;
+}
+
+/* Notes under the bar */
+
+.stage-hint {
+  margin: -4px 0 0;
+  color: var(--stage-muted);
+  font-size: 12px;
+  animation: fade var(--duration) ease both;
+}
+
+.stage-hint[data-invalid="true"] {
+  color: var(--stage-error);
+}
+
+.stage-note {
+  flex: none;
+}
+
+/* Progress */
+
+.stage-progress {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+.stage-progress-segment {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--stage-line);
+}
+
+.stage-progress-segment::after {
+  position: absolute;
+  inset: 0;
+  background: var(--mode-dark);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+
+.stage-progress-segment[data-look="done"]::after {
+  transform: scaleX(1);
+}
+
+.stage-progress-segment[data-look="current"]::after {
+  transform: scaleX(0.5);
+}
+
+.stage-progress-segment[data-look="error"]::after {
+  background: var(--stage-error-strong);
+  transform: scaleX(1);
+}
+
+/* The stage's body: the swimlane beside the inspector */
+
+.stage-body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  min-height: 0;
+}
+
+/* Swimlane */
+
+.swimlane-scroll {
+  min-height: 0;
+  overflow: auto;
+  border-radius: var(--radius-l);
+  scrollbar-color: var(--stage-line-strong) transparent;
+}
+
+/*
+ * The swimlane fills the stage's height: rows shrink from their full height down to a floor before
+ * the swimlane scrolls instead.
+ */
+.swimlane {
+  --lanes: 4;
+  --row: 58px;
+  --rows: 8;
+  --head: 64px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 520px;
+  height: 100%;
+  min-height: calc(var(--head) + var(--rows) * 40px + 16px);
+}
+
+.swimlane-bands,
+.swimlane-steps {
+  grid-area: 1 / 1;
+}
+
+.swimlane-bands {
+  display: grid;
+  grid-template-columns: repeat(var(--lanes), minmax(0, 1fr));
+}
+
+.lane-band {
+  position: relative;
+  margin: 0 10%;
+  border-radius: var(--radius-l);
+  background: var(--stage-band);
+}
+
+.lane-band::after {
+  position: absolute;
+  top: var(--head);
+  bottom: 12px;
+  left: 50%;
+  border-left: 1.5px dashed var(--stage-line-strong);
+  content: "";
+}
+
+.lane-head {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 5px 10px;
+  border: 1px solid var(--stage-edge);
+  border-radius: 9px;
+  background: var(--stage-chip);
+}
+
+.lane-head-icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--stage-sunk);
+  color: var(--stage-text);
+}
+
+.lane-band[data-tone="seller"] .lane-head-icon,
+.lane-band[data-tone="bazaar"] .lane-head-icon {
+  color: var(--mode-dark);
+}
+
+.lane-band[data-tone="rail"] .lane-head-icon {
+  color: var(--accent-dark);
+}
+
+.lane-band[data-tone="chain"] .lane-head-icon {
+  color: var(--lane-chain);
+}
+
+.lane-band[data-tone="tool"] .lane-head-icon {
+  color: var(--upto-dark);
+}
+
+.lane-head-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 15px;
+}
+
+.lane-head-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A long name (a tool's) takes two lines rather than being cut. */
+.lane-head-text b {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.lane-head-text span {
+  color: var(--stage-muted);
+  font-size: 11px;
+}
+
+.swimlane-steps {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: var(--head) 0 16px;
+  list-style: none;
+}
+
+.lane-step {
+  position: relative;
+  flex: 0 1 var(--row);
+  min-height: 40px;
+}
+
+/* The current step's row is lit across the stage. */
+.lane-step::before {
+  position: absolute;
+  inset: 6px 0;
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--mode-dark) 9%, transparent);
+  content: "";
+  opacity: 0;
+  transition: opacity var(--duration) ease;
+}
+
+.lane-step[data-look="current"]::before {
+  opacity: 1;
+}
+
+.lane-arrow {
+  position: absolute;
+  top: 50%;
+  left: calc((var(--a) + 0.5) * 100% / var(--lanes));
+  width: calc((var(--b) - var(--a)) * 100% / var(--lanes));
+  border-top: 2px solid var(--stage-done);
+  transform-origin: left center;
+}
+
+.lane-step[data-dir="left"] .lane-arrow {
+  transform-origin: right center;
+}
+
+/* The arrowhead. */
+.lane-arrow::after {
+  position: absolute;
+  top: -6px;
+  right: -2px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid currentColor;
+  color: var(--stage-done);
+  content: "";
+}
+
+.lane-step[data-dir="left"] .lane-arrow::after {
+  right: auto;
+  left: -2px;
+  border-right: 7px solid currentColor;
+  border-left: 0;
+}
+
+.lane-step[data-look="pending"] .lane-arrow {
+  border-top: 2px dashed var(--stage-pending);
+}
+
+.lane-step[data-look="pending"] .lane-arrow::after {
+  color: var(--stage-pending);
+}
+
+.lane-step[data-look="current"] .lane-arrow {
+  border-top-color: var(--mode-dark);
+  animation: draw var(--duration-slow) var(--ease-out) both;
+}
+
+.lane-step[data-look="current"] .lane-arrow::after {
+  color: var(--mode-dark);
+}
+
+.lane-step[data-look="error"] .lane-arrow {
+  border-top-color: var(--stage-error-muted);
+}
+
+.lane-step[data-look="error"] .lane-arrow::after {
+  color: var(--stage-error-muted);
+}
+
+.lane-chip {
+  position: absolute;
+  top: 50%;
+  left: calc((var(--a) + var(--b) + 1) * 50% / var(--lanes));
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* Between the arrow's two ends, leaving its head in sight. */
+  max-width: calc((var(--b) - var(--a)) * 100% / var(--lanes) - 28px);
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--stage-edge);
+  border-radius: 12px;
+  background: var(--stage);
+  color: var(--stage-text);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  transition:
+    background-color var(--duration) ease,
+    border-color var(--duration) ease,
+    color var(--duration) ease;
+}
+
+.lane-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lane-step[data-kind="self"] .lane-chip {
+  max-width: calc(170% / var(--lanes));
+  height: 28px;
+  border-color: var(--stage-edge-strong);
+  border-radius: var(--radius-m);
+  background: var(--stage-chip);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lane-step[data-look="pending"] .lane-chip {
+  border-style: dashed;
+  border-color: var(--stage-line-strong);
+  background: var(--stage);
+  color: var(--stage-faint);
+  font-weight: 400;
+}
+
+.lane-step[data-look="current"] .lane-chip {
+  border-color: transparent;
+  background: var(--mode);
+  color: var(--on-ink);
+  animation:
+    chip-in var(--duration-slow) var(--ease-out) both,
+    glow 1.6s ease-in-out var(--duration-slow) infinite;
+}
+
+.lane-step[data-look="error"] .lane-chip {
+  border-color: var(--stage-error-line);
+  background: var(--stage-error-tint);
+  color: var(--stage-error);
+}
+
+.lane-step[data-selected="true"] .lane-chip {
+  outline: 2px solid var(--stage-text);
+  outline-offset: 2px;
+}
+
+.lane-chip:hover {
+  border-color: var(--stage-edge-hover);
+}
+
+/* The chip is centred with a transform, so its entrance keeps the centring. */
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Inspector */
+
+.inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 18px;
+  overflow-y: auto;
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-l);
+  background: var(--stage-field);
+}
+
+.prompt-card {
+  flex: none;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--stage-raised);
+}
+
+.prompt-card .eyebrow {
+  color: var(--stage-muted);
+}
+
+.prompt-card p {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.step-detail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+  animation: rise var(--duration) var(--ease-out) both;
+}
+
+.step-detail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.step-count {
+  color: var(--mode-dark);
+}
+
+.step-title {
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.step-explain {
+  color: var(--stage-muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* What the run waits for, when a step takes a while: a settlement or a chain read. */
+.step-wait {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px dashed var(--stage-edge-strong);
+  border-radius: var(--radius-m);
+  color: var(--stage-text);
+  font-size: 12.5px;
+  line-height: 17px;
+  animation: rise var(--duration) var(--ease-out) both;
+}
+
+.step-wait .spinner {
+  color: var(--mode-dark);
+}
+
+.step-wait-time {
+  color: var(--stage-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.step-doc {
+  align-self: flex-start;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.fact-list {
+  margin: 4px 0 0;
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--stage-line);
+  font-size: 12px;
+}
+
+.fact dt {
+  flex: none;
+  color: var(--stage-muted);
+}
+
+.fact dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--stage-text);
+  text-align: right;
+}
+
+/* A long code or address goes under its label instead of squeezing beside it. */
+.fact[data-long="true"] {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fact[data-long="true"] dd {
+  text-align: left;
+}
+
+.fact dd a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fact-list-compact .fact {
+  padding: 5px 0;
+}
+
+.result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 6px;
+  border-radius: 10px;
+  background: var(--stage-raised);
+}
+
+.result-card .eyebrow {
+  margin-bottom: 4px;
+  color: var(--stage-muted);
+}
+
+.result-card .fact:first-child {
+  border-top: 0;
+}
+
+/* The step list: the run's steps as buttons, the inspector's way through the run. */
+.step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: auto 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--stage-line);
+  list-style: none;
+}
+
+.step-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--stage-muted);
+  font-size: 12px;
+  text-align: left;
+  transition: background-color var(--duration-fast) ease;
+}
+
+.step-list-item:hover,
+.step-list-item[aria-pressed="true"] {
+  background: var(--stage-chip);
+}
+
+.step-list-item[data-look="pending"] {
+  color: var(--stage-faint);
+}
+
+.step-list-item[data-look="current"] {
+  color: var(--stage-text);
+  font-weight: 600;
+}
+
+.step-list-item[data-look="error"] {
+  color: var(--stage-error);
+}
+
+.step-mark {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--stage-raised-strong);
+  color: var(--stage-text);
+}
+
+.step-list-item[data-look="pending"] .step-mark {
+  border: 1.5px solid var(--stage-edge-hover);
+  background: transparent;
+}
+
+.step-list-item[data-look="current"] .step-mark {
+  background: var(--mode);
+  animation: glow 1.6s ease-in-out infinite;
+}
+
+.step-list-item[data-look="error"] .step-mark {
+  background: var(--stage-error-line);
+  color: var(--stage-error);
+}
+
+/* Proof and verdict */
+
+.proof,
+.verdict {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.verdict {
+  flex: none;
+}
+
+.verdict .panel-foot {
+  margin-top: 4px;
+  padding-top: 0;
+}
+
+/*
+ * The proof's actions and docs stay in sight at the inspector's bottom edge: a long proof scrolls
+ * under them, with a shadow that says there is more above.
+ */
+.proof .panel-foot {
+  position: sticky;
+  bottom: -18px;
+  z-index: 1;
+  margin: auto -18px -18px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--stage-line);
+  background: var(--stage-field);
+  box-shadow: 0 -14px 18px -14px var(--stage-shadow);
+}
+
+/* Parts of a finished run's panel arrive one after another. */
+.reveal {
+  animation: rise 0.45s var(--ease-out) both;
+  animation-delay: calc(0.12s + var(--order, 0) * 0.12s);
+}
+
+.proof-eyebrow,
+.verdict-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--stage-ok);
+}
+
+.proof-eyebrow svg,
+.verdict-eyebrow svg {
+  color: var(--stage-ok-strong);
+}
+
+.verdict[data-good="false"] .verdict-eyebrow {
+  color: var(--stage-error);
+}
+
+.verdict[data-good="false"] .verdict-eyebrow svg {
+  color: var(--stage-error-solid);
+}
+
+.proof-amount {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.proof-number {
+  color: var(--mode-dark);
+  font-family: var(--font-head);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 44px;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.proof-symbol {
+  font-size: 16px;
+}
+
+.proof-caption {
+  color: var(--stage-muted);
+  font-size: 13px;
+}
+
+.proof-tiles {
+  display: flex;
+  gap: 8px;
+}
+
+.proof-tile {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: var(--radius-m);
+  background: var(--stage-raised);
+  color: var(--stage-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.proof-tile b {
+  display: block;
+  color: var(--stage-text);
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.on-dark a.proof-tx {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  border-radius: var(--radius-m);
+  background: var(--mode);
+  color: var(--on-ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: filter var(--duration-fast) ease;
+}
+
+.on-dark a.proof-tx:hover {
+  filter: brightness(1.12);
+}
+
+.proof-parties {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proof-party {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 0;
+  border-top: 1px solid var(--stage-line);
+}
+
+.proof-party-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.proof-party-role {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--stage-muted);
+  font-size: 12px;
+}
+
+.proof-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--stage-text);
+}
+
+.proof-party[data-tone="seller"] .proof-dot {
+  background: var(--mode-dark);
+}
+
+.proof-party[data-tone="rail"] .proof-dot {
+  background: var(--accent-dark);
+}
+
+.proof-party[data-tone="chain"] .proof-dot {
+  background: var(--lane-chain);
+}
+
+.on-dark .proof-party-address {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--stage-text);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.on-dark .proof-party-address:hover {
+  color: var(--on-ink);
+  text-decoration: underline;
+}
+
+.proof-party-did {
+  font-size: 12px;
+}
+
+.verdict-title {
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.verdict-reason {
+  color: var(--stage-muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.verdict-txs {
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  list-style: none;
+}
+
+.panel-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 12px;
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.panel-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+/* Narrower screens: the inspector goes under the swimlane. */
+
+@media (max-width: 1320px) {
+  .lane-chip {
+    padding: 0 8px;
+    font-size: 10.5px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .stage {
+    min-height: 480px;
+  }
+
+  .stage-body {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+
+  .lane-band {
+    margin: 0 5%;
+  }
+
+  .lane-head {
+    right: 4px;
+    left: 4px;
+    padding: 0 6px;
+  }
+}
+
+@media (max-width: 960px) {
+  .stage-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Stacked, the swimlane takes its full height and the page scrolls. */
+  .swimlane {
+    height: auto;
+  }
+
+  .lane-step {
+    flex: 0 0 var(--row);
+  }
+
+  .inspector {
+    overflow: visible;
+  }
+
+  .proof .panel-foot {
+    position: static;
+    box-shadow: none;
+  }
+
+  .run-bar {
+    flex-wrap: wrap;
+  }
+
+  .run-url {
+    flex-basis: calc(100% - 60px);
+  }
+}
+
+@media (max-width: 640px) {
+  .stage {
+    padding: 12px;
+    border-radius: var(--radius-l);
+  }
+
+  .run-cap {
+    flex: 1 1 100%;
+  }
+
+  .run-cap-field {
+    flex: 1;
+  }
+
+  .refusal-menu,
+  .refusal-menu .stage-button,
+  .stage-button-run {
+    flex: 1;
+  }
+
+  .run-cap-field input {
+    width: 100%;
+  }
+
+  .swimlane {
+    min-width: 480px;
+  }
+}

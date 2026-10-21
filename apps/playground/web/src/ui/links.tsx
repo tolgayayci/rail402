@@ -5,6 +5,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { docHref, type DocRef } from "../projection/docs.ts";
 import { safeHttpsUrl } from "../projection/format.ts";
+import { ExternalIcon } from "./icons.tsx";
 
 export function ExternalLink({
   href,
@@ -35,7 +36,7 @@ export function DocLink({
 }): ReactElement {
   return (
     <ExternalLink className={className} href={docHref(doc, docsUrl)}>
-      {doc.label} <span aria-hidden="true">↗</span>
+      {doc.label} <ExternalIcon />
     </ExternalLink>
   );
 }

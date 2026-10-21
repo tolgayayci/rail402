@@ -1,8 +1,0 @@
-# 1. ask, unpaid
-GET {{url}}
-# ← 402 Payment Required, PAYMENT-REQUIRED: the price, payTo, network and expiry
-
-# 2. sign one authorization within your cap, then ask again with it
-GET {{url}}
-PAYMENT-SIGNATURE: <the signed payment, { transaction }>
-# ← 200 OK, PAYMENT-RESPONSE: the settlement transaction hash

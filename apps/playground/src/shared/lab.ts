@@ -21,6 +21,9 @@ export const LAB_PATHS = Object.freeze({
 /** Prefix shared by every lab route. */
 export const LAB_PREFIX = "/lab/";
 
+/** The city the sandbox seller's listing shows as its example. */
+export const SANDBOX_EXAMPLE_CITY = "Ankara";
+
 /** The sandbox seller's URL for one city. */
 export function sellPath(city: string): string {
   return LAB_PATHS.sell.replace(":city", encodeURIComponent(city));
@@ -38,21 +41,20 @@ export const LAB_PRICES = Object.freeze({
 /** `maxTimeoutSeconds` of the greedy seller, so a refused hold returns to the budget within a minute. */
 export const GREEDY_MAX_TIMEOUT_SECONDS = 60;
 
-export const SCENARIO_IDS = Object.freeze(["pay", "upto", "agent", "sell"] as const);
+export const SCENARIO_IDS = Object.freeze(["pay", "upto", "agent"] as const);
 export type ScenarioId = (typeof SCENARIO_IDS)[number];
 
-export const EXPERIMENT_IDS = Object.freeze(["normal", "low-cap", "replay", "overcharge"] as const);
+export const EXPERIMENT_IDS = Object.freeze(["normal", "replay", "overcharge"] as const);
 export type ExperimentId = (typeof EXPERIMENT_IDS)[number];
 
 /** The experiments each scenario offers; `normal` first. */
 export const SCENARIO_EXPERIMENTS: Readonly<Record<ScenarioId, readonly ExperimentId[]>> = Object.freeze({
-  pay: Object.freeze(["normal", "low-cap", "replay"] as const),
+  pay: Object.freeze(["normal", "replay"] as const),
   upto: Object.freeze(["normal", "overcharge"] as const),
   agent: Object.freeze(["normal"] as const),
-  sell: Object.freeze(["normal"] as const),
 });
 
-/** Refusal checks on the Pay page. Each must end refused, with nothing signed. */
+/** Refusal checks, tried from the Lab. Each must end refused, with nothing signed. */
 export const CHECK_IDS = Object.freeze([
   "network",
   "asset",
@@ -75,12 +77,15 @@ export const CHECK_EXPECTED_CODES: Readonly<Record<CheckId, string>> = Object.fr
   "private-address": "egress_destination_not_allowed",
 });
 
+/** The facilitator's refusal of a payment whose authorization was already used: the one a replay expects. */
+export const REPLAY_REFUSAL_CODE = "invalid_exact_stellar_payload_nonce_already_used";
+
 /**
  * The facilitator's refusals of a repeated payment, with what each means: the nonce was already used,
  * or the copy came after the authorization expired. Either way it cannot be paid again.
  */
 export const REPLAY_REFUSAL_CODES: Readonly<Record<string, string>> = Object.freeze({
-  invalid_exact_stellar_payload_nonce_already_used: "its authorization was already used once",
+  [REPLAY_REFUSAL_CODE]: "its authorization was already used once",
   invalid_exact_stellar_signature_expired: "its authorization has expired",
 });
 
@@ -95,11 +100,9 @@ export const SCENARIO_NEEDS: Readonly<Record<ScenarioId, readonly ("relay" | "la
   pay: ["relay"],
   upto: ["relay"],
   agent: ["relay"],
-  sell: ["lab"],
 });
 export const EXPERIMENT_NEEDS: Readonly<Record<ExperimentId, readonly ("relay" | "lab")[]>> = Object.freeze({
   normal: [],
-  "low-cap": ["relay"],
   replay: ["relay"],
   overcharge: ["lab"],
 });
@@ -125,7 +128,7 @@ export const SESSION_CHECK_WINDOW = Object.freeze({ total: "0.001" });
 /** Default caps, decimal USDC. The page can only lower the session total. */
 export const DEFAULT_CAPS = Object.freeze({
   perCall: "0.01",
-  /** The cap preset that is below the demo price, for the low-cap experiment. */
+  /** A cap below the demo price, which the per-call cap check pays with. */
   lowCap: "0.0005",
   perCallCeiling: "0.1",
   sessionTotal: "1",
@@ -137,22 +140,22 @@ export const DEFAULT_CAPS = Object.freeze({
  * demo seller's tool.
  */
 export const AGENT_PLANNER_LABEL =
-  "A scripted agent, not a language model: it always searches, checks its budget and pays the best match from the demo seller. Plug the same tools into any MCP client with the MCP config shown here.";
+  "A scripted agent, not a language model: it always searches, checks its budget and pays the best match from the demo seller, with the real rail402-mcp tools. The Agents page shows how to give the same tools to any MCP client.";
 
 /** Default scenario inputs; paths are relative to the configured demo seller or the Playground. */
 export const SCENARIO_DEFAULTS = Object.freeze({
   pay: Object.freeze({ path: "/weather", query: Object.freeze({ city: "Ankara" }) }),
   upto: Object.freeze({ path: "/history", query: Object.freeze({ city: "Berlin", days: "7" }) }),
   agent: Object.freeze({
-    query: "hourly weather forecast",
+    query: "air quality",
     type: "mcp" as const,
     maxPrice: Object.freeze({ amount: "0.05", asset: "USDC" }),
-    toolName: "hourly_forecast",
+    toolName: "air_quality",
     minimumTrust: "origin_verified" as const,
-    arguments: Object.freeze({ city: "Izmir", hours: 6 }),
-    spendingCap: Object.freeze({ amount: "0.01", asset: "USDC" }),
+    arguments: Object.freeze({ city: "Istanbul" }),
+    /** The agent's per-call limit the Lab starts with, as the Agents page suggests for any agent. */
+    cap: "0.05",
   }),
-  sell: Object.freeze({ city: "Ankara", searchQuery: "seven-day forecast" }),
 });
 
 /** Idempotency keys of Playground runs: `pg_` and the run id. */
@@ -165,7 +168,7 @@ export function runIdempotencyKey(runId: string): string {
  * `// @step:<id>`, and selecting a row highlights them.
  */
 export const STEP_IDS = Object.freeze([
-  // Paying an HTTP resource (pay, upto, sell)
+  // Paying an HTTP resource (pay, upto)
   "request",
   "quote",
   "refused",
@@ -189,9 +192,5 @@ export const STEP_IDS = Object.freeze([
   "call-tool",
   "tool-settle",
   "tool-result",
-  // Sell and get listed
-  "catalog",
-  "origin-check",
-  "listed",
 ] as const);
 export type StepId = (typeof STEP_IDS)[number];

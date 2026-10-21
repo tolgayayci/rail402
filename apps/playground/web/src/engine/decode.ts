@@ -25,7 +25,7 @@ import {
 } from "@rail402.dev/sdk/browser";
 import type {
   AuthorizationView,
-  JsonValue,
+  ListingField,
   ListingView,
   McpRequestView,
   McpResponseView,
@@ -392,6 +392,8 @@ export function listingView(
     readonly version: number;
     readonly state: ListingView["state"];
     readonly rank: number | null;
+    /** The seller's example path parameter values (`pathExampleOf`). */
+    readonly pathExample?: unknown;
     /** The buyer's policy, to say which rule refuses a listing it cannot pay. */
     readonly judge?: Pick<HitContext, "policy" | "adapters">;
   },
@@ -423,47 +425,112 @@ export function listingView(
     callable: hit.callable && hit.withinPolicy,
     notPayable: facts.judge === undefined ? null : listingVerdict(hit, facts.judge),
     rank: facts.rank,
-    input: listingInput(hit),
+    input: listingInput(hit, facts.pathExample),
   };
 }
 
-/** Longest example a listing view keeps, as JSON text. */
-const EXAMPLE_MAX_CHARS = 2_000;
 const NAME = /^[A-Za-z_][A-Za-z0-9_.-]{0,63}$/;
+/** Most fields a listing's call form shows. */
+const MAX_FIELDS = 16;
+/** Most allowed values a field lists. */
+const MAX_FIELD_OPTIONS = 12;
+const MAX_FIELD_TEXT = 160;
 
-/** What a call to a listing fills in, from the seller's metadata: names checked, the example bounded. */
-function listingInput(hit: SearchHit): NonNullable<ListingView["input"]> {
-  const names = (values: readonly unknown[]): string[] =>
-    values.filter((value): value is string => typeof value === "string" && NAME.test(value)).slice(0, 16);
-  const pathParams = names(hit.input.pathParams);
-  const schema = hit.input.schema;
-  const schemaRequired =
-    hit.type === "mcp" && isRecord(schema) && Array.isArray(schema["required"])
-      ? names(schema["required"])
-      : [];
-  return {
-    pathParams,
-    example: boundedExample(hit.input.example),
-    required: [...new Set([...pathParams, ...schemaRequired])],
+/**
+ * What a call to a listing fills in, from the seller's metadata: the route's path parameters (their
+ * example from `pathExample`), then the schema's query, body or tool argument properties in order,
+ * then any other name the seller's example gives. Names are checked; text is cleaned and bounded.
+ */
+function listingInput(hit: SearchHit, pathExample: unknown): NonNullable<ListingView["input"]> {
+  const fields: ListingField[] = [];
+  const seen = new Set<string>();
+  const add = (field: ListingField): void => {
+    if (fields.length >= MAX_FIELDS || seen.has(field.name) || !NAME.test(field.name)) return;
+    seen.add(field.name);
+    fields.push(field);
   };
+  const examples = record(hit.input.example);
+  const pathExamples = record(pathExample);
+  for (const name of hit.input.pathParams) {
+    add({
+      name,
+      in: "path",
+      kind: "string",
+      required: true,
+      description: null,
+      example: exampleText(pathExamples[name]),
+      options: null,
+    });
+  }
+  const { where, schema } = argumentSchema(hit);
+  const required = new Set(
+    Array.isArray(schema["required"])
+      ? schema["required"].filter((name): name is string => typeof name === "string")
+      : [],
+  );
+  for (const [name, property] of Object.entries(record(schema["properties"]))) {
+    const spec = record(property);
+    add({
+      name,
+      in: where,
+      kind: kindOf(spec["type"]),
+      required: required.has(name),
+      description: text(spec["description"], MAX_FIELD_TEXT),
+      example: exampleText(examples[name]),
+      options: optionsOf(spec["enum"]),
+    });
+  }
+  for (const [name, value] of Object.entries(examples)) {
+    add({
+      name,
+      in: where,
+      kind: typeof value === "number" ? "number" : typeof value === "boolean" ? "boolean" : "string",
+      required: false,
+      description: null,
+      example: exampleText(value),
+      options: null,
+    });
+  }
+  return { fields };
 }
 
-/** A seller's example as plain JSON with secrets and control characters removed; null past the bound. */
-function boundedExample(value: unknown): JsonValue | null {
-  if (!isRecord(value)) return null;
-  let text: string;
-  try {
-    text = JSON.stringify(value);
-  } catch {
-    return null;
-  }
-  if (text.length > EXAMPLE_MAX_CHARS) return null;
-  const clean = untrustedReason(text, EXAMPLE_MAX_CHARS);
-  try {
-    return JSON.parse(clean) as JsonValue;
-  } catch {
-    return null;
-  }
+/** The schema of what a call sends besides path parameters: tool arguments, a JSON body or the query. */
+function argumentSchema(hit: SearchHit): {
+  readonly where: ListingField["in"];
+  readonly schema: Record<string, unknown>;
+} {
+  const schema = record(hit.input.schema);
+  if (hit.type === "mcp") return { where: "argument", schema };
+  const input = record(record(schema["input"])["properties"]);
+  const bodyMethod = ["POST", "PUT", "PATCH"].includes((hit.method ?? "GET").toUpperCase());
+  return bodyMethod && isRecord(input["body"])
+    ? { where: "body", schema: input["body"] }
+    : { where: "query", schema: record(input["queryParams"]) };
+}
+
+function kindOf(type: unknown): ListingField["kind"] {
+  return type === "integer" || type === "number" || type === "boolean" ? type : "string";
+}
+
+function optionsOf(values: unknown): readonly string[] | null {
+  if (!Array.isArray(values)) return null;
+  const options = values
+    .filter((value): value is string | number => typeof value === "string" || typeof value === "number")
+    .slice(0, MAX_FIELD_OPTIONS)
+    .map((value) => untrustedReason(String(value), MAX_FIELD_TEXT));
+  return options.length === 0 ? null : options;
+}
+
+function exampleText(value: unknown): string | null {
+  if (typeof value === "string") return value === "" ? null : untrustedReason(value, MAX_FIELD_TEXT);
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
+}
+
+/** A listing's example path parameter values, from its raw Bazaar metadata. */
+export function pathExampleOf(item: { readonly extensions?: unknown }): unknown {
+  const info = record(record(record(item.extensions)["bazaar"])["info"]);
+  return record(info["input"])["pathParams"];
 }
 
 /**

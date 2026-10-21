@@ -1,6 +1,0 @@
-# check a route the way the catalog will
-rail402 seller check {{public}}/lab/sell/forecast/Ankara # @step:quote,origin-check
-# pay it once: the settled payment catalogs it
-rail402 pay {{public}}/lab/sell/forecast/Ankara --max {{cap}} # @step:request,paid-request,settle,catalog
-# find it by describing it
-rail402 search seven-day forecast # @step:listed

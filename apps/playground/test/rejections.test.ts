@@ -4,7 +4,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { egressCodes } from "@rail402.dev/safe-fetch/codes";
 import { ConfigError, loadConfig } from "../src/config.ts";
 import { Metrics } from "../src/metrics.ts";
-import { SELLER_CHECK_PATH } from "../src/seller-check.ts";
 import { playgroundServerCodes, type PlaygroundServerCode } from "../src/shared/codes.ts";
 import { RELAY_PATH, encodeRelayRequest, type RelayRequest } from "../src/shared/relay-protocol.ts";
 import { fakeFacilitator } from "./fake-facilitator.ts";
@@ -67,44 +66,22 @@ describe("every server refusal is coded", () => {
     });
   }
 
-  function sellerCheck(app: TestApp, body: string, headers: Record<string, string> = {}): Promise<Response> {
-    return app.request(SELLER_CHECK_PATH, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...headers },
-      body,
-    });
-  }
-
   /** How to make each code happen; several routes per code where several can send it. */
   const scenarios: Record<
     Exclude<PlaygroundServerCode, "playground_config_invalid">,
     () => Promise<Response[]>
   > = {
-    playground_origin_not_allowed: async () => {
-      const app = make();
-      return [
-        await relay(app, {}, { headers: { origin: "https://evil.example" } }),
-        await sellerCheck(app, '{"url":"https://seller.example/"}', { "sec-fetch-site": "cross-site" }),
-      ];
-    },
-    playground_request_invalid: async () => {
-      const app = make();
-      return [
-        await app.request(RELAY_PATH),
-        await relay(local(), { method: "GET" }, { body: "body on a GET" }),
-        await sellerCheck(app, "{"),
-      ];
-    },
-    playground_request_too_large: async () => {
-      const app = local();
-      return [
-        await relay(app, { method: "POST" }, { body: "x".repeat(70_000) }),
-        await sellerCheck(
-          make(),
-          JSON.stringify({ url: "https://seller.example/", arguments: { x: "y".repeat(9_000) } }),
-        ),
-      ];
-    },
+    playground_origin_not_allowed: async () => [
+      await relay(make(), {}, { headers: { origin: "https://evil.example" } }),
+      await relay(make(), {}, { headers: { "sec-fetch-site": "cross-site" } }),
+    ],
+    playground_request_invalid: async () => [
+      await make().request(RELAY_PATH),
+      await relay(local(), { method: "GET" }, { body: "body on a GET" }),
+    ],
+    playground_request_too_large: async () => [
+      await relay(local(), { method: "POST" }, { body: "x".repeat(70_000) }),
+    ],
     playground_rate_limited: async () => {
       const relayApp = local({ RELAY_UNPAID_PER_MINUTE: "1", RELAY_UNPAID_BURST: "1" });
       await (await relay(relayApp)).text();
@@ -125,15 +102,10 @@ describe("every server refusal is coded", () => {
     playground_feature_disabled: async () => {
       const app = make({
         RELAY_ENABLED: "false",
-        SELLER_CHECK_ENABLED: "false",
         LAB_ENABLED: "false",
         PLAYGROUND_PAY_TO: undefined,
       });
-      return [
-        await relay(app),
-        await sellerCheck(app, '{"url":"https://seller.example/"}'),
-        await app.request("/lab/sell/forecast/Ankara"),
-      ];
+      return [await relay(app), await app.request("/lab/sell/forecast/Ankara")];
     },
     playground_relay_target_invalid: async () => [
       await make().request(RELAY_PATH, { method: "POST", headers: { "x-relay-method": "GET" } }),
@@ -165,11 +137,9 @@ describe("every server refusal is coded", () => {
     },
     playground_upstream_unavailable: async () => {
       const app = make({}, { fetch: () => Promise.reject(new TypeError("fetch failed")) });
-      const check = make({}, { sellerCheck: () => Promise.reject(new Error("rpc down")) });
       return [
         await app.request("/api/facilitator/supported"),
         await app.request("/api/bazaar/discovery/search?q=weather"),
-        await sellerCheck(check, '{"url":"https://seller.example/"}'),
       ];
     },
     playground_lab_unavailable: async () => {
@@ -184,7 +154,7 @@ describe("every server refusal is coded", () => {
       return [
         await app.request("/nope"),
         await app.request("/lab/nope"),
-        await app.request(SELLER_CHECK_PATH),
+        await app.request("/api/seller-check"),
       ];
     },
     playground_internal_error: async () => {

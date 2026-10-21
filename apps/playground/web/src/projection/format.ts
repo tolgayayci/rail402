@@ -69,10 +69,14 @@ export function compareDecimal(a: string, b: string, decimals: number): -1 | 0 |
   return x < y ? -1 : x > y ? 1 : 0;
 }
 
-/** `demo.rail402.dev/weather?city=Ankara`: a URL without its scheme, for display. */
+/**
+ * `demo.rail402.dev/weather?city=Ankara`: an http(s) URL without its scheme, for display. Any other
+ * scheme (`mcp://tool/…`) is shown in full, since it says what the address is.
+ */
 export function displayUrl(url: string): string {
   try {
     const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return url;
     const port = parsed.port === "" ? "" : `:${parsed.port}`;
     return `${parsed.hostname}${port}${parsed.pathname}${parsed.search}`;
   } catch {
@@ -117,4 +121,13 @@ export function duration(ms: number): string {
   if (ms < 1_000) return `${String(Math.round(ms))} ms`;
   const seconds = ms / 1_000;
   return `${seconds < 10 ? seconds.toFixed(1) : String(Math.round(seconds))} s`;
+}
+
+/** A decimal amount with thousands separators and at most `digits` decimals: `9,999.99`. */
+export function groupedAmount(decimal: string, digits = 2): string {
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(decimal);
+  if (match === null) return decimal;
+  const whole = (match[1] ?? "0").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const fraction = (match[2] ?? "").slice(0, digits).replace(/0+$/, "");
+  return fraction === "" ? whole : `${whole}.${fraction}`;
 }

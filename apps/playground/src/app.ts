@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import type { Logger } from "pino";
 import type { FacilitatorClient } from "@x402/core/server";
-import type { checkSellerOrigin } from "@rail402.dev/sdk/seller";
 import { connectOrigins, publicConfigOf, type PlaygroundConfig } from "./config.ts";
 import { refuse, requestIdOf, type RequestLog, type ServerContext, type ServerEnv } from "./http.ts";
 import { labRouteOf, mountLab } from "./lab/mount.ts";
@@ -20,11 +19,10 @@ import {
 } from "./proxy/facilitator.ts";
 import type { EgressSeams } from "./relay/egress.ts";
 import { createRelay } from "./relay/relay.ts";
-import { SELLER_CHECK_PATH, mountSellerCheck } from "./seller-check.ts";
 import { securityHeaders } from "./security.ts";
 import { CONFIG_PATH } from "./shared/public-config.ts";
 import { RELAY_PATH } from "./shared/relay-protocol.ts";
-import { SPA_ROUTES, StaticSite } from "./static.ts";
+import { MOVED_ROUTES, SPA_ROUTES, StaticSite } from "./static.ts";
 
 export interface AppOptions {
   readonly config: PlaygroundConfig;
@@ -35,12 +33,10 @@ export interface AppOptions {
   /** Used by the facilitator and Bazaar proxies; the global fetch by default. */
   readonly fetch?: typeof fetch;
   readonly now?: Clock;
-  /** Test seams of the egress policy of the relay and the seller check. */
+  /** Test seams of the relay's egress policy. */
   readonly egress?: EgressSeams;
   /** The facilitator lab sellers settle through; FACILITATOR_URL over HTTP by default. */
   readonly labFacilitator?: FacilitatorClient;
-  /** Replaces the seller check's origin check (tests). */
-  readonly sellerCheck?: typeof checkSellerOrigin;
 }
 
 export interface PlaygroundApp {
@@ -64,7 +60,6 @@ export function routeOf(path: string): string {
       CONFIG_PATH,
       RELAY_PATH,
       SUPPORTED_PROXY_PATH,
-      SELLER_CHECK_PATH,
       STELLAR_TOML_PATH,
     ].includes(path)
   )
@@ -79,7 +74,7 @@ export function routeOf(path: string): string {
   }
   if (path.startsWith("/lab/")) return labRouteOf(path);
   if (path.startsWith("/assets/")) return "/assets";
-  if (SPA_ROUTES.includes(path)) return "page";
+  if (SPA_ROUTES.includes(path) || Object.hasOwn(MOVED_ROUTES, path)) return "page";
   return "unmatched";
 }
 
@@ -228,15 +223,6 @@ export function createApp(options: AppOptions): PlaygroundApp {
     ...fetchOption,
   });
 
-  const egressOption = options.egress === undefined ? {} : { egress: options.egress };
-  const sellerCheck = mountSellerCheck(app, {
-    config,
-    metrics,
-    log,
-    now,
-    ...egressOption,
-    ...(options.sellerCheck === undefined ? {} : { check: options.sellerCheck }),
-  });
   const lab = mountLab(app, {
     config,
     metrics,
@@ -246,7 +232,6 @@ export function createApp(options: AppOptions): PlaygroundApp {
   });
   const sweep = setInterval(() => {
     relay.sweep();
-    sellerCheck.sweep();
     lab.sweep();
     proxyPerClient.sweep();
     proxyUpstream.sweep();
@@ -254,9 +239,12 @@ export function createApp(options: AppOptions): PlaygroundApp {
   }, 60_000);
   sweep.unref();
 
-  // The built page: exact files, and index.html for the page's routes.
+  // The built page: exact files, and index.html for the page's routes. A moved page redirects to
+  // its new home on this origin, with the same query.
   app.on(["GET", "HEAD"], "*", async (c, next) => {
     const path = c.req.path.length > 1 ? c.req.path.replace(/\/+$/, "") : c.req.path;
+    const moved = Object.hasOwn(MOVED_ROUTES, path) ? MOVED_ROUTES[path] : undefined;
+    if (moved !== undefined) return c.redirect(`${moved}${new URL(c.req.url).search}`, 301);
     const file = site.lookup(path);
     if (file === undefined) {
       await next();

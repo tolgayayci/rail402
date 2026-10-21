@@ -24,7 +24,7 @@ export function useLocation(): { readonly pathname: string; readonly search: URL
   return { pathname: url.pathname, search: url.searchParams };
 }
 
-/** Goes to a same-origin path such as `/pay?listing=…`. */
+/** Goes to a same-origin path such as `/bazaar` or `/?mode=upto`. */
 export function navigate(to: string, options: { readonly replace?: boolean } = {}): void {
   if (snapshot() === to) return;
   if (options.replace === true) window.history.replaceState(null, "", to);

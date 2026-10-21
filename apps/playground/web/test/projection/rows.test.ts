@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { projectRows, STEP_ORDER, type Row } from "../../src/projection/rows.ts";
 import { SCENARIO_EXPERIMENTS, SCENARIO_IDS, STEP_IDS } from "../../../src/shared/lab.ts";
-import { CHECK_RUNS, PAY_MCP_LISTING_RUN, SCENARIO_RUNS, scenarioRun } from "../fixtures/runs.ts";
+import {
+  CHECK_RUNS,
+  PAY_BELOW_CAP_RUN,
+  PAY_MCP_LISTING_RUN,
+  SCENARIO_RUNS,
+  scenarioRun,
+} from "../fixtures/runs.ts";
 
 const context = { asset: { symbol: "USDC", decimals: 7 } };
 
@@ -59,15 +65,15 @@ describe("swimlane rows", () => {
   });
 
   it("refuses a cap below the price before anything is signed", () => {
-    expect(shape(rowsOf("pay:low-cap"))).toEqual([
+    expect(shape(projectRows(PAY_BELOW_CAP_RUN, context))).toEqual([
       "request 0→1 done you",
       "quote 1→0 done seller",
       "refused self 0 error you",
     ]);
-    const refused = rowsOf("pay:low-cap").find((row) => row.step === "refused");
+    const refused = projectRows(PAY_BELOW_CAP_RUN, context).find((row) => row.step === "refused");
     expect(refused?.label).toBe("Refused before signing");
     expect(refused?.fields).toContainEqual({ key: "signed", value: "nothing", source: "you" });
-    expect(refused?.fields).toContainEqual({ key: "your cap", value: "0.0005", source: "you" });
+    expect(refused?.fields).toContainEqual({ key: "your cap", value: "0.0001", source: "you" });
   });
 
   it("shows a resent payment refused and charged once", () => {
@@ -150,22 +156,6 @@ describe("swimlane rows", () => {
     ]);
   });
 
-  it("projects selling: catalog, origin check and search", () => {
-    expect(shape(rowsOf("sell:normal"))).toEqual([
-      "request 0→1 done you",
-      "quote 1→0 done seller",
-      "paid-request 0→1 done you",
-      "settle 1→2 done seller",
-      "catalog 2→3 done bazaar",
-      "origin-check 2→1 done bazaar",
-      "listed self 3 done bazaar",
-    ]);
-    // Recorded locally, where the sample account has no home domain: verified by origin only.
-    expect(rowsOf("sell:normal").find((row) => row.step === "listed")?.label).toBe(
-      "Listed · origin verified",
-    );
-  });
-
   it("orders rows by causal step, not arrival, and marks open requests live", () => {
     const log = scenarioRun("pay", "normal");
     // Deliver the chain read after everything else: its row is still drawn before the 200.
@@ -210,7 +200,12 @@ describe("swimlane rows", () => {
   });
 
   it("projects recorded runs, which hold no seed and no payment material", () => {
-    for (const log of [...Object.values(SCENARIO_RUNS), ...Object.values(CHECK_RUNS), PAY_MCP_LISTING_RUN]) {
+    for (const log of [
+      ...Object.values(SCENARIO_RUNS),
+      ...Object.values(CHECK_RUNS),
+      PAY_MCP_LISTING_RUN,
+      PAY_BELOW_CAP_RUN,
+    ]) {
       expect(log[0]).toMatchObject({ kind: "run", phase: "start" });
       expect(log.at(-1)).toMatchObject({ kind: "run", phase: "end" });
       const text = JSON.stringify(log);
@@ -220,7 +215,12 @@ describe("swimlane rows", () => {
   });
 
   it("never puts payment material in a row", () => {
-    for (const log of [...Object.values(SCENARIO_RUNS), ...Object.values(CHECK_RUNS), PAY_MCP_LISTING_RUN]) {
+    for (const log of [
+      ...Object.values(SCENARIO_RUNS),
+      ...Object.values(CHECK_RUNS),
+      PAY_MCP_LISTING_RUN,
+      PAY_BELOW_CAP_RUN,
+    ]) {
       for (const row of projectRows(log, context)) {
         for (const field of row.fields) expect(field.value).not.toMatch(/^[A-Za-z0-9+/]{120,}={0,2}$/);
       }

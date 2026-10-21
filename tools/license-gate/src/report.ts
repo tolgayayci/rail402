@@ -44,6 +44,12 @@ const ARTIFACTS: readonly { name: string; license: string; where: string }[] = [
     license: "Apache-2.0",
     where: "contract builds only; pinned digest in scripts/contracts/common.sh",
   },
+  {
+    name: "Space Grotesk, Archivo and JetBrains Mono fonts (Latin woff2 subsets, Fontsource 5.3.0)",
+    license: "OFL-1.1",
+    where:
+      "Playground page; files and licence texts in apps/playground/web/src/ui/fonts and apps/playground/web/public/fonts",
+  },
   { name: "postgres:18 image", license: "PostgreSQL", where: "docker-compose and CI only" },
   { name: "stellar/quickstart image", license: "Apache-2.0", where: "docker-compose and CI only" },
 ];

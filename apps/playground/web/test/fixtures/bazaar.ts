@@ -1,14 +1,19 @@
-/** Bazaar listings, version histories, a seller check and the agent's tools, as the engine returns them. */
+/** Bazaar listings, version histories and the agent's tools, as the engine returns them. */
 import type { ListingView, VersionView } from "../../src/engine/events.ts";
-import type { SellerCheckView, ToolDefinitionView } from "../../src/engine/types.ts";
+import type { ToolDefinitionView } from "../../src/engine/types.ts";
 import { IDS, URLS } from "./ids.ts";
-import { listing, option, required } from "./views.ts";
+import { field, listing } from "./views.ts";
 
 export const LISTINGS = Object.freeze({
   weather: listing({
     id: IDS.listing.weather,
     resource: `${URLS.demoSeller}/weather`,
     description: "Current weather for a city",
+    input: {
+      fields: [
+        field({ name: "city", in: "query", required: true, description: "City name", example: "Istanbul" }),
+      ],
+    },
   }),
   forecast: listing({
     id: IDS.listing.forecast,
@@ -18,12 +23,43 @@ export const LISTINGS = Object.freeze({
     toolName: "hourly_forecast",
     description: "Hourly forecast for a city, billed per hour",
     price: { scheme: "upto", amount: "100000", decimal: "0.01", symbol: "USDC" },
+    input: {
+      fields: [
+        field({
+          name: "city",
+          in: "argument",
+          required: true,
+          description: "City name",
+          example: "Istanbul",
+        }),
+        field({
+          name: "hours",
+          in: "argument",
+          kind: "integer",
+          required: true,
+          description: "Number of hours ahead to forecast, 1-48; each hour is charged",
+          example: "12",
+        }),
+      ],
+    },
   }),
   history: listing({
     id: IDS.listing.history,
     resource: `${URLS.demoSeller}/history`,
     description: "Daily weather history for a city, billed per day",
     price: { scheme: "upto", amount: "100000", decimal: "0.01", symbol: "USDC" },
+    input: {
+      fields: [
+        field({ name: "city", in: "query", required: true, description: "City name", example: "Istanbul" }),
+        field({
+          name: "days",
+          in: "query",
+          required: true,
+          description: "Number of past days",
+          example: "7",
+        }),
+      ],
+    },
   }),
   translate: listing({
     id: IDS.listing.translate,
@@ -31,6 +67,18 @@ export const LISTINGS = Object.freeze({
     method: "POST",
     description: "Translate a short text into another language",
     price: { scheme: "exact", amount: "20000", decimal: "0.002", symbol: "USDC" },
+    input: {
+      fields: [
+        field({ name: "to", in: "body", required: true, description: "Target language code", example: "tr" }),
+        field({
+          name: "text",
+          in: "body",
+          required: true,
+          description: "Text to translate",
+          example: "Hello",
+        }),
+      ],
+    },
   }),
   airQuality: listing({
     id: IDS.listing.airQuality,
@@ -39,6 +87,24 @@ export const LISTINGS = Object.freeze({
     method: null,
     toolName: "air_quality",
     description: "Current air quality index (AQI) for a city",
+    input: {
+      fields: [
+        field({
+          name: "city",
+          in: "argument",
+          required: true,
+          description: "City name",
+          example: "Istanbul",
+        }),
+        field({
+          name: "pollutant",
+          in: "argument",
+          description: "Pollutant to report",
+          options: ["pm25", "pm10", "o3", "no2"],
+          example: "pm25",
+        }),
+      ],
+    },
   }),
   sample: listing({
     id: IDS.listing.sample,
@@ -49,6 +115,7 @@ export const LISTINGS = Object.freeze({
     version: 2,
     settlements: 1,
     price: { scheme: "exact", amount: "100000", decimal: "0.01", symbol: "USDC" },
+    input: { fields: [field({ name: "city", in: "path", required: true, example: "Ankara" })] },
   }),
 } satisfies Record<string, ListingView>);
 
@@ -76,27 +143,6 @@ export const SAMPLE_VERSIONS: readonly VersionView[] = Object.freeze([
     reason: null,
   },
 ]);
-
-export const SELLER_CHECK: SellerCheckView = Object.freeze({
-  url: `${URLS.demoSeller}/weather?city=Ankara`,
-  type: "http",
-  ok: true,
-  status: 402,
-  required: required(`${URLS.demoSeller}/weather`, [option({ verdict: null })], {
-    bazaar: { declared: true, type: "http", method: "GET", toolName: null },
-  }),
-  validation: {
-    catalogable: true,
-    code: null,
-    reason: null,
-    dropped: [],
-    lint: [],
-    preview: { type: "http", method: "GET", resource: `${URLS.demoSeller}/weather` },
-  },
-  findings: [],
-  receivable: [{ asset: IDS.usdc, payTo: IDS.demoPayTo, receivable: true }],
-  domain: { host: "demo.rail402.dev", claimsOwner: true, homeDomainMatches: true },
-});
 
 export const TOOL_DEFINITIONS: readonly ToolDefinitionView[] = [
   {

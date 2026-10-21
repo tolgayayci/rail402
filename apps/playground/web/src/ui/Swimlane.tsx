@@ -1,160 +1,90 @@
 /**
- * The message flow: four lanes, and one row per message or step, projected from lab events. An arrow
- * row runs between two lanes; a step inside one lane is a pill. A row still in flight carries a
- * travelling dot. Clicking a row selects it for the inspector.
+ * The swimlane on the dark stage: one column per party, one row per message. A message is an arrow
+ * between two lanes with its label on a chip; a step inside one lane is a pill. Steps that have played
+ * are grey, the current one glows in the mode's colour, and those still to come are dashed.
+ *
+ * It is a picture of the run: the step list in the inspector carries the same steps for keyboard and
+ * screen-reader users, so this one is hidden from assistive technology and only adds mouse selection.
+ * Each row names its step's kind and lanes (`data-step`, `data-lane`), which the browser tests read.
  */
-import type { ReactElement } from "react";
-import type { Source } from "../engine/events.ts";
-import type { Lane, LaneTone } from "../projection/lanes.ts";
-import type { Row } from "../projection/rows.ts";
+import type { CSSProperties, ReactElement } from "react";
+import type { StageLane, StageStep } from "../projection/stage.ts";
+import { LaneIcon, Spinner } from "./icons.tsx";
 
-const SOURCE_LABEL: Readonly<Record<Source, string>> = {
-  you: "seen on your side",
-  seller: "reported by the seller",
-  chain: "read from the chain",
-  bazaar: "read from the Bazaar",
-};
+export type StepLook = "pending" | "current" | "done" | "error";
 
-export function sourceLabel(source: Source): string {
-  return SOURCE_LABEL[source];
+export interface SwimlaneProps {
+  readonly lanes: readonly StageLane[];
+  readonly steps: readonly StageStep[];
+  readonly lookOf: (step: StageStep) => StepLook;
+  readonly selected: string | null;
+  readonly onSelect: (id: string) => void;
 }
 
-export function LaneHeader({ lanes }: { readonly lanes: readonly Lane[] }): ReactElement {
-  return (
-    <div className="lanes" aria-hidden="false">
-      {lanes.map((lane, index) => (
-        <div key={index} className="lane" data-tone={lane.tone}>
-          <span className="lane-chip">{lane.label.charAt(0)}</span>
-          <span className="lane-label">{lane.label}</span>
-          <span className="lane-role">{lane.role}</span>
-        </div>
-      ))}
-    </div>
-  );
+/** Row height by how many steps must fit. */
+function rowHeight(count: number): number {
+  return count <= 8 ? 58 : count <= 10 ? 50 : 44;
 }
 
-export function Swimlane({
-  lanes,
-  rows,
-  selectedId,
-  onSelect,
-  idle,
-}: {
-  readonly lanes: readonly Lane[];
-  readonly rows: readonly Row[];
-  readonly selectedId: string | null;
-  readonly onSelect: (row: Row) => void;
-  /** Shown instead of rows before the first run. */
-  readonly idle?: ReactElement | null;
-}): ReactElement {
+export function Swimlane({ lanes, steps, lookOf, selected, onSelect }: SwimlaneProps): ReactElement {
+  const style = {
+    "--lanes": lanes.length,
+    "--rows": steps.length,
+    "--row": `${String(rowHeight(steps.length))}px`,
+  } as CSSProperties;
   return (
-    <div className="swimlane">
-      <LaneHeader lanes={lanes} />
-      <div className="rows">
-        <div className="lane-lines" aria-hidden="true">
-          {lanes.map((lane, index) => (
-            <span key={index} data-tone={lane.tone} />
+    <div className="swimlane-scroll" aria-hidden="true">
+      <div className="swimlane" style={style}>
+        <div className="swimlane-bands">
+          {lanes.map((lane) => (
+            <div key={`${lane.tone}-${lane.label}`} className="lane-band" data-tone={lane.tone}>
+              <div className="lane-head">
+                <span className="lane-head-icon">
+                  <LaneIcon icon={lane.icon} />
+                </span>
+                <span className="lane-head-text">
+                  <b>{lane.label}</b>
+                  <span>{lane.role}</span>
+                </span>
+              </div>
+            </div>
           ))}
         </div>
-        <ol className="row-list" aria-label="Messages">
-          {rows.map((row) => (
-            <li key={row.id} className="row-item">
-              <RowButton
-                row={row}
-                lanes={lanes}
-                selected={row.id === selectedId}
-                onSelect={() => {
-                  onSelect(row);
-                }}
-              />
-            </li>
-          ))}
+        <ol className="swimlane-steps">
+          {steps.map((step) => {
+            const look = lookOf(step);
+            const self = "self" in step.lane;
+            const from = "self" in step.lane ? step.lane.self : step.lane.from;
+            const to = "self" in step.lane ? step.lane.self : step.lane.to;
+            const geometry = { "--a": Math.min(from, to), "--b": Math.max(from, to) } as CSSProperties;
+            return (
+              <li
+                key={step.id}
+                className="lane-step"
+                data-look={look}
+                data-step={step.kind}
+                data-lane={self ? `self ${String(from)}` : `${String(from)}→${String(to)}`}
+                data-kind={self ? "self" : "message"}
+                data-dir={to >= from ? "right" : "left"}
+                data-selected={step.id === selected}
+                style={geometry}
+              >
+                {self ? null : <span className="lane-arrow" />}
+                <span
+                  className="lane-chip"
+                  title={step.chip}
+                  onClick={() => {
+                    onSelect(step.id);
+                  }}
+                >
+                  {look === "current" && step.state === "live" ? <Spinner size={11} /> : null}
+                  <span className="lane-chip-text">{step.chip}</span>
+                </span>
+              </li>
+            );
+          })}
         </ol>
-        {rows.length === 0 && idle !== undefined && idle !== null ? (
-          <div className="rows-idle">{idle}</div>
-        ) : null}
       </div>
     </div>
-  );
-}
-
-function RowButton({
-  row,
-  lanes,
-  selected,
-  onSelect,
-}: {
-  readonly row: Row;
-  readonly lanes: readonly Lane[];
-  readonly selected: boolean;
-  readonly onSelect: () => void;
-}): ReactElement {
-  const error = row.status === "error";
-  const live = row.status === "live";
-  const laneTone = (index: number): LaneTone => lanes[index]?.tone ?? "you";
-  const status =
-    row.status === "live"
-      ? "in progress"
-      : row.status === "pending"
-        ? "not finished"
-        : row.status === "error"
-          ? "failed or refused"
-          : "done";
-  const common = {
-    type: "button" as const,
-    className: "row",
-    "data-step": row.step,
-    "data-lane":
-      "self" in row.lane
-        ? `self ${String(row.lane.self)}`
-        : `${String(row.lane.from)}→${String(row.lane.to)}`,
-    "data-status": row.status,
-    "data-source": row.source,
-    "aria-pressed": selected,
-    "aria-label": `Inspect: ${row.label}. ${row.sub}. ${status}, ${sourceLabel(row.source)}.`,
-    onClick: onSelect,
-  };
-
-  if ("self" in row.lane) {
-    const column = row.lane.self + 1;
-    return (
-      <button {...common}>
-        <span className="row-self" style={{ gridColumn: `${String(column)} / ${String(column + 1)}` }}>
-          <span
-            className={`row-pill${live ? " glow" : ""}`}
-            data-tone={error ? "error" : laneTone(row.lane.self)}
-          >
-            {row.label}
-          </span>
-          <span className="row-sub">{row.sub}</span>
-        </span>
-      </button>
-    );
-  }
-
-  const { from, to } = row.lane;
-  const first = Math.min(from, to);
-  const last = Math.max(from, to);
-  const span = last - first + 1;
-  const right = to > from;
-  // Each lane's line is at the middle of its column, so the arrow starts and ends half a column in.
-  const inset = `${(50 / span).toFixed(3)}%`;
-  return (
-    <button {...common}>
-      <span
-        className="row-arrow"
-        data-tone={error ? "error" : laneTone(from)}
-        data-direction={right ? "right" : "left"}
-        style={{ gridColumn: `${String(first + 1)} / ${String(last + 2)}`, paddingInline: inset }}
-      >
-        <span className="row-label">{row.label}</span>
-        <span className="row-track">
-          <span className="row-line" />
-          <span className="row-head" />
-          {live ? <span className={`row-dot ${right ? "travel-right" : "travel-left"}`} /> : null}
-        </span>
-        <span className="row-sub">{row.sub}</span>
-      </span>
-    </button>
   );
 }

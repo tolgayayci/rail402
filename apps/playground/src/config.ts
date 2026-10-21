@@ -25,7 +25,7 @@ export interface PlaygroundConfig {
   readonly port: number;
   /** The listening address: `::` by default, and only loopback (default 127.0.0.1) in local mode. */
   readonly host: string;
-  /** `local` lets the relay and the seller check reach loopback sellers over http; loopback PUBLIC_URL only. */
+  /** `local` lets the relay reach loopback sellers over http; loopback PUBLIC_URL only. */
   readonly mode: "hosted" | "local";
   /** The Playground's own origin, without a trailing slash. */
   readonly publicUrl: string;
@@ -50,7 +50,7 @@ export interface PlaygroundConfig {
   readonly payTo: string | undefined;
   readonly explorerTemplate: string;
   readonly faucetUrl: string;
-  readonly features: { readonly relay: boolean; readonly lab: boolean; readonly sellerCheck: boolean };
+  readonly features: { readonly relay: boolean; readonly lab: boolean };
   /** Host names the relay never contacts, besides the Playground, facilitator and Bazaar hosts. */
   readonly relayDenyHosts: readonly string[];
   /**
@@ -93,8 +93,6 @@ export interface Limits {
   readonly relayBytesPerIpPerDay: number;
   readonly relayBytesPerNetworkPerDay: number;
   readonly relayBytesGlobalPerDay: number;
-  readonly sellerCheckPerMinute: number;
-  readonly sellerCheckGlobalPerMinute: number;
   readonly proxyPerMinute: number;
   /** Upstream fetches of the Bazaar and facilitator proxies; cached answers do not count. */
   readonly proxyGlobalPerMinute: number;
@@ -168,7 +166,6 @@ const schema = z.object({
   FAUCET_URL: httpUrl.default("https://faucet.circle.com"),
   RELAY_ENABLED: bool.default(true),
   LAB_ENABLED: bool.default(true),
-  SELLER_CHECK_ENABLED: bool.default(true),
   RELAY_DENY_HOSTS: hostList,
   RELAY_TRUSTED_HOSTS: z.string().optional(),
   RELAY_UNPAID_PER_MINUTE: int(1).default(60),
@@ -187,8 +184,6 @@ const schema = z.object({
   RELAY_BYTES_PER_IP_PER_DAY: int(RELAY_LIMITS.responseBodyBytes).default(100 * 1_048_576),
   RELAY_BYTES_PER_NETWORK_PER_DAY: int(RELAY_LIMITS.responseBodyBytes).default(400 * 1_048_576),
   RELAY_BYTES_GLOBAL_PER_DAY: int(RELAY_LIMITS.responseBodyBytes).default(10 * 1_073_741_824),
-  SELLER_CHECK_PER_MINUTE: int(1).default(10),
-  SELLER_CHECK_GLOBAL_PER_MINUTE: int(1).default(60),
   PROXY_PER_MINUTE: int(1).default(120),
   PROXY_GLOBAL_PER_MINUTE: int(1).default(240),
   LAB_UNPAID_PER_MINUTE: int(1).default(120),
@@ -294,7 +289,7 @@ export function loadConfig(
     payTo: e.LAB_ENABLED ? e.PLAYGROUND_PAY_TO : undefined,
     explorerTemplate: e.EXPLORER_TEMPLATE,
     faucetUrl: e.FAUCET_URL,
-    features: { relay: e.RELAY_ENABLED, lab: e.LAB_ENABLED, sellerCheck: e.SELLER_CHECK_ENABLED },
+    features: { relay: e.RELAY_ENABLED, lab: e.LAB_ENABLED },
     relayDenyHosts: e.RELAY_DENY_HOSTS,
     relayLoopHosts: [normalizeHost(e.RAILWAY_PUBLIC_DOMAIN ?? "")].filter(
       (host) => host !== "" && host !== normalizeHost(publicUrl.hostname) && URL.canParse(`https://${host}/`),
@@ -317,8 +312,6 @@ export function loadConfig(
       relayBytesPerIpPerDay: e.RELAY_BYTES_PER_IP_PER_DAY,
       relayBytesPerNetworkPerDay: e.RELAY_BYTES_PER_NETWORK_PER_DAY,
       relayBytesGlobalPerDay: e.RELAY_BYTES_GLOBAL_PER_DAY,
-      sellerCheckPerMinute: e.SELLER_CHECK_PER_MINUTE,
-      sellerCheckGlobalPerMinute: e.SELLER_CHECK_GLOBAL_PER_MINUTE,
       proxyPerMinute: e.PROXY_PER_MINUTE,
       proxyGlobalPerMinute: e.PROXY_GLOBAL_PER_MINUTE,
       labUnpaidPerMinute: e.LAB_UNPAID_PER_MINUTE,
@@ -395,7 +388,6 @@ export function publicConfigOf(config: PlaygroundConfig): PublicConfig {
       limits: { ...RELAY_LIMITS },
       timeoutMaxima: { ...RELAY_TIMEOUT_MAXIMA },
     },
-    sellerCheck: { enabled: config.features.sellerCheck },
     onboarding: { buyAmount: "1", keepXlm: "10", faucetUrl: config.faucetUrl },
   });
 }

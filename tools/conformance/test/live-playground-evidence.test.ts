@@ -22,7 +22,7 @@ const transaction = (hash: string) => ({
   explorer: `https://stellar.expert/explorer/testnet/tx/${hash}`,
 });
 
-const PAYING = new Set(["pay-exact", "replay", "pay-upto", "agent-mcp", "sell-listed", "refusal-session"]);
+const PAYING = new Set(["pay-exact", "replay", "pay-upto", "agent-mcp", "bazaar-mcp", "refusal-session"]);
 const REFUSED = new Set([
   "cap-below-price",
   "replay",
@@ -31,6 +31,7 @@ const REFUSED = new Set([
   "refusal-asset",
   "refusal-amount",
   "refusal-recipient",
+  "refusal-per-call-cap",
   "refusal-session",
   "ssrf-literal",
   "ssrf-metadata",
@@ -39,7 +40,7 @@ const REFUSED = new Set([
 
 /** A run where every case passed, with the transactions and observations each needs. */
 function complete(): EvidenceCase[] {
-  const classic = [1, 2, 3].map((index) => ({ hash: hashOf(index), ledger: 9 }));
+  const classic = [1, 2].map((index) => ({ hash: hashOf(index), ledger: 9 }));
   let next = 10;
   const cases = PLAYGROUND_CASES.map((id): EvidenceCase => {
     const observations: Record<string, unknown> = {};
@@ -116,7 +117,7 @@ describe("live-playground evidence", () => {
 
   it("accepts the cases a run against a deployed Rail402 skips, with a reason", () => {
     const cases = complete().map((entry) =>
-      ["sell-listed", "ssrf-literal", "redirect"].includes(entry.id)
+      ["ssrf-literal", "redirect"].includes(entry.id)
         ? {
             id: entry.id,
             title: entry.title,
@@ -168,7 +169,7 @@ describe("live-playground evidence", () => {
     ]);
   });
 
-  it("refuses onboarding without its three transactions and a transaction the explorer did not show", () => {
+  it("refuses onboarding without its two transactions and a transaction the explorer did not show", () => {
     let cases = replace(complete(), "onboarding", (entry) => ({
       ...entry,
       observations: { classicTransactions: [{ hash: hashOf(1) }] },
@@ -185,7 +186,7 @@ describe("live-playground evidence", () => {
       };
     });
     expect(livePlaygroundProblems(document(cases))).toEqual([
-      "onboarding must record its three setup transactions",
+      "onboarding must record its two setup transactions",
       `transaction ${hashOf(10)}: the explorer answered 404`,
       `transaction ${hashOf(1)} was not checked in the explorer`,
     ]);

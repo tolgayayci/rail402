@@ -332,15 +332,6 @@ describe("engine", () => {
     expect(events.find((event) => event.kind === "refusal")).toMatchObject({ layer: "policy" });
   });
 
-  it("uses the low cap preset for the cap-below-price experiment", async () => {
-    const { engine } = harness();
-    await engine.ready;
-    await engine.wallet.create().done;
-    const run = engine.run({ scenario: "pay", experiment: "low-cap", cap: "0.05" });
-    expect(eventsOf(run)[0]).toMatchObject({ cap: config.caps.perCallLowPreset });
-    await run.done;
-  });
-
   it("refuses a paying run without a wallet", async () => {
     const { engine } = harness();
     await engine.ready;
@@ -449,6 +440,19 @@ describe("engine helpers", () => {
       query: { days: 7 },
     });
     expect(callInputFor(hit(), { city: "Izmir" })).toEqual({ arguments: { city: "Izmir" } });
+  });
+
+  it("sends a POST listing's fields as its JSON body", () => {
+    const post = hit({
+      type: "http",
+      method: "POST",
+      toolName: null,
+      input: { schema: null, example: null, pathParams: ["id"] },
+    });
+    expect(callInputFor(post, { id: "7", text: "Hello", to: "tr", options: { formal: true } })).toEqual({
+      pathParams: { id: "7" },
+      body: { text: "Hello", to: "tr", options: { formal: true } },
+    });
   });
 
   it("shows the policy asset's budget", () => {

@@ -1,164 +1,161 @@
 /*
- * Design tokens. Lane colours identify the parties of a payment everywhere on the page: in the
- * legend, the swimlanes, the inspector's field dots and the outcome card. `data-tone` on any element
- * selects a party's colour as --tone, --tone-tint and --tone-ink.
+ * Design tokens, shared with the documentation theme: a warm paper ground with a faint grid, black
+ * ink, Rail402 orange, and a dark stage where runs play. Each payment mode has its colour, on paper
+ * and on the dark stage; `data-mode` on any element selects one as --mode, --mode-ink, --mode-dark,
+ * --mode-tint and --mode-glow.
  */
 :root {
-  --lane-you: #2563eb;
-  --lane-you-tint: #eff6ff;
-  --lane-you-ink: #1d4ed8;
-  --lane-seller: #7c3aed;
-  --lane-seller-tint: #f5f3ff;
-  --lane-seller-ink: #6d28d9;
-  --lane-rail: #d97706;
-  --lane-rail-tint: #fffbeb;
-  --lane-rail-ink: #b45309;
-  --lane-stellar: #0d9488;
-  --lane-stellar-tint: #f0fdfa;
-  --lane-stellar-ink: #0f766e;
-  --lane-bazaar: #db2777;
-  --lane-bazaar-tint: #fdf2f8;
-  --lane-bazaar-ink: #be185d;
-
-  --tone-error: #dc2626;
-  --tone-error-tint: #fef2f2;
-  --tone-error-ink: #b91c1c;
-  --tone-error-line: #fecaca;
-  --tone-info: #2563eb;
-  --tone-info-tint: #eff6ff;
-  --tone-info-ink: #1d4ed8;
-  --tone-info-line: #bfdbfe;
-  --tone-ok: #16a34a;
-  --tone-ok-tint: #f0fdf4;
-  --tone-ok-ink: #15803d;
-  --tone-ok-line: #bbf7d0;
-
-  --bg: #f7f7f9;
+  --ground: #fcfbf9;
+  --grid-line: #f0ece6;
   --surface: #ffffff;
-  --surface-sunken: #f4f4f8;
-  --ink: #0b0b10;
-  --ink-2: #1e1e26;
-  --ink-3: #3f3f48;
-  --muted: #5b5b66;
-  --muted-2: #6b6b76;
-  --line: #e6e6eb;
-  --line-soft: #efeff3;
-  --line-strong: #d6d6de;
-  --code-bg: #0f0f14;
-  --code-line: #23232c;
-  --code-ink: #c9c9d4;
-  --code-muted: #8e8e9a;
-  --code-tab: #26262f;
-  --code-hot: rgba(217, 119, 6, 0.18);
-  --link: #1d4ed8;
-  --link-hover: #1e3a8a;
-  --primary: #b45309;
-  --primary-ink: #ffffff;
+  --surface-soft: #f6f3ee;
+  --surface-pressed: #f1ede7;
+  --ink: #111111;
+  --muted: #5f5a54;
+  --line: #e8e4de;
+  --line-strong: #d6d0c7;
 
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --radius-s: 8px;
-  --radius-m: 10px;
-  --radius-l: 14px;
-  --gutter: 28px;
+  --accent: #e23e00;
+  --accent-bright: #ff4d00;
+  --accent-ink: #c43d00;
+  --accent-ink-hover: #8f2c00;
+  --accent-dark: #ff7a47;
+
+  --ok: #1f8a4c;
+  --ok-ink: #17663a;
+  --ok-tint: #e5f4ea;
+  --danger: #b42318;
+  --danger-tint: #fff4f1;
+  --danger-line: #f3c2b8;
+  --info-ink: #2457e6;
+  --info-tint: #eef3ff;
+  --info-line: #cbd9ff;
+
+  /* Text on ink and on a mode colour. */
+  --on-ink: #ffffff;
+  --ink-hover: #2a2a2a;
+  --surface-sunk: #ede8e1;
+  --line-stronger: #c9c4bc;
+  --warn: #c98a00;
+  --danger-tint-hover: #ffe7e1;
+
+  /* Payment modes: on paper, as text on paper, on the dark stage, as a tint, as a glow. */
+  --exact: #e23e00;
+  --exact-ink: #c43d00;
+  --exact-dark: #ff7a47;
+  --exact-tint: #fff3ec;
+  --exact-glow: rgba(255, 122, 71, 0.45);
+  --upto: #2457e6;
+  --upto-ink: #2457e6;
+  --upto-dark: #7ea2ff;
+  --upto-tint: #eef3ff;
+  --upto-glow: rgba(126, 162, 255, 0.45);
+  --agent: #7a3fe0;
+  --agent-ink: #6c35cf;
+  --agent-dark: #b39bff;
+  --agent-tint: #f4efff;
+  --agent-glow: rgba(179, 155, 255, 0.45);
+
+  /* The dark stage. */
+  --stage: #0e0e10;
+  --stage-band: #141418;
+  --stage-chip: #1c1c21;
+  --stage-field: #16161a;
+  --stage-line: #26262c;
+  --stage-line-strong: #2e2e35;
+  --stage-text: #edebe7;
+  --stage-muted: #a39f98;
+  --stage-faint: #8a857e;
+  --stage-raised: #1e1e24;
+  --stage-raised-strong: #2b2b31;
+  --stage-well: #17171b;
+  --stage-sunk: #121215;
+  --stage-edge: #2a2a30;
+  --stage-edge-strong: #3a3a42;
+  --stage-edge-hover: #4a4a52;
+  --stage-shadow: rgba(0, 0, 0, 0.6);
+
+  /* Steps on the stage: done and still to come. */
+  --stage-done: #77736c;
+  --stage-pending: #34343b;
+
+  /* Outcomes on the stage. */
+  --stage-ok: #7edda8;
+  --stage-ok-strong: #2bb673;
+  --stage-ok-tint: #1f3a2c;
+  --stage-error: #fda29b;
+  --stage-error-strong: #f97066;
+  --stage-error-solid: #d92d20;
+  --stage-error-muted: #b4544c;
+  --stage-error-line: #7a2e28;
+  --stage-error-line-soft: #5a2a24;
+  --stage-error-tint: #2a1513;
+  --stage-info-line: #2b3550;
+  --stage-info-tint: #1f2a44;
+
+  /* Lanes and panels with their own colour. */
+  --lane-chain: #3cc8b4;
+  --agent-dark-line: #3a2f5c;
+  --agent-dark-tint: #1f1a2e;
+  --agent-dark-tint-strong: #2a2340;
+
+  /* Code on the stage. */
+  --code-string: #9fd8a8;
+  --code-keyword: #ff9b70;
+
+  /* The result card's weather icons. */
+  --icon-cloud: #a9b4c8;
+  --icon-rain: #7ea2ff;
+  --icon-sun: #ffb547;
+
+  --font-head: "Space Grotesk", "Archivo", system-ui, sans-serif;
+  --font-sans: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-s: 6px;
+  --radius-m: 8px;
+  --radius-l: 12px;
+  --radius-xl: 18px;
+
+  --shadow-pop: 0 20px 50px rgba(17, 17, 17, 0.18);
+  --shadow-dialog: 0 30px 80px rgba(0, 0, 0, 0.35);
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration: 250ms;
+  --duration-slow: 450ms;
+
+  --gutter: 32px;
+  --header-height: 60px;
+  --focus: #111111;
+  --focus-on-dark: #ffffff;
 }
 
-[data-tone="you"] {
-  --tone: var(--lane-you);
-  --tone-tint: var(--lane-you-tint);
-  --tone-ink: var(--lane-you-ink);
-}
-[data-tone="seller"] {
-  --tone: var(--lane-seller);
-  --tone-tint: var(--lane-seller-tint);
-  --tone-ink: var(--lane-seller-ink);
-}
-[data-tone="rail"] {
-  --tone: var(--lane-rail);
-  --tone-tint: var(--lane-rail-tint);
-  --tone-ink: var(--lane-rail-ink);
-}
-[data-tone="stellar"],
-[data-tone="chain"] {
-  --tone: var(--lane-stellar);
-  --tone-tint: var(--lane-stellar-tint);
-  --tone-ink: var(--lane-stellar-ink);
-}
-[data-tone="bazaar"] {
-  --tone: var(--lane-bazaar);
-  --tone-tint: var(--lane-bazaar-tint);
-  --tone-ink: var(--lane-bazaar-ink);
-}
-[data-tone="error"] {
-  --tone: var(--tone-error);
-  --tone-tint: var(--tone-error-tint);
-  --tone-ink: var(--tone-error-ink);
-}
-[data-tone="idle"] {
-  --tone: var(--muted);
-  --tone-tint: #f4f4f5;
-  --tone-ink: var(--muted);
+[data-mode="exact"] {
+  --mode: var(--exact);
+  --mode-ink: var(--exact-ink);
+  --mode-dark: var(--exact-dark);
+  --mode-tint: var(--exact-tint);
+  --mode-glow: var(--exact-glow);
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+[data-mode="upto"] {
+  --mode: var(--upto);
+  --mode-ink: var(--upto-ink);
+  --mode-dark: var(--upto-dark);
+  --mode-tint: var(--upto-tint);
+  --mode-glow: var(--upto-glow);
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
+[data-mode="agent"] {
+  --mode: var(--agent);
+  --mode-ink: var(--agent-ink);
+  --mode-dark: var(--agent-dark);
+  --mode-tint: var(--agent-tint);
+  --mode-glow: var(--agent-glow);
 }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-a {
-  color: var(--link);
-}
-a:hover {
-  color: var(--link-hover);
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
-}
-
-code,
-pre,
-.mono {
-  font-family: var(--font-mono);
-}
-
-:focus-visible {
-  outline: 2px solid var(--lane-you);
-  outline-offset: 2px;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   :root {
     --gutter: 16px;
   }

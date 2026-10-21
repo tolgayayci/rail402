@@ -42,7 +42,8 @@ const holder = await net.holder(services.usdc, "1");
 const primer = await createBuyer({
   network: TESTNET,
   signer: KeyHolder.fromSecret(holder.secret()),
-  rpcUrl: net.rpcUrl,
+  // The https proxy: the exact scheme's client refuses a plain http RPC.
+  rpcUrl: services.rpcUrl,
   bazaarUrl: services.rail402.url,
   facilitatorUrl: services.rail402.url,
   policy: {
@@ -57,12 +58,22 @@ const primer = await createBuyer({
   schemes: [exactScheme(), uptoScheme({ contract: services.upto.address })],
 });
 try {
+  // The Bazaar lists a tool once it has been paid: the Bazaar page's metered tool and the agent's pick.
   await primer.pay(
     {
       kind: "mcp",
       url: `${services.demoSeller.url}/mcp`,
       toolName: "hourly_forecast",
       arguments: { city: "Ankara", hours: 1 },
+    },
+    { maxAmount: { amount: "0.01", asset: "USDC" } },
+  );
+  await primer.pay(
+    {
+      kind: "mcp",
+      url: `${services.demoSeller.url}/mcp`,
+      toolName: "air_quality",
+      arguments: { city: "Ankara" },
     },
     { maxAmount: { amount: "0.01", asset: "USDC" } },
   );

@@ -35,8 +35,7 @@ export interface AgentPlan {
 }
 
 /** The pick rule, as the page shows it. */
-export const PICK_RULE =
-  "The first result that is callable, within the spending policy, at least origin-verified, offers the hourly_forecast tool and is served by the demo seller.";
+export const PICK_RULE = `The first result that is callable, within the spending policy, at least origin-verified, offers the ${SCENARIO_DEFAULTS.agent.toolName} tool and is served by the demo seller.`;
 
 /** The default plan with the run's cap, the configured asset and the demo seller. */
 export function defaultPlan(

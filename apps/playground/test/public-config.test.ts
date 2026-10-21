@@ -63,7 +63,6 @@ const sampleConfig: PublicConfig = {
     limits: { ...RELAY_LIMITS },
     timeoutMaxima: { ...RELAY_TIMEOUT_MAXIMA },
   },
-  sellerCheck: { enabled: true },
   onboarding: { buyAmount: "1", keepXlm: "10", faucetUrl: "https://faucet.circle.com" },
 };
 

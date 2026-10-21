@@ -22,7 +22,7 @@ describe("playground codes", () => {
     expect(server.filter((code) => client.includes(code))).toEqual([]);
     expect(Object.keys(playgroundCodes).sort()).toEqual([...server, ...client].sort());
     expect(server).toHaveLength(17);
-    expect(client).toHaveLength(7);
+    expect(client).toHaveLength(8);
   });
 
   it("raises coded errors with the registered status", () => {

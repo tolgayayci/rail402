@@ -5,7 +5,6 @@ import { Account, Asset, Keypair, Networks, Operation, TransactionBuilder } from
 import { decodePaymentResponseHeader, encodePaymentSignatureHeader } from "@x402/core/http";
 import type { PaymentPayload, PaymentRequired } from "@x402/core/types";
 import { SecretScanner } from "@rail402.dev/testkit";
-import { SELLER_CHECK_PATH } from "../src/seller-check.ts";
 import { LAB_PATHS, sellPath } from "../src/shared/lab.ts";
 import { RELAY_PATH, encodeRelayRequest } from "../src/shared/relay-protocol.ts";
 import { TRACE_HEADER, decodeTrace } from "../src/shared/trace.ts";
@@ -17,7 +16,7 @@ import { PAY_TO, testApp, testConfig, type TestApp } from "./support.ts";
  * PAYMENT-SIGNATURE header are the needles. The payment goes through every server path that can carry
  * one (the relay, both lab sellers, a facilitator that echoes what it was sent), and every channel the
  * server writes is captured: response bodies and headers (Rail402-Trace included), trace-level logs,
- * anything printed to the console, /metrics, /api/config and the seller check. Only the seller the
+ * anything printed to the console, /metrics and /api/config. Only the seller the
  * relay forwards to and the facilitator may receive the payment; the scan requires every other
  * channel to be clean.
  */
@@ -146,19 +145,10 @@ describe("server secret scan", () => {
     }
     expect(facilitators.settles.calls.length).toBeGreaterThan(0);
 
-    // The seller check, handed the payment where it does not belong, and the public endpoints.
-    await capture(
-      scanner,
-      "seller check",
-      await app.request(SELLER_CHECK_PATH, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: "https://seller.example/", toolName: relayPayment }),
-      }),
-    );
+    // The public endpoints.
     for (const path of ["/api/config", "/metrics", "/health"])
       await capture(scanner, path, await app.request(path));
-    scanner.capture("server log (relay, lab, checks)", app.logs.text());
+    scanner.capture("server log (relay, lab)", app.logs.text());
     app.close();
 
     // A lab seller whose facilitator echoes what it received into its error.

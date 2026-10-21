@@ -63,7 +63,6 @@ import {
 import { Catalog } from "./catalog.ts";
 import { ChainFacts } from "./chain.ts";
 import { checkCap, runCheck } from "./checks/refusals.ts";
-import type { DecodeContext } from "./decode.ts";
 import { codedError, engineError, toJsonValue } from "./errors.ts";
 import type { JsonValue, LabEventBody, ListingView, VersionView, TxView } from "./events.ts";
 import { runOvercharge } from "./experiments/overcharge.ts";
@@ -81,9 +80,7 @@ import {
   type RunContext,
 } from "./scenarios/context.ts";
 import { runPay } from "./scenarios/pay.ts";
-import { runSell } from "./scenarios/sell.ts";
 import { runUpto } from "./scenarios/upto.ts";
-import { checkSeller } from "./seller-check.ts";
 import type {
   BudgetView,
   CodedError,
@@ -98,8 +95,6 @@ import type {
   ScenarioRequest,
   SearchPage,
   SearchRequest,
-  SellerCheckRequest,
-  SellerCheckView,
   ToolDefinitionView,
   WalletActions,
 } from "./types.ts";
@@ -166,10 +161,10 @@ export class PlaygroundEngine implements Engine {
   readonly #callRuns = new Map<string, Run>();
   readonly #loop: ReconcileLoop;
   readonly #sleep: (ms: number) => Promise<void>;
-  readonly #decode: DecodeContext;
   #state: EngineState = {
     wallet: { status: "loading" },
     balances: null,
+    balancesRead: "pending",
     budget: null,
     activeRun: null,
     unfinished: 0,
@@ -202,7 +197,6 @@ export class PlaygroundEngine implements Engine {
       contract === config.asset.contract
         ? { symbol: config.asset.symbol, decimals: config.asset.decimals }
         : undefined;
-    this.#decode = { assetFacts };
     this.#observer = new Observer({ assetFacts });
     this.#transport = createSellerTransport({ config, observer: this.#observer, fetch: this.#fetch });
     this.#chain =
@@ -250,7 +244,7 @@ export class PlaygroundEngine implements Engine {
     this.wallet = {
       create: () => this.#walletRun(async (vault) => [await vault.create(TESTNET), "created"]),
       import: (seed) => this.#walletRun(async (vault) => [await vault.import(seed, TESTNET), "imported"]),
-      fund: () => this.#fund(),
+      fund: (options) => this.#fund(options?.topUp === true),
       exportFile: () => this.#exportFile(),
       forget: () => this.#forget(),
     };
@@ -369,6 +363,9 @@ export class PlaygroundEngine implements Engine {
         storage: vault.storage,
         setup: { account: false, trustline: false, funded: false },
       },
+      // The setup flags and balances are unknown until the chain is read.
+      balances: null,
+      balancesRead: "pending",
     });
   }
 
@@ -420,7 +417,7 @@ export class PlaygroundEngine implements Engine {
     const vault = this.#vault;
     const wallet = vault?.wallet;
     if (wallet === undefined || this.#state.wallet.status !== "ready") {
-      this.#set({ balances: null, budget: null, unfinished: 0 });
+      this.#set({ balances: null, balancesRead: "pending", budget: null, unfinished: 0 });
       return;
     }
     let lastError: CodedError | null = null;
@@ -430,6 +427,7 @@ export class PlaygroundEngine implements Engine {
         balances.asset !== null && (toAtomic(balances.asset, this.config.asset.decimals) ?? 0n) > 0n;
       this.#set({
         balances,
+        balancesRead: "ok",
         wallet: {
           ...this.#state.wallet,
           setup: { account: balances.xlm !== null, trustline: balances.asset !== null, funded },
@@ -437,6 +435,7 @@ export class PlaygroundEngine implements Engine {
       });
     } catch (error) {
       lastError = codedError(error);
+      this.#set({ balancesRead: "failed" });
     }
     this.#set({ lastError });
     this.#refreshBudget();
@@ -600,8 +599,7 @@ export class PlaygroundEngine implements Engine {
   }
 
   run(request: ScenarioRequest): RunHandle {
-    const lowCap = request.experiment === "low-cap";
-    const cap = lowCap ? this.config.caps.perCallLowPreset : request.cap;
+    const cap = request.cap;
     return this.#begin(
       { kind: "run", phase: "start", scenario: request.scenario, variant: request.experiment, cap },
       async (run) => {
@@ -699,7 +697,7 @@ export class PlaygroundEngine implements Engine {
     );
   }
 
-  #fund(): RunHandle {
+  #fund(topUp: boolean): RunHandle {
     return this.#begin(
       null,
       async (run) => {
@@ -717,6 +715,7 @@ export class PlaygroundEngine implements Engine {
             asset: { contract: asset.contract, code: asset.classic.code, issuer: asset.classic.issuer },
             buyAmount: onboarding.buyAmount,
             keepXlm: onboarding.keepXlm,
+            topUp,
             signal: run.signal,
             sleep: this.#sleep,
             onStep: (step, transaction) => {
@@ -756,6 +755,7 @@ export class PlaygroundEngine implements Engine {
         this.#set({
           wallet: { status: "none", storage: vault.storage },
           balances: null,
+          balancesRead: "pending",
           budget: null,
           unfinished: 0,
         });
@@ -826,7 +826,7 @@ export class PlaygroundEngine implements Engine {
   }
 
   // -------------------------------------------------------------------------------------------------
-  // Bazaar, seller check, chain
+  // Bazaar, chain
 
   async search(request: SearchRequest): Promise<SearchPage> {
     try {
@@ -882,14 +882,6 @@ export class PlaygroundEngine implements Engine {
   async versions(id: string): Promise<readonly VersionView[]> {
     try {
       return await this.#catalog.versions(id);
-    } catch (error) {
-      throw engineError(error);
-    }
-  }
-
-  async sellerCheck(request: SellerCheckRequest): Promise<SellerCheckView> {
-    try {
-      return await checkSeller(request, { origin: this.#origin, fetch: this.#fetch, context: this.#decode });
     } catch (error) {
       throw engineError(error);
     }
@@ -962,8 +954,6 @@ function dispatch(
       return experiment === "overcharge" ? runOvercharge(context, params) : runUpto(context, params);
     case "agent":
       return runAgentWithCap(context, params);
-    case "sell":
-      return runSell(context, params);
   }
 }
 
@@ -985,19 +975,28 @@ function reportRefusalOn(run: Run, error: unknown): CodedError {
   return reportRefusal({ run } as RunContext, error);
 }
 
-/** How a listing is called with the page's parameters: path and query values, or tool arguments. */
+/**
+ * How a listing is called with the page's parameters: path values, then query values (or JSON body
+ * fields for a POST, PUT or PATCH listing), or tool arguments.
+ */
 export function callInputFor(hit: SearchHit, params: Readonly<Record<string, JsonValue>>): CallInput {
   if (hit.type === "mcp") return { arguments: { ...params } };
+  const withBody = ["POST", "PUT", "PATCH"].includes((hit.method ?? "GET").toUpperCase());
   const pathParams: Record<string, string> = {};
   const query: Record<string, string | number | boolean> = {};
+  const body: Record<string, JsonValue> = {};
   for (const [name, value] of Object.entries(params)) {
-    if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") continue;
-    if (hit.input.pathParams.includes(name)) pathParams[name] = String(value);
-    else query[name] = value;
+    if (hit.input.pathParams.includes(name)) {
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+        pathParams[name] = String(value);
+    } else if (withBody) body[name] = value;
+    else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+      query[name] = value;
   }
   return {
     ...(Object.keys(pathParams).length === 0 ? {} : { pathParams }),
     ...(Object.keys(query).length === 0 ? {} : { query }),
+    ...(Object.keys(body).length === 0 ? {} : { body }),
   };
 }
 

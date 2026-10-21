@@ -3,7 +3,10 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join, relative, sep } from "node:path";
 
 /** Routes the single-page app answers with index.html. */
-export const SPA_ROUTES: readonly string[] = Object.freeze(["/", "/pay", "/sell", "/agents", "/bazaar"]);
+export const SPA_ROUTES: readonly string[] = Object.freeze(["/", "/bazaar", "/sell", "/agents"]);
+
+/** Page routes that moved into another page: a permanent redirect there, query kept. */
+export const MOVED_ROUTES: Readonly<Record<string, string>> = Object.freeze({ "/pay": "/" });
 
 const TYPES: Readonly<Record<string, string>> = {
   ".html": "text/html; charset=utf-8",

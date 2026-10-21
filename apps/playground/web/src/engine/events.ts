@@ -276,15 +276,24 @@ export interface ListingView {
   readonly notPayable?: { readonly code: string; readonly reason: string } | null;
   /** Search rank (1-based), for search results. */
   readonly rank: number | null;
-  /**
-   * What a call fills in: the route's path parameter names, the seller's example of query, body or tool
-   * arguments (untrusted, bounded), and the names a call must give.
-   */
-  readonly input?: {
-    readonly pathParams: readonly string[];
-    readonly example: JsonValue | null;
-    readonly required: readonly string[];
-  };
+  /** What a call fills in, from the seller's metadata (untrusted, cleaned and bounded). */
+  readonly input?: { readonly fields: readonly ListingField[] };
+}
+
+/**
+ * One value a call to a listing gives: a path or query parameter, a JSON body field (HTTP), or a tool
+ * argument (MCP). Descriptions and examples are the seller's words, cleaned and bounded.
+ */
+export interface ListingField {
+  readonly name: string;
+  readonly in: "path" | "query" | "body" | "argument";
+  readonly kind: "string" | "integer" | "number" | "boolean";
+  readonly required: boolean;
+  readonly description: string | null;
+  /** The seller's example value, as text. */
+  readonly example: string | null;
+  /** The values the schema allows, when it lists them. */
+  readonly options: readonly string[] | null;
 }
 
 /** What the buyer's SDK concluded about a paid call's settlement. */
@@ -360,7 +369,7 @@ export type LabEventBody =
       readonly variant: ExperimentId | CheckId;
       /** The per-call cap of this run, decimal; null when the run pays nothing. */
       readonly cap: string | null;
-      /** What a run on the Pay page pays: an HTTP resource or an MCP tool. Absent: HTTP. */
+      /** What a paid URL or listing is: an HTTP resource or an MCP tool. Absent: HTTP. */
       readonly target?: "http" | "mcp";
     }
   | {
@@ -438,12 +447,6 @@ export type LabEventBody =
       readonly top: readonly ListingView[];
     }
   | { readonly kind: "bazaar"; readonly phase: "listing"; readonly listing: ListingView }
-  | {
-      readonly kind: "bazaar";
-      readonly phase: "versions";
-      readonly listingId: string;
-      readonly versions: readonly VersionView[];
-    }
   | { readonly kind: "wallet"; readonly step: WalletStep; readonly transaction?: string }
   | {
       readonly kind: "refusal";

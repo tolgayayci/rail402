@@ -1,0 +1,220 @@
+/*
+ * The page shell: a header over a page that fills the rest of the viewport. On a wide enough screen
+ * the shell is exactly one viewport tall and each page lays itself out inside it; on narrow or short
+ * screens it grows and the document scrolls.
+ */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+@media (min-width: 1024px) and (min-height: 640px) {
+  .app {
+    height: 100dvh;
+  }
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  outline: none;
+  animation: fade var(--duration) ease both;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 30;
+  padding: 8px 12px;
+  border-radius: var(--radius-m);
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  left: 8px;
+  color: var(--on-ink);
+}
+
+/* The Rail402 mark: black letters on the orange block. */
+.logo-block {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--accent-bright);
+  color: var(--ink);
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.eyebrow-ink {
+  color: var(--ink);
+}
+
+.eyebrow-accent {
+  color: var(--accent-ink);
+}
+
+/* Header */
+
+.site-header {
+  position: relative;
+  z-index: 20;
+  display: grid;
+  flex: none;
+  grid-template-areas: "brand nav end";
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px 26px;
+  min-height: var(--header-height);
+  padding: 10px var(--gutter);
+  border-bottom: 1px solid var(--line);
+  background: rgba(252, 251, 249, 0.92);
+  backdrop-filter: blur(6px);
+}
+
+.brand {
+  grid-area: brand;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.brand:hover {
+  color: var(--ink);
+}
+
+.site-nav {
+  grid-area: nav;
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+}
+
+.site-nav a {
+  flex: none;
+  padding: 6px 10px;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.site-nav a:hover {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.site-nav a[aria-current="page"] {
+  background: var(--surface-pressed);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.site-header-end {
+  grid-area: end;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.network-badge {
+  padding: 4px 8px;
+  border-radius: var(--radius-s);
+  background: var(--ok-tint);
+  color: var(--ok-ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.docs-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.docs-link:hover {
+  color: var(--ink);
+}
+
+/* A background error (a balance read, a reconcile), under the header until the next success. */
+.site-alert {
+  flex: none;
+  padding: 8px var(--gutter) 0;
+}
+
+/* Loading */
+
+.boot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 100dvh;
+  padding: var(--gutter);
+  animation: fade var(--duration-slow) ease both;
+}
+
+.boot-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.boot .notice {
+  max-width: 560px;
+}
+
+@media (max-width: 1100px) {
+  .brand-label {
+    display: none;
+  }
+
+  .site-header {
+    column-gap: 16px;
+  }
+}
+
+@media (max-width: 760px) {
+  .site-header {
+    grid-template-areas:
+      "brand end"
+      "nav nav";
+    grid-template-columns: auto 1fr;
+  }
+
+  .site-header-end {
+    justify-content: flex-end;
+  }
+
+  .site-nav {
+    overflow-x: auto;
+  }
+
+  .docs-link,
+  .network-badge {
+    display: none;
+  }
+}

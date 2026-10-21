@@ -1,78 +1,65 @@
 /**
- * The swimlane each lab run must draw, as `step lane status source` per row in drawing order. Shared
- * by the browser tests and the live Playground evidence run, so both hold the page to the same rows.
+ * The swimlane each Lab run must end with, as `step lane look` per row in drawing order: the step's
+ * kind, its lanes (`from→to` for a message, `self n` for a step inside one lane) and how it ended.
+ * Shared by the browser tests and the live Playground evidence run, so both hold the page to the same
+ * rows.
  */
 
 /** Paying an HTTP resource with `exact`, from the request to the delivered answer. */
 const PAID_EXACT = [
-  "request 0→1 done you",
-  "quote 1→0 done seller",
-  "sign self 0 done you",
-  "paid-request 0→1 done you",
-  "settle 1→2 done seller",
-  "submit 2→3 done chain",
-  "deliver 1→0 done you",
+  "request 0→1 done",
+  "quote 1→0 done",
+  "sign self 0 done",
+  "paid 0→1 done",
+  "settle 1→2 done",
+  "submit 2→3 done",
+  "deliver 1→0 done",
 ] as const;
 
-/** The first four rows of an `upto` payment, before the seller does the work. */
-const UPTO_AUTHORIZED = [
-  "request 0→1 done you",
-  "quote 1→0 done seller",
-  "sign self 0 done you",
-  "paid-request 0→1 done you",
-  "work self 1 done seller",
-] as const;
+/** A buyer-side refusal: the price is read, then refused before anything is signed. */
+const REFUSED_BEFORE_SIGNING = ["request 0→1 done", "quote 1→0 done", "refused self 0 error"] as const;
 
-export const LAB_ROWS = Object.freeze({
-  "pay-normal": PAID_EXACT,
-  /** An MCP tool from the Bazaar, paid on the Pay page: the tool calls, not the transport's requests. */
-  "pay-mcp-listing": PAID_EXACT,
-  "pay-low-cap": ["request 0→1 done you", "quote 1→0 done seller", "refused self 0 error you"],
-  /** The rows after the first payment's seven. */
-  "pay-replay-tail": [
-    "resend 0→1 done you",
-    "replay-refused 1→0 error seller",
-    "charged-once self 0 done chain",
-  ],
+export const LAB_STEPS = Object.freeze({
+  "exact-normal": PAID_EXACT,
+  "exact-low-cap": REFUSED_BEFORE_SIGNING,
   "upto-normal": [
-    ...UPTO_AUTHORIZED,
-    "settle 1→2 done seller",
-    "submit 2→3 done chain",
-    "deliver 1→0 done you",
-  ],
-  "upto-overcharge": [
-    ...UPTO_AUTHORIZED,
-    "settle 1→2 error seller",
-    "overcharge-refused self 2 error seller",
-    "deliver 1→0 error seller",
+    "request 0→1 done",
+    "quote 1→0 done",
+    "sign self 0 done",
+    "paid 0→1 done",
+    "work self 1 done",
+    "settle 1→2 done",
+    "submit 2→3 done",
+    "deliver 1→0 done",
   ],
   "agent-normal": [
-    "search 0→1 done you",
-    "results 1→0 done bazaar",
-    "pick self 0 done you",
-    "budget self 0 done you",
-    "call-tool 0→2 done you",
-    "tool-settle 2→3 done chain",
-    "tool-result 2→0 done you",
+    "search 0→1 done",
+    "results 1→0 done",
+    "budget self 0 done",
+    "call 0→2 done",
+    "quote 2→0 done",
+    "sign self 0 done",
+    "paid 0→2 done",
+    "settle 2→3 done",
+    "submit 3→4 done",
+    "deliver 2→0 done",
   ],
-  "sell-normal": [
-    "request 0→1 done you",
-    "quote 1→0 done seller",
-    "paid-request 0→1 done you",
-    "settle 1→2 done seller",
-    "catalog 2→3 done bazaar",
-    "origin-check 2→1 done bazaar",
-    "listed self 3 done bazaar",
+  /** A URL the relay refuses to reach: the request never gets through. */
+  "egress-refused": ["request 0→1 error"],
+  replay: [...PAID_EXACT, "resend 0→1 done", "replay-refused 1→0 error", "charged-once self 0 done"],
+  overcharge: [
+    "request 0→1 done",
+    "quote 1→0 done",
+    "sign self 0 done",
+    "paid 0→1 done",
+    "work self 1 done",
+    "settle 1→2 error",
+    "overcharge-refused self 2 error",
+    "deliver 1→0 error",
   ],
+  "check-before-signing": REFUSED_BEFORE_SIGNING,
+  /** The session check pays once within its window, then refuses the second payment. */
+  "check-session-budget": [...PAID_EXACT, "refused self 0 error"],
+  /** Both private addresses are refused by the relay. */
+  "check-private-address": ["request 0→1 error", "request 0→1 error"],
 } satisfies Record<string, readonly string[]>);
-
-/** The outcome badge each lab run ends with. */
-export const LAB_BADGES = Object.freeze({
-  "pay-normal": "Paid and delivered",
-  "pay-low-cap": "Refused safely",
-  "pay-replay": "Paid once",
-  "upto-normal": "Charged for usage",
-  "upto-overcharge": "Overcharge blocked",
-  "agent-normal": "Agent paid within budget",
-  "sell-normal": "Earned and listed",
-});

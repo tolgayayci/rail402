@@ -47,7 +47,7 @@ describe("configuration", () => {
         classic: { code: "USDC", issuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5" },
       },
       payTo: PAY_TO,
-      features: { relay: true, lab: true, sellerCheck: true },
+      features: { relay: true, lab: true },
       relayDenyHosts: [],
       relayTrustedHosts: ["demo.rail402.dev"],
       trustedProxyHops: 0,
@@ -125,13 +125,12 @@ describe("configuration", () => {
   it("reads limits, kill switches and host lists", () => {
     const config = testConfig({
       RELAY_ENABLED: "false",
-      SELLER_CHECK_ENABLED: "false",
       RELAY_DENY_HOSTS: " Evil.Example. , other.example",
       RELAY_TRUSTED_HOSTS: "",
       RELAY_PAID_PER_MINUTE: "5",
       TRUSTED_PROXY_HOPS: "1",
     });
-    expect(config.features).toEqual({ relay: false, lab: true, sellerCheck: false });
+    expect(config.features).toEqual({ relay: false, lab: true });
     expect(config.relayDenyHosts).toEqual(["evil.example", "other.example"]);
     expect(config.relayTrustedHosts).toEqual([]);
     expect(config.limits.relayPaidPerMinute).toBe(5);
@@ -173,15 +172,15 @@ describe("public configuration", () => {
 
   it("offers only what its switched-on features can run", () => {
     const all = publicConfigOf(testConfig()).lab;
-    expect(all.scenarios).toEqual(["pay", "upto", "agent", "sell"]);
-    expect(all.experiments).toEqual(["normal", "low-cap", "replay", "overcharge"]);
+    expect(all.scenarios).toEqual(["pay", "upto", "agent"]);
+    expect(all.experiments).toEqual(["normal", "replay", "overcharge"]);
     expect(all.checks).toHaveLength(7);
     const noLab = publicConfigOf(testConfig({ LAB_ENABLED: "false" })).lab;
     expect(noLab.scenarios).toEqual(["pay", "upto", "agent"]);
-    expect(noLab.experiments).toEqual(["normal", "low-cap", "replay"]);
+    expect(noLab.experiments).toEqual(["normal", "replay"]);
     expect(noLab.checks).toEqual(["recipient", "per-call-cap", "session-budget", "private-address"]);
     const noRelay = publicConfigOf(testConfig({ RELAY_ENABLED: "false" })).lab;
-    expect(noRelay.scenarios).toEqual(["sell"]);
+    expect(noRelay.scenarios).toEqual([]);
     expect(noRelay.experiments).toEqual(["normal", "overcharge"]);
     expect(noRelay.checks).toEqual(["network", "asset", "amount"]);
   });

@@ -81,7 +81,7 @@
     {
       "id": "TB8",
       "name": "Playground page and server",
-      "description": "The Playground page in a visitor's browser, holding a testnet key, and its server: the relay to sellers, the Bazaar and facilitator proxies, the seller check and the lab sellers."
+      "description": "The Playground page in a visitor's browser, holding a testnet key, and its server: the relay to sellers, the Bazaar and facilitator proxies and the lab sellers."
     }
   ],
   "topics": [
@@ -2312,7 +2312,7 @@
       "boundary": "TB8",
       "stride": ["S", "I"],
       "asset": "infrastructure",
-      "threat": "A page on another origin makes a visitor's browser send requests through the Playground's relay, seller check or proxies, or reads their answers.",
+      "threat": "A page on another origin makes a visitor's browser send requests through the Playground's relay or proxies, or reads their answers.",
       "stellar": "The relay holds no key and no session, so a forged request carries no authority the attacker lacks; a payment needs a signature from the key in the Playground's own page.",
       "preconditions": "A visitor with the Playground open, or not, visits the attacker's page.",
       "impact": "Without protection: the Playground's relay used through visitors' browsers.",
@@ -2332,7 +2332,6 @@
       ],
       "tests": [
         "apps/playground/test/relay.test.ts::answers only same-origin requests from the page",
-        "apps/playground/test/seller-check.test.ts::answers only same-origin requests from the page",
         "apps/playground/test/proxy.test.ts::refuses requests another site's page makes, before any upstream fetch"
       ],
       "evidence": [],
@@ -2368,45 +2367,15 @@
         "apps/playground/test/app.test.ts::sends the security headers and a strict content security policy on every response",
         "apps/playground/web/test/engine/dependency.test.ts::the page never renders raw markup",
         "apps/playground/web/test/engine/dependency.test.ts::only the wallet modules touch the key itself",
-        "apps/playground/web/test/ui/lab.test.tsx::does not render HTML from seller data",
-        "apps/playground/e2e/playground.spec.ts::serves the built page with a strict CSP and starts the real engine"
+        "apps/playground/web/test/app/shell.test.tsx::does not render HTML from seller data",
+        "apps/playground/e2e/playground.spec.ts::serves the built page with a strict CSP and makes a funded test wallet on the first visit"
       ],
       "evidence": ["live-playground#secret-scan"],
-      "residual": "A script that did run in the page would not be bound by the caps: it could open the page's IndexedDB, decrypt the stored seed with the stored key (non-extractable protects the key, not what it decrypts) and send the seed out. The CSP and the absence of markup sinks make that unlikely. The key is meant for testnet only, and the import field says never to paste a key that holds real funds.",
+      "residual": "A script that did run in the page would not be bound by the caps: it could open the page's IndexedDB, decrypt the stored seed with the stored key (non-extractable protects the key, not what it decrypts) and send the seed out. The CSP and the absence of markup sinks make that unlikely. The key is meant for testnet only: the page makes it for the visitor and never shows it.",
       "status": "mitigated"
     },
     {
       "id": "PG4",
-      "topic": "playground",
-      "title": "The seller check used to scan ports or private hosts",
-      "boundary": "TB8",
-      "stride": ["I", "D"],
-      "asset": "infrastructure",
-      "threat": "A visitor submits private addresses, other ports or many URLs to the seller check to map the server's network or to load third parties.",
-      "stellar": "The check runs the SDK's seller checks: the URL's 402, its discovery metadata, whether payTo can receive the asset, and the seller's stellar.toml and home domain.",
-      "preconditions": "Network access to the Playground server.",
-      "impact": "Without protection: a port scanner inside the server's network.",
-      "mitigations": [
-        {
-          "text": "The check fetches with https on port 443 to public addresses only, through the Playground's own facilitator, in the hosted configuration.",
-          "code": "apps/playground/src/seller-check.ts#sellerCheckEgress"
-        },
-        {
-          "text": "Ten checks per minute per client and sixty for all clients, and a switch to turn it off.",
-          "code": "apps/playground/src/seller-check.ts#mountSellerCheck"
-        }
-      ],
-      "tests": [
-        "apps/playground/test/seller-check.test.ts::checks the URL with an https:443, public-only policy and the Playground's own facilitator",
-        "apps/playground/test/seller-check.test.ts::refuses the same loopback seller in hosted mode before contacting it",
-        "apps/playground/test/seller-check.test.ts::limits checks per client and across clients"
-      ],
-      "evidence": [],
-      "residual": "The check reaches public https hosts on port 443 at its rate.",
-      "status": "mitigated"
-    },
-    {
-      "id": "PG5",
       "topic": "playground",
       "title": "The lab sellers take real payments or pollute the catalog",
       "boundary": "TB8",
@@ -2445,17 +2414,15 @@
       ],
       "evidence": [
         "live-playground#overcharge",
-        "live-playground#overcharge-release",
         "live-playground#refusal-network",
         "live-playground#refusal-asset",
-        "live-playground#refusal-amount",
-        "live-playground#sell-listed"
+        "live-playground#refusal-amount"
       ],
       "residual": "None for funds. The sandbox listing is public and permanent, as one listing; its resource URL names the city of the payment that created it.",
       "status": "mitigated"
     },
     {
-      "id": "PG6",
+      "id": "PG5",
       "topic": "playground",
       "title": "The stored wallet read or overspent",
       "boundary": "TB8",
@@ -2483,14 +2450,14 @@
         "apps/playground/web/test/wallet/keystore.test.ts::stores the seed encrypted under a non-extractable key and loads it back",
         "apps/playground/web/test/wallet/keystore.test.ts::refuses a tampered or rebound record instead of loading another key",
         "apps/playground/web/test/wallet/tab-lock.test.ts::lets one tab hold the wallet; another waits until it lets go",
-        "apps/playground/e2e/playground.spec.ts::keeps the wallet in one tab: a second tab finds it locked"
+        "apps/playground/e2e/playground.spec.ts::keeps the wallet across a reload, and in one tab only"
       ],
       "evidence": ["live-playground#refusal-session"],
       "residual": "The record is encrypted under a key kept in the same browser profile, not under a passphrase: anyone using that profile can use the wallet through the page. It is a testnet key with testnet funds.",
       "status": "mitigated"
     },
     {
-      "id": "PG7",
+      "id": "PG6",
       "topic": "playground",
       "title": "Payments or the key leak into logs, traces or storage",
       "boundary": "TB8",

@@ -1,8 +1,0 @@
-# a testnet key and test USDC, once
-rail402 keys new # @step:sign
-rail402 account setup --usdc 1
-# pay the route; anything above --max is refused before signing
-rail402 pay {{demoSeller}}/weather --query city=Ankara --max {{cap}} --idempotency-key weather-ankara-1 # @step:request,quote,refused,sign,paid-request,deliver
-# run it again with the same key: the first result comes back, nothing is signed or paid again
-rail402 pay {{demoSeller}}/weather --query city=Ankara --max {{cap}} --idempotency-key weather-ankara-1 # @step:charged-once
-# a copy of the signed payment sent again is refused by the facilitator: its nonce is already used # @step:resend,replay-refused

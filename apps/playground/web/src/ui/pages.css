@@ -1,0 +1,175 @@
+/* Page layouts: titles, dark surfaces, and the Lab's mode tiles and dark stage. */
+
+.page-title {
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.page-title-large {
+  font-size: 40px;
+  line-height: 44px;
+  letter-spacing: -0.025em;
+}
+
+.page-lede {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+/* A dark surface: the stage, the panels. */
+.on-dark {
+  color: var(--stage-text);
+}
+
+.on-dark a {
+  color: var(--mode-dark, var(--accent-dark));
+}
+
+.on-dark a:hover {
+  color: var(--on-ink);
+}
+
+/* Lab */
+
+.lab {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 18px var(--gutter) 24px;
+  gap: 14px;
+}
+
+.lab-top {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 24px;
+}
+
+.lab-title {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 4px;
+  width: 380px;
+}
+
+.lab-title h1 {
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.mode-tiles {
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mode-tile {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 64px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  transition:
+    background-color var(--duration) ease,
+    border-color var(--duration) ease,
+    color var(--duration) ease,
+    transform var(--duration-fast) ease;
+}
+
+.mode-tile:hover {
+  border-color: var(--mode);
+}
+
+.mode-tile:active {
+  transform: translateY(1px);
+}
+
+.mode-tile[aria-pressed="true"] {
+  border-color: var(--mode);
+  background: var(--mode);
+  color: var(--on-ink);
+}
+
+.mode-tile-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mode-ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.mode-tile[aria-pressed="true"] .mode-tile-name {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.mode-swatch {
+  width: 8px;
+  height: 8px;
+  background: var(--mode);
+}
+
+.mode-tile[aria-pressed="true"] .mode-swatch {
+  display: none;
+}
+
+.mode-tile-title {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.stage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 420px;
+  padding: 18px;
+  border-radius: var(--radius-xl);
+  background: var(--stage);
+}
+
+@media (max-width: 1180px) {
+  .lab-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .lab-title {
+    width: auto;
+  }
+
+  .mode-tile {
+    min-height: 52px;
+    padding: 6px 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .mode-tiles {
+    flex-direction: column;
+  }
+
+  .page-title-large {
+    font-size: 32px;
+    line-height: 36px;
+  }
+}

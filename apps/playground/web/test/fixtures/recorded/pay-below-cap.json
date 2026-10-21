@@ -1,0 +1,140 @@
+{
+  "format": "rail402-playground-run",
+  "version": 1,
+  "runId": "e4101bdd-53a9-492f-be72-5bd5c75d082f",
+  "network": "stellar:testnet",
+  "playgroundVersion": "0.4.2",
+  "startedAt": "2026-10-21T14:52:19.648Z",
+  "summary": {
+    "runId": "e4101bdd-53a9-492f-be72-5bd5c75d082f",
+    "status": "refused",
+    "code": "payment_per_call_cap_exceeded",
+    "reason": "The price is 0.001 USDC, above the per-call cap of 0.0001."
+  },
+  "events": [
+    {
+      "runId": "e4101bdd-53a9-492f-be72-5bd5c75d082f",
+      "at": 0,
+      "kind": "run",
+      "phase": "start",
+      "scenario": "pay",
+      "variant": "normal",
+      "cap": "0.0001"
+    },
+    {
+      "runId": "e4101bdd-53a9-492f-be72-5bd5c75d082f",
+      "at": 22,
+      "kind": "sdk",
+      "event": {
+        "type": "probe",
+        "callId": "f64f37b4-fc7b-481a-8cda-3879930d75aa",
+        "resource": "https://demo.rail402.dev/weather?city=Ankara"
+      }
+    },
+    {
+      "runId": "e4101bdd-53a9-492f-be72-5bd5c75d082f",
+      "at": 22,
+      "kind": "http",
+      "phase": "request",
+      "id": "relay-1",
+      "via": "relay",
+      "method": "GET",
+      "url": "https://demo.rail402.dev/weather?city=Ankara",
+      "paid": false,
+      "headerNames": [],
+      "bodyBytes": 0
+    },
+    {
+      "runId": "e4101bdd-53a9-492f-be72-5bd5c75d082f",
+      "at": 29,
+      "kind": "http",
+      "phase": "response",
+      "id": "relay-1",
+      "status": 402,
+      "ms": 6,
+      "required": {
+        "x402Version": 2,
+        "resource": {
+          "url": "https://demo.rail402.dev/weather?city=Ankara",
+          "description": "Current weather for a city",
+          "mimeType": "application/json"
+        },
+        "error": "Payment required",
+        "options": [
+          {
+            "index": 0,
+            "scheme": "exact",
+            "network": "stellar:testnet",
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "symbol": "USDC",
+            "decimals": 7,
+            "amount": "10000",
+            "decimal": "0.001",
+            "payTo": "GDFLALQBMOBUWZ62VF2FTZ7ZAQXPFPJS7KYAKZMDLF4NKALQ4ESZK3TH",
+            "maxTimeoutSeconds": 300,
+            "feesSponsored": true,
+            "facilitatorAddress": null,
+            "facilitatorAddressAdvertised": null,
+            "verdict": {
+              "acceptable": false,
+              "code": "payment_per_call_cap_exceeded",
+              "reason": "The price is 0.001 USDC, above the per-call cap of 0.0001."
+            }
+          }
+        ],
+        "bazaar": {
+          "declared": true,
+          "type": "http",
+          "method": "GET",
+          "toolName": null
+        }
+      }
+    },
+    {
+      "runId": "e4101bdd-53a9-492f-be72-5bd5c75d082f",
+      "at": 29,
+      "kind": "sdk",
+      "event": {
+        "type": "refused",
+        "callId": "f64f37b4-fc7b-481a-8cda-3879930d75aa",
+        "code": "payment_per_call_cap_exceeded"
+      }
+    },
+    {
+      "runId": "e4101bdd-53a9-492f-be72-5bd5c75d082f",
+      "at": 30,
+      "kind": "refusal",
+      "layer": "policy",
+      "code": "payment_per_call_cap_exceeded",
+      "reason": "The price is 0.001 USDC, above the per-call cap of 0.0001.",
+      "details": {
+        "price": "0.001",
+        "cap": "0.0001",
+        "requested": "0.0001",
+        "ceiling": "0.1",
+        "paid": "none",
+        "callId": "f64f37b4-fc7b-481a-8cda-3879930d75aa"
+      }
+    },
+    {
+      "runId": "e4101bdd-53a9-492f-be72-5bd5c75d082f",
+      "at": 39,
+      "kind": "chain",
+      "phase": "balance",
+      "role": "payer",
+      "account": "GBBUST7CLPILF6HWXBQPBU6N7Q5FXF65JVVXZW7YPPIO6RI7JSSRTYQO",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "before": "1.999",
+      "after": "1.999"
+    },
+    {
+      "runId": "e4101bdd-53a9-492f-be72-5bd5c75d082f",
+      "at": 39,
+      "kind": "run",
+      "phase": "end",
+      "status": "refused",
+      "code": "payment_per_call_cap_exceeded",
+      "reason": "The price is 0.001 USDC, above the per-call cap of 0.0001."
+    }
+  ]
+}
