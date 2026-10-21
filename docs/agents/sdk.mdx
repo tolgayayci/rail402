@@ -129,7 +129,12 @@ result.payment?.settled; // what the seller charged, proven on chain, e.g. { amo
   seller; anything else fails closed with `payment_authorization_rejected`.
 - The settlement authority (`extra.facilitatorAddress`) is the only address that can settle the terms. It must
   be neither the payer nor the recipient, and, when `policy.uptoFacilitators` lists authorities, one of them
-  (`payment_facilitator_not_permitted`). Muxed (`M…`) recipients are refused.
+  (`payment_facilitator_not_permitted`). It must also be a `G…` account: for a `C…` address the upto client
+  refuses to build the payment, and the call fails with `payment_simulation_failed` before anything is signed.
+  Muxed (`M…`) recipients are refused.
+- The upto client signs for at most 300 seconds, even when `policy.maxAuthorizationSeconds` allows more: an
+  option with a longer `maxTimeoutSeconds` also fails with `payment_simulation_failed` before anything is
+  signed.
 - The budget reserves the cap when the authorization is signed. The reported charge counts as spent at once,
   and the rest of the cap stays pending until the chain proves the settlement; with the default
   `verify: "sync"` that happens before `pay` returns (a `released` event with reason `settled_below_cap`).

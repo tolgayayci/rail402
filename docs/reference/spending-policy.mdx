@@ -12,18 +12,18 @@ guard is the only way it reaches the key.
 
 ## The policy
 
-| Setting                   | Default on `stellar:testnet`          | Default on `stellar:pubnet`                   |
-| ------------------------- | ------------------------------------- | --------------------------------------------- |
-| Assets                    | Circle USDC                           | Circle USDC                                   |
-| Per-call ceiling          | 0.10 USDC                             | none: required with a signer                  |
-| Budget-window total       | 1.00 USDC per 24 hours, renewing      | none: required with a signer                  |
-| Schemes                   | `exact` and `upto`                    | `exact` (`upto` once a contract is pinned)    |
-| upto settlement contracts | the canonical testnet deployment      | none                                          |
-| upto settlement authority | any, except the payer and recipient   | any, except the payer and recipient           |
-| Recipients                | any, except the payer itself          | any, except the payer itself                  |
-| Longest authorization     | 300 seconds (configurable up to 3600) | 300 seconds                                   |
-| Pay by URL                | allowed                               | listings only (`requireCatalogListing`)       |
-| Lowest listing trust paid | `settled`                             | HTTP `origin_verified`, MCP `domain_verified` |
+| Setting                   | Default on `stellar:testnet`                                        | Default on `stellar:pubnet`                      |
+| ------------------------- | ------------------------------------------------------------------- | ------------------------------------------------ |
+| Assets                    | Circle USDC                                                         | Circle USDC                                      |
+| Per-call ceiling          | 0.10 USDC                                                           | none: required with a signer                     |
+| Budget-window total       | 1.00 USDC per 24 hours, renewing                                    | none: required with a signer                     |
+| Schemes                   | `exact` and `upto`                                                  | `exact` (`upto` once a contract is pinned)       |
+| upto settlement contracts | the canonical testnet deployment                                    | none                                             |
+| upto settlement authority | any `G…` account, except the payer and recipient                    | any `G…` account, except the payer and recipient |
+| Recipients                | any, except the payer itself                                        | any, except the payer itself                     |
+| Longest authorization     | 300 seconds (configurable up to 3600; `upto` signs for at most 300) | 300 seconds                                      |
+| Pay by URL                | allowed                                                             | listings only (`requireCatalogListing`)          |
+| Lowest listing trust paid | `settled`                                                           | HTTP `origin_verified`, MCP `domain_verified`    |
 
 Any other SEP-41 token can be added with its symbol and decimals; both are read from the token contract when
 the buyer starts and must match (`payment_policy_invalid`), and every asset other than testnet USDC needs
@@ -34,8 +34,17 @@ its asset is refused (`payment_cap_invalid`), never rounded.
 `upto` is paid only through a pinned settlement contract (`uptoContracts`, `RAIL402_UPTO_CONTRACTS`); on
 testnet the canonical deployment `CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U` is pinned by default.
 The contract is never taken from a seller. `uptoFacilitators` (`RAIL402_UPTO_FACILITATORS`) optionally limits
-which settlement authorities (`extra.facilitatorAddress`) may settle upto payments; without it any authority
-other than the payer and the recipient is accepted, bound exactly to the option the call selected.
+which settlement authorities (`extra.facilitatorAddress`) may settle upto payments; without it any `G…`
+account other than the payer and the recipient is accepted, bound exactly to the option the call selected.
+The settlement authority is the source of the settlement transaction, so it must be a `G…` account: the
+policy accepts a `C…` address (also in `uptoFacilitators`), but the upto client then refuses to build the
+payment, and the call fails with `payment_simulation_failed` ("Building the payment failed:
+extra.facilitatorAddress must be the facilitator's G… settlement authority") before anything is signed.
+
+The longest authorization is `maxAuthorizationSeconds`, which the SDK's spending policy accepts up to 3600
+seconds. The upto client signs for at most 300 seconds whatever the policy allows: an `upto` option with a
+longer `maxTimeoutSeconds` fails the same way, with `payment_simulation_failed` ("Building the payment
+failed: maxTimeoutSeconds … exceeds the 300 seconds this client signs for"), before anything is signed.
 
 A buyer that can sign never runs without caps. Configuration errors are refused when the buyer, the MCP server
 or the CLI starts, with `payment_policy_invalid` and the offending setting in `details.setting`.

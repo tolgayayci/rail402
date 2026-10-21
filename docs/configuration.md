@@ -220,6 +220,6 @@ TRUSTED_PROXY_HOPS=1
 ```
 
 On pubnet, channel accounts are not created at startup: run `channels provision` first (see
-[operations.md](operations.md#channel-accounts)). The validation rules above are checked for pubnet at
+[Operations](/operations#channel-accounts)). The validation rules above are checked for pubnet at
 startup, but pubnet itself has not been exercised end to end. The hosted Rail402 service serves testnet
 only.

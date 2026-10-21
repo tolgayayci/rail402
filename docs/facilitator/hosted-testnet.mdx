@@ -10,14 +10,16 @@ payments, and read its Bazaar catalog without an account.
 {{facilitatorUrl}}
 ```
 
-| Property   | Value                                                                                                |
-| ---------- | ---------------------------------------------------------------------------------------------------- |
-| Network    | `stellar:testnet` only                                                                               |
-| Scheme     | `exact` and [`upto`](/facilitator/upto), x402 version 2                                              |
-| Asset      | Circle testnet USDC, contract `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`, 7 decimals |
-| Fees       | Sponsored: `extra.areFeesSponsored` is `true`; the payer pays no network fee                         |
-| Access     | Free, no API key                                                                                     |
-| Extensions | `bazaar`                                                                                             |
+| Property   | Value                                                                                    |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| Network    | `stellar:testnet` only                                                                   |
+| Scheme     | `exact` and [`upto`](/facilitator/upto), x402 version 2                                  |
+| Assets     | Circle testnet USDC and the [TEST6 test token](/facilitator/assets#the-test6-test-token) |
+| USDC       | Contract `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`, 7 decimals          |
+| TEST6      | Contract `CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK`, 6 decimals          |
+| Fees       | Sponsored: `extra.areFeesSponsored` is `true`; the payer pays no network fee             |
+| Access     | Free, no API key                                                                         |
+| Extensions | `bazaar`                                                                                 |
 
 It runs the repository's Docker image on [Railway](/facilitator/railway), with Postgres, and `/health` reports
 the version it was deployed with (`RAIL402_VERSION`). It does not serve `stellar:pubnet`.
@@ -90,7 +92,7 @@ curl {{facilitatorUrl}}/ready
     "database": { "ok": true },
     "stellar:testnet:rpc": { "ok": true },
     "stellar:testnet:sponsor": { "ok": true, "detail": "99993241283 stroops" },
-    "stellar:testnet:assets": { "ok": true, "detail": "USDC:7" },
+    "stellar:testnet:assets": { "ok": true, "detail": "USDC:7, TEST6:6" },
     "stellar:testnet:channels": { "ok": true, "detail": "24 channels" },
     "search": { "ok": true }
   }
@@ -124,11 +126,12 @@ To build your own, follow the [buyer](/quickstart/buyers) and [seller](/quicksta
 - **Rate limits.** Requests are limited per client address; the instance runs with `TRUSTED_PROXY_HOPS=1`,
   so the address is the one Railway's edge proxy reports in `X-Forwarded-For`. A limited request gets HTTP
   `429` with a `Retry-After` header and the code `rate_limited`.
-- **Operator policy.** The accepted asset, amount bounds, `maxTimeoutSeconds` range and settlement fee ceiling
-  are configuration; the defaults are on the [Configuration](/configuration#per-network) page. A payment
-  outside them is refused with a specific `invalid_exact_stellar_requirements_*` or
-  `invalid_exact_stellar_payload_fee_exceeds_maximum` code. Amounts are SEP-41 base units: `10000000` is
-  1 USDC.
+- **Operator policy.** The accepted assets, amount bounds, `maxTimeoutSeconds` range and settlement fee
+  ceilings are configuration; the defaults are on the [Configuration](/configuration#per-network) page. A
+  payment outside them is refused with a specific code: `invalid_exact_stellar_requirements_*` or
+  `invalid_exact_stellar_payload_fee_exceeds_maximum` for `exact`, and `invalid_upto_stellar_requirements_*`
+  or `invalid_upto_stellar_payload_fee_exceeds_maximum` for `upto`. Amounts are SEP-41 base units:
+  `10000000` is 1 USDC, `1000000` is 1 TEST6.
 - **Cataloging.** Only resources on public hosts are cataloged. A seller on `localhost` or a private address is
   paid normally, but its listing is refused with `bazaar_resource_unsafe`.
 - **Testnet only.** Testnet accounts, balances and the catalog carry no value.

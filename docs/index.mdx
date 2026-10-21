@@ -26,9 +26,9 @@ The code is Apache-2.0.
 
 <CardGroup cols={2}>
   <Card title="Facilitator" icon="scale-balanced" href="/facilitator/hosted-testnet">
-    `/supported`, `/verify` and `/settle` for the `exact` scheme on `stellar:testnet`. It pays the network fee
-    and is never the source of the payment. `stellar:pubnet` can be configured but has not been exercised end
-    to end.
+    `/supported`, `/verify` and `/settle` for the `exact` and `upto` schemes on `stellar:testnet`. It pays the
+    network fee and is never the source of the payment. `stellar:pubnet` can be configured but has not been
+    exercised end to end.
   </Card>
   <Card title="upto payments" icon="gauge" href="/facilitator/upto">
     Capped, usage-based payments: the buyer signs a cap, the seller settles what the call used, through a
@@ -84,26 +84,27 @@ See [Hosted testnet](/facilitator/hosted-testnet) for what it accepts and what i
 
 ## Repository layout
 
-| Path                      | Contents                                                                        |
-| ------------------------- | ------------------------------------------------------------------------------- |
-| `apps/rail402`            | HTTP service: `/supported`, `/verify`, `/settle`, discovery; channel commands   |
-| `apps/demo-seller`        | A public example seller built from the stock x402 packages                      |
-| `packages/facilitator`    | Settlement engine on `@x402/stellar`: preflight, idempotent crash-safe settle   |
-| `packages/upto`           | The `upto` scheme for Stellar: client, resource server and facilitator          |
-| `packages/stellar`        | Stellar payload inspection, reason codes, diagnosis of on-chain failures        |
-| `packages/bazaar`         | Settlement-gated catalog: integrity rules, origin verification, version history |
-| `packages/search`         | Natural-language search: BM25F, local embeddings, reciprocal rank fusion        |
-| `packages/store-postgres` | Durable ledger, channel leases, catalog, rate limits and metering               |
-| `packages/errors`         | Error code registry: every rejection has a stable code and reason               |
-| `packages/sdk`            | Buyer SDK: spending policy, budget ledger, discovery and paid calls             |
-| `packages/mcp`            | MCP server for agents (`rail402-mcp`)                                           |
-| `packages/cli`            | Command-line tool (`rail402`)                                                   |
-| `packages/safe-fetch`     | SSRF-safe outbound HTTP for untrusted URLs                                      |
-| `packages/testkit`        | Private-network test helpers (private)                                          |
-| `contracts/stellar`       | The `upto` settlement contract, deployment records and reproducible build       |
-| `contracts/testing`       | Test contracts: TEST6 token, spending-limit policy, composition tests           |
-| `examples`                | An SDK buyer and an MCP agent                                                   |
-| `tools/conformance`       | Canonical-client and upstream e2e runs with recorded evidence                   |
-| `tools/search-eval`       | Reproducible search evaluation and release gate                                 |
-| `tools/license-gate`      | Fail-closed licence gate and dependency licence report                          |
-| `tools/models`            | Fetches the pinned embedding model and verifies its hashes                      |
+| Path                      | Contents                                                                                     |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
+| `apps/rail402`            | HTTP service: `/supported`, `/verify`, `/settle`, discovery; channel commands                |
+| `apps/demo-seller`        | A public example seller built from the stock x402 packages                                   |
+| `packages/facilitator`    | Settlement engine on `@x402/stellar`: preflight, idempotent crash-safe settle                |
+| `packages/upto`           | The `upto` scheme for Stellar: client, resource server and facilitator                       |
+| `packages/stellar`        | Stellar payload inspection, reason codes, diagnosis of on-chain failures                     |
+| `packages/bazaar`         | Settlement-gated catalog: integrity rules, origin verification, version history              |
+| `packages/search`         | Natural-language search: BM25F, local embeddings, reciprocal rank fusion                     |
+| `packages/store-postgres` | Durable ledger, channel leases, catalog, rate limits and metering                            |
+| `packages/errors`         | Error code registry: every rejection has a stable code and reason                            |
+| `packages/sdk`            | Buyer SDK: spending policy, budget ledger, discovery and paid calls                          |
+| `packages/mcp`            | MCP server for agents (`rail402-mcp`)                                                        |
+| `packages/cli`            | Command-line tool (`rail402`)                                                                |
+| `packages/safe-fetch`     | SSRF-safe outbound HTTP for untrusted URLs                                                   |
+| `packages/testkit`        | Private-network test helpers (private)                                                       |
+| `contracts/stellar`       | The `upto` settlement contract, deployment records and reproducible build                    |
+| `contracts/testing`       | Test contracts: TEST6 token, spending-limit policy, composition and `upto` adversarial tests |
+| `examples`                | An SDK buyer and an MCP agent                                                                |
+| `tools/conformance`       | Canonical-client and upstream e2e runs with recorded evidence                                |
+| `tools/search-eval`       | Reproducible search evaluation and release gate                                              |
+| `tools/license-gate`      | Fail-closed licence gate and dependency licence report                                       |
+| `tools/models`            | Fetches the pinned embedding model and verifies its hashes                                   |
+| `tools/upstream-export`   | Exports the `upto` mechanism and contract into an x402 checkout and reports drift            |

@@ -5,7 +5,7 @@ description: Keys and custody, sponsor protection, channel accounts, metering, r
 
 How to run Rail402 safely: which keys exist and what they can do, how to rotate them, what limits
 protect the sponsor, how callers are authenticated and metered, and how state survives failures.
-Configuration variables are described in [configuration.md](configuration.md).
+Configuration variables are described in [Configuration](/configuration).
 
 ## Keys and custody
 
@@ -32,21 +32,21 @@ holds the sponsor seed holds the channels and the authority too.
 Rail402 is non-custodial by construction. Verification refuses any payment in which a facilitator
 account is the payer, a transaction or operation source, or a party to an authorization, and the
 payer's signed authorization fixes the asset, recipient and amount; changing any of them after
-signing fails signature verification (see [verification-rules.md](verification-rules.md)). The
+signing fails signature verification (see [Verification rules](/verification-rules)). The
 worst case after a leaked sponsor seed is therefore the loss of the sponsor's own XLM, which is why
 it should hold only a working balance.
 
 ## Protecting the sponsor
 
-| Control           | Setting                                         | Effect                                                                                                                 |
-| ----------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Fee ceiling       | `MAX_TX_FEE_STROOPS`, `UPTO_MAX_TX_FEE_STROOPS` | Payments whose settlement would cost more are refused at verification ([fee ceilings](configuration.md#fee-ceilings)). |
-| Inclusion-fee bid | `INCLUSION_FEE_*`                               | Tracks recent network fees between a floor and a cap, never beyond the cap.                                            |
-| Reserve floor     | `SPONSOR_RESERVE_XLM`                           | Settlements are refused below this balance (`settle_exact_stellar_sponsor_unavailable`).                               |
-| Hourly budget     | `MAX_SPONSOR_SPEND_XLM_PER_HOUR`                | Settlements are refused once this much fee was committed in the last hour, across replicas.                            |
-| Readiness         | `MIN_SPONSOR_BALANCE_XLM`                       | `/ready` fails below this balance, so a load balancer can stop routing to the instance.                                |
-| Rate limits       | `RATE_LIMIT_PER_MINUTE`                         | Requests per client address (IPv6: per /64) per minute, shared by all replicas with Postgres.                          |
-| API keys          | `REQUIRE_API_KEY`, `API_KEY_SHA256`             | Restrict `/verify` and `/settle` to known callers; required to be set explicitly for pubnet.                           |
+| Control           | Setting                                         | Effect                                                                                                               |
+| ----------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Fee ceiling       | `MAX_TX_FEE_STROOPS`, `UPTO_MAX_TX_FEE_STROOPS` | Payments whose settlement would cost more are refused at verification ([fee ceilings](/configuration#fee-ceilings)). |
+| Inclusion-fee bid | `INCLUSION_FEE_*`                               | Tracks recent network fees between a floor and a cap, never beyond the cap.                                          |
+| Reserve floor     | `SPONSOR_RESERVE_XLM`                           | Settlements are refused below this balance (`settle_exact_stellar_sponsor_unavailable`).                             |
+| Hourly budget     | `MAX_SPONSOR_SPEND_XLM_PER_HOUR`                | Settlements are refused once this much fee was committed in the last hour, across replicas.                          |
+| Readiness         | `MIN_SPONSOR_BALANCE_XLM`                       | `/ready` fails below this balance, so a load balancer can stop routing to the instance.                              |
+| Rate limits       | `RATE_LIMIT_PER_MINUTE`                         | Requests per client address (IPv6: per /64) per minute, shared by all replicas with Postgres.                        |
+| API keys          | `REQUIRE_API_KEY`, `API_KEY_SHA256`             | Restrict `/verify` and `/settle` to known callers; required to be set explicitly for pubnet.                         |
 
 Alert on `rail402_sponsor_balance_stroops` approaching the readiness floor,
 `rail402_settlements_total` failures by `reason`, `rail402_channels_in_use` equal to
@@ -404,8 +404,8 @@ service itself is stateless, so any number of replicas can run against one datab
   and a payment already on-chain can never be submitted again because its authorization nonce is
   spent.
 - A crash at any point is recovered by the next start: claims without an envelope expire and the
-  payment can be retried, and recorded envelopes are reconciled once `SETTLE_RECONCILE_IDLE_MS` passed (see "Settlement" in
-  [verification-rules.md](verification-rules.md)). The service, one replica with
+  payment can be retried, and recorded envelopes are reconciled once `SETTLE_RECONCILE_IDLE_MS` passed (see
+  [Settlement](/verification-rules#8-settlement) in the verification rules). The service, one replica with
   `SETTLE_RECONCILE_IDLE_MS=0`, is killed with `SIGKILL` in tests at
   each point where a crash could lose track of a payment: after the network accepted the transaction,
   after the envelope was recorded but before it was broadcast, after inclusion but before the result
@@ -444,7 +444,7 @@ service itself is stateless, so any number of replicas can run against one datab
 
 CI (`.github/workflows/ci.yml`) runs on every push to `main` and on every pull request: formatting,
 lint, type checking, unit tests, the licence gate with a current
-[dependency report](dependency-licenses.md), integration tests against Postgres and a local Stellar
+[dependency report](/dependency-licenses), integration tests against Postgres and a local Stellar
 network, and a build of the container image. CI also runs the search evaluation gate
 (`pnpm eval:check`: nDCG@10 and Recall@20 may not drop more than 0.02 below the tagged baseline,
 hybrid must match or beat BM25, zero filter violations), `pnpm pack:check` (every publishable package

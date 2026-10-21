@@ -32,24 +32,44 @@ export function code(text: string): string {
   return `${fence}${pad}${text}${pad}${fence}`;
 }
 
-/** Plain text safe inside MDX and a table cell. */
+/** An http(s) URL in evidence text, up to whitespace, a backtick or a `|`; trailing punctuation is trimmed. */
+const URL_TEXT = /(https?:\/\/[^\s|`]*[^\s|`.,;:!?'")\]])/g;
+
+/**
+ * Plain text safe inside MDX and a table cell. URLs are set as code: escaped in plain text, a URL such
+ * as `http://localhost:<port>` would be autolinked with its entities as part of the link.
+ */
 export function escape(text: string): string {
-  return text.replace(/[\\`*_{}<>[\]|#]/g, (char) =>
-    char === "<" ? "&lt;" : char === ">" ? "&gt;" : `\\${char}`,
-  );
+  return text
+    .split(URL_TEXT)
+    .map((part, index) =>
+      index % 2 === 1
+        ? code(part)
+        : part.replace(/[\\`*_{}<>[\]|#]/g, (char) =>
+            char === "<" ? "&lt;" : char === ">" ? "&gt;" : `\\${char}`,
+          ),
+    )
+    .join("");
 }
 
 const IDENTIFIER = /(\/[A-Za-z][\w/.-]*\w|\b[a-z]+(?:\.[a-z]+)*[A-Z]\w*(?:\.\w+)*\b|\b__[a-z_]+\b)/g;
 
 /**
- * A sentence from evidence as prose: capitalised, escaped, with paths and identifiers (`/supported`,
- * `payTo`, `extra.areFeesSponsored`, `__check_auth`) set as code.
+ * A sentence from evidence as prose: capitalised, escaped, with URLs, paths and identifiers
+ * (`/supported`, `payTo`, `extra.areFeesSponsored`, `__check_auth`) set as code.
  */
 export function prose(text: string): string {
   const sentence = text.charAt(0).toUpperCase() + text.slice(1);
   return sentence
-    .split(IDENTIFIER)
-    .map((part, index) => (index % 2 === 1 ? code(part) : escape(part)))
+    .split(URL_TEXT)
+    .map((piece, index) =>
+      index % 2 === 1
+        ? code(piece)
+        : piece
+            .split(IDENTIFIER)
+            .map((part, inner) => (inner % 2 === 1 ? code(part) : escape(part)))
+            .join(""),
+    )
     .join("");
 }
 

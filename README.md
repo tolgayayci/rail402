@@ -21,8 +21,10 @@ developers can find it with filters or plain-language search.
 
 **Release state.** The npm packages are at **0.4.2** (2026-10-20): the facilitator, the Bazaar and search,
 `upto`, the agent tools (`@rail402.dev/sdk`, `@rail402.dev/mcp`, `@rail402.dev/cli`) and their browser
-entries. The hosted testnet service runs 0.4.2 with `exact` and `upto`. The latest container image and GitHub
-release is **0.2.1** (`exact` only); later versions of the service run from a checkout. The
+entries. The hosted testnet service runs 0.4.2 with `exact` and `upto`. The latest service release and
+container image is **0.2.1** (`exact` only); later versions of the service run from a checkout. The newest
+GitHub release, [`upto-contract-v1.0.0`](https://github.com/tolgayayci/rail402/releases/tag/upto-contract-v1.0.0_contracts_stellar_upto_x402-upto-stellar_pkg1.0.0_cli28.1.0),
+publishes the `upto` settlement contract's WASM. The
 [changelog](CHANGELOG.md) lists what each release adds. The sections below say which release each command
 uses.
 
@@ -183,26 +185,26 @@ docker compose --profile stellar up -d      # Postgres + a private Stellar netwo
 pnpm test:integration
 ```
 
-| Path                      | Contents                                                                      |
-| ------------------------- | ----------------------------------------------------------------------------- |
-| `apps/rail402`            | The HTTP service                                                              |
-| `apps/demo-seller`        | A public example seller built only from the stock x402 packages               |
-| `apps/playground`         | The Playground: a page and server for trying x402 payments in a browser       |
-| `packages/facilitator`    | Settlement engine on `@x402/stellar`: preflight, idempotent crash-safe settle |
-| `packages/upto`           | The `upto` scheme for Stellar: client, resource server and facilitator        |
-| `packages/stellar`        | Stellar payload inspection, reason codes, diagnosis of on-chain failures      |
-| `packages/bazaar`         | The catalog: integrity rules, origin verification, version history            |
-| `packages/search`         | Natural-language search                                                       |
-| `packages/store-postgres` | Durable ledger, channel leases, catalog, rate limits and metering             |
-| `packages/sdk`            | Buyer SDK: spending policy, budget ledger, discovery and paid calls           |
-| `packages/mcp`            | MCP server for agents                                                         |
-| `packages/cli`            | Command-line tool                                                             |
-| `packages/safe-fetch`     | SSRF-safe outbound HTTP                                                       |
-| `contracts/stellar`       | The `upto` settlement contract, its deployment records and reproducible build |
-| `contracts/testing`       | Test contracts: the TEST6 token, a spending-limit policy, composition tests   |
-| `examples`                | An SDK buyer and an MCP agent                                                 |
-| `tools/conformance`       | Conformance runs against a live facilitator, with recorded results            |
-| `tools/search-eval`       | Search evaluation dataset, harness and CI gate                                |
+| Path                      | Contents                                                                                           |
+| ------------------------- | -------------------------------------------------------------------------------------------------- |
+| `apps/rail402`            | The HTTP service                                                                                   |
+| `apps/demo-seller`        | A public example seller built only from the stock x402 packages                                    |
+| `apps/playground`         | The Playground: a page and server for trying x402 payments in a browser                            |
+| `packages/facilitator`    | Settlement engine on `@x402/stellar`: preflight, idempotent crash-safe settle                      |
+| `packages/upto`           | The `upto` scheme for Stellar: client, resource server and facilitator                             |
+| `packages/stellar`        | Stellar payload inspection, reason codes, diagnosis of on-chain failures                           |
+| `packages/bazaar`         | The catalog: integrity rules, origin verification, version history                                 |
+| `packages/search`         | Natural-language search                                                                            |
+| `packages/store-postgres` | Durable ledger, channel leases, catalog, rate limits and metering                                  |
+| `packages/sdk`            | Buyer SDK: spending policy, budget ledger, discovery and paid calls                                |
+| `packages/mcp`            | MCP server for agents                                                                              |
+| `packages/cli`            | Command-line tool                                                                                  |
+| `packages/safe-fetch`     | SSRF-safe outbound HTTP                                                                            |
+| `contracts/stellar`       | The `upto` settlement contract, its deployment records and reproducible build                      |
+| `contracts/testing`       | Test contracts: the TEST6 token, a spending-limit policy, composition and `upto` adversarial tests |
+| `examples`                | An SDK buyer and an MCP agent                                                                      |
+| `tools/conformance`       | Conformance runs against a live facilitator, with recorded results                                 |
+| `tools/search-eval`       | Search evaluation dataset, harness and CI gate                                                     |
 
 ## Licence
 

@@ -13,9 +13,10 @@ This page takes a fresh clone to a ready testnet facilitator on `localhost:8080`
 
 ## Published image
 
-Every release is published to the GitHub Container Registry as `ghcr.io/tolgayayci/rail402:<version>` and
-`:latest`, with `/health` reporting that version. Without a clone, a testnet facilitator that keeps its state
-in memory is three commands:
+Container images are published to the GitHub Container Registry when a version tag `vN.N.N` is pushed, as
+`ghcr.io/tolgayayci/rail402:<version>` and `:latest`, with `/health` reporting that version. The latest image
+is `0.2.1`, which serves `exact` only; later versions of the service run from a [source checkout](/install).
+Without a clone, a testnet facilitator that keeps its state in memory is three commands:
 
 ```sh
 docker run --rm ghcr.io/tolgayayci/rail402:0.2.1 node -e \

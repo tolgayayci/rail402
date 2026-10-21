@@ -158,22 +158,22 @@ The `./tools` entry is in `@rail402.dev/mcp` from version 0.4.0 on.
 
 ## Configuration
 
-| Variable                                                                       | Meaning                                                                                                              |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `RAIL402_NETWORK`                                                              | `stellar:testnet` (default) or `stellar:pubnet`                                                                      |
-| `RAIL402_SECRET_KEY_FILE`                                                      | Key file (0600) of the paying account. `RAIL402_SECRET_KEY` also works and is removed from the environment once read |
-| `RAIL402_MAX_PER_CALL`, `RAIL402_MAX_TOTAL`                                    | Per-call ceiling and budget-window total, e.g. `0.05 USDC`; comma-separated for several assets                       |
-| `RAIL402_ASSETS`                                                               | More SEP-41 tokens as `SYMBOL:C…:DECIMALS`; decimals and symbol are verified on chain                                |
-| `RAIL402_RPC_URL`, `RAIL402_BAZAAR_URL`                                        | Endpoints; testnet has defaults, pubnet requires both                                                                |
-| `RAIL402_SESSION`, `RAIL402_SESSION_TTL`                                       | Budget window name and length (default `default`, `24h`)                                                             |
-| `RAIL402_BUDGET_STORE`, `RAIL402_LEDGER_PATH`                                  | `sqlite` (default, shared with the CLI) or `memory`; the SQLite file                                                 |
-| `RAIL402_ALLOWED_RECIPIENTS`, `RAIL402_DENIED_RECIPIENTS`                      | Comma-separated Stellar addresses                                                                                    |
-| `RAIL402_REQUIRE_LISTING`, `RAIL402_MIN_TRUST`                                 | Pay listings only; lowest listing trust paid, e.g. `http=origin_verified,mcp=domain_verified`                        |
-| `RAIL402_SCHEMES`                                                              | `exact,upto` on testnet by default (`exact` on pubnet, or when no upto contract is pinned)                           |
-| `RAIL402_UPTO_CONTRACTS`, `RAIL402_UPTO_FACILITATORS`                          | Pinned upto settlement contracts (testnet: the canonical one); allowed settlement authorities (default: any)         |
-| `RAIL402_EXPLORER`                                                             | `stellar.expert` (default) or an https template containing `{hash}`                                                  |
-| `RAIL402_LOG_LEVEL`                                                            | `info` by default; logs go to stderr only                                                                            |
-| `RAIL402_ALLOW_HTTP`, `RAIL402_ALLOW_PRIVATE_NETWORK`, `RAIL402_ALLOWED_PORTS` | Local development on testnet only: plain http, `loopback` destinations, extra ports. Refused on pubnet               |
+| Variable                                                                       | Meaning                                                                                                                                              |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RAIL402_NETWORK`                                                              | `stellar:testnet` (default) or `stellar:pubnet`                                                                                                      |
+| `RAIL402_SECRET_KEY_FILE`                                                      | Key file (0600) of the paying account. `RAIL402_SECRET_KEY` also works and is removed from the environment once read                                 |
+| `RAIL402_MAX_PER_CALL`, `RAIL402_MAX_TOTAL`                                    | Per-call ceiling and budget-window total, e.g. `0.05 USDC`; comma-separated for several assets                                                       |
+| `RAIL402_ASSETS`                                                               | More SEP-41 tokens as `SYMBOL:C…:DECIMALS`; decimals and symbol are verified on chain                                                                |
+| `RAIL402_RPC_URL`, `RAIL402_BAZAAR_URL`                                        | Endpoints; testnet has defaults, pubnet requires both                                                                                                |
+| `RAIL402_SESSION`, `RAIL402_SESSION_TTL`                                       | Budget window name and length (default `default`, `24h`)                                                                                             |
+| `RAIL402_BUDGET_STORE`, `RAIL402_LEDGER_PATH`                                  | `sqlite` (default, shared with the CLI) or `memory`; the SQLite file                                                                                 |
+| `RAIL402_ALLOWED_RECIPIENTS`, `RAIL402_DENIED_RECIPIENTS`                      | Comma-separated Stellar addresses                                                                                                                    |
+| `RAIL402_REQUIRE_LISTING`, `RAIL402_MIN_TRUST`                                 | Pay listings only; lowest listing trust paid, e.g. `http=origin_verified,mcp=domain_verified`                                                        |
+| `RAIL402_SCHEMES`                                                              | `exact,upto` on testnet by default (`exact` on pubnet, or when no upto contract is pinned)                                                           |
+| `RAIL402_UPTO_CONTRACTS`, `RAIL402_UPTO_FACILITATORS`                          | Pinned upto settlement contracts (testnet: the canonical one); allowed settlement authorities (default: any `G…` account; a `C…` one cannot be paid) |
+| `RAIL402_EXPLORER`                                                             | `stellar.expert` (default) or an https template containing `{hash}`                                                                                  |
+| `RAIL402_LOG_LEVEL`                                                            | `info` by default; logs go to stderr only                                                                                                            |
+| `RAIL402_ALLOW_HTTP`, `RAIL402_ALLOW_PRIVATE_NETWORK`, `RAIL402_ALLOWED_PORTS` | Local development on testnet only: plain http, `loopback` destinations, extra ports. Refused on pubnet                                               |
 
 Invalid or unsafe configuration stops the server at startup with one JSON line on stderr carrying a code (for
 example `payment_policy_invalid` with `details.setting`) and exit status 1. On `stellar:pubnet` the server

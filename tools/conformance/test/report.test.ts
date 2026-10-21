@@ -164,6 +164,16 @@ describe("rendering helpers", () => {
     expect(prose("/supported lists extra.areFeesSponsored for payTo via __check_auth")).toBe(
       "`/supported` lists `extra.areFeesSponsored` for `payTo` via `__check_auth`",
     );
+    // A URL is code, never an autolink that would swallow the entities of its escaped text.
+    expect(escape("listings at http://localhost:<port> URLs; see https://example.com/a_b.json.")).toBe(
+      "listings at `http://localhost:<port>` URLs; see `https://example.com/a_b.json`.",
+    );
+    expect(escape('references "https://example.com/schema.json"; only')).toBe(
+      'references "`https://example.com/schema.json`"; only',
+    );
+    expect(prose("fetch http://127.0.0.1:8080/supported for payTo")).toBe(
+      "Fetch `http://127.0.0.1:8080/supported` for `payTo`",
+    );
   });
 
   it("renders a current-format run with its provenance and every case", () => {
