@@ -38,7 +38,9 @@ export interface StaticFile {
 /**
  * The built page (web/dist), loaded into memory once at startup. Files are looked up by exact path,
  * so no request path ever reaches the file system. Hashed files under /assets/ are immutable;
- * everything else, index.html included, is revalidated on every load.
+ * everything else, index.html included, is revalidated on every load. Every file is marked
+ * no-transform, so a proxy in front (a CDN) serves it unchanged instead of injecting scripts the
+ * Content-Security-Policy would block.
  */
 export class StaticSite {
   private readonly files = new Map<string, StaticFile>();
@@ -56,7 +58,9 @@ export class StaticSite {
         body,
         type,
         etag: `"${createHash("sha256").update(body).digest("base64url").slice(0, 27)}"`,
-        cacheControl: url.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache",
+        cacheControl: url.startsWith("/assets/")
+          ? "public, max-age=31536000, immutable, no-transform"
+          : "no-cache, no-transform",
       });
     }
   }

@@ -111,12 +111,12 @@ describe("Playground server", () => {
       const response = await app.request(path);
       expect(response.status, path).toBe(200);
       expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
-      expect(response.headers.get("cache-control")).toBe("no-cache");
+      expect(response.headers.get("cache-control")).toBe("no-cache, no-transform");
       expect(await response.text()).toContain("Rail402 Playground");
     }
     const asset = await app.request("/assets/index-abc123.js");
     expect(asset.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
-    expect(asset.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    expect(asset.headers.get("cache-control")).toBe("public, max-age=31536000, immutable, no-transform");
     const etag = asset.headers.get("etag") ?? "";
     const revalidated = await app.request("/assets/index-abc123.js", { headers: { "if-none-match": etag } });
     expect(revalidated.status).toBe(304);
