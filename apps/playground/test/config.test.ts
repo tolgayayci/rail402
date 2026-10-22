@@ -114,7 +114,7 @@ describe("configuration", () => {
 
   it("does not judge variables by their names", () => {
     const config = testConfig({
-      RAILWAY_PRIVATE_DOMAIN: "playground.railway.internal",
+      PLATFORM_PRIVATE_DOMAIN: "playground.internal",
       SECRET_SAUCE: "not a seed",
       MY_PRIVATE_KEY_PATH: "/nowhere",
     });

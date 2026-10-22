@@ -125,13 +125,12 @@ docker run -p 8080:8080 -e STORE=memory \
 
 `curl localhost:8080/ready` answers `200` once the channel accounts exist, within seconds.
 
-For a durable setup with Postgres, one command each from a clone (this builds the checked-out source, so it
-includes everything below); both create a fee sponsor funded by Friendbot and wait until the service is ready:
+For a durable setup with Postgres, one command from a clone (this builds the checked-out source, so it
+includes everything below); it creates a fee sponsor funded by Friendbot and waits until the service is ready:
 
 ```sh
 git clone https://github.com/tolgayayci/rail402.git && cd rail402
-./deploy/docker.sh                  # Docker on this machine: Postgres + Rail402 on 127.0.0.1:8080
-./deploy/railway.sh my-facilitator  # Railway (after `railway login`): Postgres + Rail402 + a public domain
+./deploy/docker.sh  # Docker on this machine: Postgres + Rail402 on 127.0.0.1:8080
 ```
 
 Or embed the settlement engine in your own server with `npm install @rail402.dev/facilitator`:

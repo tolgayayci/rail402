@@ -28,7 +28,7 @@ export interface Config {
     readonly bodyLimitBytes: number;
     /** Requests per minute per client IP; 0 disables. */
     readonly rateLimitPerMinute: number;
-    /** Trust X-Forwarded-For from this many proxy hops (Railway: 1). */
+    /** Trust X-Forwarded-For from this many proxy hops (0 when it is reached directly). */
     readonly trustedProxyHops: number;
   };
   readonly auth: {

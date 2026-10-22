@@ -61,7 +61,7 @@ export interface PlaygroundConfig {
   /** Host names allowed the higher per-host relay rate (the demo seller by default). */
   readonly relayTrustedHosts: readonly string[];
   readonly limits: Limits;
-  /** Trust X-Forwarded-For from this many proxy hops (Railway: 1). */
+  /** Trust X-Forwarded-For from this many proxy hops (0 when it is reached directly). */
   readonly trustedProxyHops: number;
   readonly logLevel: "fatal" | "error" | "warn" | "info" | "debug" | "trace";
   /** SHA-256 hex digest of the bearer token /metrics requires; public when unset. */
@@ -208,7 +208,7 @@ const schema = z.object({
  * Reads and validates the configuration. Throws a ConfigError naming the variable on any problem,
  * and when any environment value holds a Stellar secret seed: the Playground never needs one, so one
  * found anywhere is a mistake to stop on, not to ignore. Variable names are never pattern-matched
- * (platforms inject names like `RAILWAY_PRIVATE_DOMAIN`); only values are.
+ * (hosting platforms inject names of their own); only values are.
  */
 export function loadConfig(
   env: Readonly<Record<string, string | undefined>>,

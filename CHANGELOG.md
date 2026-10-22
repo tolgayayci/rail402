@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Tooling
+
+- The Railway deployment files (`.railway/`, `deploy/railway.sh`, `deploy/playground.sh`), their guide and
+  the `railway` development dependency are removed. The Dockerfiles and `deploy/docker.sh` remain.
+
 ## 0.4.2 — 2026-10-20
 
 Fixes since 0.4.1: a payer whose account refuses its signature is named a bad signature instead of expired

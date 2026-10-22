@@ -19,7 +19,7 @@ exceptions flagged below. The policy is enforced on every CI run by `pnpm licens
 | --------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | Service (the container image)                                                                                                                 | 93       |
 | Outside the service: the published agent packages (SDK, MCP server, CLI, upto, safe-fetch) and workspace tools (conformance runs, evaluation) | 106      |
-| Development only (build, lint, test)                                                                                                          | 178      |
+| Development only (build, lint, test)                                                                                                          | 175      |
 | Contract contracts/stellar/upto (Rust)                                                                                                        | 216      |
 | Contract contracts/testing/approve-spending-limit (Rust)                                                                                      | 218      |
 | Contract contracts/testing/composition (Rust)                                                                                                 | 216      |
@@ -175,7 +175,7 @@ Dual or compound licences (a permissive branch is always available):
 
 | Licence       | Packages |
 | ------------- | -------- |
-| MIT           | 144      |
+| MIT           | 141      |
 | Apache-2.0    | 18       |
 | BSD-2-Clause  | 7        |
 | ISC           | 4        |

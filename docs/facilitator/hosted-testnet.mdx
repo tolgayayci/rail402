@@ -21,8 +21,8 @@ payments, and read its Bazaar catalog without an account.
 | Access     | Free, no API key                                                                         |
 | Extensions | `bazaar`                                                                                 |
 
-It runs the repository's Docker image on [Railway](/facilitator/railway), with Postgres, and `/health` reports
-the version it was deployed with (`RAIL402_VERSION`). It does not serve `stellar:pubnet`.
+It runs the repository's [Docker image](/facilitator/docker) with Postgres, behind a reverse proxy, and
+`/health` reports the version it was deployed with (`RAIL402_VERSION`). It does not serve `stellar:pubnet`.
 
 ## Check it
 
@@ -45,15 +45,15 @@ curl {{facilitatorUrl}}/supported
       "network": "stellar:testnet",
       "extra": {
         "areFeesSponsored": true,
-        "facilitatorAddress": "GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC"
+        "facilitatorAddress": "GBAQ3BGTI3THOPSLXCAAJNHOH7LGU477RFXOQ6NVECNVOTCABEAEI6SX"
       }
     }
   ],
   "extensions": ["bazaar"],
   "signers": {
     "stellar:*": [
-      "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
-      "GDZREJ6UXJDL7IMLRMHP4F6RM37TF3WUGRB7GPE5G4IUIXKS6ISZPVEQ",
+      "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+      "GBELAB7H5MOJQLEZLC4UE4MKKL3K6QDOLHY6UWE3AJOEZXHXI7YJG52A",
       "..."
     ]
   }
@@ -123,9 +123,10 @@ To build your own, follow the [buyer](/quickstart/buyers) and [seller](/quicksta
 
 ## Limits
 
-- **Rate limits.** Requests are limited per client address; the instance runs with `TRUSTED_PROXY_HOPS=1`,
-  so the address is the one Railway's edge proxy reports in `X-Forwarded-For`. A limited request gets HTTP
-  `429` with a `Retry-After` header and the code `rate_limited`.
+- **Rate limits.** Requests are limited per client address. The reverse proxy in front of the instance sets
+  `X-Forwarded-For` to the client's address, and the instance trusts that one hop (`TRUSTED_PROXY_HOPS=1`), so
+  the limit counts the client, not the proxy. A limited request gets HTTP `429` with a `Retry-After` header
+  and the code `rate_limited`.
 - **Operator policy.** The accepted assets, amount bounds, `maxTimeoutSeconds` range and settlement fee
   ceilings are configuration; the defaults are on the [Configuration](/configuration#per-network) page. A
   payment outside them is refused with a specific code: `invalid_exact_stellar_requirements_*` or

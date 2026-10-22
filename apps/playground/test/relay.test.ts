@@ -639,10 +639,10 @@ describe("relay", () => {
     });
 
     it("treats the platform's generated domain as the Playground itself", async () => {
-      hostedApp(undefined, { RAILWAY_PUBLIC_DOMAIN: "Playground-Production.up.railway.app" });
-      expect((await relayError(await relay("https://playground-production.up.railway.app/lab/x"))).code).toBe(
-        "playground_relay_loop",
-      );
+      hostedApp(undefined, { RAILWAY_PUBLIC_DOMAIN: "Playground-Production.platform.example" });
+      expect(
+        (await relayError(await relay("https://playground-production.platform.example/lab/x"))).code,
+      ).toBe("playground_relay_loop");
     });
 
     it("gives the shared paid pool its token back when nothing reached a seller", async () => {
