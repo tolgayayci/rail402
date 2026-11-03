@@ -305,6 +305,7 @@ describe.skipIf(!available)("seller helpers on the local network", () => {
       rpcUrl: net.rpcUrl,
       facilitatorUrl: rail402.url,
       allowLoopback: true,
+      discoveryAllowLoopback: true,
     };
     const http = await checkSellerOrigin(`${sellerUrl}/forecast/Izmir`, checks);
     expect(http).toMatchObject({

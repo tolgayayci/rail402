@@ -1,20 +1,18 @@
+import { Account, Address, MuxedAccount, scValToNative, rpc, xdr } from "@stellar/stellar-sdk";
+import { networkPassphrase, type AssetFacts, type StellarNetwork } from "@rail402.dev/stellar";
 import {
-  Address,
-  FeeBumpTransaction,
-  TransactionBuilder,
-  scValToNative,
-  xdr,
-  type Transaction,
-  rpc,
-} from "@stellar/stellar-sdk";
-import { getAddressCredentials } from "@x402/stellar";
-import {
-  baseAccount,
-  networkPassphrase,
-  sacTransferEvents,
-  type AssetFacts,
-  type StellarNetwork,
-} from "@rail402.dev/stellar";
+  envelopeHashes,
+  networkId,
+  operationEvents,
+  readEnvelope,
+  signedByPayer,
+  transferOf,
+  verifySacAsset,
+  x402Shape,
+  type AddressView,
+  type AuthorizationView,
+} from "@rail402.dev/x402-index";
+import { REGISTRIES } from "@rail402.dev/x402-index/registry";
 import { paymentError } from "../codes.ts";
 import { explorerUrl, type ExplorerProvider } from "../explorer.ts";
 import { toDecimal } from "../money.ts";
@@ -104,98 +102,111 @@ export async function inspectTransaction(
   }
 
   const passphrase = networkPassphrase(deps.network);
-  const envelope = TransactionBuilder.fromXDR(response.envelopeXdr, passphrase);
-  const inner: Transaction = envelope instanceof FeeBumpTransaction ? envelope.innerTransaction : envelope;
-  const feeBump =
-    envelope instanceof FeeBumpTransaction
-      ? {
-          outerHash: envelope.hash().toString("hex"),
-          innerHash: inner.hash().toString("hex"),
-          feeSource: envelope.feeSource,
-          feeCharged: response.resultXdr.feeCharged().toString(),
-        }
-      : null;
+  const envelope = response.envelopeXdr;
+  const view = readEnvelope(envelope);
+  if (view === undefined) {
+    throw paymentError("transaction_unreadable");
+  }
+  const hashes = envelopeHashes(envelope, networkId(passphrase));
+  const feeBump = view.feeBump
+    ? {
+        outerHash: hashes.hash,
+        innerHash: hashes.innerHash ?? hashes.hash,
+        feeSource: strkeyOf(view.feePayer),
+        feeCharged: response.resultXdr.feeCharged().toString(),
+      }
+    : null;
 
   const operations: TransactionReport["operations"][number][] = [];
   const authorizations: TransactionReport["authorizations"][number][] = [];
+  /** The entries behind `authorizations`, in the same order. */
+  const entries: AuthorizationView[] = [];
   let otherCredentials = 0;
   const invocations: { contract: string; fn: string; subInvocations: number }[] = [];
-  for (const operation of inner.operations) {
-    if (operation.type !== "invokeHostFunction") {
-      operations.push({ type: operation.type });
+  for (const operation of view.operations) {
+    const call = operation.invocation;
+    if (call === null) {
+      operations.push(
+        operation.hostFunction === null
+          ? { type: operation.type }
+          : { type: operation.type, function: operation.hostFunction },
+      );
       continue;
     }
-    const func = operation.func;
-    if (func.switch() !== xdr.HostFunctionType.hostFunctionTypeInvokeContract()) {
-      operations.push({ type: operation.type, function: func.switch().name });
-      continue;
-    }
-    const call = func.invokeContract();
-    const contract = Address.fromScAddress(call.contractAddress()).toString();
-    const fn = call.functionName().toString();
     operations.push({
       type: operation.type,
-      contract,
-      function: fn,
-      args: call.args().slice(0, MAX_ARGS).map(readableArg),
+      contract: call.contract,
+      function: call.fn,
+      args: call.args.slice(0, MAX_ARGS).map(readableArg),
     });
-    for (const entry of operation.auth ?? []) {
-      const credentials = getAddressCredentials(entry.credentials());
-      if (credentials === undefined) {
+    for (const entry of operation.authorizations) {
+      if ((entry.credential !== "address" && entry.credential !== "address_v2") || entry.address === null) {
         otherCredentials++;
         continue;
       }
-      const root = entry.rootInvocation();
       authorizations.push({
-        address: Address.fromScAddress(credentials.address()).toString(),
-        credential:
-          entry.credentials().switch() === xdr.SorobanCredentialsType.sorobanCredentialsAddressV2()
-            ? "address_v2"
-            : "address",
-        nonce: credentials.nonce().toString(),
-        expirationLedger: credentials.signatureExpirationLedger(),
-        signed: credentials.signature().switch() !== xdr.ScValType.scvVoid(),
-        subInvocations: root.subInvocations().length,
+        address: strkeyOf(entry.address),
+        credential: entry.credential,
+        nonce: entry.nonce ?? "0",
+        expirationLedger: entry.expirationLedger ?? 0,
+        signed: entry.signed,
+        subInvocations: entry.subInvocations,
       });
-      if (
-        root.function().switch() ===
-        xdr.SorobanAuthorizedFunctionType.sorobanAuthorizedFunctionTypeContractFn()
-      ) {
-        const args = root.function().contractFn();
+      entries.push(entry);
+      if (entry.root !== null) {
         invocations.push({
-          contract: Address.fromScAddress(args.contractAddress()).toString(),
-          fn: args.functionName().toString(),
-          subInvocations: root.subInvocations().length,
+          contract: entry.root.contract,
+          fn: entry.root.fn,
+          subInvocations: entry.subInvocations,
         });
       }
     }
   }
 
   const transfers: TransactionReport["transfers"][number][] = [];
+  /** `contract:from` of transfers by a Stellar Asset Contract, which always requires `from`'s authorization. */
+  const assetContractSenders = new Set<string>();
   if (response.status === SUCCESS) {
-    for (const event of sacTransferEvents(response)) {
-      const facts = await deps.describe?.(event.contract).catch(() => undefined);
+    for (const event of operationEvents(response.resultMetaXdr).flat()) {
+      const transfer = transferOf(event);
+      if (transfer === undefined) continue;
+      if (verifySacAsset(transfer.contract, transfer.assetTopic, passphrase).verified)
+        assetContractSenders.add(`${transfer.contract}:${transfer.from}`);
+      const facts = await deps.describe?.(transfer.contract).catch(() => undefined);
       transfers.push({
-        contract: event.contract,
+        contract: transfer.contract,
         ...(facts === undefined ? {} : { symbol: sanitizeText(facts.symbol, 16) }),
-        from: event.from,
-        to: event.to,
+        from: transfer.from,
+        to: topicAddress(event.topics[2]) ?? transfer.to,
         amount: {
-          atomic: event.amount.toString(),
-          ...(facts === undefined ? {} : { decimal: toDecimal(event.amount, facts.decimals) }),
+          atomic: transfer.amount.toString(),
+          ...(facts === undefined ? {} : { decimal: toDecimal(transfer.amount, facts.decimals) }),
         },
       });
     }
   }
 
-  const x402 = classify(
+  // An authorization is proven when the chain shows it was checked: a Stellar Asset Contract's transfer
+  // from that address, or a valid signature by the address's own key (check E7 of the indexing rules).
+  const network = networkId(passphrase);
+  const x402 = x402Shape({
     operations,
-    authorizations,
+    authorizations: authorizations.map((authorization, index) => {
+      const entry = entries[index];
+      const address = entry?.address ?? null;
+      const proven =
+        entry !== undefined &&
+        address !== null &&
+        ((entry.root?.fn === "transfer" &&
+          assetContractSenders.has(`${entry.root.contract}:${address.base}`)) ||
+          signedByPayer(entry.entry, address, network, response.ledger));
+      return { ...authorization, proven };
+    }),
     invocations,
     otherCredentials,
     transfers,
-    response.status,
-  );
+    status: response.status,
+  });
   return {
     hash: normalized,
     network: deps.network,
@@ -203,110 +214,47 @@ export async function inspectTransaction(
     ledger: response.ledger,
     closedAt: new Date(response.createdAt * 1_000).toISOString(),
     feeBump,
-    source: inner.source,
+    source: strkeyOf(view.innerSource),
     operations,
     authorizations,
     transfers,
-    x402,
-    facilitator: await attribute(deps, feeBump?.feeSource ?? inner.source, inner.source),
+    x402: { shape: x402.shape, checks: [...x402.checks] },
+    facilitator: await attribute(deps, response.ledger, view.feePayer.base, view.innerSource.base),
     explorerUrl: explorerUrl(deps.network, normalized, deps.explorer),
   };
 }
 
 /**
- * Whether the transaction is an x402 payment: `exact` is one SAC transfer authorized by its payer
- * alone; `upto` is one `settle` call on a settlement contract, authorized by the payer (with its one
- * approval) and by the settlement authority as the operation's source.
+ * Whether the fee source or the inner source is one of the configured facilitator's accounts. The
+ * published registry answers first, for the ledger of the transaction, so a settlement from before a
+ * sponsor rotation still counts; the facilitator's current `/supported` signers answer otherwise.
  */
-function classify(
-  operations: TransactionReport["operations"],
-  authorizations: TransactionReport["authorizations"],
-  invocations: readonly { contract: string; fn: string; subInvocations: number }[],
-  otherCredentials: number,
-  transfers: TransactionReport["transfers"],
-  status: "SUCCESS" | "FAILED",
-): TransactionReport["x402"] {
-  const checks: string[] = [];
-  const [operation, ...moreOperations] = operations;
-  const [authorization, ...moreAuthorizations] = authorizations;
-  const [invocation] = invocations;
-  if (operation?.function === "settle") {
-    const upto =
-      moreOperations.length === 0 &&
-      authorization !== undefined &&
-      moreAuthorizations.length === 0 &&
-      otherCredentials === 1 &&
-      invocation?.fn === "settle" &&
-      invocation.contract === operation.contract &&
-      invocation.subInvocations === 1;
-    checks.push(moreOperations.length === 0 ? "one settle invocation" : "expected exactly one operation");
-    if (authorization === undefined || moreAuthorizations.length > 0) {
-      checks.push("expected exactly one payer authorization");
-    } else {
-      checks.push(`authorized by ${authorization.address} for its terms`);
-      checks.push(
-        authorization.subInvocations === 1 ? "one approval under the terms" : "unexpected sub-invocations",
-      );
-    }
-    checks.push(
-      otherCredentials === 1
-        ? "the settlement authority authorized the amount as the operation source"
-        : "no single settlement-authority authorization",
-    );
-    if (status === "SUCCESS") {
-      const moved = transfers.filter(
-        (transfer) => authorization !== undefined && transfer.from === authorization.address,
-      );
-      checks.push(
-        moved.length === 0
-          ? "no transfer from the payer (a zero settlement)"
-          : moved.length === 1
-            ? "one transfer from the payer"
-            : "more than one transfer from the payer",
-      );
-      return { shape: upto && moved.length <= 1 ? "upto" : "unknown", checks };
-    }
-    checks.push("the transaction failed");
-    return { shape: upto ? "upto" : "unknown", checks };
+/** An account as the network shows it: the `M…` strkey of a muxed account, otherwise the base `G…`. */
+function strkeyOf(address: AddressView): string {
+  if (address.muxedId === null) return address.base;
+  return new MuxedAccount(new Account(address.base, "0"), address.muxedId).accountId();
+}
+
+/** The address in an event topic exactly as written (an `M…` topic stays `M…`). */
+function topicAddress(topic: xdr.ScVal | undefined): string | undefined {
+  if (topic?.switch() !== xdr.ScValType.scvAddress()) return undefined;
+  try {
+    return Address.fromScAddress(topic.address()).toString();
+  } catch {
+    return undefined;
   }
-  const exact =
-    operation !== undefined &&
-    moreOperations.length === 0 &&
-    operation.function === "transfer" &&
-    authorization !== undefined &&
-    moreAuthorizations.length === 0 &&
-    otherCredentials === 0 &&
-    invocation?.fn === "transfer" &&
-    invocation.contract === operation.contract &&
-    invocation.subInvocations === 0;
-  if (operation === undefined || moreOperations.length > 0) checks.push("expected exactly one operation");
-  else if (operation.function !== "transfer") checks.push("the operation is not a token transfer");
-  else checks.push("one token transfer invocation");
-  if (authorization === undefined || moreAuthorizations.length > 0 || otherCredentials > 0) {
-    checks.push("expected exactly one address authorization");
-  } else {
-    checks.push(`authorized by ${authorization.address} alone`);
-    if (authorization.subInvocations === 0) checks.push("no sub-invocations");
-    else checks.push("the authorization has sub-invocations");
-  }
-  if (status === "SUCCESS") {
-    const matching = transfers.filter(
-      (transfer) => authorization !== undefined && transfer.from === authorization.address,
-    );
-    checks.push(matching.length === 1 ? "one transfer from the payer" : "no single transfer from the payer");
-  } else {
-    checks.push("the transaction failed");
-  }
-  return { shape: exact ? "exact" : "unknown", checks };
 }
 
 async function attribute(
   deps: InspectDependencies,
+  ledger: number,
   feeSource: string,
   innerSource: string,
 ): Promise<TransactionReport["facilitator"]> {
   if (deps.facilitator === undefined) return null;
   const url = deps.facilitator.url.replace(/\/+$/, "");
+  if (registryAttributes(deps.network, url, ledger, [feeSource, innerSource]))
+    return { url, attributed: true };
   try {
     const response = await (deps.facilitator.fetch ?? fetch)(`${url}/supported`, {
       redirect: "error",
@@ -319,12 +267,29 @@ async function attribute(
       if (!pattern.startsWith("stellar:") || !Array.isArray(list)) continue;
       for (const signer of list) if (typeof signer === "string") signers.add(signer);
     }
-    const fee = baseAccount(feeSource) ?? feeSource;
-    const source = baseAccount(innerSource) ?? innerSource;
-    return { url, attributed: signers.has(fee) || signers.has(source) };
+    return { url, attributed: signers.has(feeSource) || signers.has(innerSource) };
   } catch {
     return { url, attributed: false };
   }
+}
+
+/** Whether the registry lists one of `accounts` for the facilitator at `url` in `ledger` of the current epoch. */
+function registryAttributes(
+  network: StellarNetwork,
+  url: string,
+  ledger: number,
+  accounts: readonly string[],
+): boolean {
+  const registry = REGISTRIES[network];
+  const facilitator = registry.document.facilitators.find((entry) =>
+    entry.urls?.some((candidate) => candidate.replace(/\/+$/, "") === url),
+  );
+  // The RPC keeps about a week of ledgers, so a transaction it returns is in the latest epoch.
+  const epoch = registry.document.epochs.at(-1)?.id;
+  if (facilitator === undefined || epoch === undefined) return false;
+  return accounts.some(
+    (account) => registry.accountAt(account, epoch, ledger)?.facilitator.id === facilitator.id,
+  );
 }
 
 /** An argument as plain JSON: addresses as strkeys, integers as strings, long values cut. */

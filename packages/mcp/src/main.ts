@@ -1,6 +1,7 @@
 import { isRail402Error } from "@rail402.dev/errors";
 import { redact } from "@rail402.dev/sdk";
 import { USAGE, resolveMcpCommand } from "./config.ts";
+import { createMcpConfirmation } from "./confirm-scope.ts";
 import { startHttpTransport } from "./http.ts";
 import { createLogger } from "./logger.ts";
 import { createRail402Mcp, openConfiguredBuyer } from "./runtime.ts";
@@ -32,16 +33,23 @@ export async function main(
   }
   const { agent, transport } = command.config;
   const logger = createLogger(agent.logLevel);
+  const confirmation = createMcpConfirmation(command.config.confirm);
   let opened;
   try {
-    opened = await openConfiguredBuyer(agent, logger);
+    opened = await openConfiguredBuyer(agent, logger, confirmation);
   } catch (error) {
     return fail(error);
   }
   const { buyer } = opened;
-  const { factory } = createRail402Mcp({ buyer, limits: { maxInflight: agent.maxInflight }, logger });
+  const { factory } = createRail402Mcp({
+    buyer,
+    limits: { maxInflight: agent.maxInflight },
+    logger,
+    confirmation,
+  });
 
   let stop: () => Promise<void>;
+  let serving: () => void;
   if (transport.kind === "http") {
     let running;
     try {
@@ -50,20 +58,25 @@ export async function main(
       await opened.close();
       return fail(error);
     }
-    logger.info("serving", {
-      transport: "http",
-      url: running.url,
-      network: buyer.network,
-      payer: buyer.address ?? null,
-    });
+    const url = running.url;
+    serving = () => {
+      logger.info("serving", {
+        transport: "http",
+        url,
+        network: buyer.network,
+        payer: buyer.address ?? null,
+      });
+    };
     stop = () => running.close();
   } else {
     const handle = startStdioTransport(factory, { logger });
-    logger.info("serving", { transport: "stdio", network: buyer.network, payer: buyer.address ?? null });
+    serving = () => {
+      logger.info("serving", { transport: "stdio", network: buyer.network, payer: buyer.address ?? null });
+    };
     stop = () => handle.close();
   }
 
-  return new Promise<number>((resolve) => {
+  const stopped = new Promise<number>((resolve) => {
     let stopping = false;
     const shutdown = () => {
       if (stopping) return;
@@ -80,6 +93,9 @@ export async function main(
     // An MCP host ends a stdio server by closing its stdin.
     if (transport.kind === "stdio") process.stdin.once("close", shutdown).once("end", shutdown);
   });
+  // Logged once the signal handlers are in place, so stopping on this line still shuts down cleanly.
+  serving();
+  return stopped;
 }
 
 /** Reports a startup failure on stderr as one coded JSON line; the exit status is 1. */

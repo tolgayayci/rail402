@@ -52,10 +52,16 @@ describe("SqliteSpendLedger", () => {
       payTo: payer,
       resource: "r",
       amount: 7n,
+      idempotencyKey: "persist-key-1",
+      paymentId: "rail402_persisted-identifier",
     });
     first.close();
     const second = new SqliteSpendLedger(path);
-    expect(second.get(row.id)).toMatchObject({ amount: 7n, state: "reserved" });
+    expect(second.get(row.id)).toMatchObject({
+      amount: 7n,
+      state: "reserved",
+      paymentId: "rail402_persisted-identifier",
+    });
     second.close();
     const raw = new DatabaseSync(path);
     expect(raw.prepare("SELECT typeof(amount) AS type FROM reservations").get()).toEqual({ type: "text" });
@@ -86,7 +92,37 @@ describe("SqliteSpendLedger", () => {
     expect(upgraded.get(row.id)).toMatchObject({ state: "settled", settledAmount: 7n, unprovable: true });
     upgraded.close();
     const check = new DatabaseSync(path);
-    expect(check.prepare("PRAGMA user_version").get()).toEqual({ user_version: 2 });
+    expect(check.prepare("PRAGMA user_version").get()).toEqual({ user_version: 3 });
+    check.close();
+  });
+
+  it("adds the payment identifier to a ledger written before it, as schema version 3", () => {
+    const path = join(scratch, "no-identifier.sqlite");
+    const payer = Keypair.random().publicKey();
+    const first = new SqliteSpendLedger(path);
+    const request = {
+      callId: "c1",
+      scheme: "exact",
+      asset: usdc,
+      payTo: payer,
+      resource: "r",
+      amount: 7n,
+      idempotencyKey: "legacy-key-1",
+    } as const;
+    const legacy = first.reserve(spec(payer), request);
+    first.close();
+    // The same file as the version 2 ledger wrote it before keys kept a payment identifier.
+    const raw = new DatabaseSync(path);
+    raw.exec("ALTER TABLE reservations DROP COLUMN payment_id; PRAGMA user_version = 2");
+    raw.close();
+    const upgraded = new SqliteSpendLedger(path);
+    expect(upgraded.get(legacy.id)).toMatchObject({ idempotencyKey: "legacy-key-1", paymentId: undefined });
+    upgraded.release(legacy.id, "not_signed");
+    const next = upgraded.reserve(spec(payer), { ...request, paymentId: "rail402_after-upgrade" });
+    expect(upgraded.get(next.id)?.paymentId).toBe("rail402_after-upgrade");
+    upgraded.close();
+    const check = new DatabaseSync(path);
+    expect(check.prepare("PRAGMA user_version").get()).toEqual({ user_version: 3 });
     check.close();
   });
 

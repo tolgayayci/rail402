@@ -51,7 +51,12 @@ describe("JSON-RPC errors", () => {
     expect(answer["error"]).toEqual({
       code: -32603,
       message: "Internal error",
-      data: { code: "rpc_internal_error", reason: rpcCodes.rpc_internal_error.reason },
+      data: {
+        code: "rpc_internal_error",
+        reason: rpcCodes.rpc_internal_error.reason,
+        retryable: false,
+        paid: "none",
+      },
     });
     expect(JSON.stringify(answer)).not.toContain("secret detail");
   });

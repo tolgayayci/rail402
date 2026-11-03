@@ -1,7 +1,13 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { Account, Keypair, MuxedAccount } from "@stellar/stellar-sdk";
-import type { FacilitatorClient } from "@x402/core/server";
-import type { PaymentPayload, PaymentRequired, PaymentRequirements, SettleResponse } from "@x402/core/types";
+import { FacilitatorTimeoutError, x402ResourceServer, type FacilitatorClient } from "@x402/core/server";
+import {
+  SettleError,
+  type PaymentPayload,
+  type PaymentRequired,
+  type PaymentRequirements,
+  type SettleResponse,
+} from "@x402/core/types";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 import { z } from "zod";
 import { mergeCodes } from "@rail402.dev/errors";
@@ -577,6 +583,41 @@ describe("validateListing uses the catalog's own rules", () => {
     });
   });
 
+  it("refuses private and non-public hosts with the catalog's own reason, loopback catalog or not", async () => {
+    for (const host of ["10.0.0.5", "192.168.1.20", "169.254.169.254", "[fd00::1]", "printer.local"]) {
+      for (const allowLoopback of [false, true]) {
+        const report = await validateListing(forecast(), {
+          network: TESTNET,
+          concreteUrl: `http://${host}/forecast/Ankara`,
+          allowLoopback,
+          sandbox,
+        });
+        expect(report, `${host} ${String(allowLoopback)}`).toMatchObject({
+          catalogable: false,
+          code: "bazaar_resource_unsafe",
+          reason: expect.stringMatching(/is not a public host\.$/) as unknown,
+        });
+      }
+    }
+    expect(
+      await validateListing(forecast(), {
+        network: TESTNET,
+        concreteUrl: "http://localhost:4021/forecast/Ankara",
+        sandbox,
+      }),
+    ).toMatchObject({
+      catalogable: false,
+      code: "bazaar_resource_unsafe",
+      reason: 'Host "localhost" is not a public host.',
+    });
+  });
+
+  it("refuses a loopback catalog on pubnet, as the catalog refuses DISCOVERY_ALLOW_LOOPBACK there", async () => {
+    await expect(
+      validateListing(forecast(), { network: PUBNET, allowLoopback: true, sandbox }),
+    ).rejects.toMatchObject({ code: "seller_network_unsupported" });
+  });
+
   const live = (bazaar: unknown): PaymentRequired => ({
     x402Version: 2,
     resource: { url: "https://api.example.com/search", description: "Search", mimeType: "application/json" },
@@ -610,6 +651,22 @@ describe("validateListing uses the catalog's own rules", () => {
       ["seller_param_description_missing", "input.queryParams.q"],
       ["seller_output_example_missing", "output.example"],
     ]);
+  });
+
+  it("keeps terminal controls in a parameter name out of the advice's reason", async () => {
+    const name = "q\u001b[2J\r\u202e";
+    const report = await validateListing(
+      live(
+        declareDiscoveryExtension({
+          input: { [name]: "x" },
+          inputSchema: { properties: { [name]: { type: "string" } } },
+        })["bazaar"],
+      ),
+      { network: TESTNET, method: "GET", sandbox },
+    );
+    const advice = report.lint.find((finding) => finding.code === "seller_param_description_missing");
+    expect(advice?.path).toBe(`input.queryParams.${name}`);
+    expect(advice?.reason).toBe("input.queryParams.q[2J  has no description.");
   });
 
   it("reports a PaymentRequired without discovery metadata, and the catalog's own rejections", async () => {
@@ -650,6 +707,52 @@ describe("settle dedupe", () => {
     payer: "GPAYER",
     ...(extensionResponses === undefined ? {} : { extensionResponses }),
   });
+  const pending = (transaction: string): SettleResponse => ({
+    success: false,
+    errorReason: "settlement_pending",
+    transaction,
+    network: TESTNET,
+  });
+  /**
+   * A success answered from the facilitator's record, marked as a repeat, echoing the attempt id of the
+   * request that started the settlement; without one, as a facilitator that does not record ids.
+   */
+  const marked = (transaction: string, attempt?: string) =>
+    success(transaction, {
+      rail402: {
+        settlement: { repeat: true, settledBy: "rail402", ...(attempt === undefined ? {} : { attempt }) },
+      },
+      bazaar: {},
+    });
+  /** The attempt id a wrapper put in a settle request. */
+  const attemptOf = (paid: PaymentPayload) =>
+    (paid.extensions?.["rail402"] as { settlement?: { attempt?: string } } | undefined)?.settlement
+      ?.attempt ?? "";
+
+  type Answer = SettleResponse | Error | ((attempts: readonly string[]) => SettleResponse | Error);
+  /**
+   * A facilitator client that gives `answers` in turn, raising the errors among them. `attempts` holds
+   * the attempt id of every request it got; an answer may be built from them, as Rail402 echoes the id
+   * of the request that started a settlement.
+   */
+  const scripted = (answers: Answer[]) => {
+    const attempts: string[] = [];
+    const client: FacilitatorClient = {
+      ...facilitator([]),
+      settle: (paid: PaymentPayload) => {
+        attempts.push(attemptOf(paid));
+        const next = answers.shift();
+        const answer = typeof next === "function" ? next(attempts) : next;
+        return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer as SettleResponse);
+      },
+    };
+    return { client, attempts };
+  };
+  /** A repeat of the settlement that request number `started` began. */
+  const repeatOf = (transaction: string, started: number) => (attempts: readonly string[]) =>
+    marked(transaction, attempts[started]);
+  const signed = (transaction: string) =>
+    ({ x402Version: 2, payload: { transaction } }) as unknown as PaymentPayload;
 
   it("serves a settlement once and refuses its repeat", async () => {
     const repeats: unknown[] = [];
@@ -669,18 +772,302 @@ describe("settle dedupe", () => {
     expect(repeats).toEqual([{ network: TESTNET, transaction: "aa", detectedBy: "memory" }]);
   });
 
-  it("trusts Rail402's repeat marker, even for a settlement it never saw", async () => {
-    const marked = success("cc", {
-      rail402: { settlement: { repeat: true, settledBy: "rail402" } },
-      bazaar: {},
+  it("tags every settle request with a new attempt id, and leaves the buyer's payment as it was", async () => {
+    const { client, attempts } = scripted([success("a1"), success("a2")]);
+    const wrapped = withSettleDedupe(client);
+    const paid = {
+      x402Version: 2,
+      payload: { transaction: "AAAA" },
+      extensions: { bazaar: { info: {} }, rail402: { settlement: { attempt: "chosen-by-the-buyer-1" } } },
+    } as unknown as PaymentPayload;
+    const before = structuredClone(paid);
+    await wrapped.settle(paid, requirements);
+    await wrapped.settle(paid, requirements);
+    expect(paid).toEqual(before);
+    expect(attempts).toHaveLength(2);
+    for (const attempt of attempts) expect(attempt).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    expect(attempts[0]).not.toBe(attempts[1]);
+    expect(attempts).not.toContain("chosen-by-the-buyer-1");
+  });
+
+  it("sends the buyer's payment as it is when attempt ids are turned off", async () => {
+    const { client, attempts } = scripted([pending("b1"), repeatOf("b1", 0)]);
+    const wrapped = withSettleDedupe(client, { attemptIds: false });
+    const paid = { x402Version: 2, payload: { transaction: "AAAA" } } as unknown as PaymentPayload;
+    expect(await wrapped.settle(paid, requirements)).toMatchObject({ errorReason: "settlement_pending" });
+    // Nothing to echo, so the marked success is refused.
+    expect(await wrapped.settle(paid, requirements)).toMatchObject({
+      errorReason: "seller_settlement_repeat",
     });
-    const client = withSettleDedupe(facilitator([marked, success("cc")]));
+    expect(attempts).toEqual(["", ""]);
+  });
+
+  it("trusts Rail402's repeat marker, even for a settlement it never saw", async () => {
+    const repeats: unknown[] = [];
+    const memory = new MemorySettlementMemory();
+    const client = withSettleDedupe(facilitator([marked("cc", "started-by-another-seller")]), {
+      memory,
+      onRepeat: (event) => repeats.push(event),
+    });
     expect(await client.settle(payload, requirements)).toMatchObject({
       success: false,
       errorReason: "seller_settlement_repeat",
     });
-    // Remembered, so a later unmarked repeat is refused too.
-    expect(await client.settle(payload, requirements)).toMatchObject({ success: false });
+    expect(repeats).toEqual([{ network: TESTNET, transaction: "cc", detectedBy: "facilitator" }]);
+    // A refusal serves nothing, so it does not count as the settlement's serve.
+    expect(memory.claim(`${TESTNET}:cc`)).toBe(true);
+  });
+
+  it("serves the first success after the facilitator answered settlement_pending", async () => {
+    const repeats: unknown[] = [];
+    const { client } = scripted([pending("ee"), repeatOf("ee", 0), repeatOf("ee", 0)]);
+    const wrapped = withSettleDedupe(client, { onRepeat: (event) => repeats.push(event) });
+    expect(await wrapped.settle(payload, requirements)).toMatchObject({ errorReason: "settlement_pending" });
+    // The retry is answered from the facilitator's record, marked as a repeat; it is still the first serve.
+    expect(await wrapped.settle(payload, requirements)).toMatchObject({ success: true, transaction: "ee" });
+    expect(await wrapped.settle(payload, requirements)).toMatchObject({
+      success: false,
+      errorReason: "seller_settlement_repeat",
+    });
+    expect(repeats).toEqual([{ network: TESTNET, transaction: "ee", detectedBy: "facilitator" }]);
+  });
+
+  it("serves a payment the stock resource server settles again after settlement_pending", async () => {
+    const { client } = scripted([pending("ff"), repeatOf("ff", 0), repeatOf("ff", 0)]);
+    const server = new x402ResourceServer(withSettleDedupe(client));
+    const paid = { x402Version: 2, payload: {} } as unknown as PaymentPayload;
+    const route: PaymentRequirements = { ...requirements, scheme: "exact", network: TESTNET };
+    expect(await server.settlePayment(paid, route)).toMatchObject({ success: true, transaction: "ff" });
+    // Another request with the same payment is a repeat.
+    expect(await server.settlePayment(paid, route)).toMatchObject({
+      success: false,
+      errorReason: "seller_settlement_repeat",
+    });
+  });
+
+  it("serves a pending payment once, whichever of its copies or retries succeeds first", async () => {
+    // Two wrappers: the request answered pending retries on its own, while a copy of the payment reaches
+    // the other, whose own attempt never started the settlement.
+    const original = scripted([pending("aa11"), repeatOf("aa11", 0)]);
+    const copy = scripted([() => marked("aa11", original.attempts[0])]);
+    const first = withSettleDedupe(original.client);
+    const second = withSettleDedupe(copy.client);
+    expect(await first.settle(payload, requirements)).toMatchObject({ success: false });
+    expect(await second.settle(payload, requirements)).toMatchObject({
+      errorReason: "seller_settlement_repeat",
+    });
+    expect(await first.settle(payload, requirements)).toMatchObject({ success: true });
+
+    // In one wrapper: both copies were answered pending, and only the first success is served.
+    const both = withSettleDedupe(
+      scripted([pending("bb22"), pending("bb22"), repeatOf("bb22", 0), repeatOf("bb22", 0)]).client,
+    );
+    const answers = [];
+    for (let call = 0; call < 4; call++) answers.push(await both.settle(payload, requirements));
+    expect(answers.map((answer) => answer.success)).toEqual([false, false, true, false]);
+    expect(answers[3]).toMatchObject({ errorReason: "seller_settlement_repeat" });
+  });
+
+  it("never serves a payment that another wrapper started, whatever its own attempts got", async () => {
+    // Two wrappers with a memory each (replicas, or two sellers with the same recipient and price):
+    // the first serves the payment; the second's copy gets no answer, then the marked success.
+    const first = scripted([success("cc44")]);
+    const second = scripted([new TypeError("fetch failed"), () => marked("cc44", first.attempts[0])]);
+    const a = withSettleDedupe(first.client);
+    const b = withSettleDedupe(second.client);
+    expect(await a.settle(signed("PAID"), requirements)).toMatchObject({ success: true });
+    await expect(b.settle(signed("PAID"), requirements)).rejects.toBeInstanceOf(TypeError);
+    expect(await b.settle(signed("PAID"), requirements)).toMatchObject({
+      errorReason: "seller_settlement_repeat",
+    });
+  });
+
+  it("serves the first success of a payment whose earlier settle failed in transit", async () => {
+    const { client } = scripted([
+      new FacilitatorTimeoutError("settle", 30_000),
+      repeatOf("dd44", 0),
+      repeatOf("dd44", 0),
+      new TypeError("fetch failed"),
+      marked("ff66", "started-by-another-seller"),
+      repeatOf("ee55", 3),
+    ]);
+    const wrapped = withSettleDedupe(client);
+    // The facilitator settled the payment, but its answer never arrived; the buyer sends it again.
+    await expect(wrapped.settle(signed("AAAA"), requirements)).rejects.toBeInstanceOf(
+      FacilitatorTimeoutError,
+    );
+    expect(await wrapped.settle(signed("AAAA"), requirements)).toMatchObject({
+      success: true,
+      transaction: "dd44",
+    });
+    expect(await wrapped.settle(signed("AAAA"), requirements)).toMatchObject({
+      errorReason: "seller_settlement_repeat",
+    });
+    await expect(wrapped.settle(signed("BBBB"), requirements)).rejects.toBeInstanceOf(TypeError);
+    // A payment another seller started is still refused on the marker.
+    expect(await wrapped.settle(signed("CCCC"), requirements)).toMatchObject({
+      errorReason: "seller_settlement_repeat",
+    });
+    expect(await wrapped.settle(signed("BBBB"), requirements)).toMatchObject({
+      success: true,
+      transaction: "ee55",
+    });
+  });
+
+  it("sets the marker aside only for a settlement one of its own unfinished attempts started", async () => {
+    const refused = new SettleError(429, {
+      success: false,
+      errorReason: "rate_limited",
+      transaction: "",
+      network: TESTNET,
+    });
+    const { client } = scripted([
+      // Started by another seller, after this wrapper's own attempt got no answer.
+      new TypeError("fetch failed"),
+      marked("old1", "started-by-another-seller"),
+      // A facilitator that does not echo the id.
+      pending("old2"),
+      marked("old2"),
+      // This wrapper's own attempt, once; a second success echoing it is a repeat.
+      new TypeError("fetch failed"),
+      repeatOf("new3", 4),
+      repeatOf("new3", 4),
+      // An attempt the facilitator refused outright settled nothing, whatever is echoed later.
+      refused,
+      repeatOf("old4", 7),
+    ]);
+    const wrapped = withSettleDedupe(client);
+    const settle = (paid: PaymentPayload) =>
+      wrapped.settle(paid, requirements).catch((error: unknown) => error);
+    await settle(signed("OLD1"));
+    expect(await settle(signed("OLD1"))).toMatchObject({ errorReason: "seller_settlement_repeat" });
+    await settle(signed("OLD2"));
+    expect(await settle(signed("OLD2"))).toMatchObject({ errorReason: "seller_settlement_repeat" });
+    await settle(signed("NEW3"));
+    expect(await settle(signed("NEW3"))).toMatchObject({ success: true, transaction: "new3" });
+    expect(await settle(signed("NEW3"))).toMatchObject({ errorReason: "seller_settlement_repeat" });
+    expect(await settle(signed("OLD4"))).toBeInstanceOf(SettleError);
+    expect(await settle(signed("OLD4"))).toMatchObject({ errorReason: "seller_settlement_repeat" });
+  });
+
+  it("never waits again for a transaction whose success it already answered", async () => {
+    // A memory that forgets fast, so only the marker can recognise the copy.
+    const memory = new MemorySettlementMemory(1);
+    const { client } = scripted([success("ab66"), pending("ab66"), success("cd77"), repeatOf("ab66", 0)]);
+    const wrapped = withSettleDedupe(client, { memory });
+    expect(await wrapped.settle(payload, requirements)).toMatchObject({ success: true, transaction: "ab66" });
+    // A late pending answer for the served transaction.
+    expect(await wrapped.settle(payload, requirements)).toMatchObject({ errorReason: "settlement_pending" });
+    expect(await wrapped.settle(payload, requirements)).toMatchObject({ success: true, transaction: "cd77" });
+    expect(await wrapped.settle(payload, requirements)).toMatchObject({
+      errorReason: "seller_settlement_repeat",
+    });
+  });
+
+  it("never waits on a payment the facilitator refused outright", async () => {
+    const refused = (code: string, status: number) =>
+      new SettleError(status, { success: false, errorReason: code, transaction: "", network: TESTNET });
+    const { client } = scripted([
+      refused("rate_limited", 429),
+      refused("unauthorized", 401),
+      refused("unexpected_settle_error", 500),
+      repeatOf("aa77", 0),
+    ]);
+    const wrapped = withSettleDedupe(client);
+    // A replay of an old payment after a restart: refusals of its copies leave the marker in charge.
+    for (let copy = 0; copy < 3; copy++) {
+      await expect(wrapped.settle(signed("OLD1"), requirements)).rejects.toBeInstanceOf(SettleError);
+    }
+    expect(await wrapped.settle(signed("OLD1"), requirements)).toMatchObject({
+      errorReason: "seller_settlement_repeat",
+    });
+  });
+
+  it("never waits again on a payment whose success it already answered, even after it fails in transit", async () => {
+    // A memory that forgets fast, so only the marker can recognise the copy.
+    const memory = new MemorySettlementMemory(1);
+    const { client } = scripted([
+      success("bb88"),
+      success("cc99"),
+      new TypeError("fetch failed"),
+      repeatOf("bb88", 0),
+    ]);
+    const wrapped = withSettleDedupe(client, { memory });
+    expect(await wrapped.settle(signed("PAID"), requirements)).toMatchObject({ success: true });
+    expect(await wrapped.settle(signed("OTHER"), requirements)).toMatchObject({ success: true });
+    await expect(wrapped.settle(signed("PAID"), requirements)).rejects.toBeInstanceOf(TypeError);
+    expect(await wrapped.settle(signed("PAID"), requirements)).toMatchObject({
+      errorReason: "seller_settlement_repeat",
+    });
+  });
+
+  it("keeps waiting on a pending settlement however many other payments fail in transit", async () => {
+    const answers: Answer[] = [pending("dd00")];
+    for (let junk = 0; junk < 10_000; junk++) answers.push(new TypeError("fetch failed"));
+    answers.push(repeatOf("dd00", 0));
+    const wrapped = withSettleDedupe(scripted(answers).client);
+    expect(await wrapped.settle(signed("HONEST"), requirements)).toMatchObject({
+      errorReason: "settlement_pending",
+    });
+    for (let junk = 0; junk < 10_000; junk++) {
+      await expect(wrapped.settle(signed(`JUNK${String(junk)}`), requirements)).rejects.toBeInstanceOf(
+        TypeError,
+      );
+    }
+    expect(await wrapped.settle(signed("HONEST"), requirements)).toMatchObject({
+      success: true,
+      transaction: "dd00",
+    });
+  });
+
+  it("keeps the waits made before a flood of payments that fail in transit", async () => {
+    const answers: Answer[] = [new TypeError("fetch failed")];
+    for (let junk = 0; junk < 10_001; junk++) answers.push(new TypeError("fetch failed"));
+    answers.push(repeatOf("ee11", 0));
+    const wrapped = withSettleDedupe(scripted(answers).client);
+    await expect(wrapped.settle(signed("HONEST"), requirements)).rejects.toBeInstanceOf(TypeError);
+    for (let junk = 0; junk < 10_001; junk++) {
+      await expect(wrapped.settle(signed(`JUNK${String(junk)}`), requirements)).rejects.toBeInstanceOf(
+        TypeError,
+      );
+    }
+    expect(await wrapped.settle(signed("HONEST"), requirements)).toMatchObject({
+      success: true,
+      transaction: "ee11",
+    });
+  });
+
+  it("never lets refused replays of other payments push out a payment it served", async () => {
+    // A memory that forgets fast, so only the marker can recognise the copy.
+    const memory = new MemorySettlementMemory(1);
+    const answers: Answer[] = [success("ff22"), success("ff33")];
+    for (let variant = 0; variant < 20_001; variant++)
+      answers.push(marked("gg44", "started-by-another-seller"));
+    answers.push(new TypeError("fetch failed"), repeatOf("ff22", 0));
+    const wrapped = withSettleDedupe(scripted(answers).client, { memory });
+    expect(await wrapped.settle(signed("SERVED"), requirements)).toMatchObject({ success: true });
+    expect(await wrapped.settle(signed("OTHER"), requirements)).toMatchObject({ success: true });
+    // Variants of an old payment's signed body, each refused on the marker.
+    for (let variant = 0; variant < 20_001; variant++) {
+      const copy = {
+        x402Version: 2,
+        payload: { transaction: "OLD", extra: variant },
+      } as unknown as PaymentPayload;
+      expect(await wrapped.settle(copy, requirements)).toMatchObject({
+        errorReason: "seller_settlement_repeat",
+      });
+    }
+    await expect(wrapped.settle(signed("SERVED"), requirements)).rejects.toBeInstanceOf(TypeError);
+    expect(await wrapped.settle(signed("SERVED"), requirements)).toMatchObject({
+      errorReason: "seller_settlement_repeat",
+    });
+  });
+
+  it("recognises settlement_pending that a facilitator client raises instead of returning", async () => {
+    const { client } = scripted([new SettleError(502, pending("cc33")), repeatOf("cc33", 0)]);
+    const wrapped = withSettleDedupe(client);
+    await expect(wrapped.settle(payload, requirements)).rejects.toBeInstanceOf(SettleError);
+    expect(await wrapped.settle(payload, requirements)).toMatchObject({ success: true, transaction: "cc33" });
   });
 
   it("passes failures and marker-less facilitators through", async () => {

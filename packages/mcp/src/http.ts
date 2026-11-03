@@ -14,7 +14,6 @@ import {
   originValidationResponse,
   type McpServerFactory,
 } from "@modelcontextprotocol/server";
-import { MAX_HTTP_BODY_BYTES } from "./config.ts";
 import { silentLogger, type Logger } from "./logger.ts";
 
 export interface HttpTransportOptions {
@@ -35,6 +34,9 @@ export interface RunningHttpTransport {
   readonly port: number;
   close(): Promise<void>;
 }
+
+/** Largest HTTP request body accepted. */
+export const MAX_HTTP_BODY_BYTES = 1_048_576;
 
 /** The MCP endpoint's path. */
 export const MCP_PATH = "/mcp";
@@ -91,7 +93,7 @@ export async function startHttpTransport(
   const maxBodyBytes = options.maxBodyBytes ?? MAX_HTTP_BODY_BYTES;
   const logger = options.logger ?? silentLogger;
   const server: HttpServer = createServer((incoming, outgoing) => {
-    void serve(incoming, outgoing, (request) => handler.fetch(request), maxBodyBytes).catch(
+    void bridgeRequest(incoming, outgoing, (request) => handler.fetch(request), maxBodyBytes).catch(
       (error: unknown) => {
         logger.warn("http request failed", { error: error instanceof Error ? error.message : String(error) });
         if (!outgoing.headersSent) outgoing.writeHead(500).end();
@@ -126,7 +128,7 @@ export async function startHttpTransport(
 }
 
 /** Bridges one node:http exchange to the fetch-style handler, reading at most `maxBodyBytes`. */
-async function serve(
+export async function bridgeRequest(
   incoming: IncomingMessage,
   outgoing: ServerResponse,
   fetch: (request: Request) => Promise<Response>,

@@ -47,7 +47,11 @@ describe("storage spend ledger", () => {
     const spec = windowSpec(Keypair.random().publicKey());
     const first = new StorageSpendLedger(store, { prefix: "rail402.test" });
     expect(first.key).toBe("rail402.test:v1");
-    const settled = first.reserve(spec, request(100n, { idempotencyKey: "order_12345678" }), T0);
+    const settled = first.reserve(
+      spec,
+      request(100n, { idempotencyKey: "order_12345678", paymentId: "rail402_stored-identifier" }),
+      T0,
+    );
     first.markSigned(settled.id, { nonce: 2n ** 63n + 5n, expirationLedger: 900, signedAtLedger: 880 }, T0);
     first.markTransmitted(settled.id, T0);
     first.settle(settled.id, { transaction: "ab".repeat(32), settledAmount: 100n, verified: true }, T0);
@@ -62,6 +66,7 @@ describe("storage spend ledger", () => {
     expect(reloaded.get(settled.id)).toEqual(first.get(settled.id));
     expect(reloaded.get(settled.id)?.nonce).toBe(2n ** 63n + 5n);
     expect(reloaded.findByIdempotencyKey(window.id, "order_12345678")?.result).toBe('{"v":1}');
+    expect(reloaded.get(settled.id)?.paymentId).toBe("rail402_stored-identifier");
     expect(reloaded.unfinished(TESTNET, spec.payer).map((row) => row.id)).toEqual([pending.id]);
     expect(reloaded.usage(window.id).assets.get(usdc)).toEqual({ spent: 100n, pending: 60n });
     // The session cap still counts what was spent and reserved before the reload.

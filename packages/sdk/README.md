@@ -42,11 +42,12 @@ per 24-hour window); `stellar:pubnet` requires an RPC URL, a Bazaar URL and caps
 `PaymentError` with a stable `code`, a non-empty `reason` and `paid` (`none`, `not_settled`, `settled` or
 `unknown`).
 
-| Entry point               | Contents                                                                                                                                                         |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@rail402.dev/sdk`        | `createBuyer`, spending policy, signing guard, discovery, codes                                                                                                  |
-| `@rail402.dev/sdk/sqlite` | `SqliteSpendLedger`: one budget shared by several processes                                                                                                      |
-| `@rail402.dev/sdk/seller` | `httpRoute`, `mcpTool`, `exact`, `upto`, `param`, `setUptoCharge`, `meteredToolServer`, `chargeUpto`, `validateListing`, `checkSellerOrigin`, `withSettleDedupe` |
+| Entry point                  | Contents                                                                                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@rail402.dev/sdk`           | `createBuyer`, spending policy, signing guard, discovery, codes                                                                                                  |
+| `@rail402.dev/sdk/discovery` | `DiscoveryClient`, `toHit`, `resolvePolicy`, amounts, networks, redaction and codes, with no key, signing, ledger or payment code in its import graph            |
+| `@rail402.dev/sdk/sqlite`    | `SqliteSpendLedger`: one budget shared by several processes                                                                                                      |
+| `@rail402.dev/sdk/seller`    | `httpRoute`, `mcpTool`, `exact`, `upto`, `param`, `setUptoCharge`, `meteredToolServer`, `chargeUpto`, `validateListing`, `checkSellerOrigin`, `withSettleDedupe` |
 
 Guides: [buyer SDK](https://docs.rail402.dev/agents/sdk), [seller helpers](https://docs.rail402.dev/sellers/helpers),
 [spending policy and signing guard](https://docs.rail402.dev/reference/spending-policy),

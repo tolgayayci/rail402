@@ -19,7 +19,7 @@ describe("resolveAgentConfig", () => {
       ledgerPath: "/state/rail402/ledger.sqlite",
       egress: { allowHttp: false, allowPrivateNetwork: false, ports: undefined },
       maxInflight: 1,
-      explorer: "stellar.expert",
+      explorer: "rail402",
       logLevel: "info",
     });
     expect(config.policy).toEqual({ assets: [{ asset: "USDC" }] });
@@ -192,10 +192,37 @@ describe("resolveAgentConfig", () => {
     );
   });
 
-  it("needs a template for the rail402 explorer", () => {
-    expect(() => resolveAgentConfig({ RAIL402_EXPLORER: "rail402" })).toThrow(
-      expect.objectContaining({ details: { setting: "RAIL402_EXPLORER_URL" } }),
-    );
+  it("selects the rail402 explorer, a self-hosted one, stellar.expert or an account template", () => {
+    expect(resolveAgentConfig({ RAIL402_EXPLORER: "rail402" }).explorer).toBe("rail402");
+    expect(resolveAgentConfig({ RAIL402_EXPLORER: "stellar.expert" }).explorer).toBe("stellar.expert");
+    // Without RAIL402_EXPLORER, a self-hosted base URL applies to the default Rail402 Explorer.
+    expect(resolveAgentConfig({ RAIL402_EXPLORER_BASE_URL: "https://x.example" }).explorer).toEqual({
+      rail402BaseUrl: "https://x.example",
+    });
+    expect(
+      resolveAgentConfig({ RAIL402_EXPLORER: "rail402", RAIL402_EXPLORER_BASE_URL: "https://x.example/" })
+        .explorer,
+    ).toEqual({ rail402BaseUrl: "https://x.example" });
+    expect(
+      resolveAgentConfig({
+        RAIL402_EXPLORER: "https://x.example{networkPath}/tx/{hash}",
+        RAIL402_EXPLORER_ACCOUNT_URL: "https://x.example{networkPath}/account/{address}",
+      }).explorer,
+    ).toEqual({
+      template: "https://x.example{networkPath}/tx/{hash}",
+      accountTemplate: "https://x.example{networkPath}/account/{address}",
+    });
+    for (const [name, value] of [
+      ["RAIL402_EXPLORER_BASE_URL", "http://x.example"],
+      ["RAIL402_EXPLORER_ACCOUNT_URL", "https://x.example/account"],
+    ] as const) {
+      expect(() =>
+        resolveAgentConfig({
+          RAIL402_EXPLORER: name.includes("BASE") ? "rail402" : "https://x.example/{hash}",
+          [name]: value,
+        }),
+      ).toThrow(expect.objectContaining({ code: "payment_policy_invalid" }));
+    }
   });
 
   it("accepts a custom explorer template and the memory budget", () => {

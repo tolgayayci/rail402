@@ -2,8 +2,10 @@ import { readFileSync, statSync } from "node:fs";
 import { isRail402Error } from "@rail402.dev/errors";
 import {
   HTTP_METHODS,
+  PUBNET,
   paymentError,
   parseMoney,
+  sanitizeLine,
   type BudgetSnapshot,
   type CallInput,
   type HttpMethod,
@@ -13,8 +15,9 @@ import {
   type QueryInput,
   type Receipt,
   type SchemeName,
+  type SignIntent,
 } from "@rail402.dev/sdk";
-import { listFlag, printable, stringFlag, type ParsedCommand } from "../args.ts";
+import { booleanFlag, listFlag, printable, stringFlag, type ParsedCommand } from "../args.ts";
 import { usage } from "../codes.ts";
 import type { CommandInput } from "../command.ts";
 import { clean, toJson } from "../output.ts";
@@ -40,6 +43,58 @@ export async function withBuyer<T>(
   } finally {
     await opened.close();
   }
+}
+
+/**
+ * How a paying command confirms on pubnet: the payment is shown on the terminal and asked about
+ * before anything is signed (the first payment of the budget window in this process, which for a
+ * one-shot command is its payment); `--yes` skips the question; with no terminal and no `--yes` the
+ * payment is refused (`payment_confirmation_unavailable`). Testnet asks nothing.
+ */
+export function paymentConfirmation(
+  input: CommandInput,
+): Pick<OpenBuyerOptions, "confirm" | "confirmPolicy"> {
+  if (input.context.network !== PUBNET || booleanFlag(input.parsed.flags, "yes")) {
+    return { confirmPolicy: "never" };
+  }
+  return {
+    confirmPolicy: "first-per-session",
+    confirm: async (intent) => {
+      const answer = await input.deps.ask(confirmationQuestion(intent));
+      if (answer === undefined) {
+        throw paymentError("payment_confirmation_unavailable", {
+          reason:
+            "Pubnet payments are confirmed on a terminal, and there is none; add --yes to pay without the question.",
+          callId: intent.callId,
+        });
+      }
+      return answer;
+    },
+  };
+}
+
+/**
+ * The question shown before a pubnet payment: network, amount, asset, recipient, resource, listing and
+ * the upto settlement authority. Untrusted fields are shown on one line each, without control,
+ * line-break or bidirectional characters. Each CLI process is its own buyer, so the answer covers
+ * this one payment.
+ */
+export function confirmationQuestion(intent: SignIntent): string {
+  const symbol = sanitizeLine(intent.asset.symbol, 16);
+  const amount =
+    intent.scheme === "upto"
+      ? `up to ${intent.amount.decimal} ${symbol} (upto)`
+      : `${intent.amount.decimal} ${symbol}`;
+  return [
+    `Confirm a payment on ${intent.network} (real funds):`,
+    `  amount:   ${amount} [${intent.asset.contract}]`,
+    `  to:       ${intent.payTo}`,
+    `  resource: ${sanitizeLine(intent.resource, 300)}`,
+    ...(intent.listingId === null ? [] : [`  listing:  ${sanitizeLine(intent.listingId, 100)}`]),
+    ...(intent.facilitator === null ? [] : [`  settled by: ${intent.facilitator} (upto authority)`]),
+    `  session:  ${sanitizeLine(intent.session.name, 64)}`,
+    "Pay? [y/N] ",
+  ].join("\n");
 }
 
 /** --verbose: payment events as JSON lines on stderr. Events carry no secrets or payloads. */
@@ -257,13 +312,13 @@ export function budgetLines(budget: BudgetSnapshot): string[] {
 export function receiptLines(receipt: Receipt): string[] {
   const settled = receipt.settled ?? receipt.authorized;
   return [
-    `paid:        ${settled.amount} ${clean(receipt.asset)} to ${receipt.payTo} (${receipt.status}${receipt.verifiedOnChain ? ", verified on chain" : ""})`,
+    `paid:        ${settled.amount} ${clean(receipt.asset)} to ${clean(receipt.payTo, 120)} (${receipt.status}${receipt.verifiedOnChain ? ", verified on chain" : ""})`,
     ...(receipt.scheme === "upto"
       ? [
           `authorized:  up to ${receipt.authorized.amount} ${clean(receipt.asset)} (upto; ${receipt.verifiedOnChain ? "the rest of the cap is back in the budget" : "the rest of the cap stays pending until the chain proves the settlement"})`,
         ]
       : []),
-    ...(receipt.transaction === null ? [] : [`transaction: ${receipt.transaction}`]),
-    ...(receipt.explorerUrl === null ? [] : [`explorer:    ${receipt.explorerUrl}`]),
+    ...(receipt.transaction === null ? [] : [`transaction: ${clean(receipt.transaction, 128)}`]),
+    ...(receipt.explorerUrl === null ? [] : [`explorer:    ${clean(receipt.explorerUrl, 500)}`]),
   ];
 }

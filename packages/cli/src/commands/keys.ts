@@ -1,6 +1,15 @@
 import { chmodSync, closeSync, fsyncSync, mkdirSync, openSync, statSync, writeSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { KeyHolder, expandHome, paymentError, type Sep43AuthSigner } from "@rail402.dev/sdk";
+import {
+  KeyHolder,
+  checkKeyNetwork,
+  expandHome,
+  keyFileContent,
+  parseKeyFile,
+  paymentError,
+  type Sep43AuthSigner,
+  type StellarNetwork,
+} from "@rail402.dev/sdk";
 import { stringFlag } from "../args.ts";
 import type { CommandHandler, CommandInput, CommandOutcome } from "../command.ts";
 import type { CliContext } from "../config.ts";
@@ -8,20 +17,31 @@ import { usage } from "../codes.ts";
 import { fields } from "../output.ts";
 
 /**
- * `rail402 keys new|import|show|path`: local signing keys. A key file holds one S… seed, lives in a
- * 0700 directory, is created 0600 and exclusively (an existing file is never overwritten), and only
- * public data is ever printed. There is no flag that takes a seed: `keys import` reads it from stdin.
+ * `rail402 keys new|import|show|path`: local signing keys. A key file holds one S… seed after a line
+ * naming its network (`--network`), lives in a 0700 directory, is created 0600 and exclusively (an
+ * existing file is never overwritten), and only public data is ever printed. There is no flag that
+ * takes a seed: `keys import` reads it from stdin.
  */
 export const keys: CommandHandler = {
   pays: false,
   run: async (input) => {
     const { subcommand } = input.parsed;
     if (subcommand === "new") return write(input, KeyHolder.random());
-    if (subcommand === "import") return write(input, KeyHolder.fromSecret(await input.deps.readSecret()));
+    if (subcommand === "import") return write(input, imported(input, await input.deps.readSecret()));
     if (subcommand === "show") return show(input);
     return path(input);
   },
 };
+
+/**
+ * The key `keys import` was given: a bare seed, or a key file whose tag must name the network it is
+ * imported for (`key_network_mismatch` otherwise), so a testnet key never becomes a pubnet key unseen.
+ */
+function imported(input: CommandInput, text: string): KeyHolder {
+  const { network: tag, secret } = parseKeyFile(text);
+  checkKeyNetwork(tag, { network: input.context.network, allowUntagged: true });
+  return KeyHolder.fromSecret(secret);
+}
 
 const KEY_NAME = /^[A-Za-z0-9_.-]{1,64}$/;
 
@@ -38,7 +58,7 @@ export function keyFileFor(input: Pick<CommandInput, "parsed" | "context">): str
 
 function write(input: CommandInput, holder: KeyHolder): CommandOutcome {
   const file = keyFileFor(input);
-  writeKeyFile(file, holder.exportSecret());
+  writeKeyFile(file, holder.exportSecret(), input.context.network);
   const result = { address: holder.address, keyFile: file, network: input.context.network };
   return {
     result,
@@ -46,15 +66,16 @@ function write(input: CommandInput, holder: KeyHolder): CommandOutcome {
       `${fields([
         ["address", result.address],
         ["key file", result.keyFile],
+        ["network", result.network],
       ])}\nThe seed is only in the key file (mode 0600); back it up somewhere safe.`,
   };
 }
 
 /**
- * Creates a key file: the directory 0700 (when this creates it), the file 0600 with O_EXCL, synced
- * before it counts as written.
+ * Creates a key file tagged with its network: the directory 0700 (when this creates it), the file
+ * 0600 with O_EXCL, synced before it counts as written.
  */
-export function writeKeyFile(file: string, secret: string): void {
+export function writeKeyFile(file: string, secret: string, network: StellarNetwork): void {
   const directory = dirname(file);
   try {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -71,7 +92,7 @@ export function writeKeyFile(file: string, secret: string): void {
     throw paymentError("key_not_found", { reason: "The key file could not be created." });
   }
   try {
-    writeSync(descriptor, `${secret}\n`);
+    writeSync(descriptor, keyFileContent(secret, network));
     fsyncSync(descriptor);
   } finally {
     closeSync(descriptor);
@@ -87,9 +108,10 @@ async function show(input: CommandInput): Promise<CommandOutcome> {
   let signer: Sep43AuthSigner;
   let keyFile: string | null;
   let source: string;
+  let tag: StellarNetwork | undefined;
   if (explicit) {
     keyFile = keyFileFor(input);
-    signer = await KeyHolder.fromFile(keyFile);
+    ({ holder: signer, network: tag } = await KeyHolder.readFile(keyFile));
     source = "file";
   } else {
     const { agent, keySource } = input.context;
@@ -99,13 +121,20 @@ async function show(input: CommandInput): Promise<CommandOutcome> {
       });
     }
     keyFile = "secretFile" in agent.key ? resolve(agent.key.secretFile) : null;
-    signer =
-      "secretFile" in agent.key
-        ? await KeyHolder.fromFile(agent.key.secretFile)
-        : KeyHolder.fromSecret(agent.key.secret);
+    if ("secretFile" in agent.key) {
+      ({ holder: signer, network: tag } = await KeyHolder.readFile(agent.key.secretFile));
+    } else {
+      signer = KeyHolder.fromSecret(agent.key.secret);
+    }
     source = sourceLabel(keySource);
   }
-  const result = { address: signer.address, keyFile, source, network: input.context.network };
+  const result = {
+    address: signer.address,
+    keyFile,
+    source,
+    network: input.context.network,
+    keyNetwork: tag ?? null,
+  };
   return {
     result,
     human: () =>
@@ -113,6 +142,7 @@ async function show(input: CommandInput): Promise<CommandOutcome> {
         ["address", result.address],
         ["key file", result.keyFile ?? undefined],
         ["source", result.source],
+        ["tagged for", result.keyNetwork ?? (result.keyFile === null ? undefined : "untagged")],
       ]),
   };
 }

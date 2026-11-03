@@ -1,6 +1,6 @@
 {
   "name": "@rail402.dev/sdk",
-  "version": "0.4.2",
+  "version": "0.5.1",
   "description": "Pay x402 resources on Stellar under a spending cap, discover them through the Bazaar, and describe paid endpoints.",
   "license": "Apache-2.0",
   "keywords": [
@@ -32,6 +32,11 @@
       "types": "./dist/browser.d.ts",
       "default": "./dist/browser.js"
     },
+    "./discovery": {
+      "@rail402/source": "./src/discovery-entry.ts",
+      "types": "./dist/discovery-entry.d.ts",
+      "default": "./dist/discovery-entry.js"
+    },
     "./seller": {
       "@rail402/source": "./src/seller/index.ts",
       "types": "./dist/seller/index.d.ts",
@@ -61,6 +66,7 @@
     "@rail402.dev/safe-fetch": "workspace:*",
     "@rail402.dev/stellar": "workspace:*",
     "@rail402.dev/upto": "workspace:*",
+    "@rail402.dev/x402-index": "workspace:*",
     "@stellar/stellar-sdk": "catalog:",
     "@x402/core": "catalog:",
     "@x402/extensions": "catalog:",
@@ -93,6 +99,10 @@
       "./browser": {
         "types": "./dist/browser.d.ts",
         "default": "./dist/browser.js"
+      },
+      "./discovery": {
+        "types": "./dist/discovery-entry.d.ts",
+        "default": "./dist/discovery-entry.js"
       },
       "./seller": {
         "types": "./dist/seller/index.d.ts",

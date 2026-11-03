@@ -1,18 +1,17 @@
 import { Buffer } from "buffer";
 import { isRail402Error } from "@rail402.dev/errors";
 import { isEgressError } from "@rail402.dev/safe-fetch/codes";
+import type { BudgetSnapshot, CallResult } from "@rail402.dev/sdk/browser";
 import {
   isPaymentError,
   redact,
   redactDeep,
   sanitizeText,
   toDecimal,
-  type BudgetSnapshot,
-  type CallResult,
   type Paid,
   type ResolvedPolicy,
   type SearchHit,
-} from "@rail402.dev/sdk/browser";
+} from "@rail402.dev/sdk/discovery";
 import { defaultPaidFor, isMcpServerCode, mcpServerCodes, type McpServerCode } from "./codes.ts";
 import {
   MAX_REASON_LENGTH,
@@ -32,6 +31,7 @@ const MAX_DEPTH = 12;
 export interface ErrorOverrides {
   readonly reason?: string;
   readonly details?: Readonly<Record<string, unknown>>;
+  readonly retryable?: boolean;
   readonly paid?: Paid;
 }
 
@@ -45,16 +45,17 @@ export function toolError(code: McpServerCode, overrides: ErrorOverrides = {}): 
   return {
     code,
     reason: reason === "" ? spec.reason : reason,
-    retryable: spec.retryable,
+    retryable: overrides.retryable ?? spec.retryable,
     paid: overrides.paid ?? defaultPaidFor(code),
     ...(overrides.details === undefined ? {} : { details: { ...overrides.details } }),
   };
 }
 
 /**
- * Maps anything a handler threw to a coded error. SDK errors keep their code, reason and `paid`;
- * egress errors report the stage but never the address; anything else is an internal error, which
- * for a payment means the outcome is unknown.
+ * Maps anything a handler threw to a coded error. SDK errors keep their code, reason, `retryable` and
+ * `paid`, which for a refused payment the SDK took from the facilitator's code; egress errors report
+ * the stage but never the address; anything else is an internal error, which for a payment means the
+ * outcome is unknown.
  */
 export function errorFrom(error: unknown, duringPayment: boolean): ToolError {
   if (isPaymentError(error) && isMcpServerCode(error.code)) {
@@ -64,6 +65,7 @@ export function errorFrom(error: unknown, duringPayment: boolean): ToolError {
     if (error.receipt !== undefined) details["receipt"] = error.receipt;
     return toolError(error.code, {
       reason: error.reason,
+      retryable: error.retryable,
       paid: error.paid,
       ...(Object.keys(details).length === 0 ? {} : { details }),
     });

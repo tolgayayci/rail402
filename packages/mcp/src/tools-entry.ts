@@ -4,6 +4,7 @@
  * results the MCP server returns. Nothing here imports a Node module.
  */
 export * from "./codes.ts";
+export * from "./confirmation.ts";
 export type { Logger } from "./logger-types.ts";
 export * from "./schemas.ts";
 export * from "./tools.ts";

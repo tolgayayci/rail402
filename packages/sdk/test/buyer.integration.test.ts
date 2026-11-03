@@ -148,7 +148,7 @@ describe.skipIf(!available)("buyer on the local network", () => {
     });
     const hash = result.payment?.transaction ?? "";
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
-    expect(result.payment?.explorerUrl).toBe(`https://stellar.expert/explorer/testnet/tx/${hash}`);
+    expect(result.payment?.explorerUrl).toBe(`https://explorer.rail402.dev/testnet/tx/${hash}`);
     expect(result.budget?.assets[0]).toMatchObject({ spent: "0.015", pending: "0", remaining: "1.985" });
 
     expect(await net.tokenBalance(usdc.sac, payer.publicKey())).toBe(payerBefore - 150_000n);

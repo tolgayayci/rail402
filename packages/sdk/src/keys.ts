@@ -1,4 +1,5 @@
 import { Keypair, StrKey, hash } from "@stellar/stellar-sdk";
+import { PUBNET, isStellarNetwork, type StellarNetwork } from "@rail402.dev/stellar";
 import { fromBase64 } from "./bytes.ts";
 import { paymentError } from "./codes.ts";
 import { nodeBuiltin, nodePlatform } from "./node.ts";
@@ -27,6 +28,75 @@ export interface Sep43AuthSigner {
 
 /** Where a secret seed comes from. A file is preferred: it never appears in a process list. */
 export type KeySource = { readonly secretFile: string } | { readonly secret: string };
+
+/**
+ * The first line of a network-tagged key file, followed by the network's CAIP-2 id; the S… seed is
+ * on the next line. A seed is a valid key on every Stellar network, so the tag is what keeps a key
+ * meant for testnet from paying on pubnet.
+ */
+export const KEY_FILE_TAG = "# rail402-key network=";
+
+/** How a key file is checked against the network it is about to pay on. */
+export interface KeyNetworkCheck {
+  /** The network the key will sign for. */
+  readonly network: StellarNetwork;
+  /**
+   * Accept an untagged key file on pubnet. Default false: pubnet needs a file tagged for pubnet.
+   * Untagged files always work on testnet.
+   */
+  readonly allowUntagged?: boolean | undefined;
+}
+
+/** The contents of a key file for `secret`, tagged with its network. */
+export function keyFileContent(secret: string, network: StellarNetwork): string {
+  return `${KEY_FILE_TAG}${network}\n${secret}\n`;
+}
+
+/**
+ * Splits a key file into its network tag (undefined for an untagged file) and its seed. Anything but
+ * an optional tag line followed by exactly one seed line is `key_invalid`.
+ */
+export function parseKeyFile(content: string): {
+  readonly network: StellarNetwork | undefined;
+  readonly secret: string;
+} {
+  const lines = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+  const [first = "", ...rest] = lines;
+  if (!first.startsWith("#")) {
+    if (rest.length > 0) throw paymentError("key_invalid");
+    return { network: undefined, secret: first };
+  }
+  const network = first.startsWith(KEY_FILE_TAG) ? first.slice(KEY_FILE_TAG.length).trim() : "";
+  if (!isStellarNetwork(network) || rest.length !== 1) {
+    throw paymentError("key_invalid", {
+      reason: `A key file is one S… seed, optionally after a "${KEY_FILE_TAG}<network>" line naming stellar:testnet or stellar:pubnet.`,
+    });
+  }
+  return { network, secret: rest[0] ?? "" };
+}
+
+/**
+ * Checks a key file's tag against the network it is about to sign for: a file tagged for another
+ * network is `key_network_mismatch`; an untagged file is refused on pubnet (`key_network_untagged`)
+ * unless the caller explicitly allows it.
+ */
+export function checkKeyNetwork(tag: StellarNetwork | undefined, check: KeyNetworkCheck): void {
+  if (tag !== undefined && tag !== check.network) {
+    throw paymentError("key_network_mismatch", {
+      reason: `The key file is tagged for ${tag}, not ${check.network}; use a key made for ${check.network}.`,
+      details: { keyNetwork: tag, network: check.network },
+    });
+  }
+  if (tag === undefined && check.network === PUBNET && check.allowUntagged !== true) {
+    throw paymentError("key_network_untagged", {
+      reason: `The key file carries no network tag, so it could be a testnet key; pubnet needs a key file whose first line is "${KEY_FILE_TAG}${PUBNET}" (rail402 keys new --network ${PUBNET}).`,
+      details: { network: check.network },
+    });
+  }
+}
 
 /** Environment variable holding a secret seed; it is removed from the environment once read. */
 export const SECRET_KEY_ENV = "RAIL402_SECRET_KEY";
@@ -58,11 +128,21 @@ export class KeyHolder implements Sep43AuthSigner {
   }
 
   /**
-   * From a file holding an S… seed. On POSIX systems the file must not be readable or writable by
-   * group or others (`key_file_insecure`). A leading `~/` is expanded, since MCP hosts pass paths
-   * verbatim. Node only: elsewhere it is `key_not_found`.
+   * From a file holding an S… seed, optionally tagged with its network (`KEY_FILE_TAG`). On POSIX
+   * systems the file must not be readable or writable by group or others (`key_file_insecure`). A
+   * leading `~/` is expanded, since MCP hosts pass paths verbatim. With `check`, the tag must fit the
+   * network (`checkKeyNetwork`). Node only: elsewhere it is `key_not_found`.
    */
-  static async fromFile(path: string): Promise<KeyHolder> {
+  static async fromFile(path: string, check?: KeyNetworkCheck): Promise<KeyHolder> {
+    const { holder, network } = await KeyHolder.readFile(path);
+    if (check !== undefined) checkKeyNetwork(network, check);
+    return holder;
+  }
+
+  /** Reads a key file: the key and the network it is tagged with (undefined when untagged). */
+  static async readFile(
+    path: string,
+  ): Promise<{ readonly holder: KeyHolder; readonly network: StellarNetwork | undefined }> {
     const fs = nodeBuiltin("node:fs/promises") as FsPromises | undefined;
     if (fs === undefined) {
       throw paymentError("key_not_found", { reason: "Key files can only be read in Node.js." });
@@ -85,7 +165,8 @@ export class KeyHolder implements Sep43AuthSigner {
     } catch {
       throw paymentError("key_not_found", { reason: "The key file could not be read." });
     }
-    return KeyHolder.fromSecret(content);
+    const parsed = parseKeyFile(content);
+    return { holder: KeyHolder.fromSecret(parsed.secret), network: parsed.network };
   }
 
   /**
@@ -151,10 +232,16 @@ export function secretKeySource(secret: string): KeySource {
   return source as KeySource;
 }
 
-/** Resolves a key source to a signer; an existing SEP-43 signer is used as is. */
-export async function loadSigner(source: KeySource | Sep43AuthSigner): Promise<Sep43AuthSigner> {
+/**
+ * Resolves a key source to a signer; an existing SEP-43 signer is used as is. With `check`, a key
+ * file's network tag must fit the network (`checkKeyNetwork`).
+ */
+export async function loadSigner(
+  source: KeySource | Sep43AuthSigner,
+  check?: KeyNetworkCheck,
+): Promise<Sep43AuthSigner> {
   if ("signAuthEntry" in source) return source;
-  if ("secretFile" in source) return KeyHolder.fromFile(source.secretFile);
+  if ("secretFile" in source) return KeyHolder.fromFile(source.secretFile, check);
   return KeyHolder.fromSecret(source.secret);
 }
 

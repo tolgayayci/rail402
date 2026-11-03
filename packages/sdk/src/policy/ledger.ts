@@ -70,6 +70,11 @@ export interface ReservationRequest {
   readonly resource: string;
   readonly amount: bigint;
   readonly idempotencyKey?: string | undefined;
+  /**
+   * The payment identifier a keyed call sends to the seller, kept with its key. Without one, the key's
+   * earlier holder passes its own on when it paid the same resource. Ignored without an idempotency key.
+   */
+  readonly paymentId?: string | undefined;
 }
 
 export interface Reservation {
@@ -91,6 +96,11 @@ export interface Reservation {
   readonly signedAtLedger: number | undefined;
   readonly transaction: string | undefined;
   readonly idempotencyKey: string | undefined;
+  /**
+   * The payment identifier of a keyed call: chosen at random the first time the key pays and kept with
+   * the key, so every payment of the call carries it and nobody can work it out from the key.
+   */
+  readonly paymentId?: string | undefined;
   /** Sanitized call result stored for idempotent replays. */
   readonly result: string | undefined;
   /** The RPC no longer holds the ledgers needed to prove what happened. */
@@ -163,7 +173,14 @@ export interface SpendLedger {
   setAwaitingProof(id: string, awaiting: boolean, now?: number): boolean;
   storeResult(id: string, result: string, now?: number): boolean;
   get(id: string): Reservation | undefined;
+  /** The reservation that holds this idempotency key in one window. */
   findByIdempotencyKey(windowId: string, key: string): Reservation | undefined;
+  /**
+   * The reservation that holds this idempotency key for the payer on the network, in whichever budget
+   * window or session it was reserved. A key outlives its window: a retry after the window renewed or a
+   * new session started still finds the payment the key made. `reserve` checks the key the same way.
+   */
+  findIdempotencyKey(network: StellarNetwork, payer: string, key: string): Reservation | undefined;
   /** Reservations that still need signing, settlement or proof, across every window of the payer. */
   unfinished(network: StellarNetwork, payer: string): Reservation[];
   usage(windowId: string): WindowUsage;
@@ -326,7 +343,7 @@ export function checkReservation(
   }
 }
 
-/** Refusal for a key that is already in use in the window. */
+/** Refusal for a key that an earlier call of the payer still holds. */
 export function idempotencyConflict(existing: Reservation) {
   let reason: string;
   if (existing.result !== undefined) {
@@ -339,6 +356,34 @@ export function idempotencyConflict(existing: Reservation) {
     reason = "A call with this idempotency key is still running or awaiting its outcome.";
   }
   return paymentError("payment_in_progress", { reason, callId: existing.callId });
+}
+
+/**
+ * The reservation that answers for an idempotency key among those of one payer that hold it. A ledger
+ * reserves a key again only after its holder gave it up, so there is one; a ledger written while keys
+ * were kept per window may hold more, and then one whose key cannot be given up wins, the latest first.
+ */
+export function keyedReservation(rows: readonly Reservation[]): Reservation | undefined {
+  const latestFirst = [...rows].sort((a, b) => b.createdAt - a.createdAt);
+  return latestFirst.find((row) => !keyReusable(row)) ?? latestFirst[0];
+}
+
+/**
+ * Checks, before a new reservation takes an idempotency key, every reservation of the payer that holds
+ * it, in any window: refuses while one of them may have moved money (`payment_in_progress`), and
+ * otherwise returns them, to give the key up, with the payment identifier the new holder keeps: the
+ * request's own, or the earlier holder's when it paid the same resource (a key freed and then used for
+ * another resource starts a new call, which gets an identifier of its own).
+ */
+export function takeKey(
+  rows: readonly Reservation[],
+  request: ReservationRequest,
+): { readonly release: readonly Reservation[]; readonly paymentId: string | undefined } {
+  const holder = rows.find((row) => !keyReusable(row));
+  if (holder !== undefined) throw idempotencyConflict(holder);
+  const earlier = keyedReservation(rows);
+  const inherited = earlier?.resource === request.resource ? earlier.paymentId : undefined;
+  return { release: rows, paymentId: request.paymentId ?? inherited };
 }
 
 /**

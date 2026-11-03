@@ -20,6 +20,7 @@ Payments (sign one authorization per call):
     call flags: --method --query k=v --header "k: v" --data <json> --data-file <path>
                 --tool <name> --args <json> --args-file <path> --transport streamable-http|sse
     payment flags: --asset --scheme exact|upto --session <name> --idempotency-key <key>
+                   --yes (pubnet: skip the confirmation asked before the first payment)
 
 Inspection and budget:
   tx <hash>                   explain a transaction: sponsor, transfers, facilitator attribution, explorer link
@@ -30,12 +31,15 @@ Keys and accounts:
   account setup|status        testnet: Friendbot, trustline, --usdc <n> from the testnet exchange; pubnet: trustline with --yes
   seller check <url>          check a paid resource the way the catalog will   --method --tool --args
   seller validate <file>      validate a saved PAYMENT-REQUIRED (JSON or base64)
+                              both judge as the hosted catalog (public hosts only); --discovery-allow-loopback
+                              judges as a self-hosted testnet catalog with DISCOVERY_ALLOW_LOOPBACK=true
   version
 
 Global flags:
   --network stellar:testnet|stellar:pubnet   (default testnet; pubnet needs explicit endpoints and caps)
   --rpc-url --bazaar-url --facilitator-url   endpoints
-  --key-file <path>           key lookup: --key-file, RAIL402_SECRET_KEY_FILE, RAIL402_SECRET_KEY, then the default key
+  --key-file <path>           key lookup: --key-file, RAIL402_SECRET_KEY_FILE, RAIL402_SECRET_KEY (testnet only),
+                              then the default key; pubnet needs a key file tagged for pubnet
   --config <path>             default $XDG_CONFIG_HOME/rail402/config.json (never holds a secret)
   --json                      one JSON document on stdout (also RAIL402_OUTPUT=json)
   --verbose                   payment events on stderr
@@ -52,6 +56,8 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
 Pays an HTTP resource (or an MCP tool with --tool) and prints the seller's answer and the receipt.
 --max is required and is clamped to the configured per-call ceiling; the session budget also applies.
 Repeating a call with the same --idempotency-key never pays twice.
+On pubnet the payment is shown and confirmed on the terminal before anything is signed; --yes skips
+the question (scripts), and without a terminal the payment is refused unless --yes is given.
 `,
   purchase: `Usage: rail402 purchase <query> --max <amount> [--pick <n|listing id>] [flags]
 
@@ -68,8 +74,8 @@ reconcile  settle or release pending payments from on-chain proof
 `,
   keys: `Usage: rail402 keys new|import|show|path [--name <name> | --key-file <path>]
 
-new     create a key file (0600, never overwritten); prints the address and the file
-import  read a seed from stdin (hidden on a terminal) into a new key file
+new     create a key file (0600, never overwritten) tagged with --network; prints the address and the file
+import  read a seed from stdin (hidden on a terminal) into a new key file tagged with --network
 show    the address of the configured key
 path    where the key file is
 `,

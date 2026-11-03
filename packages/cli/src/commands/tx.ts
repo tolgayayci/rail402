@@ -43,7 +43,7 @@ export const tx: CommandHandler = {
                 "operations:",
                 ...report.operations.map(
                   (operation) =>
-                    `  ${operation.type}${operation.contract === undefined ? "" : ` ${operation.contract}`}${operation.function === undefined ? "" : `.${clean(operation.function, 64)}`}`,
+                    `  ${clean(operation.type, 64)}${operation.contract === undefined ? "" : ` ${clean(operation.contract, 64)}`}${operation.function === undefined ? "" : `.${clean(operation.function, 64)}`}`,
                 ),
               ].join("\n"),
             );
@@ -54,7 +54,7 @@ export const tx: CommandHandler = {
                 "transfers:",
                 ...report.transfers.map(
                   (transfer) =>
-                    `  ${transfer.amount.decimal ?? transfer.amount.atomic} ${clean(transfer.symbol ?? transfer.contract, 64)}  ${transfer.from} -> ${transfer.to}`,
+                    `  ${clean(transfer.amount.decimal ?? transfer.amount.atomic, 64)} ${clean(transfer.symbol ?? transfer.contract, 64)}  ${clean(transfer.from, 80)} -> ${clean(transfer.to, 80)}`,
                 ),
               ].join("\n"),
             );
@@ -65,7 +65,7 @@ export const tx: CommandHandler = {
                 "authorizations:",
                 ...report.authorizations.map(
                   (auth) =>
-                    `  ${auth.address} nonce ${auth.nonce}, expires at ledger ${String(auth.expirationLedger)}${auth.signed ? ", signed" : ""}`,
+                    `  ${clean(auth.address, 80)} nonce ${clean(auth.nonce, 64)}, expires at ledger ${String(auth.expirationLedger)}${auth.signed ? ", signed" : ""}`,
                 ),
               ].join("\n"),
             );

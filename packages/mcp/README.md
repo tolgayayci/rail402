@@ -8,7 +8,7 @@ An MCP server that lets an AI agent find paid x402 resources on Stellar and pay 
 - `pay_and_call`: pays for and calls an HTTP endpoint or MCP tool, given a `listingId` (the payment is bound to the listing's owner) or a URL. `spendingCap` is required and is clamped to the operator's per-call ceiling; the session budget also applies. The result has the seller's answer, the receipt with the transaction hash and an explorer link, and the remaining budget.
 - `get_budget`: the network, payer, spending policy, and what the current budget window spent, holds pending and has left.
 
-Every result has an `outputSchema` and `structuredContent`. A refusal is a tool result with `isError: true` and `error: { code, reason, retryable, paid }`, where `paid` says whether money may have moved (`none`, `not_settled`, `settled` or `unknown`); a request that never reaches a tool is a JSON-RPC error whose `data` carries `{ code, reason }` as well: `tool_unknown` (`-32602`) for an unknown tool, `rpc_params_invalid` (`-32602`) for a `tools/call` without a tool name or with arguments that are not an object, and `rpc_method_unknown` (`-32601`) for a method the server does not serve. Seller text and content are returned as untrusted data, stripped of control characters and bounded in size.
+Every result has an `outputSchema` and `structuredContent`. A refusal is a tool result with `isError: true` and `error: { code, reason, retryable, paid }`, where `paid` says whether money may have moved (`none`, `not_settled`, `settled` or `unknown`); a request that never reaches a tool is a JSON-RPC error whose `data` carries `{ code, reason, retryable, paid }` as well, with `paid: "none"`: `tool_unknown` (`-32602`) for an unknown tool, `rpc_params_invalid` (`-32602`) for a `tools/call` without a tool name or with arguments that are not an object, and `rpc_method_unknown` (`-32601`) for a method the server does not serve. Seller text and content are returned as untrusted data, stripped of control characters and bounded in size.
 
 Payments use the unmodified `@x402/stellar` exact client, signing through a guard that checks each Soroban authorization against the option the policy selected before the key signs it. Budgets are kept in a local SQLite ledger, so a repeated `idempotencyKey` never pays twice.
 
@@ -49,6 +49,10 @@ For local development only, `RAIL402_ALLOW_HTTP=true`, `RAIL402_ALLOW_PRIVATE_NE
 ```
 
 The server speaks stdio by default, to MCP clients on the 2026-07-28 protocol and on the 2025 revisions alike. `rail402-mcp --http` serves Streamable HTTP at `http://127.0.0.1:3402/mcp` for one operator: it listens on loopback only, checks the Host and Origin headers, limits request bodies to 1 MiB, and requires `Authorization: Bearer $RAIL402_MCP_TOKEN` (at least 32 random bytes, e.g. `openssl rand -base64 32`) whenever a key is configured.
+
+On pubnet the key file must be tagged for pubnet (`rail402 keys new --network stellar:pubnet`), USDC caps stay within 1 per call and 10 per window (and other assets take no caps) unless `RAIL402_ALLOW_LARGE_CAPS=true`, and the first payment of each budget window is confirmed by the user through the MCP client (form elicitation) before it is signed; `RAIL402_MCP_CONFIRM=never` turns that off for headless agents.
+
+`rail402-mcp --hosted` is a different mode: a public, keyless endpoint with read-only discovery tools only (`search_stellar_resources`, `get_stellar_listing`), which refuses to start when any key or token is configured. See [Hosted discovery MCP](https://docs.rail402.dev/agents/hosted-mcp).
 
 Limits per process: `pay_and_call` 30 calls a minute, the other tools 120, and one paid call in flight (`RAIL402_MAX_INFLIGHT`) with a short queue. A call cancelled before its payment is signed pays nothing; once sent, a payment completes and its result is kept for its idempotency key.
 

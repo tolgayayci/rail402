@@ -42,7 +42,7 @@ export const search: CommandHandler = {
           const lines = page.hits.map((hit, index) => hitText(hit, index + 1));
           if (lines.length === 0) lines.push("No results.");
           if (page.partialResults) lines.push("(partial results: part of the search was unavailable)");
-          if (page.nextCursor !== null) lines.push(`next page: --cursor ${page.nextCursor}`);
+          if (page.nextCursor !== null) lines.push(`next page: --cursor ${clean(page.nextCursor, 500)}`);
           return lines.join("\n\n");
         },
       };
@@ -84,7 +84,7 @@ export const resources: CommandHandler = {
           lines.push(
             shown === 0
               ? `No resources (total ${String(pagination.total)}).`
-              : `${String(pagination.offset + 1)}-${String(pagination.offset + shown)} of ${String(pagination.total)}${pagination.asOf === undefined ? "" : ` as of ${pagination.asOf}`}`,
+              : `${String(pagination.offset + 1)}-${String(pagination.offset + shown)} of ${String(pagination.total)}${pagination.asOf === undefined ? "" : ` as of ${clean(pagination.asOf, 64)}`}`,
           );
           return lines.join("\n\n");
         },
@@ -150,12 +150,12 @@ export function hitText(hit: SearchHit, position: number | undefined): string {
   ];
   if (hit.seller.description !== null) lines.push(`   ${clean(hit.seller.description, 200)}`);
   const notes = [
-    `trust ${hit.trust}`,
+    `trust ${clean(hit.trust, 32)}`,
     `${String(hit.settlements)} settlement${hit.settlements === 1 ? "" : "s"}`,
     hit.withinPolicy ? "within policy" : "outside policy",
     ...(hit.callable ? [] : [`not callable: ${clean(hit.notCallableReason ?? "unknown", 120)}`]),
   ];
   lines.push(`   ${notes.join(", ")}`);
-  if (hit.listingId !== null) lines.push(`   listing ${hit.listingId}`);
+  if (hit.listingId !== null) lines.push(`   listing ${clean(hit.listingId, 100)}`);
   return lines.join("\n");
 }

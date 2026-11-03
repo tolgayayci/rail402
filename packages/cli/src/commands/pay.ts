@@ -9,12 +9,13 @@ import {
 import { stringFlag } from "../args.ts";
 import { EXIT } from "../codes.ts";
 import type { CommandHandler, CommandOutcome } from "../command.ts";
-import { clean, fields, pretty } from "../output.ts";
+import { clean, cleanBlock, fields, pretty } from "../output.ts";
 import { hitText } from "./discovery.ts";
 import {
   budgetLines,
   callInputFrom,
   capFlag,
+  paymentConfirmation,
   receiptLines,
   requiredCap,
   schemeFlag,
@@ -27,7 +28,8 @@ import {
 export const quote: CommandHandler = {
   pays: false,
   run: (input) =>
-    withBuyer(input, { signer: true }, async ({ buyer }) => {
+    // Never signs, so nothing is confirmed.
+    withBuyer(input, { signer: true, confirmPolicy: "never" }, async ({ buyer }) => {
       const target = targetFrom(input.parsed.positionals[0] ?? "", input.parsed.flags);
       const maxAmount = capFlag(input.parsed.flags);
       if (target.kind === "mcp" && !input.context.json) {
@@ -47,19 +49,21 @@ export const quote: CommandHandler = {
             return `${clean(result.resource)} answered ${String(result.status)} without asking for payment.`;
           }
           const lines = result.options.map((option) => {
-            const price = `${option.amount ?? `${option.atomic} base units of`} ${clean(option.asset)}`;
+            const price = `${option.amount ?? `${clean(option.atomic, 80)} base units of`} ${clean(option.asset, 120)}`;
             const verdict = option.acceptable
               ? option.index === result.chosen
                 ? "acceptable (chosen)"
                 : "acceptable"
-              : `refused: ${option.refused?.code ?? "unknown"}: ${clean(option.refused?.reason ?? "")}`;
-            return `  [${String(option.index)}] ${option.scheme} ${price} to ${option.payTo}, ${verdict}`;
+              : `refused: ${clean(option.refused?.code ?? "unknown", 64)}: ${clean(option.refused?.reason ?? "")}`;
+            return `  [${String(option.index)}] ${clean(option.scheme, 32)} ${price} to ${clean(option.payTo, 120)}, ${verdict}`;
           });
           const head = `${clean(result.resource)} asks for payment (${String(result.options.length)} option${result.options.length === 1 ? "" : "s"}):`;
           const tail =
             result.refused === null
               ? []
-              : [`No option is acceptable: ${result.refused.code}: ${clean(result.refused.reason)}`];
+              : [
+                  `No option is acceptable: ${clean(result.refused.code, 64)}: ${clean(result.refused.reason)}`,
+                ];
           return [head, ...lines, ...tail].join("\n");
         },
       };
@@ -74,15 +78,19 @@ export const pay: CommandHandler = {
     const maxAmount = requiredCap(input.parsed.flags);
     const scheme = schemeFlag(input.parsed.flags);
     const idempotencyKey = stringFlag(input.parsed.flags, "idempotency-key");
-    return withBuyer(input, { signer: true, requireSigner: true }, async ({ buyer }) => {
-      const result = await buyer.pay(target, {
-        maxAmount,
-        ...(scheme === undefined ? {} : { scheme }),
-        ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
-        signal: input.signal,
-      });
-      return paidOutcome(result, undefined);
-    });
+    return withBuyer(
+      input,
+      { signer: true, requireSigner: true, ...paymentConfirmation(input) },
+      async ({ buyer }) => {
+        const result = await buyer.pay(target, {
+          maxAmount,
+          ...(scheme === undefined ? {} : { scheme }),
+          ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+          signal: input.signal,
+        });
+        return paidOutcome(result, undefined);
+      },
+    );
   },
 };
 
@@ -98,18 +106,22 @@ export const purchase: CommandHandler = {
     const idempotencyKey = stringFlag(flags, "idempotency-key");
     const call = callInputFrom(flags);
     const pickText = stringFlag(flags, "pick");
-    return withBuyer(input, { signer: true, requireSigner: true }, async ({ buyer }) => {
-      const result = await buyer.searchAndPay(query, {
-        maxAmount,
-        ...(scheme === undefined ? {} : { scheme }),
-        ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
-        ...(type === undefined ? {} : { filters: { type } }),
-        ...(pickText === undefined ? {} : { pick: picker(pickText) }),
-        call,
-        signal: input.signal,
-      });
-      return paidOutcome(result, result.chosen);
-    });
+    return withBuyer(
+      input,
+      { signer: true, requireSigner: true, ...paymentConfirmation(input) },
+      async ({ buyer }) => {
+        const result = await buyer.searchAndPay(query, {
+          maxAmount,
+          ...(scheme === undefined ? {} : { scheme }),
+          ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+          ...(type === undefined ? {} : { filters: { type } }),
+          ...(pickText === undefined ? {} : { pick: picker(pickText) }),
+          call,
+          signal: input.signal,
+        });
+        return paidOutcome(result, result.chosen);
+      },
+    );
   },
 };
 
@@ -157,11 +169,12 @@ function responseText(response: HttpOutcome | McpOutcome): string {
       ["bytes", String(response.bytes)],
       ["truncated", response.truncated ? "yes" : undefined],
     ]);
-    const body = response.json !== undefined ? pretty(response.json) : clean(response.text ?? "", 65_536);
+    const body =
+      response.json !== undefined ? pretty(response.json) : cleanBlock(response.text ?? "", 65_536);
     return `${head}\n\n${body}`;
   }
   const head = `tool result${response.isError ? " (error)" : ""}${response.truncated ? " (truncated)" : ""}:`;
-  const parts = response.content.map((item) => clean(item.text, 65_536));
+  const parts = response.content.map((item) => cleanBlock(item.text, 65_536));
   if (response.structuredContent !== undefined) parts.push(pretty(response.structuredContent));
   return [head, ...parts].join("\n");
 }

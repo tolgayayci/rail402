@@ -90,6 +90,8 @@ const USAGE_CODES: ReadonlySet<string> = new Set<CliErrorCode>([
   "key_invalid",
   "key_file_insecure",
   "key_exists",
+  "key_network_mismatch",
+  "key_network_untagged",
   "payment_cap_required",
   "payment_cap_invalid",
   "payment_policy_invalid",

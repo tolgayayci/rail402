@@ -1,5 +1,5 @@
 import { isRail402Error } from "@rail402.dev/errors";
-import { isPaymentError, redact, redactDeep, sanitizeText, type Paid } from "@rail402.dev/sdk";
+import { isPaymentError, redact, redactDeep, sanitizeLine, sanitizeText, type Paid } from "@rail402.dev/sdk";
 import { EXIT, defaultPaidOf, exitStatusFor, isCliErrorCode, type ExitStatus } from "./codes.ts";
 
 /**
@@ -28,7 +28,7 @@ export interface CliIo {
 }
 
 /** Characters JSON leaves raw that a terminal may act on: C1 controls and bidirectional overrides. */
-const UNSAFE_IN_JSON = /[\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069]/g;
+const UNSAFE_IN_JSON = /[\u007F-\u009F\u061C\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069]/g;
 
 /**
  * JSON with bigints as decimal strings. C0 controls are escaped by JSON itself; C1 controls and
@@ -68,6 +68,8 @@ export function failureFrom(error: unknown, duringPayment: boolean): CliFailure 
     const details: Record<string, unknown> = { ...error.details };
     if (error.callId !== undefined) details["callId"] = error.callId;
     if (error.receipt !== undefined) details["receipt"] = error.receipt;
+    // `retryable` and `paid` are the SDK's: for a refused payment it already read the facilitator's
+    // code (a busy channel can pass, a bad signature cannot, a pending settlement may still pay).
     return {
       code: error.code,
       reason: error.reason,
@@ -129,9 +131,12 @@ export function reportFailure(io: CliIo, json: boolean, command: string, failure
   if (failure.paid !== "none") lines.push(`paid: ${failure.paid}${PAID_HINT[failure.paid]}`);
   const receipt = failure.details?.["receipt"] as
     { transaction?: unknown; explorerUrl?: unknown } | undefined;
-  if (typeof receipt?.transaction === "string") lines.push(`transaction: ${receipt.transaction}`);
-  if (typeof receipt?.explorerUrl === "string") lines.push(`explorer: ${receipt.explorerUrl}`);
+  if (typeof receipt?.transaction === "string") lines.push(`transaction: ${clean(receipt.transaction)}`);
+  if (typeof receipt?.explorerUrl === "string") lines.push(`explorer: ${clean(receipt.explorerUrl)}`);
   if (failure.retryable && failure.paid === "none") lines.push("This can be retried.");
+  if (failure.retryable && failure.paid === "not_settled") {
+    lines.push("Nothing moved; this can be retried with a new payment.");
+  }
   io.stderr(`${lines.join("\n")}\n`);
   return status;
 }
@@ -159,9 +164,25 @@ function ensureNewline(text: string): string {
   return text.endsWith("\n") ? text : `${text}\n`;
 }
 
-/** Text safe for a terminal: control and bidirectional characters removed. */
+/**
+ * One line of untrusted text, safe for a terminal: line breaks and tabs become a space, and control
+ * characters (C0, C1, and so the ESC that starts CSI and OSC sequences) and bidirectional overrides
+ * are removed, so the text can neither redraw nor add lines, nor reorder what is shown.
+ */
 export function clean(text: string, max = 2_000): string {
-  return sanitizeText(text, max);
+  return sanitizeLine(text, max);
+}
+
+/** Line breaks a terminal may act on: CRLF, a lone CR (which would overwrite the line) and U+2028/9. */
+const BLOCK_BREAKS = /\r\n?|[\u2028\u2029]/g;
+
+/**
+ * Untrusted text of several lines (a response body), safe for a terminal: every line break becomes
+ * LF, so a carriage return cannot overwrite what was printed, and control and bidirectional
+ * characters are removed as in `clean`. Tabs are kept.
+ */
+export function cleanBlock(text: string, max: number): string {
+  return sanitizeText(text.replace(BLOCK_BREAKS, "\n"), max);
 }
 
 /** Aligned "key: value" lines; undefined and null values are left out. */

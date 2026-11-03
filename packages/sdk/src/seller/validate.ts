@@ -2,9 +2,10 @@ import type { HTTPRequestContext } from "@x402/core/http";
 import type { PaymentPayload, PaymentRequired, PaymentRequirements } from "@x402/core/types";
 import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
 import { SchemaSandbox, bazaarCodes, extractCandidate, type BazaarCode } from "@rail402.dev/bazaar";
-import { isStellarNetwork, type StellarNetwork } from "@rail402.dev/stellar";
+import { TESTNET, isStellarNetwork, type StellarNetwork } from "@rail402.dev/stellar";
 import type { HttpMethod } from "../flow/types.ts";
-import { sellerCodes, sellerError, type SellerCode } from "./codes.ts";
+import { sanitizeLine } from "../redact.ts";
+import { loopbackCatalogOnPubnet, sellerCodes, sellerError, type SellerCode } from "./codes.ts";
 import { isHttpRouteDeclaration, type HttpRouteDeclaration } from "./http.ts";
 import { isMcpToolDeclaration, type McpToolDeclaration } from "./mcp.ts";
 import type { PaymentOption } from "./price.ts";
@@ -19,7 +20,11 @@ export interface ValidateListingOptions {
   readonly concreteUrl?: string;
   /** The method of a live PaymentRequired whose discovery metadata does not name one. */
   readonly method?: HttpMethod;
-  /** Accept loopback URLs, as a Rail402 configured for local development does. */
+  /**
+   * Accept loopback URLs, as a catalog run with `DISCOVERY_ALLOW_LOOPBACK=true` (a self-hosted testnet
+   * instance for local development) does. Without it, a loopback, private or otherwise non-public host
+   * is refused with `bazaar_resource_unsafe`, as the hosted catalog refuses it. Testnet only.
+   */
   readonly allowLoopback?: boolean;
   /** A schema sandbox to reuse; one is started and closed per call otherwise. */
   readonly sandbox?: SchemaSandbox;
@@ -70,6 +75,7 @@ export async function validateListing(
   options: ValidateListingOptions,
 ): Promise<ValidationReport> {
   if (!isStellarNetwork(options.network)) throw sellerError("seller_network_unsupported");
+  if (options.allowLoopback === true && options.network !== TESTNET) throw loopbackCatalogOnPubnet();
   const required = paymentRequiredOf(input, options);
   const accepted = required.accepts.find((option) => option.network === options.network);
   if (accepted === undefined) {
@@ -257,7 +263,7 @@ function describeProperties(schema: unknown, path: string, findings: LintFinding
         findings.push({
           code: "seller_param_description_missing",
           path: at,
-          reason: `${at} has no description.`,
+          reason: `${sanitizeLine(at, 300)} has no description.`,
         });
       }
       describeProperties(property, at, findings, depth + 1);

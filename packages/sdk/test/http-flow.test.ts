@@ -1,18 +1,24 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Keypair, type rpc } from "@stellar/stellar-sdk";
-import type { FoundTransfer } from "@rail402.dev/stellar";
+import { encodePaymentResponseHeader } from "@x402/core/http";
+import { TESTNET, type FoundTransfer } from "@rail402.dev/stellar";
 import {
   MemorySpendLedger,
   budgetSnapshot,
   buildHttpRequest,
   isPaymentError,
   paymentError,
-  paymentIdentifier,
+  type BudgetWindow,
   type CallResult,
+  type FlowChain,
   type FlowContext,
   type PaymentError,
   type PaymentEvent,
+  type Reservation,
+  type SpendLedger,
+  type WindowSpec,
 } from "@rail402.dev/sdk";
+import { SqliteSpendLedger } from "@rail402.dev/sdk/sqlite";
 import { payHttp, quoteHttp } from "../src/flow/http.ts";
 import {
   TX_HASH,
@@ -22,11 +28,23 @@ import {
   paidRoute,
   startSeller,
   type FakeSeller,
+  type SellerRoute,
 } from "./flow-harness.ts";
 import { exactSettlement } from "./chain-fixtures.ts";
 import { LATEST, tamperingAdapter, usdc } from "./helpers.ts";
 
 const cap = { amount: "0.05" };
+
+/** Settlement refusals and what a caller learns from each: whether to retry, and what was paid. */
+const SETTLE_REFUSALS = [
+  ["settlement_pending", false, "unknown"],
+  ["settle_exact_stellar_settlement_in_progress", false, "unknown"],
+  ["settle_exact_stellar_channel_unavailable", true, "not_settled"],
+  ["settle_exact_stellar_transaction_submission_failed", false, "unknown"],
+  ["settle_exact_stellar_transaction_expired", false, "not_settled"],
+  ["invalid_exact_stellar_payload_invalid_signature", false, "unknown"],
+  ["invalid_exact_stellar_payload_wrong_amount", false, "not_settled"],
+] as const;
 
 async function refusal(promise: Promise<unknown>): Promise<PaymentError> {
   try {
@@ -78,6 +96,25 @@ describe("HTTP payment flow", () => {
         }
         s.paymentRequired(response, {}, { error: "invalid_exact_stellar_payload_signature" });
       },
+      // The facilitator refused the settlement with the code in the path, passed on by the seller.
+      ...Object.fromEntries(
+        SETTLE_REFUSALS.map(([code]) => [
+          `/refused/${code}`,
+          ((request, response, s) => {
+            if (request.payment === undefined) {
+              s.paymentRequired(response);
+              return;
+            }
+            const answer = encodePaymentResponseHeader({
+              success: false,
+              errorReason: code,
+              transaction: "",
+              network: TESTNET,
+            });
+            response.writeHead(402, { "payment-response": answer }).end("{}");
+          }) satisfies SellerRoute,
+        ]),
+      ),
       "/redirect-after-pay": (request, response, s) => {
         if (request.payment === undefined) s.paymentRequired(response);
         else response.writeHead(302, { location: `${s.url}/elsewhere` }).end();
@@ -93,6 +130,17 @@ describe("HTTP payment flow", () => {
       "/server-error-after-pay": (request, response, s) => {
         if (request.payment === undefined) s.paymentRequired(response);
         else response.writeHead(503).end("down");
+      },
+      "/identified-down": (request, response, s) => {
+        if (request.payment === undefined) {
+          s.paymentRequired(
+            response,
+            {},
+            { extensions: { "payment-identifier": { info: { required: false } } } },
+          );
+        } else {
+          response.writeHead(503).end("down");
+        }
       },
       "/v1": (_request, response) => {
         response.writeHead(402, { "content-type": "application/json" }).end('{"x402Version":1,"accepts":[]}');
@@ -160,7 +208,7 @@ describe("HTTP payment flow", () => {
       payTo: seller.payTo,
       payer: signer.address,
       transaction: TX_HASH,
-      explorerUrl: `https://stellar.expert/explorer/testnet/tx/${TX_HASH}`,
+      explorerUrl: `https://explorer.rail402.dev/testnet/tx/${TX_HASH}`,
       verifiedOnChain: false,
     });
     expect(result.response).toMatchObject({ status: 200, json: { weather: "sunny" } });
@@ -315,19 +363,169 @@ describe("HTTP payment flow", () => {
     expect(signer.signatures).toBe(1);
   });
 
-  it("appends a payment identifier derived from the idempotency key", async () => {
-    const ctx = await context();
+  /** A chain that, once `settled` is called, shows a reservation's authorization consumed by a settlement. */
+  function settlingChain(payer: string): { chain: FlowChain; settled: (row: Reservation) => void } {
+    const found: FoundTransfer[] = [];
+    const settlements = new Map<string, rpc.Api.GetSuccessfulTransactionResponse>();
+    const chain = fundedChain({
+      reader: {
+        latestLedger: () => Promise.resolve(LATEST),
+        findTransfers: () => Promise.resolve(found),
+        transaction: (hash) => Promise.resolve(settlements.get(hash) ?? "missing"),
+      },
+    });
+    const settled = (row: Reservation) => {
+      if (row.nonce === undefined) throw new Error("the reservation was never signed");
+      found.push({
+        contract: row.asset,
+        from: payer,
+        to: row.payTo,
+        amount: row.amount,
+        ledger: (row.signedAtLedger ?? LATEST) + 1,
+        transaction: TX_HASH,
+      });
+      settlements.set(
+        TX_HASH,
+        exactSettlement({ asset: row.asset, payer, payTo: row.payTo, amount: row.amount, nonce: row.nonce }),
+      );
+    };
+    return { chain, settled };
+  }
+
+  const windowChanges: readonly [string, (ledger: SpendLedger, spec: WindowSpec) => BudgetWindow][] = [
+    // The window reached the end of its time to live and renewed.
+    ["the window renewed", (ledger, spec) => ledger.window(spec, ledger.window(spec).expiresAt)],
+    // The owner started a new session, as `rail402 session start --force` does.
+    ["a new session", (ledger, spec) => ledger.startWindow(spec)],
+  ];
+  const keyedLedgers: readonly [string, () => SpendLedger][] = [
+    ["memory", () => new MemorySpendLedger()],
+    ["sqlite", () => new SqliteSpendLedger(":memory:")],
+  ];
+
+  for (const [change, move] of windowChanges) {
+    for (const [kind, open] of keyedLedgers) {
+      it(`never pays twice for a keyed retry in a later budget window (${change}, ${kind} ledger)`, async () => {
+        const signer = countingSigner();
+        const ledger = open();
+        const { chain, settled } = settlingChain(signer.address);
+        const ctx = await context({ signer, ledger, chain });
+        const spec = ctx.spec as WindowSpec;
+        const target = { kind: "http" as const, url: `${seller.url}/server-error-after-pay` };
+        const options = { maxAmount: cap, idempotencyKey: "window-retry-1" };
+        const paidRequests = () =>
+          seller.seen.filter((request) => request.path === "/server-error-after-pay" && request.payment)
+            .length;
+
+        expect(await refusal(payHttp(ctx, target, options))).toMatchObject({ paid: "unknown" });
+        const row = ledger.findByIdempotencyKey(ledger.window(spec).id, "window-retry-1");
+        if (row === undefined) throw new Error("no reservation for the key");
+        const sent = paidRequests();
+        expect(move(ledger, spec).id).not.toBe(row.windowId);
+
+        // Before the chain shows anything, the retry replays the open outcome.
+        expect(await refusal(payHttp(ctx, target, options))).toMatchObject({
+          code: "payment_settlement_unconfirmed",
+          paid: "unknown",
+        });
+        expect(signer.signatures).toBe(1);
+        // Once the chain shows the payment consumed, the retry says it paid.
+        settled(row);
+        const replay = await refusal(payHttp(ctx, target, options));
+        expect(replay).toMatchObject({ code: "payment_resource_failed", paid: "settled" });
+        expect(replay.receipt).toMatchObject({ transaction: TX_HASH, verifiedOnChain: true });
+        expect(signer.signatures).toBe(1);
+        expect(paidRequests()).toBe(sent);
+        ledger.close();
+      });
+    }
+  }
+
+  it("keeps a key's payment identifier across budget windows", async () => {
+    const signer = countingSigner();
+    let latest = LATEST;
+    const chain = fundedChain({
+      reader: {
+        latestLedger: () => Promise.resolve(latest),
+        findTransfers: () => Promise.resolve([]),
+        transaction: () => Promise.resolve("missing"),
+      },
+    });
+    const ctx = await context({ signer, chain });
+    const target = { kind: "http" as const, url: `${seller.url}/identified-down` };
+    const options = { maxAmount: cap, idempotencyKey: "identified-retry-1" };
+    const identifiers = () =>
+      seller.seen
+        .filter((request) => request.path === "/identified-down" && request.payment !== undefined)
+        .map((request) => request.payment?.extensions?.["payment-identifier"]);
+
+    await refusal(payHttp(ctx, target, options));
+    ctx.ledger.startWindow(ctx.spec as WindowSpec);
+    // The chain shows the first authorization expired unused, so the retry pays again, as the same payment.
+    latest = LATEST + 100_000;
+    await refusal(payHttp(ctx, target, options));
+    expect(signer.signatures).toBe(2);
+    const [first, second] = identifiers();
+    expect(first).toMatchObject({ info: { id: expect.stringMatching(/^rail402_/) as string } });
+    expect(second).toEqual(first);
+  });
+
+  it("sends a new payment identifier when a freed key pays another resource", async () => {
+    const signer = countingSigner();
+    let latest = LATEST;
+    const chain = fundedChain({
+      reader: {
+        latestLedger: () => Promise.resolve(latest),
+        findTransfers: () => Promise.resolve([]),
+        transaction: () => Promise.resolve("missing"),
+      },
+    });
+    const ctx = await context({ signer, chain });
+    const options = { maxAmount: cap, idempotencyKey: "moved-key-1" };
+    const identifierOf = (path: string) =>
+      (
+        seller.seen.filter((request) => request.path === path && request.payment !== undefined).at(-1)
+          ?.payment?.extensions?.["payment-identifier"] as { info?: { id?: unknown } } | undefined
+      )?.info?.id;
+    await refusal(payHttp(ctx, { kind: "http", url: `${seller.url}/identified-down` }, options));
+    // The first authorization expired unused, so the key is free; it now pays another resource.
+    latest = LATEST + 100_000;
+    await payHttp(ctx, { kind: "http", url: `${seller.url}/identified` }, options);
+    expect(signer.signatures).toBe(2);
+    expect(identifierOf("/identified")).toMatch(/^rail402_[A-Za-z0-9_-]{32}$/);
+    expect(identifierOf("/identified")).not.toBe(identifierOf("/identified-down"));
+  });
+
+  it("appends the payment identifier kept with the idempotency key", async () => {
+    const signer = countingSigner();
+    const ctx = await context({ signer });
     await payHttp(
       ctx,
       { kind: "http", url: `${seller.url}/identified` },
       { maxAmount: cap, idempotencyKey: "key-abcdef" },
     );
-    const payment = seller.seen.at(-1)?.payment;
-    const window = ctx.ledger.window(ctx.spec as NonNullable<FlowContext["spec"]>);
-    expect(payment?.extensions?.["payment-identifier"]).toMatchObject({
-      info: { id: paymentIdentifier(window.id, "key-abcdef") },
-    });
-    expect(paymentIdentifier(window.id, "key-abcdef")).toMatch(/^rail402_[A-Za-z0-9_-]{32}$/);
+    const sent = seller.seen.at(-1)?.payment?.extensions?.["payment-identifier"] as
+      { info?: { id?: unknown } } | undefined;
+    const kept = ctx.ledger.findIdempotencyKey(TESTNET, signer.address, "key-abcdef")?.paymentId;
+    expect(kept).toMatch(/^rail402_[A-Za-z0-9_-]{32}$/);
+    expect(sent?.info?.id).toBe(kept);
+  });
+
+  it("chooses a key's payment identifier at random, so the payer, network and key never give it away", async () => {
+    const signer = countingSigner();
+    const target = { kind: "http" as const, url: `${seller.url}/identified` };
+    const options = { maxAmount: cap, idempotencyKey: "weather-ankara-1" };
+    const identifiers: unknown[] = [];
+    // The same payer, network and key, with two ledgers (two buyers of one key).
+    for (let buyer = 0; buyer < 2; buyer++) {
+      await payHttp(await context({ signer }), target, options);
+      const sent = seller.seen.at(-1)?.payment?.extensions?.["payment-identifier"] as
+        { info?: { id?: unknown } } | undefined;
+      identifiers.push(sent?.info?.id);
+    }
+    expect(identifiers[0]).toMatch(/^rail402_[A-Za-z0-9_-]{32}$/);
+    expect(identifiers[1]).toMatch(/^rail402_[A-Za-z0-9_-]{32}$/);
+    expect(identifiers[0]).not.toBe(identifiers[1]);
   });
 
   it("refuses a price above the cap before anything is signed", async () => {
@@ -428,7 +626,28 @@ describe("HTTP payment flow", () => {
     expect(error.details).toMatchObject({ upstream: { reason: "invalid_exact_stellar_payload_signature" } });
     const budget = budgetSnapshot(ctx.ledger, ctx.spec as NonNullable<FlowContext["spec"]>, ctx.policy);
     expect(budget.assets[0]).toMatchObject({ spent: "0", pending: "0.001" });
+    // The refused payment's pending amount counts against the window, and never blocks the next payment
+    // the window still has room for.
+    const next = await payHttp(ctx, { kind: "http", url: `${seller.url}/paid` }, { maxAmount: cap });
+    expect(next).toMatchObject({ paid: true, payment: { status: "settled" } });
+    expect(
+      budgetSnapshot(ctx.ledger, ctx.spec as NonNullable<FlowContext["spec"]>, ctx.policy).assets[0],
+    ).toMatchObject({ pending: "0.001" });
   });
+
+  it.each(SETTLE_REFUSALS)(
+    "reports a settlement refused with %s as retryable %s, paid %s, and keeps its budget pending",
+    async (code, retryable, paid) => {
+      const ctx = await context();
+      const error = await refusal(
+        payHttp(ctx, { kind: "http", url: `${seller.url}/refused/${code}` }, { maxAmount: cap }),
+      );
+      expect(error).toMatchObject({ code: "payment_rejected", retryable, paid });
+      expect(error.details).toMatchObject({ upstream: { code } });
+      const budget = budgetSnapshot(ctx.ledger, ctx.spec as NonNullable<FlowContext["spec"]>, ctx.policy);
+      expect(budget.assets[0]).toMatchObject({ spent: "0", pending: "0.001" });
+    },
+  );
 
   it("never follows a redirect after paying", async () => {
     const error = await refusal(

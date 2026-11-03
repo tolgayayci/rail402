@@ -97,6 +97,7 @@ describe("checkSellerOrigin", () => {
       network: TESTNET,
       facilitatorUrl: goodFacilitator,
       allowLoopback: true,
+      discoveryAllowLoopback: true,
     });
     expect(report).toMatchObject({
       type: "http",
@@ -176,6 +177,70 @@ describe("checkSellerOrigin", () => {
     expect(peak).toBeLessThanOrEqual(16);
   });
 
+  it("reports what a catalog with the default setting refuses, even when the check may reach it", async () => {
+    // Reaching a seller on this machine is the check's own egress; the catalog still lists public hosts only.
+    const local = await checkSellerOrigin(`${seller}/forecast/Izmir`, {
+      network: TESTNET,
+      facilitatorUrl: goodFacilitator,
+      allowLoopback: true,
+    });
+    expect(local).toMatchObject({
+      ok: false,
+      status: 402,
+      findings: [],
+      validation: {
+        catalogable: false,
+        code: "bazaar_resource_unsafe",
+        reason: 'Host "127.0.0.1" is not a public host.',
+      },
+    });
+    const tool = await checkSellerOrigin(mcp.url, {
+      toolName: "forecast",
+      arguments: { city: "Van" },
+      allowLoopback: true,
+    });
+    expect(tool.validation).toMatchObject({ catalogable: false });
+
+    // The verdict follows the 402's resource URL: a public host is listed, a private one never is.
+    const template = decodePaymentRequiredHeader(
+      (await fetch(`${seller}/forecast/Izmir`)).headers.get("payment-required") ?? "",
+    );
+    const served = (resourceUrl: string) => {
+      const header = encodePaymentRequiredHeader({
+        ...template,
+        resource: { ...template.resource, url: resourceUrl },
+      });
+      return createServer((_request, response) => {
+        response.writeHead(402, { "payment-required": header }).end();
+      });
+    };
+    const publicSeller = served("https://api.example.com/forecast/Izmir");
+    const privateSeller = served("http://10.0.0.5/forecast/Izmir");
+    servers.push(publicSeller, privateSeller);
+    const [publicUrl, privateUrl] = await Promise.all([listen(publicSeller), listen(privateSeller)]);
+    expect(await checkSellerOrigin(`${publicUrl}/forecast/Izmir`, { allowLoopback: true })).toMatchObject({
+      ok: true,
+      validation: { catalogable: true, preview: { resource: "https://api.example.com/forecast/:city" } },
+    });
+    for (const discoveryAllowLoopback of [false, true]) {
+      expect(
+        await checkSellerOrigin(`${privateUrl}/forecast/Izmir`, {
+          allowLoopback: true,
+          discoveryAllowLoopback,
+        }),
+      ).toMatchObject({
+        ok: false,
+        validation: { code: "bazaar_resource_unsafe", reason: 'Host "10.0.0.5" is not a public host.' },
+      });
+    }
+  });
+
+  it("judges against a loopback catalog only on testnet", async () => {
+    await expect(
+      checkSellerOrigin(`${seller}/forecast/Izmir`, { network: PUBNET, discoveryAllowLoopback: true }),
+    ).rejects.toMatchObject({ code: "seller_network_unsupported" });
+  });
+
   it("reports a resource that does not ask for payment", async () => {
     expect(await checkSellerOrigin(`${seller}/health`, { allowLoopback: true })).toMatchObject({
       ok: false,
@@ -224,6 +289,7 @@ describe("checkSellerOrigin", () => {
     const allowed = await checkSellerOrigin(`${seller}/forecast/Izmir`, {
       facilitatorUrl: goodFacilitator,
       allowLoopback: true,
+      discoveryAllowLoopback: true,
       egress: { schemes: ["http:"], ports: [port], allowPrivateNetwork: "loopback" },
     });
     expect(allowed).toMatchObject({ ok: true, status: 402, findings: [] });

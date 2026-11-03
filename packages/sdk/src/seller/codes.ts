@@ -105,6 +105,14 @@ export function sellerError(
   });
 }
 
+/** No catalog lists loopback resources on pubnet: it refuses DISCOVERY_ALLOW_LOOPBACK together with pubnet. */
+export function loopbackCatalogOnPubnet(): SellerError {
+  return sellerError(
+    "seller_network_unsupported",
+    "Only a testnet catalog can list loopback resources (DISCOVERY_ALLOW_LOOPBACK); pubnet lists public hosts only.",
+  );
+}
+
 export function isSellerError(value: unknown): value is SellerError {
   return value instanceof SellerError;
 }

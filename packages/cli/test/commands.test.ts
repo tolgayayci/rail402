@@ -23,6 +23,11 @@ afterEach(() => {
   home.dispose();
 });
 
+/** Characters that act on a terminal: controls other than LF, line separators and bidi overrides. */
+const TERMINAL_CONTROL =
+  // eslint-disable-next-line no-control-regex
+  /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069]/;
+
 const run = (argv: string[], buyer: FakeBuyer, env: Record<string, string> = {}) =>
   cli(argv, { ...home.env, ...env }, { openBuyer: openWith(buyer) });
 
@@ -179,9 +184,10 @@ describe("discovery commands", () => {
           hits: [
             hit({
               seller: { serviceName: "Evil\u001b[2J\u009b1m", description: "x‮y", tags: [], mimeType: null },
+              listingId: "id\u001b]8;;https://evil.example\u0007",
             }),
           ],
-          nextCursor: null,
+          nextCursor: "next\r\u001b[1A",
           partialResults: false,
           method: "bm25",
         }),
@@ -189,7 +195,9 @@ describe("discovery commands", () => {
     const result = await run(["search", "q"], buyer);
     // eslint-disable-next-line no-control-regex
     expect(result.stdout).not.toMatch(/[\u001b\u009b‮]/);
+    expect(result.stdout).not.toMatch(TERMINAL_CONTROL);
     expect(result.stdout).toContain("Evil[2J1m");
+    expect(result.stdout).toContain("listing id]8;;https://evil.example");
   });
 });
 
@@ -294,6 +302,7 @@ describe("pay", () => {
     const result = await run(["pay", "https://api.example/x", "--max", "0.01"], fakeBuyer());
     expect(result.stdout).toContain(`paid:        0.001 USDC to ${seller} (settled, verified on chain)`);
     expect(result.stdout).toContain(`transaction: ${TX_HASH}`);
+    expect(result.stdout).toContain(`explorer:    https://explorer.rail402.dev/testnet/tx/${TX_HASH}`);
     expect(result.stdout).toContain("USDC: spent 0.001, pending 0, remaining 0.999 of 1");
     expect(result.stdout).toContain('"temperature": 21');
   });
@@ -422,6 +431,83 @@ describe("quote and tx", () => {
     expect(result.stderr).toContain("warning: A free MCP tool runs");
     expect(result.stdout).toContain("without asking for payment");
     expect(buyer.calls[0]?.args[1]).toEqual({ signal: expect.any(AbortSignal) as unknown });
+  });
+
+  it("prints a seller's payment options without terminal controls, and JSON unchanged", async () => {
+    const option = {
+      index: 0,
+      scheme: "exact\u001b[31m",
+      network: "stellar:testnet",
+      asset: "\u001b]8;;https://evil.example\u0007USDC\u001b]8;;\u0007",
+      assetContract: "CA",
+      amount: null,
+      atomic: "1000\u001b[2K\r",
+      payTo: `${seller}\u001b]52;c;djIz\u0007`,
+      maxTimeoutSeconds: 60,
+      feesSponsored: true,
+      acceptable: true,
+      refused: null,
+    };
+    const buyer = fakeBuyer({
+      quote: () =>
+        Promise.resolve({
+          callId: "q-1",
+          resource: "https://api.example/x\racceptable (chosen)",
+          paymentRequired: true,
+          status: 402,
+          options: [
+            option,
+            {
+              ...option,
+              index: 1,
+              scheme: "exact\u009b2J\u202e",
+              acceptable: false,
+              refused: { code: "payment_recipient_invalid", reason: "bad\nline" },
+            },
+          ],
+          chosen: 0,
+          refused: null,
+          warnings: [],
+        }),
+    });
+    const result = await run(["quote", "https://api.example/x"], buyer);
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toMatch(TERMINAL_CONTROL);
+    expect(result.stdout).toContain(
+      `  [0] exact[31m 1000[2K  base units of ]8;;https://evil.exampleUSDC]8;; to ${seller}]52;c;djIz, acceptable (chosen)`,
+    );
+    expect(result.stdout).toContain("  [1] exact2J ");
+    expect(result.stdout).toContain("refused: payment_recipient_invalid: bad line");
+    expect(result.stdout.split("\n")[0]).toBe(
+      "https://api.example/x acceptable (chosen) asks for payment (2 options):",
+    );
+    const json = await run(["quote", "https://api.example/x", "--json"], buyer);
+    expect(
+      (json.json().result as { options: { scheme: string; atomic: string; payTo: string }[] }).options[0],
+    ).toMatchObject({ scheme: option.scheme, atomic: option.atomic, payTo: option.payTo });
+  });
+
+  it("keeps the lines of a paid response but not its carriage returns or controls", async () => {
+    const buyer = fakeBuyer({
+      pay: () =>
+        Promise.resolve(
+          paidResult({
+            response: {
+              kind: "http",
+              status: 200,
+              contentType: "text/plain\u001b[2J",
+              text: "first\r\nsecond\rfaked\u001b]52;c;djIz\u0007\u2028third",
+              bytes: 40,
+              truncated: false,
+            },
+          }),
+        ),
+    });
+    const result = await run(["pay", "https://api.example/x", "--max", "0.01"], buyer);
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toMatch(TERMINAL_CONTROL);
+    expect(result.stdout).toContain("first\nsecond\nfaked]52;c;djIz\nthird");
+    expect(result.stdout).toContain("content-type: text/plain[2J");
   });
 
   it("explains a transaction", async () => {

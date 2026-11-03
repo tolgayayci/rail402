@@ -189,7 +189,10 @@ async function holderFor(input: CommandInput): Promise<KeyHolder> {
       reason: "No key is configured for this network; create one with rail402 keys new.",
     });
   }
-  return "secretFile" in key ? KeyHolder.fromFile(key.secretFile) : KeyHolder.fromSecret(key.secret);
+  const { network, allowUntaggedKey } = input.context.agent;
+  return "secretFile" in key
+    ? KeyHolder.fromFile(key.secretFile, { network, allowUntagged: allowUntaggedKey })
+    : KeyHolder.fromSecret(key.secret);
 }
 
 interface AccountReport {

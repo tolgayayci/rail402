@@ -1,15 +1,20 @@
+import { PUBNET } from "@rail402.dev/stellar";
 import { paymentError } from "../codes.ts";
 import { toDecimal } from "../money.ts";
 import { effectiveCaps, type SpendLedger, type WindowCaps, type WindowSpec } from "./ledger.ts";
 import type { ResolvedPolicy } from "./policy.ts";
 
-/** Default budget window: named "default", 24 hours, renewing when it expires. */
+/**
+ * Default budget window: named "default", 24 hours. On testnet it renews when it expires; on pubnet it
+ * does not, so a looping or misled agent cannot spend a full budget every day without its owner
+ * starting a new session (`autoRenew: true` renews it explicitly).
+ */
 export const DEFAULT_SESSION = { name: "default", ttlMs: 24 * 60 * 60 * 1_000 } as const;
 
 export interface SessionOptions {
   readonly name?: string | undefined;
   readonly ttlMs?: number | undefined;
-  /** Default true for the default session. */
+  /** Default: true on testnet, false on pubnet. */
   readonly autoRenew?: boolean | undefined;
   /** Default true: the window is created on first use. */
   readonly autoCreate?: boolean | undefined;
@@ -36,7 +41,7 @@ export function windowSpecFor(
     name: session.name ?? DEFAULT_SESSION.name,
     ttlMs: session.ttlMs ?? DEFAULT_SESSION.ttlMs,
     caps,
-    autoRenew: session.autoRenew ?? true,
+    autoRenew: session.autoRenew ?? policy.network !== PUBNET,
     autoCreate: session.autoCreate ?? true,
   };
 }

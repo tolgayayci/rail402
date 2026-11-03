@@ -79,12 +79,24 @@ interface Session {
   close(): Promise<void>;
 }
 
+/** Characters a resource URL must not carry raw: controls, line breaks, and bidi and zero-width marks. */
+const UNSAFE_URL_TEXT =
+  // eslint-disable-next-line no-control-regex
+  /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069]/;
+
 function validateTarget(target: McpTarget): void {
   if (typeof target.url !== "string" || !/^https?:\/\//i.test(target.url)) {
     throw paymentError("mcp_endpoint_unresolvable");
   }
   if (!URL.canParse(target.url)) {
     throw paymentError("egress_url_invalid", { reason: "The MCP endpoint is not a valid URL." });
+  }
+  // The URL parser drops tabs and line breaks and encodes bidi overrides, so such a string parses; it
+  // is refused instead, since the text shown for confirmation must be the address that is called.
+  if (UNSAFE_URL_TEXT.test(target.url)) {
+    throw paymentError("egress_url_invalid", {
+      reason: "The MCP endpoint contains control, line-break or bidirectional characters.",
+    });
   }
   if (typeof target.toolName !== "string" || !TOOL_NAME.test(target.toolName)) {
     throw paymentError("payment_request_invalid", {
@@ -346,7 +358,13 @@ export async function payMcp(
   call: McpCallOptions = {},
 ): Promise<CallResult> {
   validateTarget(target);
-  const plan = planCall(context, options, `${target.url} tool=${target.toolName}`, call.listing);
+  // The normalized URL, as the HTTP flow uses: what is confirmed, reserved and receipted.
+  const plan = planCall(
+    context,
+    options,
+    `${new URL(target.url).href} tool=${target.toolName}`,
+    call.listing,
+  );
   const replayed = await replayStored(context, plan);
   if (replayed !== undefined) return replayed;
 
@@ -608,7 +626,7 @@ export async function quoteMcp(
     if (probed.kind === "free") {
       return {
         callId,
-        resource: target.url,
+        resource: new URL(target.url).href,
         paymentRequired: false,
         status: 200,
         options: [],
@@ -618,7 +636,14 @@ export async function quoteMcp(
       };
     }
     const judged = judgeOptions(context, probed.required, options.maxAmount, options.listing);
-    return { callId, resource: target.url, paymentRequired: true, status: 402, ...judged, warnings: [] };
+    return {
+      callId,
+      resource: new URL(target.url).href,
+      paymentRequired: true,
+      status: 402,
+      ...judged,
+      warnings: [],
+    };
   } finally {
     await session.close();
   }

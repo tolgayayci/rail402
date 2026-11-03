@@ -69,24 +69,48 @@ function isPublicStrkey(value: string): boolean {
   );
 }
 
-/** Characters that must not reach a terminal or an agent's context from untrusted text. */
+/**
+ * Characters that must not reach a terminal or an agent's context from untrusted text: C0 (except tab
+ * and line breaks) and C1 controls, bidirectional controls (including U+061C), and invisible format
+ * characters (soft hyphen, zero-width characters, word joiner and invisible operators, the byte-order
+ * mark, tag characters).
+ */
 const CONTROL =
   // eslint-disable-next-line no-control-regex
-  /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
+  /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u00AD\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF\u{E0000}-\u{E007F}]/gu;
 
-/** Strips control and bidirectional-override characters and bounds the length of untrusted text. */
+/** Strips control, bidirectional and invisible format characters, without bounding the length. */
+function stripControls(text: string): string {
+  return text.replace(CONTROL, "");
+}
+
+/** Strips control, bidirectional and invisible format characters and bounds the length of untrusted text. */
 export function sanitizeText(text: string, maxLength: number): string {
-  const clean = text.replace(CONTROL, "");
+  const clean = stripControls(text);
   return clean.length > maxLength ? `${clean.slice(0, maxLength)}…` : clean;
 }
 
+/** Line breaks and tabs, which a single-line field must not carry (they could fake extra lines). */
+const LINE_BREAKS = /[\t\n\r\u2028\u2029]+/g;
+
 /**
- * Untrusted text for a reason string: secrets redacted first, then cleaned and bounded, so a
- * truncation can never cut a secret short enough to escape redaction. A seller may send any JSON value
- * where text is expected; a non-string is rendered as JSON (or its string form) first.
+ * Untrusted text for a one-line field of a confirmation prompt: line breaks and tabs become one space,
+ * then control and bidirectional-override characters are stripped and the length is bounded, so the
+ * text can neither add lines to the prompt nor reorder what is shown.
+ */
+export function sanitizeLine(text: string, maxLength: number): string {
+  return sanitizeText(text.replace(LINE_BREAKS, " "), maxLength);
+}
+
+/**
+ * Untrusted text for a reason string: controls stripped, secrets redacted, then bounded, so neither a
+ * control inside a secret nor a truncation can cut it short enough to escape redaction. A seller may
+ * send any JSON value where text is expected; a non-string is rendered as JSON (or its string form)
+ * first.
  */
 export function untrustedReason(text: unknown, maxLength: number): string {
-  return sanitizeText(redact(textOf(text, maxLength)), maxLength);
+  // Controls go first, so one placed inside a secret cannot split it past redaction.
+  return sanitizeText(redact(stripControls(textOf(text, maxLength))), maxLength);
 }
 
 function textOf(value: unknown, maxLength: number): string {

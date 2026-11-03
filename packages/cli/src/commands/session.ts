@@ -1,5 +1,6 @@
 import {
   DEFAULT_SESSION,
+  PUBNET,
   toDecimal,
   windowSpecFor,
   type BudgetWindow,
@@ -14,14 +15,16 @@ import { budgetLines, withBuyer } from "./common.ts";
 
 /**
  * `rail402 session show|list|start|end|reconcile`: budget windows of the configured key in the shared
- * SQLite ledger. The session is `--name` (default "default", a 24 h window that renews itself); a
- * named session started here runs for `--ttl` and does not renew. The caps that apply are always the
+ * SQLite ledger. The session is `--name` (default "default", a 24 h window that renews itself on
+ * testnet and not on pubnet); a named session started here runs for `--ttl` and does not renew
+ * (`RAIL402_SESSION_AUTO_RENEW` overrides both). The caps that apply are always the
  * lower of the session's own and the configured ones.
  */
 export const session: CommandHandler = {
   pays: false,
   run: (input) =>
-    withBuyer(input, { signer: true, requireSigner: true }, async (opened) => {
+    // Reads and reconciles budget windows; never signs, so nothing is confirmed.
+    withBuyer(input, { signer: true, requireSigner: true, confirmPolicy: "never" }, async (opened) => {
       const { subcommand } = input.parsed;
       if (subcommand === "show") {
         const name = input.context.agent.session.name;
@@ -97,7 +100,8 @@ async function start(input: CommandInput, { buyer, ledger }: OpenedBuyer): Promi
   const spec = windowSpecFor(buyer.policy, payer, {
     name,
     ttlMs,
-    autoRenew: name === DEFAULT_SESSION.name,
+    autoRenew:
+      input.context.agent.session.autoRenew ?? (name === DEFAULT_SESSION.name && buyer.network !== PUBNET),
   });
   ledger.startWindow(spec);
   return show({ buyer, ledger, close: () => Promise.resolve() });

@@ -127,7 +127,80 @@ const versionsSchema = z.looseObject({
       content: z.unknown(),
     }),
   ),
+  pagination: z.looseObject({ next: z.number().int().optional() }).optional(),
 });
+
+/** A listing as the usage routes name it, with the price it lists on the client's network. */
+const listingRefSchema = z.looseObject({
+  id: z.string(),
+  type: z.string(),
+  resource: z.string(),
+  method: z.string().optional(),
+  toolName: z.string().optional(),
+  description: z.string().optional(),
+  serviceName: z.string().optional(),
+  payTo: z.string(),
+  scheme: z.string(),
+  amount: z.string(),
+  asset: z.string(),
+  network: z.string(),
+  lastUpdated: z.string(),
+});
+
+const settlementsSchema = z.looseObject({
+  items: z.array(
+    z.looseObject({ transaction: z.string(), listing: listingRefSchema, observedAt: z.string() }),
+  ),
+  asOf: z.string(),
+});
+
+const listingUsageSchema = z.looseObject({
+  listingId: z.string(),
+  payments: z.number().int(),
+  payers: z.number().int(),
+  firstObservedAt: z.string().nullable(),
+  lastObservedAt: z.string().nullable(),
+  recent: z.array(
+    z.looseObject({
+      transaction: z.string(),
+      payer: z.string(),
+      asset: z.string(),
+      amount: z.string(),
+      observedAt: z.string(),
+    }),
+  ),
+});
+
+const sellerUsageSchema = z.looseObject({
+  payTo: z.string(),
+  totals: z.looseObject({ payments: z.number().int(), payers: z.number().int() }),
+  listings: z.array(
+    z.looseObject({
+      listing: listingRefSchema,
+      payments: z.number().int(),
+      payers: z.number().int(),
+      lastObservedAt: z.string().nullable(),
+    }),
+  ),
+  truncated: z.boolean().optional(),
+});
+
+/** A listing as the usage routes name it. Its description and service name are the seller's: untrusted. */
+export type ListingRef = z.infer<typeof listingRefSchema>;
+/** Settlements linked to the listing each paid for, and when the Bazaar read them. */
+export type SettlementLinks = z.infer<typeof settlementsSchema>;
+/** How one listing was paid for on the client's network. */
+export type ListingUsage = z.infer<typeof listingUsageSchema>;
+/** How a seller's listings were paid for on the client's network. */
+export type SellerUsage = z.infer<typeof sellerUsageSchema>;
+
+/** Most transaction hashes one settlements lookup sends. */
+export const MAX_SETTLEMENT_LOOKUP = 100;
+const TRANSACTION_HASH = /^[0-9a-f]{64}$/;
+const SELLER_ACCOUNT = /^[GC][A-Z2-7]{55}$/;
+
+/** Pages of version history read at most (100 versions each), so a hostile Bazaar cannot loop forever. */
+const MAX_VERSION_PAGES = 100;
 
 /** One entry of a listing's public version history. `content` is the seller's metadata: untrusted. */
 export type ListingVersion = z.infer<typeof versionsSchema>["versions"][number];
@@ -223,13 +296,74 @@ export class DiscoveryClient {
     return shape(listingSchema, await this.get(`/discovery/resources/${id}`, signal, true));
   }
 
-  /** GET /discovery/resources/{id}/versions: the listing's public version history, oldest first. */
+  /**
+   * GET /discovery/resources/{id}/versions: the listing's public version history, oldest first, every
+   * page of it.
+   */
   async versions(id: string, signal?: AbortSignal): Promise<readonly ListingVersion[]> {
     if (!LISTING_ID.test(id)) {
       throw paymentError("listing_not_found", { reason: "A listing id is a lowercase UUID." });
     }
-    return shape(versionsSchema, await this.get(`/discovery/resources/${id}/versions`, signal, true))
-      .versions;
+    // The Bazaar pages a long history: follow `pagination.next` until the last page.
+    const versions: ListingVersion[] = [];
+    let after: number | undefined;
+    for (let page = 0; page < MAX_VERSION_PAGES; page++) {
+      const query = after === undefined ? "" : `?after=${String(after)}`;
+      const body = shape(
+        versionsSchema,
+        await this.get(`/discovery/resources/${id}/versions${query}`, signal, true),
+      );
+      versions.push(...body.versions);
+      const next = body.pagination?.next;
+      if (next === undefined || next <= (after ?? 0)) return versions;
+      after = next;
+    }
+    return versions;
+  }
+
+  /**
+   * GET /discovery/settlements: which listing each of these settlement transactions paid for, on the
+   * client's network. Transactions linked to no public listing are absent from `items`.
+   */
+  async settlements(transactions: readonly string[], signal?: AbortSignal): Promise<SettlementLinks> {
+    const wanted = [...new Set(transactions)];
+    if (
+      wanted.length === 0 ||
+      wanted.length > MAX_SETTLEMENT_LOOKUP ||
+      !wanted.every((hash) => TRANSACTION_HASH.test(hash))
+    ) {
+      throw paymentError("discovery_rejected", {
+        reason: `A settlements lookup takes 1 to ${String(MAX_SETTLEMENT_LOOKUP)} transaction hashes, each 64 lowercase hex characters.`,
+      });
+    }
+    const params = new URLSearchParams({ network: this.network, transactions: wanted.join(",") });
+    return shape(settlementsSchema, await this.get(`/discovery/settlements?${params.toString()}`, signal));
+  }
+
+  /** GET /discovery/resources/{id}/usage: how a listing was paid for on the client's network. */
+  async usage(id: string, signal?: AbortSignal): Promise<ListingUsage> {
+    if (!LISTING_ID.test(id)) {
+      throw paymentError("listing_not_found", { reason: "A listing id is a lowercase UUID." });
+    }
+    const params = new URLSearchParams({ network: this.network });
+    return shape(
+      listingUsageSchema,
+      await this.get(`/discovery/resources/${id}/usage?${params.toString()}`, signal, true),
+    );
+  }
+
+  /** GET /discovery/sellers/{payTo}/usage: how a seller's listings were paid for on the client's network. */
+  async sellerUsage(payTo: string, signal?: AbortSignal): Promise<SellerUsage> {
+    if (!SELLER_ACCOUNT.test(payTo) || baseAccount(payTo) !== payTo) {
+      throw paymentError("discovery_rejected", {
+        reason: "A seller is a Stellar G… or C… address with a valid checksum.",
+      });
+    }
+    const params = new URLSearchParams({ network: this.network });
+    return shape(
+      sellerUsageSchema,
+      await this.get(`/discovery/sellers/${payTo}/usage?${params.toString()}`, signal),
+    );
   }
 
   private async get(path: string, signal: AbortSignal | undefined, listing = false): Promise<unknown> {
@@ -261,6 +395,13 @@ export class DiscoveryClient {
       throw paymentError("discovery_unavailable", { details: { status: response.status } });
     }
     const coded = errorSchema.safeParse(body);
+    // A listing whose seller keeps its usage private is not a missing listing: told apart by its code.
+    if (coded.success && coded.data.error.code === "discovery_usage_private") {
+      throw paymentError("discovery_rejected", {
+        reason: "The seller of this listing keeps its usage private.",
+        details: { upstream: { code: "discovery_usage_private" } },
+      });
+    }
     if (listing && response.status === 404) throw paymentError("listing_not_found");
     throw paymentError("discovery_rejected", {
       ...(coded.success

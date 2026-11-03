@@ -49,9 +49,10 @@ export interface PayOptions {
   /** A preference; the policy decides what is allowed. */
   readonly scheme?: SchemeName;
   /**
-   * Repeating a call with the same key in the same budget window never pays twice: a finished call
-   * returns its stored result (`replayed: true`) and a running one is refused (`payment_in_progress`).
-   * A key names one call: reusing it for another resource is refused (`payment_request_invalid`).
+   * Repeating a call with the same key never pays twice, also after the budget window renewed or a new
+   * session started: a finished call returns its stored result (`replayed: true`) and a running one is
+   * refused (`payment_in_progress`). A key belongs to the payer on its network and names one call:
+   * reusing it for another resource is refused (`payment_request_invalid`).
    */
   readonly idempotencyKey?: string;
   readonly signal?: AbortSignal;

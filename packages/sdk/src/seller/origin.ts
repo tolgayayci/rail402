@@ -14,8 +14,8 @@ import {
 import { parseRequired } from "../flow/common.ts";
 import { probeTool } from "../flow/mcp.ts";
 import type { HttpMethod } from "../flow/types.ts";
-import { redact } from "../redact.ts";
-import { sellerCodes, sellerError, type SellerCode } from "./codes.ts";
+import { redact, sanitizeLine } from "../redact.ts";
+import { loopbackCatalogOnPubnet, sellerCodes, sellerError, type SellerCode } from "./codes.ts";
 import { validateListing, type ValidationReport } from "./validate.ts";
 
 export interface CheckSellerOriginOptions {
@@ -31,8 +31,19 @@ export interface CheckSellerOriginOptions {
   readonly facilitatorUrl?: string;
   /** A Soroban RPC for the network; payTo's ability to receive the asset is checked when given. */
   readonly rpcUrl?: string;
-  /** Allow loopback URLs (and plain-http RPCs), for a seller running locally. */
+  /**
+   * Lets the check's own requests reach loopback URLs (and plain-http RPCs), for a seller running
+   * locally. It controls only where the check may connect, never the catalog's verdict: a loopback
+   * resource is still reported as `bazaar_resource_unsafe` unless `discoveryAllowLoopback` is set.
+   */
   readonly allowLoopback?: boolean;
+  /**
+   * Judges the resource as a catalog run with `DISCOVERY_ALLOW_LOOPBACK=true` does: a self-hosted
+   * testnet instance for local development, which also lists loopback resources. Without it the
+   * verdict is that of a catalog with the default setting, such as the hosted one, which lists only
+   * public hosts. Testnet only: a catalog refuses the setting together with pubnet.
+   */
+  readonly discoveryAllowLoopback?: boolean;
   /**
    * Replaces the outbound policy of the unpaid request or tool call. By default it allows https, http
    * on testnet, ports 443, 80 and the URL's own, and private addresses only with `allowLoopback`. A
@@ -93,6 +104,7 @@ export async function checkSellerOrigin(
 ): Promise<OriginReport> {
   const network = options.network ?? TESTNET;
   if (!isStellarNetwork(network)) throw sellerError("seller_network_unsupported");
+  if (options.discoveryAllowLoopback === true && network !== TESTNET) throw loopbackCatalogOnPubnet();
   let target: URL;
   try {
     target = new URL(url);
@@ -153,7 +165,8 @@ export async function checkSellerOrigin(
     network,
     concreteUrl: target.href,
     ...(options.method === undefined ? {} : { method: options.method }),
-    ...(options.allowLoopback === true ? { allowLoopback: true } : {}),
+    // The catalog's verdict, independent of what the check itself may reach.
+    ...(options.discoveryAllowLoopback === true ? { allowLoopback: true } : {}),
   });
   const onNetwork = required.accepts.filter((option) => option.network === network);
   const [receivable, facilitator, domain] = await Promise.all([
@@ -167,7 +180,7 @@ export async function checkSellerOrigin(
     if (entry.receivable === false) {
       findings.push({
         code: "seller_asset_not_receivable",
-        reason: `${entry.payTo} cannot receive ${entry.asset} now: add an authorized trustline for the asset.`,
+        reason: `${sanitizeLine(entry.payTo, 120)} cannot receive ${sanitizeLine(entry.asset, 120)} now: add an authorized trustline for the asset.`,
         details: { asset: entry.asset, payTo: entry.payTo },
       });
     }

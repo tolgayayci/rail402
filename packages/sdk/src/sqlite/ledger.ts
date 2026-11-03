@@ -10,9 +10,9 @@ import {
   TRANSITIONS,
   UNFINISHED_STATES,
   checkReservation,
-  idempotencyConflict,
-  keyReusable,
+  keyedReservation,
   planWindow,
+  takeKey,
   usageOf,
   validateSpec,
   type BudgetWindow,
@@ -38,7 +38,12 @@ import type { SchemeName } from "../policy/policy.ts";
 /** How long a write waits for another process's lock before `payment_ledger_unavailable`. */
 export const LEDGER_BUSY_TIMEOUT_MS = 5_000;
 
-const SCHEMA_VERSION = 2;
+/**
+ * Version 3 checks idempotency keys across windows and keeps a payment identifier with each. An older
+ * version would check keys per window only, and could pay a keyed call twice in a ledger it shares
+ * with this one, so it refuses the file as written by a newer version.
+ */
+const SCHEMA_VERSION = 3;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS windows (
@@ -71,6 +76,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   signed_at_ledger INTEGER,
   tx_hash TEXT,
   idempotency_key TEXT,
+  payment_id TEXT,
   result TEXT,
   awaiting_proof INTEGER NOT NULL DEFAULT 0,
   unprovable INTEGER NOT NULL DEFAULT 0,
@@ -78,6 +84,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   updated_at INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS reservations_idem ON reservations(window_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS reservations_key ON reservations(idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS reservations_open ON reservations(state, expiration_ledger);
 CREATE INDEX IF NOT EXISTS reservations_window ON reservations(window_id);
 CREATE INDEX IF NOT EXISTS reservations_tx ON reservations(tx_hash) WHERE tx_hash IS NOT NULL;
@@ -146,19 +153,21 @@ export class SqliteSpendLedger implements SpendLedger {
     return this.write(() => {
       const window = this.currentWindow(spec, now);
       const key = request.idempotencyKey;
+      let paymentId: string | undefined;
       if (key !== undefined) {
-        const existing = this.findByIdempotencyKey(window.id, key);
-        if (existing !== undefined) {
-          if (!keyReusable(existing)) throw idempotencyConflict(existing);
+        // A key outlives its window: an earlier window or session of the payer may hold it.
+        const taken = takeKey(this.keyed(spec.network, spec.payer, key), request);
+        for (const existing of taken.release) {
           this.run("UPDATE reservations SET idempotency_key = NULL WHERE id = ?", existing.id);
         }
+        paymentId = taken.paymentId;
       }
       checkReservation(window, spec, request, this.usage(window.id));
       const id = crypto.randomUUID();
       this.run(
         `INSERT INTO reservations (id, window_id, call_id, scheme, asset, pay_to, resource, amount, state,
-           idempotency_key, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?)`,
+           idempotency_key, payment_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?)`,
         id,
         window.id,
         request.callId,
@@ -168,6 +177,7 @@ export class SqliteSpendLedger implements SpendLedger {
         request.resource,
         request.amount.toString(),
         key ?? null,
+        paymentId ?? null,
         now,
         now,
       );
@@ -265,6 +275,10 @@ export class SqliteSpendLedger implements SpendLedger {
     return row === undefined ? undefined : toReservation(row);
   }
 
+  findIdempotencyKey(network: StellarNetwork, payer: string, key: string): Reservation | undefined {
+    return this.read(() => keyedReservation(this.keyed(network, payer, key)));
+  }
+
   unfinished(network: StellarNetwork, payer: string): Reservation[] {
     const states = UNFINISHED_STATES.map(() => "?").join(", ");
     return this.read(() =>
@@ -315,8 +329,23 @@ export class SqliteSpendLedger implements SpendLedger {
         this.db.exec("ALTER TABLE reservations ADD COLUMN unprovable INTEGER NOT NULL DEFAULT 0");
       }
       this.db.exec(SCHEMA);
+      // Version 3 keeps a payment identifier with each key; rows written before it have none.
+      const columns = this.all("PRAGMA table_info(reservations)").map((column) => column["name"]);
+      if (!columns.includes("payment_id"))
+        this.db.exec("ALTER TABLE reservations ADD COLUMN payment_id TEXT");
       if (version < SCHEMA_VERSION) this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     });
+  }
+
+  /** The reservations of the payer on the network that hold the key, in any window. */
+  private keyed(network: StellarNetwork, payer: string, key: string): Reservation[] {
+    return this.all(
+      `SELECT r.* FROM reservations r JOIN windows w ON w.id = r.window_id
+       WHERE r.idempotency_key = ? AND w.network = ? AND w.payer = ?`,
+      key,
+      network,
+      payer,
+    ).map(toReservation);
   }
 
   private currentWindow(spec: WindowSpec, now: number): BudgetWindow {
@@ -522,6 +551,7 @@ function toReservation(row: Row): Reservation {
     signedAtLedger: optionalInt(row, "signed_at_ledger"),
     transaction: optionalText(row, "tx_hash"),
     idempotencyKey: optionalText(row, "idempotency_key"),
+    paymentId: optionalText(row, "payment_id"),
     result: optionalText(row, "result"),
     awaitingProof: int(row, "awaiting_proof") === 1,
     unprovable: int(row, "unprovable") === 1,

@@ -201,7 +201,16 @@ describe.skipIf(!available)("rail402 on the local network", () => {
   });
 
   it("checks the seller the way the catalog will, and quotes it", async () => {
-    const check = await json(["seller", "check", `${sellerUrl}/weather?city=Ankara`]);
+    // The local seller is on loopback, which the hosted catalog refuses; a catalog that allows
+    // loopback (DISCOVERY_ALLOW_LOOPBACK) lists it.
+    const hosted = await json(["seller", "check", `${sellerUrl}/weather?city=Ankara`]);
+    expect(hosted).toMatchObject({ status: 3, result: { ok: false, validation: { catalogable: false } } });
+    const check = await json([
+      "seller",
+      "check",
+      `${sellerUrl}/weather?city=Ankara`,
+      "--discovery-allow-loopback",
+    ]);
     expect(check).toMatchObject({
       status: 0,
       result: {
@@ -267,8 +276,11 @@ describe.skipIf(!available)("rail402 on the local network", () => {
         response: { kind: "http", status: 200, json: { city: "Ankara", conditions: "sunny" } },
       },
     });
-    transaction = (paid.result?.["payment"] as { transaction: string }).transaction;
+    const receipt = paid.result?.["payment"] as { transaction: string; explorerUrl: string };
+    transaction = receipt.transaction;
     expect(transaction).toMatch(/^[0-9a-f]{64}$/);
+    // The settle response's hash (the fee bump's outer hash) opens in the Rail402 Explorer.
+    expect(receipt.explorerUrl).toBe(`https://explorer.rail402.dev/testnet/tx/${transaction}`);
     expect(await balance(payer.publicKey())).toBe(payerBefore - 150_000n);
     expect(await balance(seller.publicKey())).toBe(sellerBefore + 150_000n);
     expect(await balance(rail402.sponsor)).toBe(sponsorBefore);
@@ -285,6 +297,11 @@ describe.skipIf(!available)("rail402 on the local network", () => {
     });
     expect(await balance(payer.publicKey())).toBe(payerBefore - 150_000n);
 
+    // A human run of the same key replays the receipt and prints its link.
+    const shown = await rail(args);
+    expect(shown.status).toBe(0);
+    expect(shown.stdout).toContain(`explorer:    https://explorer.rail402.dev/testnet/tx/${transaction}`);
+
     const human = await rail(["pay", `${sellerUrl}/weather`, "--query", "city=Van", "--max", "0.01 TUSD"]);
     expect(human.status).toBe(3);
     expect(human.stdout).toBe("");
@@ -300,7 +317,7 @@ describe.skipIf(!available)("rail402 on the local network", () => {
         x402: { shape: "exact" },
         facilitator: { url: rail402.url, attributed: true },
         transfers: [{ from: payer.publicKey(), to: seller.publicKey(), amount: { atomic: "150000" } }],
-        explorerUrl: `https://stellar.expert/explorer/testnet/tx/${transaction}`,
+        explorerUrl: `https://explorer.rail402.dev/testnet/tx/${transaction}`,
       },
     });
     const missing = await json(["tx", "0".repeat(64)]);

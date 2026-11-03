@@ -44,6 +44,7 @@ describe.skipIf(!available)("rail402-mcp on the local network", () => {
   let mcpSeller: McpSeller;
   let client: Client;
   let directory: string;
+  let serverEnv: Record<string, string>;
   const stderr: string[] = [];
 
   const call = async (name: string, args: Record<string, unknown>): Promise<Output> => {
@@ -113,26 +114,27 @@ describe.skipIf(!available)("rail402-mcp on the local network", () => {
     const caFile = join(directory, "rpc-ca.pem");
     writeFileSync(caFile, proxy.certificate);
 
+    serverEnv = {
+      PATH: process.env["PATH"] ?? "",
+      HOME: directory,
+      NODE_EXTRA_CA_CERTS: caFile,
+      RAIL402_NETWORK: TESTNET,
+      RAIL402_RPC_URL: proxy.url,
+      RAIL402_BAZAAR_URL: rail402.url,
+      RAIL402_SECRET_KEY_FILE: keyFile,
+      RAIL402_ASSETS: `TUSD:${tusd.sac}:7`,
+      RAIL402_MAX_PER_CALL: "0.5 TUSD",
+      RAIL402_MAX_TOTAL: "2 TUSD",
+      RAIL402_ALLOW_HTTP: "true",
+      RAIL402_ALLOW_PRIVATE_NETWORK: "loopback",
+      RAIL402_ALLOWED_PORTS: `${String(sellerPort)},${String(mcpSeller.port)}`,
+      RAIL402_LEDGER_PATH: join(directory, "ledger.sqlite"),
+      RAIL402_LOG_LEVEL: "info",
+    };
     const transport = new StdioClientTransport({
       command: process.execPath,
       args: ["--conditions=@rail402/source", bin],
-      env: {
-        PATH: process.env["PATH"] ?? "",
-        HOME: directory,
-        NODE_EXTRA_CA_CERTS: caFile,
-        RAIL402_NETWORK: TESTNET,
-        RAIL402_RPC_URL: proxy.url,
-        RAIL402_BAZAAR_URL: rail402.url,
-        RAIL402_SECRET_KEY_FILE: keyFile,
-        RAIL402_ASSETS: `TUSD:${tusd.sac}:7`,
-        RAIL402_MAX_PER_CALL: "0.5 TUSD",
-        RAIL402_MAX_TOTAL: "2 TUSD",
-        RAIL402_ALLOW_HTTP: "true",
-        RAIL402_ALLOW_PRIVATE_NETWORK: "loopback",
-        RAIL402_ALLOWED_PORTS: `${String(sellerPort)},${String(mcpSeller.port)}`,
-        RAIL402_LEDGER_PATH: join(directory, "ledger.sqlite"),
-        RAIL402_LOG_LEVEL: "info",
-      },
+      env: serverEnv,
       stderr: "pipe",
     });
     transport.stderr?.on("data", (chunk: Buffer) => stderr.push(chunk.toString("utf8")));
@@ -191,7 +193,7 @@ describe.skipIf(!available)("rail402-mcp on the local network", () => {
     });
     const payment = output["payment"] as { transaction: string; explorerUrl: string };
     expect(payment.transaction).toMatch(/^[0-9a-f]{64}$/);
-    expect(payment.explorerUrl).toContain(payment.transaction);
+    expect(payment.explorerUrl).toBe(`https://explorer.rail402.dev/testnet/tx/${payment.transaction}`);
     expect(await balance(payer.publicKey())).toBe(payerBefore - 150_000n);
     expect(await balance(seller.publicKey())).toBe(sellerBefore + 150_000n);
     expect(await balance(rail402.sponsor)).toBe(sponsorBefore);
@@ -280,5 +282,68 @@ describe.skipIf(!available)("rail402-mcp on the local network", () => {
     });
     // Logs are on stderr and never carry the key.
     expect(stderr.join("")).not.toContain(payer.secret());
+  });
+
+  it("asks the user through the client before the real buyer signs, and signs nothing when declined", async () => {
+    /** A second rail402-mcp that confirms every payment, with a client that answers `answer`. */
+    const confirmingClient = async (answer: "accept" | "decline", ledger: string) => {
+      const asked: string[] = [];
+      const confirming = new Client(
+        { name: "rail402-mcp-confirm-it", version: "1" },
+        { capabilities: { elicitation: { form: {} } }, versionNegotiation: { mode: "auto" } },
+      );
+      confirming.setRequestHandler("elicitation/create", (request) => {
+        asked.push((request.params as { message: string }).message);
+        return Promise.resolve(
+          answer === "accept" ? { action: "accept", content: { confirm: true } } : { action: "decline" },
+        );
+      });
+      await confirming.connect(
+        new StdioClientTransport({
+          command: process.execPath,
+          args: ["--conditions=@rail402/source", bin],
+          env: {
+            ...serverEnv,
+            RAIL402_MCP_CONFIRM: "every",
+            RAIL402_LEDGER_PATH: join(directory, ledger),
+          },
+          stderr: "pipe",
+        }),
+      );
+      return { client: confirming, asked };
+    };
+    const pay = async (session: { client: Client }, city: string) =>
+      (
+        await session.client.callTool({
+          name: "pay_and_call",
+          arguments: {
+            resource: `${sellerUrl}/weather`,
+            query: { city },
+            spendingCap: { amount: "0.05", asset: "TUSD" },
+          },
+        })
+      ).structuredContent as Output;
+
+    const declining = await confirmingClient("decline", "declined.sqlite");
+    const before = await balance(payer.publicKey());
+    expect(await pay(declining, "Mardin")).toMatchObject({
+      ok: false,
+      error: { code: "payment_confirmation_declined", paid: "none" },
+    });
+    expect(declining.asked).toHaveLength(1);
+    expect(await balance(payer.publicKey())).toBe(before);
+    await declining.client.close();
+
+    const accepting = await confirmingClient("accept", "accepted.sqlite");
+    expect(await pay(accepting, "Sinop")).toMatchObject({
+      ok: true,
+      paid: true,
+      payment: { status: "settled", verifiedOnChain: true, payTo: seller.publicKey() },
+    });
+    expect(accepting.asked).toHaveLength(1);
+    expect(accepting.asked[0]).toContain("Amount: 0.015 TUSD");
+    expect(accepting.asked[0]).toContain(seller.publicKey());
+    expect(await balance(payer.publicKey())).toBe(before - 150_000n);
+    await accepting.client.close();
   });
 });

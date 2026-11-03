@@ -510,7 +510,7 @@
             ]
           },
           "idempotencyKey": {
-            "description": "Repeating a call with the same key never pays twice in this budget window. A key is for one resource: reusing it for another is refused.",
+            "description": "Repeating a call with the same key never pays twice, in this budget window or a later one, for as long as the budget ledger keeps the key (the default SQLite ledger keeps it). A key is for one resource: reusing it for another is refused.",
             "type": "string",
             "pattern": "^[A-Za-z0-9_-]{8,128}$"
           }

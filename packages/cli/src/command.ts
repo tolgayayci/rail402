@@ -11,6 +11,11 @@ export interface CliDeps {
   readonly fetch: typeof fetch;
   /** Reads a secret seed for `keys import`: without echo on a terminal, or from a pipe. */
   readonly readSecret: () => Promise<string>;
+  /**
+   * Asks a yes/no question on the terminal; undefined when there is no terminal to ask on.
+   * Used to confirm pubnet payments.
+   */
+  readonly ask: (question: string) => Promise<boolean | undefined>;
 }
 
 export interface CommandInput {

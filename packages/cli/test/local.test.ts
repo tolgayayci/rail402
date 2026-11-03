@@ -1,13 +1,16 @@
 import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
+import { encodePaymentRequiredHeader } from "@x402/core/http";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
-import { TESTNET, USDC } from "@rail402.dev/stellar";
+import { PUBNET, TESTNET, USDC } from "@rail402.dev/stellar";
 import { EXIT, parseCommandLine, resolveContext } from "@rail402.dev/cli";
-import { KeyHolder } from "@rail402.dev/sdk";
-import { readSecret } from "../src/secret-input.ts";
+import { KEY_FILE_TAG, KeyHolder, parseKeyFile } from "@rail402.dev/sdk";
+import { askOnTerminal, readSecret } from "../src/secret-input.ts";
 import { cli, sandboxHome, type CliRun } from "./helpers.ts";
 
 let home: ReturnType<typeof sandboxHome>;
@@ -17,6 +20,11 @@ beforeEach(() => {
 afterEach(() => {
   home.dispose();
 });
+
+/** Characters that act on a terminal: controls other than LF, line separators and bidi overrides. */
+const TERMINAL_CONTROL =
+  // eslint-disable-next-line no-control-regex
+  /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069]/;
 
 /** Nothing a command prints may contain a seed. */
 function expectNoSeed(result: CliRun, seed: string): void {
@@ -58,6 +66,15 @@ describe("configuration", () => {
     });
     expect(fromFlag.agent.bazaarUrl).toBe("https://flag.example");
     expect(fromFlag.friendbotUrl).toBe("https://friendbot.stellar.org");
+  });
+
+  it("links to the Rail402 Explorer by default, and to stellar.expert when configured", () => {
+    expect(context(["pay", "https://api.example/x"]).agent.explorer).toBe("rail402");
+    expect(context(["tx", "a".repeat(64)], { RAIL402_EXPLORER: "stellar.expert" }).agent.explorer).toBe(
+      "stellar.expert",
+    );
+    configFile({ explorer: "stellar.expert" });
+    expect(context(["tx", "a".repeat(64)]).agent.explorer).toBe("stellar.expert");
   });
 
   it("refuses a config file holding a secret, unknown fields and bad JSON", async () => {
@@ -143,18 +160,26 @@ describe("keys", () => {
     expect(keyFile).toBe(join(home.env.XDG_CONFIG_HOME, "rail402", "keys", "stellar-testnet.key"));
     expect(statSync(keyFile).mode & 0o777).toBe(0o600);
     expect(statSync(join(home.env.XDG_CONFIG_HOME, "rail402", "keys")).mode & 0o777).toBe(0o700);
-    const seed = readFileSync(keyFile, "utf8").trim();
+    const content = readFileSync(keyFile, "utf8");
+    expect(content.startsWith(`${KEY_FILE_TAG}${TESTNET}\n`)).toBe(true);
+    const seed = parseKeyFile(content).secret;
     expect(Keypair.fromSecret(seed).publicKey()).toBe(address);
     expectNoSeed(created, seed);
 
     const again = await cli(["keys", "new"], home.env);
     expect(again.status).toBe(EXIT.usage);
     expect(again.stderr).toContain("key_exists");
-    expect(readFileSync(keyFile, "utf8").trim()).toBe(seed);
+    expect(readFileSync(keyFile, "utf8")).toBe(content);
 
     // The default key is found without any flag or variable.
     const shown = await cli(["keys", "show", "--json"], home.env);
-    expect(shown.json().result).toEqual({ address, keyFile, source: "default key file", network: TESTNET });
+    expect(shown.json().result).toEqual({
+      address,
+      keyFile,
+      source: "default key file",
+      network: TESTNET,
+      keyNetwork: TESTNET,
+    });
     expectNoSeed(shown, seed);
     const path = await cli(["keys", "path", "--name", "other"], home.env);
     expect(path.stdout.trim()).toBe(join(home.env.XDG_CONFIG_HOME, "rail402", "keys", "other.key"));
@@ -183,10 +208,10 @@ describe("keys", () => {
   });
 
   it("takes a key file the Playground exported, after the documented step", async () => {
-    // A browser saves the download as the seed on one line, readable by others (0644 or 0664).
+    // A browser saves the download, a key file tagged for testnet, readable by others (0644 or 0664).
     const download = join(home.dir, "rail402-testnet-gabc1234.key");
     const keypair = Keypair.random();
-    writeFileSync(download, `${keypair.secret()}\n`, { mode: 0o644 });
+    writeFileSync(download, `${KEY_FILE_TAG}${TESTNET}\n${keypair.secret()}\n`, { mode: 0o644 });
     chmodSync(download, 0o644);
     await expect(KeyHolder.fromFile(download)).rejects.toMatchObject({ code: "key_file_insecure" });
 
@@ -200,6 +225,30 @@ describe("keys", () => {
     expect(result.address).toBe(keypair.publicKey());
     expect(statSync(result.keyFile).mode & 0o777).toBe(0o600);
     expect((await KeyHolder.fromFile(result.keyFile)).address).toBe(keypair.publicKey());
+
+    // A testnet download never becomes a pubnet key through import.
+    const pubnetStdin = new PassThrough();
+    const toPubnet = cli(
+      [
+        "keys",
+        "import",
+        "--name",
+        "mainnet",
+        "--json",
+        "--network",
+        PUBNET,
+        "--rpc-url",
+        "https://rpc.example",
+        "--bazaar-url",
+        "https://bazaar.example",
+      ],
+      home.env,
+      { readSecret: () => readSecret(pubnetStdin, new PassThrough()) },
+    );
+    pubnetStdin.end(readFileSync(download));
+    const refusedImport = await toPubnet;
+    expect(refusedImport.json().error).toMatchObject({ code: "key_network_mismatch" });
+    expectNoSeed(refusedImport, keypair.secret());
 
     // … or `chmod 600 <file>` before pointing RAIL402_SECRET_KEY_FILE at it.
     chmodSync(download, 0o600);
@@ -340,6 +389,234 @@ describe("seller validate", () => {
     writeFileSync(file, JSON.stringify({ x402Version: 1 }));
     expect((await cli(["seller", "validate", file], home.env)).status).toBe(EXIT.usage);
   });
+
+  it("judges a loopback resource as the hosted catalog does unless --discovery-allow-loopback", async () => {
+    const bazaar = declareDiscoveryExtension({
+      input: { q: "x" },
+      inputSchema: { properties: { q: { type: "string", description: "Query" } } },
+      output: { example: { results: [] } },
+    })["bazaar"];
+    const file = join(home.dir, "local.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        ...required(bazaar),
+        resource: { url: "http://localhost:4021/search", description: "Search" },
+      }),
+    );
+    const args = ["seller", "validate", file, "--method", "GET", "--allow-http", "--allow-private-network"];
+    const hosted = await cli([...args, "--json"], home.env);
+    expect(hosted.status).toBe(EXIT.refused);
+    expect(hosted.json().result).toMatchObject({
+      catalogable: false,
+      code: "bazaar_resource_unsafe",
+      reason: 'Host "localhost" is not a public host.',
+    });
+    const local = await cli([...args, "--discovery-allow-loopback", "--json"], home.env);
+    expect(local.status).toBe(EXIT.ok);
+    expect(local.json().result).toMatchObject({ catalogable: true });
+  });
+});
+
+describe("seller check", () => {
+  const payTo = Keypair.random().publicKey();
+  const bazaar = declareDiscoveryExtension({
+    input: { topic: "craft" },
+    inputSchema: { properties: { topic: { type: "string", description: "Topic of the quote" } } },
+    output: { example: { quote: "Measure twice." } },
+  })["bazaar"];
+  const servers: Server[] = [];
+  let origin = "";
+  let flags: string[] = [];
+
+  /**
+   * A seller whose 402 names `resource` (with {origin} replaced by its own origin) as the paid URL;
+   * `option` replaces fields of its one payment option.
+   */
+  function sellerAnswering(resource: string, option: Record<string, string> = {}): Server {
+    return createServer((request, response) => {
+      const self = `http://${request.headers.host ?? ""}`;
+      const header = encodePaymentRequiredHeader({
+        x402Version: 2,
+        resource: {
+          url: resource.replace("{origin}", self),
+          description: "Quotes",
+          mimeType: "application/json",
+        },
+        accepts: [
+          {
+            scheme: "exact",
+            network: TESTNET,
+            asset: USDC[TESTNET].contract,
+            amount: "1000",
+            payTo,
+            maxTimeoutSeconds: 60,
+            extra: { areFeesSponsored: true },
+            ...option,
+          },
+        ],
+        extensions: { bazaar },
+      });
+      response.writeHead(402, { "payment-required": header }).end();
+    });
+  }
+
+  async function listen(server: Server): Promise<string> {
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    return `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  }
+
+  beforeAll(async () => {
+    // A fee-sponsoring facilitator with the bazaar extension, and an RPC that answers every call with
+    // an error, so nothing leaves this machine.
+    const facilitator = createServer((request, response) => {
+      if (request.url === "/supported") {
+        response.writeHead(200, { "content-type": "application/json" }).end(
+          JSON.stringify({
+            kinds: [{ x402Version: 2, scheme: "exact", network: TESTNET, extra: { areFeesSponsored: true } }],
+            extensions: ["bazaar"],
+            signers: {},
+          }),
+        );
+        return;
+      }
+      response.writeHead(404).end();
+    });
+    const rpc = createServer((request, response) => {
+      request.resume();
+      response
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify({ jsonrpc: "2.0", id: 1, error: { code: -32_603, message: "unavailable" } }));
+    });
+    origin = await listen(sellerAnswering("{origin}/quote"));
+    flags = [
+      "--facilitator-url",
+      await listen(facilitator),
+      "--rpc-url",
+      await listen(rpc),
+      "--allow-http",
+      "--allow-private-network",
+      // The 402s here carry discovery metadata without the method, which stock middleware adds.
+      "--method",
+      "GET",
+    ];
+  });
+
+  afterAll(async () => {
+    for (const server of servers) {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
+  it("reports that the catalog refuses a local seller it was allowed to reach, and exits 3", async () => {
+    const result = await cli(
+      ["seller", "check", `${origin}/quote?topic=craft`, ...flags, "--json"],
+      home.env,
+    );
+    expect(result.status).toBe(EXIT.refused);
+    expect(result.json().result).toMatchObject({
+      ok: false,
+      status: 402,
+      findings: [],
+      validation: {
+        catalogable: false,
+        code: "bazaar_resource_unsafe",
+        reason: 'Host "127.0.0.1" is not a public host.',
+      },
+    });
+    const human = await cli(["seller", "check", `${origin}/quote?topic=craft`, ...flags], home.env);
+    expect(human.status).toBe(EXIT.refused);
+    expect(human.stdout).toContain(
+      'catalog: would not be listed: bazaar_resource_unsafe: Host "127.0.0.1" is not a public host.',
+    );
+    expect(human.stdout).toContain("--discovery-allow-loopback");
+    expect(human.stdout).toMatch(/result: +problems found/);
+    expect(human.stdout).not.toContain("would list it");
+  });
+
+  it("prints the 402's payTo and asset without terminal controls, and JSON unchanged", async () => {
+    const hostilePayTo = `${payTo}\u001b]52;c;djIz\u0007\r`;
+    const hostileAsset = `${USDC[TESTNET].contract}\u001b[31m\u009b2J\u202e`;
+    const hostile = await listen(
+      sellerAnswering("{origin}/quote", { payTo: hostilePayTo, asset: hostileAsset }),
+    );
+    const human = await cli(["seller", "check", `${hostile}/quote?topic=craft`, ...flags], home.env);
+    expect(human.stdout).toContain(
+      `payTo ${payTo}]52;c;djIz  cannot receive ${USDC[TESTNET].contract}[31m2J`,
+    );
+    expect(human.stdout).not.toMatch(TERMINAL_CONTROL);
+    const json = await cli(["seller", "check", `${hostile}/quote?topic=craft`, ...flags, "--json"], home.env);
+    expect(json.json().result).toMatchObject({
+      receivable: [{ payTo: hostilePayTo, asset: hostileAsset }],
+      findings: [{ code: "seller_asset_not_receivable", details: { payTo: hostilePayTo } }],
+    });
+    const [finding] = (json.json().result as { findings: { reason: string }[] }).findings;
+    expect(finding?.reason).not.toMatch(TERMINAL_CONTROL);
+  });
+
+  it("refuses localhost and private hosts named by the 402", async () => {
+    for (const [resource, host] of [
+      ["http://localhost:4021/quote", "localhost"],
+      ["http://10.1.2.3/quote", "10.1.2.3"],
+      ["http://192.168.0.7/quote", "192.168.0.7"],
+    ] as const) {
+      const url = await listen(sellerAnswering(resource));
+      const result = await cli(["seller", "check", `${url}/quote`, ...flags, "--json"], home.env);
+      expect(result.status, resource).toBe(EXIT.refused);
+      expect(result.json().result, resource).toMatchObject({
+        ok: false,
+        validation: { code: "bazaar_resource_unsafe", reason: `Host "${host}" is not a public host.` },
+      });
+    }
+  });
+
+  it("lists a public host, and judges loopback as a DISCOVERY_ALLOW_LOOPBACK catalog when asked", async () => {
+    const publicSeller = await listen(sellerAnswering("https://quotes.example.com/quote"));
+    const listed = await cli(["seller", "check", `${publicSeller}/quote`, ...flags, "--json"], home.env);
+    expect(listed.status).toBe(EXIT.ok);
+    expect(listed.json().result).toMatchObject({
+      ok: true,
+      validation: { catalogable: true, preview: { resource: "https://quotes.example.com/quote" } },
+    });
+
+    const local = ["seller", "check", `${origin}/quote?topic=craft`, ...flags, "--discovery-allow-loopback"];
+    const loopback = await cli([...local, "--json"], home.env);
+    expect(loopback.status).toBe(EXIT.ok);
+    expect(loopback.json().result).toMatchObject({ ok: true, validation: { catalogable: true } });
+    expect((await cli(local, home.env)).stdout).toContain("DISCOVERY_ALLOW_LOOPBACK=true");
+
+    // A private address is never listed, not even by a catalog that lists loopback.
+    const privateSeller = await listen(sellerAnswering("http://10.1.2.3/quote"));
+    const refused = await cli(
+      ["seller", "check", `${privateSeller}/quote`, ...flags, "--discovery-allow-loopback", "--json"],
+      home.env,
+    );
+    expect(refused.status).toBe(EXIT.refused);
+    expect(refused.json().result).toMatchObject({ validation: { code: "bazaar_resource_unsafe" } });
+  });
+
+  it("refuses --discovery-allow-loopback on pubnet", async () => {
+    const result = await cli(
+      [
+        "seller",
+        "check",
+        "https://quotes.example.com/quote",
+        "--network",
+        "stellar:pubnet",
+        "--rpc-url",
+        "https://rpc.example",
+        "--bazaar-url",
+        "https://bazaar.example",
+        "--discovery-allow-loopback",
+        "--json",
+      ],
+      { ...home.env, RAIL402_MAX_PER_CALL: "0.1 USDC", RAIL402_MAX_TOTAL: "1 USDC" },
+    );
+    expect(result.status).toBe(EXIT.usage);
+    expect(result.json().error?.["reason"]).toContain("testnet");
+  });
 });
 
 describe("secret input", () => {
@@ -352,6 +629,14 @@ describe("secret input", () => {
     const refused = readSecret(two, new PassThrough());
     two.end("A B\n");
     await expect(refused).rejects.toMatchObject({ code: "cli_usage_invalid" });
+    const tagged = new PassThrough();
+    const readingTagged = readSecret(tagged, new PassThrough());
+    tagged.end(`${KEY_FILE_TAG}${TESTNET}\nSEED123\n`);
+    await expect(readingTagged).resolves.toBe(`${KEY_FILE_TAG}${TESTNET}\nSEED123`);
+    const three = new PassThrough();
+    const refusedThree = readSecret(three, new PassThrough());
+    three.end("# a\n# b\nSEED123\n");
+    await expect(refusedThree).rejects.toMatchObject({ code: "cli_usage_invalid" });
     const long = new PassThrough();
     const tooLong = readSecret(long, new PassThrough());
     long.end("x".repeat(2_000));
@@ -374,5 +659,28 @@ describe("secret input", () => {
     const cancelled = readSecret(terminal, new PassThrough());
     terminal.write("S\u0003");
     await expect(cancelled).rejects.toMatchObject({ code: "cli_usage_invalid" });
+  });
+
+  it("asks a yes/no question on a terminal: only y or yes approves", async () => {
+    const terminal = () => Object.assign(new PassThrough(), { isTTY: true });
+    const answer = async (typed: string | undefined) => {
+      const stdin = terminal();
+      const prompt = terminal();
+      const asking = askOnTerminal(stdin, prompt, "Pay? [y/N] ");
+      if (typed === undefined) stdin.end();
+      else stdin.write(typed);
+      const result = await asking;
+      return { result, question: String(prompt.read()) };
+    };
+    for (const typed of ["y\n", "yes\n", " YES \n", "Y\r\n"]) expect((await answer(typed)).result).toBe(true);
+    for (const typed of ["n\n", "\n", "yess\n", "sure\n", "x".repeat(80)]) {
+      expect((await answer(typed)).result, JSON.stringify(typed)).toBe(false);
+    }
+    // Input closed before a line: no.
+    expect((await answer(undefined)).result).toBe(false);
+    expect((await answer("y\n")).question).toBe("Pay? [y/N] ");
+    // Without a terminal on both sides nothing is asked, so a script never hangs.
+    await expect(askOnTerminal(new PassThrough(), terminal(), "?")).resolves.toBeUndefined();
+    await expect(askOnTerminal(terminal(), new PassThrough(), "?")).resolves.toBeUndefined();
   });
 });

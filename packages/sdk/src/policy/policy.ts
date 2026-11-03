@@ -50,6 +50,12 @@ export interface SpendingPolicyInput {
    * Default: any authority other than the payer and the recipient, bound exactly to the selected option.
    */
   readonly uptoFacilitators?: readonly string[];
+  /**
+   * Accept pubnet USDC caps above the pubnet ceilings (`PUBNET_CAP_CEILINGS`: 1 USDC per call, 10
+   * USDC per budget window), and caps on any other pubnet asset, which have no built-in ceiling.
+   * Default false.
+   */
+  readonly allowLargeCaps?: boolean;
 }
 
 export interface PolicyAsset {
@@ -83,6 +89,14 @@ export interface ResolvedPolicy {
 /** Defaults for a testnet buyer: 0.10 USDC per call and 1.00 USDC per budget window. */
 export const TESTNET_DEFAULT_CAPS = { perCall: "0.10", sessionTotal: "1.00" } as const;
 
+/**
+ * The highest USDC caps a pubnet policy accepts unless `allowLargeCaps` is set: 1 USDC per call and
+ * 10 USDC per budget window. Pubnet has no default caps; these bound what may be configured. Other
+ * pubnet assets have no built-in ceiling (their unit values differ), so caps on them need
+ * `allowLargeCaps` as the owner's explicit acknowledgement.
+ */
+export const PUBNET_CAP_CEILINGS = { perCall: "1", sessionTotal: "10" } as const;
+
 /** The facilitator's own maximum `maxTimeoutSeconds`, used as the default authorization window. */
 export const DEFAULT_MAX_AUTHORIZATION_SECONDS = 300;
 /** Upper bound on a configured authorization window. */
@@ -115,6 +129,7 @@ export async function resolvePolicy(
   const assets: PolicyAsset[] = [];
   for (const assetInput of assetInputs) {
     const asset = await resolveAsset(network, assetInput, options);
+    if (pubnet && input.allowLargeCaps !== true) checkPubnetCeilings(asset);
     if (assets.some((known) => known.contract === asset.contract)) {
       throw invalid(`asset ${asset.contract} is listed more than once.`);
     }
@@ -246,6 +261,32 @@ async function resolveAsset(
     throw invalid(`the ${symbol} per-call ceiling is larger than its session total.`);
   }
   return { symbol, contract, decimals, perCall, sessionTotal };
+}
+
+/**
+ * Refuses pubnet USDC caps above `PUBNET_CAP_CEILINGS`, and caps on any other pubnet asset
+ * (`payment_cap_invalid`); `allowLargeCaps` lifts both.
+ */
+function checkPubnetCeilings(asset: PolicyAsset): void {
+  if (asset.contract !== USDC[PUBNET].contract) {
+    if (asset.perCall === undefined && asset.sessionTotal === undefined) return;
+    throw paymentError("payment_cap_invalid", {
+      reason: `Pubnet caps on ${asset.symbol} have no built-in ceiling (only USDC does: ${PUBNET_CAP_CEILINGS.perCall} per call, ${PUBNET_CAP_CEILINGS.sessionTotal} per window); check them and allow them explicitly (allowLargeCaps, RAIL402_ALLOW_LARGE_CAPS=true).`,
+      details: { asset: asset.symbol },
+    });
+  }
+  const limits = [
+    ["per-call ceiling", asset.perCall, PUBNET_CAP_CEILINGS.perCall],
+    ["session total", asset.sessionTotal, PUBNET_CAP_CEILINGS.sessionTotal],
+  ] as const;
+  for (const [label, value, ceiling] of limits) {
+    if (value !== undefined && value > (toAtomic(ceiling, asset.decimals) ?? 0n)) {
+      throw paymentError("payment_cap_invalid", {
+        reason: `The pubnet USDC ${label} of ${toDecimal(value, asset.decimals)} is above the pubnet ceiling of ${ceiling} USDC; lower it, or allow larger caps explicitly (allowLargeCaps, RAIL402_ALLOW_LARGE_CAPS=true).`,
+        details: { asset: asset.symbol, ceiling },
+      });
+    }
+  }
 }
 
 function positive(text: string, decimals: number, label: string): bigint {

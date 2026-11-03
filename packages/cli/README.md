@@ -13,20 +13,20 @@ rail402 session show                               # spent, pending and remainin
 
 ## Commands
 
-| Command                                     | What it does                                                                                               | Signs               |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------- |
-| `search <query>`                            | natural-language Bazaar search (`--type --max-price --asset --pay-to --scheme --limit --cursor`)           | no                  |
-| `resources`                                 | the catalog, with the discovery filters (`--type --pay-to --scheme --extensions --limit --offset --as-of`) | no                  |
-| `listing <id>`                              | one listing, and its public version history with `--versions`                                              | no                  |
-| `quote <url>`                               | the unpaid request and each payment option's verdict under the policy; an MCP quote calls the tool unpaid  | no                  |
-| `pay <url> --max <amount>`                  | pays an HTTP resource, or an MCP tool with `--tool <name> --args <json>`                                   | one authorization   |
-| `purchase <query> --max <amount>`           | searches, picks a result (`--pick <n or listing id>`) and pays it through its listing                      | one authorization   |
-| `tx <hash>`                                 | explains a transaction read from the RPC                                                                   | no                  |
-| `session show\|list\|start\|end\|reconcile` | budget windows in the local ledger (`--name --max-total --ttl --force`)                                    | no                  |
-| `keys new\|import\|show\|path`              | local keys; only the address is printed; `import` reads the seed from stdin                                | no                  |
-| `account setup\|status`                     | testnet: Friendbot, trustline, optional `--usdc <n>`; pubnet: the trustline only, with `--yes`             | classic transaction |
-| `seller check <url>`                        | checks a paid resource the way the Rail402 catalog will (`--method --tool --args`)                         | no                  |
-| `seller validate <file>`                    | validates a saved `PAYMENT-REQUIRED` (JSON or base64) and shows the listing it would produce               | no                  |
+| Command                                     | What it does                                                                                                                         | Signs               |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| `search <query>`                            | natural-language Bazaar search (`--type --max-price --asset --pay-to --scheme --limit --cursor`)                                     | no                  |
+| `resources`                                 | the catalog, with the discovery filters (`--type --pay-to --scheme --extensions --limit --offset --as-of`)                           | no                  |
+| `listing <id>`                              | one listing, and its public version history with `--versions`                                                                        | no                  |
+| `quote <url>`                               | the unpaid request and each payment option's verdict under the policy; an MCP quote calls the tool unpaid                            | no                  |
+| `pay <url> --max <amount>`                  | pays an HTTP resource, or an MCP tool with `--tool <name> --args <json>`                                                             | one authorization   |
+| `purchase <query> --max <amount>`           | searches, picks a result (`--pick <n or listing id>`) and pays it through its listing                                                | one authorization   |
+| `tx <hash>`                                 | explains a transaction read from the RPC                                                                                             | no                  |
+| `session show\|list\|start\|end\|reconcile` | budget windows in the local ledger (`--name --max-total --ttl --force`)                                                              | no                  |
+| `keys new\|import\|show\|path`              | local keys; only the address is printed; `import` reads the seed from stdin                                                          | no                  |
+| `account setup\|status`                     | testnet: Friendbot, trustline, optional `--usdc <n>`; pubnet: the trustline only, with `--yes`                                       | classic transaction |
+| `seller check <url>`                        | checks a paid resource the way the Rail402 catalog will (`--method --tool --args --discovery-allow-loopback`)                        | no                  |
+| `seller validate <file>`                    | validates a saved `PAYMENT-REQUIRED` (JSON or base64) and shows the listing it would produce (`--method --discovery-allow-loopback`) | no                  |
 
 Call flags for `pay` and `quote`: `--method`, `--query name=value` (repeatable), `--header "name: value"` (only `accept`, `accept-language` and `x-request-id`), `--data <json>` or `--data-file <path>`, `--tool`, `--args <json>` or `--args-file <path>`, `--transport streamable-http|sse`. Payment flags: `--max` (required; e.g. `0.05` or `"0.05 USDC"`), `--asset`, `--scheme exact|upto`, `--session <name>`, `--idempotency-key <key>`.
 
@@ -63,6 +63,7 @@ Flags take precedence over `RAIL402_*` environment variables, which take precede
 - The signing key is looked up in this order: `--key-file`, `RAIL402_SECRET_KEY_FILE`, `RAIL402_SECRET_KEY` (removed from the environment once read), then the default key file for the network. There is no flag that takes a seed. Key files must be readable by their owner only.
 - `--facilitator-url` (default: the Bazaar URL) attributes transactions in `tx` and is checked by `seller check`.
 - `--allow-http`, `--allow-private-network` and `RAIL402_ALLOWED_PORTS` let the CLI reach sellers on this machine during development; pubnet refuses them.
+- `seller check` and `seller validate` judge a resource as the hosted catalog does, which lists public hosts only: a loopback or private resource URL is reported as `bazaar_resource_unsafe`, whatever the egress flags. `--discovery-allow-loopback` judges as a self-hosted testnet catalog run with `DISCOVERY_ALLOW_LOOPBACK=true` does; pubnet refuses it.
 
 Part of [Rail402](https://github.com/tolgayayci/rail402), x402 payments and discovery for Stellar.
 Documentation: [docs.rail402.dev](https://docs.rail402.dev). Requires Node.js 24.11 or later. Apache-2.0.

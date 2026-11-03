@@ -1,5 +1,10 @@
 export * from "./codes.ts";
 export * from "./config.ts";
+export * from "./confirm-scope.ts";
+export * from "./confirmation.ts";
+export * from "./hosted.ts";
+export * from "./hosted-server.ts";
+export { EXIT_CONFIG, hostedMain } from "./hosted-main.ts";
 export * from "./http.ts";
 export * from "./limits.ts";
 export * from "./logger.ts";

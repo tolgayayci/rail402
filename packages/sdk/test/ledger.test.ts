@@ -235,6 +235,103 @@ describe.each(ledgers)("%s spend ledger", (_name, open) => {
     ledger.close();
   });
 
+  it("keeps an idempotency key across budget windows and sessions while its payment may have moved money", () => {
+    const ledger = open();
+    const payer = Keypair.random().publicKey();
+    const spec = windowSpec(payer);
+    const keyed = () => request(10n, { idempotencyKey: "job-3-abcdef" });
+    const first = ledger.reserve(spec, keyed(), T0);
+    ledger.markSigned(first.id, { nonce: 4n, expirationLedger: 50, signedAtLedger: 40 }, T0);
+    ledger.markUnresolved(first.id, T0);
+    const later = T0 + HOUR;
+    // The window renews at the end of its time to live, then a new session starts.
+    const renewed = ledger.window(spec, later);
+    expect(renewed.id).not.toBe(first.windowId);
+    expect(() => ledger.reserve(spec, keyed(), later)).toThrow(
+      expect.objectContaining({ code: "payment_in_progress" }),
+    );
+    ledger.settle(first.id, { transaction: "ab".repeat(32), settledAmount: 10n, verified: true }, later);
+    const restarted = ledger.startWindow(spec, later);
+    expect(restarted.id).not.toBe(renewed.id);
+    for (const session of [spec, windowSpec(payer, { name: "other" })]) {
+      expect(() => ledger.reserve(session, keyed(), later)).toThrow(
+        expect.objectContaining({ code: "payment_in_progress" }),
+      );
+    }
+    expect(ledger.findIdempotencyKey(TESTNET, payer, "job-3-abcdef")?.id).toBe(first.id);
+    // Another payer's keys are its own.
+    const other = windowSpec(Keypair.random().publicKey());
+    expect(ledger.reserve(other, keyed(), later).idempotencyKey).toBe("job-3-abcdef");
+    ledger.close();
+  });
+
+  it("frees a key held in an earlier window once the chain proves its authorization expired unused", () => {
+    const ledger = open();
+    const payer = Keypair.random().publicKey();
+    const spec = windowSpec(payer);
+    const keyed = () => request(10n, { idempotencyKey: "job-4-abcdef" });
+    const first = ledger.reserve(spec, keyed(), T0);
+    ledger.markSigned(first.id, { nonce: 5n, expirationLedger: 50, signedAtLedger: 40 }, T0);
+    ledger.markUnresolved(first.id, T0);
+    ledger.startWindow(spec, T0);
+    expect(() => ledger.reserve(spec, keyed(), T0)).toThrow(/awaits on-chain proof/);
+    ledger.release(first.id, "expired_unused", T0);
+    const second = ledger.reserve(spec, keyed(), T0);
+    expect(second.windowId).not.toBe(first.windowId);
+    expect(ledger.findIdempotencyKey(TESTNET, payer, "job-4-abcdef")?.id).toBe(second.id);
+    expect(ledger.get(first.id)?.idempotencyKey).toBeUndefined();
+    ledger.close();
+  });
+
+  it("keeps a key's payment identifier with the key, and passes it on when the key is used again", () => {
+    const ledger = open();
+    const payer = Keypair.random().publicKey();
+    const spec = windowSpec(payer);
+    const first = ledger.reserve(
+      spec,
+      request(10n, { idempotencyKey: "job-5-abcdef", paymentId: "rail402_first-identifier" }),
+      T0,
+    );
+    expect(first.paymentId).toBe("rail402_first-identifier");
+    ledger.markSigned(first.id, { nonce: 6n, expirationLedger: 50, signedAtLedger: 40 }, T0);
+    ledger.markUnresolved(first.id, T0);
+    ledger.startWindow(spec, T0);
+    expect(ledger.findIdempotencyKey(TESTNET, payer, "job-5-abcdef")?.paymentId).toBe(
+      "rail402_first-identifier",
+    );
+    ledger.release(first.id, "expired_unused", T0);
+    const second = ledger.reserve(spec, request(10n, { idempotencyKey: "job-5-abcdef" }), T0);
+    expect(second.paymentId).toBe("rail402_first-identifier");
+    expect(ledger.get(second.id)?.paymentId).toBe("rail402_first-identifier");
+    // Only a keyed call keeps one.
+    const unkeyed = ledger.reserve(spec, request(10n, { paymentId: "rail402_unkeyed-call" }), T0);
+    expect(unkeyed.paymentId).toBeUndefined();
+    ledger.close();
+  });
+
+  it("gives a freed key a new payment identifier when it is used for another resource", () => {
+    const ledger = open();
+    const spec = windowSpec(Keypair.random().publicKey());
+    const keyed = (resource: string, paymentId?: string) =>
+      request(10n, {
+        idempotencyKey: "job-6-abcdef",
+        resource,
+        ...(paymentId === undefined ? {} : { paymentId }),
+      });
+    const first = ledger.reserve(spec, keyed("https://seller.example/a", "rail402_identifier-of-a"), T0);
+    ledger.release(first.id, "not_signed", T0);
+    const other = ledger.reserve(spec, keyed("https://seller.example/b"), T0);
+    expect(other.paymentId).toBeUndefined();
+    ledger.release(other.id, "not_signed", T0);
+    const fresh = ledger.reserve(spec, keyed("https://seller.example/b", "rail402_identifier-of-b"), T0);
+    ledger.release(fresh.id, "not_signed", T0);
+    // The same resource again keeps its identifier.
+    expect(ledger.reserve(spec, keyed("https://seller.example/b"), T0).paymentId).toBe(
+      "rail402_identifier-of-b",
+    );
+    ledger.close();
+  });
+
   it("reports a budget snapshot in whole units", async () => {
     const ledger = open();
     const payer = Keypair.random().publicKey();

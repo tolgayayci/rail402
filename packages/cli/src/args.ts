@@ -45,6 +45,7 @@ const PAY_OPTIONS = {
   scheme: { type: "string" },
   session: { type: "string" },
   "idempotency-key": { type: "string" },
+  yes: { type: "boolean" },
 } as const satisfies Record<string, Option>;
 
 interface CommandSpec {
@@ -121,7 +122,12 @@ export const COMMANDS = {
   seller: {
     subcommands: ["check", "validate"],
     positionals: 1,
-    options: { method: { type: "string" }, tool: { type: "string" }, args: { type: "string" } },
+    options: {
+      method: { type: "string" },
+      tool: { type: "string" },
+      args: { type: "string" },
+      "discovery-allow-loopback": { type: "boolean" },
+    },
   },
   version: { positionals: 0, options: {} },
   help: { positionals: "optional", options: {} },

@@ -7,6 +7,7 @@ import { isEgressError, type SafeFetch } from "@rail402.dev/safe-fetch/shared";
 import type { AccountFunds, StellarNetwork } from "@rail402.dev/stellar";
 import { fromUtf8, toBase64Url } from "../bytes.ts";
 import { isPaymentError, paymentError, type Paid, type PaymentError } from "../codes.ts";
+import type { ConfirmationGate } from "../confirm.ts";
 import { emit, type PaymentEventListener } from "../events.ts";
 import { explorerUrl, type ExplorerProvider } from "../explorer.ts";
 import type { Sep43AuthSigner } from "../keys.ts";
@@ -21,6 +22,7 @@ import {
   type LedgerClock,
 } from "../policy/guard.ts";
 import {
+  effectiveCaps,
   idempotencyConflict,
   keyReusable,
   type Reservation,
@@ -36,7 +38,7 @@ import {
   type SchemeName,
 } from "../policy/policy.ts";
 import { reconcile, type ChainReader } from "../policy/reconcile.ts";
-import { redact } from "../redact.ts";
+import { redact, sanitizeText } from "../redact.ts";
 import type { StellarSchemeAdapter } from "../schemes/adapter.ts";
 import type { Receipt } from "./receipt.ts";
 import type { CallResult, PayOptions } from "./types.ts";
@@ -66,6 +68,8 @@ export interface FlowContext {
   /** Pause between on-chain receipt checks. */
   readonly verifyDelayMs: number;
   readonly onEvent: PaymentEventListener | undefined;
+  /** Asks before signing when the buyer's confirmation policy says so. */
+  readonly confirmation: ConfirmationGate;
   /** Seller requests of the HTTP flow (probes and paid calls); its policy bounds what is sent. */
   readonly fetch: SafeFetch;
   /** A fetch for one MCP session, closed when the session ends. */
@@ -82,6 +86,8 @@ export interface CallPlan {
   readonly signal: AbortSignal | undefined;
   readonly preferredScheme: SchemeName | undefined;
   readonly listing: ListingBinding | undefined;
+  /** The Bazaar listing the call pays, when it was selected from one. */
+  readonly listingId: string | undefined;
   /** Whether a listed option's recipient can receive its asset, from the listing's facts. */
   readonly listedReceivable: ((option: PaymentRequirements) => boolean | undefined) | undefined;
   /** For the operator's records: the URL, or the MCP endpoint and tool. */
@@ -107,7 +113,11 @@ export function planCall(
   context: FlowContext,
   options: PayOptions,
   resource: string,
-  listing?: { readonly binding: ListingBinding; readonly receivable?: CallPlan["listedReceivable"] },
+  listing?: {
+    readonly binding: ListingBinding;
+    readonly receivable?: CallPlan["listedReceivable"];
+    readonly id?: string;
+  },
 ): CallPlan {
   if (context.signer === undefined || context.spec === undefined) {
     throw paymentError("payment_signer_unavailable");
@@ -135,6 +145,7 @@ export function planCall(
     signal: options.signal,
     preferredScheme: options.scheme,
     listing: listing?.binding,
+    listingId: listing?.id,
     listedReceivable: listing?.receivable,
     resource,
   };
@@ -186,13 +197,15 @@ type StoredOutcome =
  * the authorization expired unused, the key is free for a new call. A call that is still running, or
  * whose payment the chain has not resolved yet, is `payment_in_progress` or its stored failure. A key
  * names one call: reusing it for another resource is refused, never answered with the other call's
- * outcome.
+ * outcome. The key belongs to the payer, not to a budget window: a retry after the window renewed or a
+ * new session started finds the earlier call all the same.
  */
 export async function replayStored(context: FlowContext, plan: CallPlan): Promise<CallResult | undefined> {
   const key = plan.idempotencyKey;
   if (key === undefined) return undefined;
-  const window = context.ledger.window(plan.spec);
-  let existing = context.ledger.findByIdempotencyKey(window.id, key);
+  // A call needs an open budget session, a replay included; without one it is refused before anything is sent.
+  context.ledger.window(plan.spec);
+  let existing = context.ledger.findIdempotencyKey(plan.spec.network, plan.spec.payer, key);
   if (existing === undefined || keyReusable(existing)) return undefined;
   if (awaitsProof(existing)) {
     await reconcileRow(context, plan, existing.id);
@@ -202,7 +215,7 @@ export async function replayStored(context: FlowContext, plan: CallPlan): Promis
   if (existing.resource !== plan.resource) {
     throw paymentError("payment_request_invalid", {
       reason:
-        "This idempotency key was already used in this budget window for a call to another resource; a key names one call, so use a new key for this one.",
+        "This idempotency key was already used for a call to another resource; a key names one call, so use a new key for this one.",
       callId: plan.callId,
     });
   }
@@ -437,8 +450,10 @@ export async function preflightFunds(
 
 /**
  * Signs the chosen option through a guard armed with exactly that option, using the unmodified
- * upstream scheme client, then checks the produced payload against what was signed. A failure after
- * a signature exists leaves its budget pending until the chain proves the authorization unused.
+ * upstream scheme client, then checks the produced payload against what was signed. The buyer's
+ * confirmation step runs first: a declined or unavailable confirmation signs nothing and reserves
+ * nothing. A failure after a signature exists leaves its budget pending until the chain proves the
+ * authorization unused.
  */
 export async function signPayment(
   context: FlowContext,
@@ -451,6 +466,45 @@ export async function signPayment(
   if (asset === undefined) throw paymentError("payment_asset_not_permitted", { callId: plan.callId });
   plan.signal?.throwIfAborted();
 
+  const window = context.ledger.window(plan.spec);
+  // What the window allows for this asset, so a confirmation can say what approving it covers.
+  const caps = effectiveCaps(window, plan.spec, asset.contract);
+  const left = remainingBudget(context.ledger, plan.spec, asset.contract) ?? 0n;
+  await context.confirmation.approve(
+    {
+      callId: plan.callId,
+      network: context.network,
+      scheme: adapter.scheme,
+      asset: { contract: asset.contract, symbol: asset.symbol, decimals: asset.decimals },
+      amount: { atomic: reserve.toString(), decimal: toDecimal(reserve, asset.decimals) },
+      payTo: option.payTo,
+      resource: plan.resource,
+      listingId: plan.listingId ?? null,
+      facilitator: adapter.settlementAuthority?.(option) ?? null,
+      session: {
+        name: window.name,
+        window: window.id,
+        expiresAt: new Date(window.expiresAt).toISOString(),
+        perCall: toDecimal(caps?.perCall ?? reserve, asset.decimals),
+        remaining: toDecimal(left, asset.decimals),
+      },
+    },
+    context.onEvent,
+  );
+  plan.signal?.throwIfAborted();
+
+  // Every payment of a keyed call carries one identifier: the one kept with the key when the key last
+  // paid this resource, or a new random one the reservation keeps. A key freed and then used for another
+  // resource is a new call with a new identifier. The ledger's reserve refuses this call if another
+  // took the key.
+  const holder =
+    plan.idempotencyKey === undefined
+      ? undefined
+      : context.ledger.findIdempotencyKey(plan.spec.network, plan.spec.payer, plan.idempotencyKey);
+  const paymentId =
+    plan.idempotencyKey === undefined
+      ? undefined
+      : ((holder?.resource === plan.resource ? holder.paymentId : undefined) ?? randomPaymentIdentifier());
   const guard = createGuardedSigner(plan.signer, {
     network: context.network,
     policy: context.policy,
@@ -471,6 +525,7 @@ export async function signPayment(
     callId: plan.callId,
     resource: plan.resource,
     idempotencyKey: plan.idempotencyKey,
+    paymentId,
     onEvent: context.onEvent,
   });
   const client = new x402Client()
@@ -489,12 +544,8 @@ export async function signPayment(
 
   // The seller's object is never modified: the identifier is appended to a copy (it mutates in place).
   const request: PaymentRequired = { ...structuredClone(required), accepts: [structuredClone(option)] };
-  if (plan.idempotencyKey !== undefined && request.extensions !== undefined) {
-    const window = context.ledger.window(plan.spec);
-    appendPaymentIdentifierToExtensions(
-      request.extensions,
-      paymentIdentifier(window.id, plan.idempotencyKey),
-    );
+  if (paymentId !== undefined && request.extensions !== undefined) {
+    appendPaymentIdentifierToExtensions(request.extensions, paymentId);
   }
 
   const leavePending = () => {
@@ -719,11 +770,21 @@ export function snapshot(context: FlowContext): BudgetSnapshot | null {
 }
 
 /**
- * The payment-identifier value for an idempotency key: stable for the key within its budget window,
- * and revealing neither.
+ * A new payment-identifier value for a keyed call: 24 random bytes, so neither the key nor the payer
+ * gives it away. The ledger keeps it with the key, and every later payment of the call sends it again.
  */
-export function paymentIdentifier(windowId: string, key: string): string {
-  const digest = toBase64Url(sha256(fromUtf8(`${windowId}:${key}`)));
+export function randomPaymentIdentifier(): string {
+  return `rail402_${toBase64Url(crypto.getRandomValues(new Uint8Array(24)))}`;
+}
+
+/**
+ * A payment-identifier value digested from a scope and an idempotency key.
+ *
+ * @deprecated The payment flows no longer send it: anyone who knows the scope can work it out from a
+ * guessable key. They send `randomPaymentIdentifier()`, kept with the key in the ledger.
+ */
+export function paymentIdentifier(scope: string, key: string): string {
+  const digest = toBase64Url(sha256(fromUtf8(`${scope}:${key}`)));
   return `rail402_${digest.slice(0, 32)}`;
 }
 
@@ -761,7 +822,9 @@ export function withCallId(error: unknown, callId: string): unknown {
 /** An upstream error message, redacted and bounded, for a reason string. */
 export function upstreamMessage(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error);
-  const clean = redact(text).replace(/\s+/g, " ").trim();
+  // The message may quote the seller: control and bidirectional characters go first, so one inside a
+  // secret cannot split it past redaction.
+  const clean = redact(sanitizeText(text, Number.POSITIVE_INFINITY)).replace(/\s+/g, " ").trim();
   return clean === "" ? "no detail given" : clean.slice(0, 300);
 }
 

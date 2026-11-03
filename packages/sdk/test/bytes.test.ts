@@ -59,6 +59,7 @@ describe("byte helpers", () => {
   });
 });
 
+/* eslint-disable @typescript-eslint/no-deprecated -- the exported digest keeps its output */
 describe("paymentIdentifier", () => {
   it("is unchanged: SHA-256 of window and key, base64url, 32 characters", () => {
     expect(paymentIdentifier("window-1", "order_12345678")).toBe("rail402_QbqP6lQxkEkcKMt5psdKUOw3n2QxI74z");
@@ -70,3 +71,4 @@ describe("paymentIdentifier", () => {
     }
   });
 });
+/* eslint-enable @typescript-eslint/no-deprecated */

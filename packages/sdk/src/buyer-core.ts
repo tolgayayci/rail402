@@ -1,4 +1,4 @@
-import { rpc } from "@stellar/stellar-sdk";
+import { StrKey, rpc } from "@stellar/stellar-sdk";
 import type { EgressPolicy, SafeFetch } from "@rail402.dev/safe-fetch/shared";
 import {
   AssetDirectory,
@@ -9,8 +9,9 @@ import {
 } from "@rail402.dev/stellar";
 import { paymentError } from "./codes.ts";
 import { DiscoveryClient, type ListFilters, type ListingVersion, type SearchFilters } from "./discovery.ts";
+import { createConfirmationGate, type ConfirmationOptions } from "./confirm.ts";
 import type { PaymentEventListener } from "./events.ts";
-import type { ExplorerProvider } from "./explorer.ts";
+import { DEFAULT_EXPLORER, checkExplorerProvider, type ExplorerProvider } from "./explorer.ts";
 import type { FlowContext } from "./flow/common.ts";
 import { payHttp, quoteHttp } from "./flow/http.ts";
 import { payMcp, quoteMcp } from "./flow/mcp.ts";
@@ -121,6 +122,10 @@ export interface BuyerDeps {
   readonly explorer: ExplorerProvider | undefined;
   readonly verify: "sync" | "async" | "off" | undefined;
   readonly onEvent: PaymentEventListener | undefined;
+  /** Confirmation before signing (`confirm`, `confirmPolicy`, `onBeforeSign`). */
+  readonly confirmation?: ConfirmationOptions | undefined;
+  /** Accept an untagged key file on pubnet (`checkKeyNetwork`). */
+  readonly allowUntaggedKey?: boolean | undefined;
   /** The seller fetch; its policy is the buyer's egress policy. */
   readonly seller: SafeFetch;
   readonly openSession: () => SafeFetch;
@@ -132,11 +137,110 @@ export interface BuyerDeps {
   readonly close?: (() => void) | undefined;
 }
 
+/** Name suffixes that only resolve on a private network. */
+const LOCAL_SUFFIXES = [".localhost", ".local", ".internal", ".lan", ".home.arpa", ".intranet", ".corp"];
+
+/**
+ * Why an operator endpoint (the Bazaar, the facilitator) is refused on pubnet, or undefined: it must be
+ * https, without credentials, and named by a public DNS name. An IP literal, `localhost`, a single
+ * label or a private-network suffix is refused, since the Bazaar's listings decide whom a pubnet buyer
+ * pays and the facilitator's `/supported` pins its upto authority. Checked by syntax, no DNS.
+ */
+export function pubnetEndpointRefusal(setting: string, value: string): string | undefined {
+  if (!URL.canParse(value)) return `${setting} is not a valid URL.`;
+  const url = new URL(value);
+  if (url.protocol !== "https:") return `${setting} must use https on pubnet.`;
+  if (url.username !== "" || url.password !== "") return `${setting} must not contain credentials.`;
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  const ipLiteral = host.startsWith("[") || /^[0-9.]+$/.test(host) || /^0x/i.test(host);
+  if (
+    ipLiteral ||
+    host === "localhost" ||
+    !host.includes(".") ||
+    LOCAL_SUFFIXES.some((suffix) => host.endsWith(suffix))
+  ) {
+    return `${setting} must name a public host on pubnet, not an IP address or a private-network name.`;
+  }
+  return undefined;
+}
+
+/** Longest the facilitator's `/supported` may take when a pubnet buyer pins its upto authorities. */
+const SUPPORTED_TIMEOUT_MS = 5_000;
+/** Largest `/supported` answer read. */
+const SUPPORTED_MAX_BYTES = 262_144;
+
+/**
+ * On pubnet, a buyer that can sign upto pins the settlement authorities it accepts: the policy's
+ * `uptoFacilitators`, or else the `facilitatorAddress` values its facilitator advertises for upto on
+ * pubnet in `/supported`, read once when the buyer is created. Without either, the buyer refuses to
+ * open, so a seller can never name its own key as the authority that settles the cap. Testnet keeps
+ * the policy as it is.
+ */
+export async function pinUptoAuthorities(
+  policy: ResolvedPolicy,
+  facilitatorUrl: string | undefined,
+  fetcher: typeof fetch | undefined,
+): Promise<ResolvedPolicy> {
+  if (
+    policy.network !== PUBNET ||
+    !policy.schemes.includes("upto") ||
+    policy.uptoFacilitators !== undefined
+  ) {
+    return policy;
+  }
+  const refuse = (reason: string) =>
+    paymentError("payment_policy_invalid", {
+      reason: `On pubnet, upto needs its settlement authorities pinned: set uptoFacilitators (RAIL402_UPTO_FACILITATORS), or a facilitator URL whose /supported advertises them. ${reason}`,
+    });
+  if (facilitatorUrl === undefined) throw refuse("Neither is configured.");
+  let body: unknown;
+  try {
+    const response = await (fetcher ?? globalThis.fetch)(
+      new URL("supported", facilitatorUrl.endsWith("/") ? facilitatorUrl : `${facilitatorUrl}/`),
+      { redirect: "error", signal: AbortSignal.timeout(SUPPORTED_TIMEOUT_MS) },
+    );
+    const text = await response.text();
+    if (!response.ok || text.length > SUPPORTED_MAX_BYTES) throw new Error("unusable answer");
+    body = JSON.parse(text) as unknown;
+  } catch {
+    throw refuse("The facilitator's /supported could not be read.");
+  }
+  const kinds = (body as { kinds?: unknown } | null)?.kinds;
+  const authorities = new Set<string>();
+  for (const kind of Array.isArray(kinds) ? (kinds as unknown[]) : []) {
+    if (typeof kind !== "object" || kind === null) continue;
+    const { scheme, network, extra } = kind as { scheme?: unknown; network?: unknown; extra?: unknown };
+    const address = (extra as { facilitatorAddress?: unknown } | null | undefined)?.facilitatorAddress;
+    if (
+      scheme === "upto" &&
+      network === PUBNET &&
+      typeof address === "string" &&
+      (StrKey.isValidEd25519PublicKey(address) || StrKey.isValidContract(address))
+    ) {
+      authorities.add(address);
+    }
+  }
+  if (authorities.size === 0) throw refuse("The facilitator advertises no upto authority on pubnet.");
+  return { ...policy, uptoFacilitators: authorities };
+}
+
+/** The operator endpoints a buyer reads (`checkPubnetTransport`). */
+export interface OperatorEndpoints {
+  readonly bazaarUrl?: string | undefined;
+  readonly facilitatorUrl?: string | undefined;
+}
+
 /**
  * Refuses settings that are never allowed on pubnet: plain http or private destinations for sellers,
- * ports other than 443, and an RPC without https.
+ * ports other than 443, an RPC without https, and a Bazaar or facilitator that is not an https URL on
+ * a public host name (`pubnetEndpointRefusal`).
  */
-export function checkPubnetTransport(network: StellarNetwork, egress: EgressPolicy, rpcUrl: string): void {
+export function checkPubnetTransport(
+  network: StellarNetwork,
+  egress: EgressPolicy,
+  rpcUrl: string,
+  operator: OperatorEndpoints = {},
+): void {
   if (network !== PUBNET) return;
   if (egress.schemes.includes("http:") || egress.allowPrivateNetwork !== false) {
     throw paymentError("payment_policy_invalid", {
@@ -151,6 +255,13 @@ export function checkPubnetTransport(network: StellarNetwork, egress: EgressPoli
   if (new URL(rpcUrl).protocol !== "https:") {
     throw paymentError("payment_policy_invalid", { reason: "The RPC URL must use https on pubnet." });
   }
+  for (const [setting, value] of [
+    ["The Bazaar URL", operator.bazaarUrl],
+    ["The facilitator URL", operator.facilitatorUrl],
+  ] as const) {
+    const refusal = value === undefined ? undefined : pubnetEndpointRefusal(setting, value);
+    if (refusal !== undefined) throw paymentError("payment_policy_invalid", { reason: refusal });
+  }
 }
 
 /**
@@ -161,15 +272,21 @@ export function checkPubnetTransport(network: StellarNetwork, egress: EgressPoli
 export async function assembleBuyer(deps: BuyerDeps): Promise<Buyer> {
   const { network, rpcUrl, bazaarUrl } = deps;
   const egress = deps.seller.policy;
-  checkPubnetTransport(network, egress, rpcUrl);
+  checkPubnetTransport(network, egress, rpcUrl, { bazaarUrl, facilitatorUrl: deps.facilitatorUrl });
 
   const server = new rpc.Server(rpcUrl, { allowHttp: new URL(rpcUrl).protocol === "http:" });
   const assets = new AssetDirectory(server, networkPassphrase(network));
-  const signer = deps.signer === undefined ? undefined : await loadSigner(deps.signer);
-  const policy = await resolvePolicy(network, deps.policy, {
+  const signer =
+    deps.signer === undefined
+      ? undefined
+      : await loadSigner(deps.signer, { network, allowUntagged: deps.allowUntaggedKey });
+  const confirmation = createConfirmationGate(network, signer !== undefined, deps.confirmation ?? {});
+  const resolved = await resolvePolicy(network, deps.policy, {
     requireCaps: signer !== undefined,
     describe: (contract) => assets.describe(contract),
   });
+  const policy =
+    signer === undefined ? resolved : await pinUptoAuthorities(resolved, deps.facilitatorUrl, deps.operator);
   const [pinnedUpto] = policy.uptoContracts;
   const adapters = deps.schemes ?? [
     exactScheme(),
@@ -192,10 +309,12 @@ export async function assembleBuyer(deps: BuyerDeps): Promise<Buyer> {
       receivable: (asset, payTo) => assets.receivable(asset, payTo),
       reader: rpcChainReader(server),
     },
-    explorer: deps.explorer ?? "stellar.expert",
+    // Checked here too: a provider passed in code gets the same https-only rules as a configured one.
+    explorer: deps.explorer === undefined ? DEFAULT_EXPLORER : checkExplorerProvider(deps.explorer),
     verify: deps.verify ?? "sync",
     verifyDelayMs: VERIFY_DELAY_MS,
     onEvent: deps.onEvent,
+    confirmation,
     fetch: deps.seller,
     openSession: deps.openSession,
   };
@@ -260,7 +379,7 @@ export async function assembleBuyer(deps: BuyerDeps): Promise<Buyer> {
     const receivable = (option: { readonly asset: string; readonly payTo: string }) =>
       hit.prices.find((price) => price.assetContract === option.asset && price.payTo === option.payTo)
         ?.receivable ?? undefined;
-    const bound = { binding, receivable };
+    const bound = { binding, receivable, id };
     if (hit.type === "mcp") {
       if (hit.toolName === null) throw refuse("The MCP listing names no tool.");
       return payMcp(

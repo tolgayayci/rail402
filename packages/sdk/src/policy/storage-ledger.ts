@@ -148,6 +148,10 @@ export class StorageSpendLedger implements SpendLedger {
     return this.#read((state) => state.findByIdempotencyKey(windowId, key));
   }
 
+  findIdempotencyKey(network: StellarNetwork, payer: string, key: string): Reservation | undefined {
+    return this.#read((state) => state.findIdempotencyKey(network, payer, key));
+  }
+
   unfinished(network: StellarNetwork, payer: string): Reservation[] {
     return this.#read((state) => state.unfinished(network, payer));
   }
@@ -272,6 +276,7 @@ const reservationRecord = z.strictObject({
   signedAtLedger: optional(z.number().int()),
   transaction: optional(z.string()),
   idempotencyKey: optional(z.string()),
+  paymentId: optional(z.string()),
   result: optional(z.string()),
   awaitingProof: z.boolean(),
   unprovable: z.boolean(),
@@ -314,6 +319,7 @@ class LedgerState extends MemorySpendLedger {
         signedAtLedger: row.signedAtLedger,
         transaction: row.transaction,
         idempotencyKey: row.idempotencyKey,
+        paymentId: row.paymentId,
         result: row.result,
       });
     }

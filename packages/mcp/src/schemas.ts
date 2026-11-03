@@ -109,8 +109,12 @@ export const payInput = z.strictObject({
     .regex(IDEMPOTENCY_KEY)
     .optional()
     .describe(
-      "Repeating a call with the same key never pays twice in this budget window. A key is for one resource: reusing it for another is refused.",
+      "Repeating a call with the same key never pays twice, in this budget window or a later one, for as long as the budget ledger keeps the key (the default SQLite ledger keeps it). A key is for one resource: reusing it for another is refused.",
     ),
+});
+
+export const listingInput = z.strictObject({
+  listingId: z.string().regex(LISTING_ID).describe("A listingId from search_stellar_resources."),
 });
 
 export const budgetInput = z.strictObject({
@@ -224,6 +228,19 @@ export const searchOutput = z.discriminatedUnion("ok", [
   failure,
 ]);
 
+export const listingOutput = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    network: z.string(),
+    listing: searchResult.extend({
+      state: z
+        .enum(["pending", "published", "quarantined"])
+        .describe("Only published listings are paid by Rail402 buyers."),
+    }),
+  }),
+  failure,
+]);
+
 const amount = z.object({ amount: z.string(), atomic: z.string().regex(/^[0-9]+$/) });
 
 const payment = z.object({
@@ -319,6 +336,7 @@ export type PayInput = z.infer<typeof payInput>;
 export type SearchOutput = z.infer<typeof searchOutput>;
 export type PayOutput = z.infer<typeof payOutput>;
 export type BudgetOutput = z.infer<typeof budgetOutput>;
+export type ListingOutput = z.infer<typeof listingOutput>;
 export type ToolError = z.infer<typeof errorShape>;
 export type BudgetView = z.infer<typeof budget>;
 

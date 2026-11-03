@@ -36,6 +36,8 @@ export interface GuardDeps {
   readonly callId?: string | undefined;
   readonly resource?: string | undefined;
   readonly idempotencyKey?: string | undefined;
+  /** The payment identifier kept with the idempotency key. */
+  readonly paymentId?: string | undefined;
   readonly onEvent?: PaymentEventListener | undefined;
   readonly now?: (() => number) | undefined;
 }
@@ -135,6 +137,7 @@ export function createGuardedSigner(base: Sep43AuthSigner, deps: GuardDeps): Gua
           resource: deps.resource ?? "",
           amount: intent.maxAmount,
           idempotencyKey: armed ? deps.idempotencyKey : undefined,
+          paymentId: armed ? deps.paymentId : undefined,
         },
         now(),
       );

@@ -1,4 +1,5 @@
-import { redact, redactDeep, type LogLevel } from "@rail402.dev/sdk";
+import type { LogLevel } from "@rail402.dev/sdk";
+import { redact, redactDeep } from "@rail402.dev/sdk/discovery";
 import type { Logger } from "./logger-types.ts";
 
 export type { Logger } from "./logger-types.ts";

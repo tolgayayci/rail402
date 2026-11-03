@@ -143,9 +143,11 @@ describe("browser bundle", () => {
   });
 
   it("derives payment identifiers with the npm Buffer as with Node's", () => {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- the exported digest keeps its output
     expect(loaded.sdk.paymentIdentifier("window-1", "order_12345678")).toBe(
       "rail402_QbqP6lQxkEkcKMt5psdKUOw3n2QxI74z",
     );
+    expect(loaded.sdk.randomPaymentIdentifier()).toMatch(/^rail402_[A-Za-z0-9_-]{32}$/);
   });
 
   it("signs and verifies an authorization preimage", async () => {

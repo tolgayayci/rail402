@@ -5,6 +5,8 @@ import {
   loadSigner,
   paymentError,
   type Buyer,
+  type ConfirmPolicy,
+  type ConfirmSigning,
   type PaymentEventListener,
   type SpendLedger,
 } from "@rail402.dev/sdk";
@@ -23,6 +25,12 @@ export interface OpenBuyerOptions {
   /** Refuse when no key is configured. */
   readonly requireSigner?: boolean;
   readonly onEvent?: PaymentEventListener;
+  /**
+   * How payments are confirmed before signing. Pubnet with a key needs an explicit choice: paying
+   * commands use `paymentConfirmation`, commands that never sign pass `confirmPolicy: "never"`.
+   */
+  readonly confirm?: ConfirmSigning;
+  readonly confirmPolicy?: ConfirmPolicy;
 }
 
 export type OpenBuyer = (context: CliContext, options: OpenBuyerOptions) => Promise<OpenedBuyer>;
@@ -40,7 +48,10 @@ export const openBuyer: OpenBuyer = async (context, options) => {
         "No signing key is configured: create one with rail402 keys new, or pass --key-file or RAIL402_SECRET_KEY_FILE.",
     });
   }
-  const signer = options.signer && agent.key !== undefined ? await loadSigner(agent.key) : undefined;
+  const signer =
+    options.signer && agent.key !== undefined
+      ? await loadSigner(agent.key, { network: agent.network, allowUntagged: agent.allowUntaggedKey })
+      : undefined;
   let ledger: SpendLedger;
   if (signer !== undefined && agent.budgetStore === "sqlite") {
     // Loaded on demand: node:sqlite is only needed by commands that spend.
@@ -62,6 +73,10 @@ export const openBuyer: OpenBuyer = async (context, options) => {
       explorer: agent.explorer,
       ...(context.facilitatorUrl === undefined ? {} : { facilitatorUrl: context.facilitatorUrl }),
       ...(options.onEvent === undefined ? {} : { onEvent: options.onEvent }),
+      // No default: a command that loads a key on pubnet states how payments are confirmed (paying
+      // commands through paymentConfirmation, the others "never"), or the SDK refuses to open the buyer.
+      ...(options.confirmPolicy === undefined ? {} : { confirmPolicy: options.confirmPolicy }),
+      ...(options.confirm === undefined ? {} : { confirm: options.confirm }),
     });
     return {
       buyer,

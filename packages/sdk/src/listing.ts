@@ -69,7 +69,8 @@ export interface SearchHit {
 export interface HitContext {
   readonly network: StellarNetwork;
   readonly policy: ResolvedPolicy;
-  readonly adapters: readonly StellarSchemeAdapter[];
+  /** The schemes the buyer can pay; only `scheme` is read, so a reader that cannot sign passes names. */
+  readonly adapters: readonly Pick<StellarSchemeAdapter, "scheme">[];
   readonly egress: EgressPolicy;
   /**
    * Refuses a resource URL the buyer cannot call, with an `EgressError`. Default: `checkUrlSyntax`.

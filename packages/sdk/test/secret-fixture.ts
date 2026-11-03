@@ -64,7 +64,7 @@ export async function startSecretWorld(net: LocalNetwork, symbol = "TUSD"): Prom
   const [payer] = (await net.holders(asset, 1, "10")) as [Keypair];
 
   const upstream = new HTTPFacilitatorClient({ url: rail402.url });
-  // Settlements to `refused` fail at the facilitator, as a failed settlement on chain would.
+  // Settlements to `refused` fail at the facilitator, as a settlement whose time bound passed would.
   const facilitator: FacilitatorClient = {
     getSupported: () => upstream.getSupported(),
     verify: (payload, requirements) => upstream.verify(payload, requirements),
@@ -72,7 +72,7 @@ export async function startSecretWorld(net: LocalNetwork, symbol = "TUSD"): Prom
       requirements.payTo === refused.publicKey()
         ? Promise.resolve({
             success: false,
-            errorReason: "settle_exact_stellar_transaction_failed",
+            errorReason: "settle_exact_stellar_transaction_expired",
             transaction: "",
             network: TESTNET,
           })

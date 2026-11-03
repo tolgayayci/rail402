@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { EgressPolicyInput } from "@rail402.dev/safe-fetch";
 import { PUBNET, TESTNET, isStellarNetwork, type StellarNetwork } from "@rail402.dev/stellar";
 import { paymentError, type PaymentError } from "./codes.ts";
-import { explorerTemplate, type ExplorerProvider } from "./explorer.ts";
+import { explorerTemplate, rail402Explorer, type ExplorerProvider } from "./explorer.ts";
 import { SECRET_KEY_ENV, SECRET_KEY_FILE_ENV, expandHome, secretKeySource, type KeySource } from "./keys.ts";
 import { parseMoney, type Money } from "./money.ts";
 import { NETWORK_DEFAULTS } from "./networks.ts";
@@ -48,8 +48,15 @@ export interface AgentConfig {
   readonly bazaarUrl: string;
   /** Undefined: search-only; paying is refused with `payment_signer_unavailable`. */
   readonly key: KeySource | undefined;
+  /** Accept an untagged key file on pubnet (`RAIL402_ALLOW_UNTAGGED_KEY=true`). */
+  readonly allowUntaggedKey: boolean;
   readonly policy: SpendingPolicyInput;
-  readonly session: { readonly name: string; readonly ttlMs: number };
+  readonly session: {
+    readonly name: string;
+    readonly ttlMs: number;
+    /** Undefined: the network's default (renews on testnet, not on pubnet). */
+    readonly autoRenew?: boolean;
+  };
   readonly budgetStore: "sqlite" | "memory";
   /** SQLite ledger file (`budgetStore: "sqlite"`). */
   readonly ledgerPath: string;
@@ -74,7 +81,9 @@ export function defaultLedgerPath(env: Readonly<Record<string, string | undefine
 /**
  * Resolves the configuration. `RAIL402_SECRET_KEY` is removed from `env` once read, whether or not it
  * is used. Pubnet needs an explicit RPC and Bazaar URL, refuses the http and private-network
- * development switches, and needs caps whenever a key is configured.
+ * development switches, refuses a seed in `RAIL402_SECRET_KEY` (a key file tagged for pubnet is
+ * required), needs caps within the pubnet ceilings whenever a key is configured, and keeps a keyed
+ * pubnet budget in the persistent store (`RAIL402_BUDGET_STORE=memory` is refused there).
  */
 export function resolveAgentConfig(
   env: Record<string, string | undefined>,
@@ -103,6 +112,14 @@ export function resolveAgentConfig(
     flags.bazaarUrl ?? read("RAIL402_BAZAAR_URL") ?? defaults.bazaarUrl,
     pubnet,
   );
+
+  if (pubnet && secret !== undefined && secret.trim() !== "") {
+    throw paymentError("key_network_untagged", {
+      reason: `A seed in ${SECRET_KEY_ENV} carries no network, so it is never used on pubnet; put the key in a key file tagged for ${PUBNET} (rail402 keys import --network ${PUBNET}) and name it with ${SECRET_KEY_FILE_ENV}.`,
+      details: { setting: SECRET_KEY_ENV },
+    });
+  }
+  const allowUntaggedKey = bool("RAIL402_ALLOW_UNTAGGED_KEY", read("RAIL402_ALLOW_UNTAGGED_KEY"), false);
 
   const keyFile = flags.keyFile ?? read(SECRET_KEY_FILE_ENV);
   const key: KeySource | undefined =
@@ -139,9 +156,11 @@ export function resolveAgentConfig(
   const policy = policyFrom(read, flags, key !== undefined, pubnet);
 
   const ttlText = flags.sessionTtl ?? read("RAIL402_SESSION_TTL");
+  const renewText = read("RAIL402_SESSION_AUTO_RENEW");
   const session = {
     name: flags.session ?? read("RAIL402_SESSION") ?? DEFAULT_SESSION.name,
     ttlMs: ttlText === undefined ? DEFAULT_SESSION.ttlMs : duration("RAIL402_SESSION_TTL", ttlText),
+    ...(renewText === undefined ? {} : { autoRenew: bool("RAIL402_SESSION_AUTO_RENEW", renewText, false) }),
   };
   if (!/^[A-Za-z0-9_.-]{1,64}$/.test(session.name)) {
     throw invalid("RAIL402_SESSION", "a session name is 1-64 letters, digits, dots, dashes or underscores.");
@@ -151,6 +170,12 @@ export function resolveAgentConfig(
   if (storeText !== "sqlite" && storeText !== "memory") {
     throw invalid("RAIL402_BUDGET_STORE", 'the budget store is "sqlite" or "memory".');
   }
+  if (pubnet && key !== undefined && storeText === "memory") {
+    throw invalid(
+      "RAIL402_BUDGET_STORE",
+      'a pubnet buyer with a key keeps its budget in the persistent "sqlite" store; "memory" would start every process, and every restart of rail402-mcp, with a full budget.',
+    );
+  }
   const ledgerPath = expandHome(flags.ledgerPath ?? read("RAIL402_LEDGER_PATH") ?? defaultLedgerPath(env));
 
   const inflightText = read("RAIL402_MAX_INFLIGHT") ?? "1";
@@ -159,21 +184,29 @@ export function resolveAgentConfig(
     throw invalid("RAIL402_MAX_INFLIGHT", "RAIL402_MAX_INFLIGHT is an integer from 1 to 8.");
   }
 
-  const explorerText = flags.explorer ?? read("RAIL402_EXPLORER") ?? "stellar.expert";
+  const explorerText = flags.explorer ?? read("RAIL402_EXPLORER") ?? "rail402";
+  const accountTemplate = read("RAIL402_EXPLORER_ACCOUNT_URL");
   let explorer: ExplorerProvider;
   if (explorerText === "stellar.expert") {
     explorer = "stellar.expert";
   } else if (explorerText === "rail402") {
+    // RAIL402_EXPLORER_URL (a template) still overrides; RAIL402_EXPLORER_BASE_URL names a
+    // self-hosted Rail402 Explorer; otherwise the public one.
     const template = read("RAIL402_EXPLORER_URL");
-    if (template === undefined) {
-      throw invalid(
-        "RAIL402_EXPLORER_URL",
-        "the rail402 explorer needs RAIL402_EXPLORER_URL (a template with {hash}).",
-      );
+    const base = read("RAIL402_EXPLORER_BASE_URL");
+    if (template !== undefined) {
+      explorer = explorerFrom("RAIL402_EXPLORER_URL", template, accountTemplate);
+    } else if (base !== undefined) {
+      try {
+        explorer = rail402Explorer(base);
+      } catch {
+        throw invalid("RAIL402_EXPLORER_BASE_URL", "the Rail402 Explorer base URL is an https URL.");
+      }
+    } else {
+      explorer = "rail402";
     }
-    explorer = explorerFrom("RAIL402_EXPLORER_URL", template);
   } else {
-    explorer = explorerFrom("RAIL402_EXPLORER", explorerText);
+    explorer = explorerFrom("RAIL402_EXPLORER", explorerText, accountTemplate);
   }
 
   const logLevel = (read("RAIL402_LOG_LEVEL") ?? "info") as LogLevel;
@@ -186,6 +219,7 @@ export function resolveAgentConfig(
     rpcUrl,
     bazaarUrl,
     key,
+    allowUntaggedKey,
     policy,
     session,
     budgetStore: storeText,
@@ -268,6 +302,7 @@ function policyFrom(
     }
   }
 
+  const allowLargeCaps = bool("RAIL402_ALLOW_LARGE_CAPS", read("RAIL402_ALLOW_LARGE_CAPS"), false);
   const allow = read("RAIL402_ALLOWED_RECIPIENTS");
   const deny = read("RAIL402_DENIED_RECIPIENTS");
   const requireListing = read("RAIL402_REQUIRE_LISTING");
@@ -289,6 +324,7 @@ function policyFrom(
     ...(schemes === undefined ? {} : { schemes }),
     ...(uptoContracts === undefined ? {} : { uptoContracts }),
     ...(uptoFacilitators === undefined ? {} : { uptoFacilitators }),
+    ...(allowLargeCaps ? { allowLargeCaps } : {}),
   };
 }
 
@@ -311,11 +347,14 @@ function trust(text: string): { http?: Trust; mcp?: Trust } {
   return result;
 }
 
-function explorerFrom(setting: string, template: string): ExplorerProvider {
+function explorerFrom(setting: string, template: string, accountTemplate?: string): ExplorerProvider {
   try {
-    return explorerTemplate(template);
+    return explorerTemplate(template, accountTemplate);
   } catch {
-    throw invalid(setting, "an explorer template is an https URL containing {hash}.");
+    throw invalid(
+      setting,
+      "an explorer template is an https URL containing {hash}; RAIL402_EXPLORER_ACCOUNT_URL one containing {address}.",
+    );
   }
 }
 

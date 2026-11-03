@@ -56,6 +56,12 @@ export async function startFakeBazaar(): Promise<FakeBazaar> {
   };
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? "/", "http://bazaar");
+    if (url.pathname === `/discovery/resources/${LISTING_ID}`) {
+      response
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify({ ...item, state: "published" }));
+      return;
+    }
     if (url.pathname !== "/discovery/search") {
       response
         .writeHead(404, { "content-type": "application/json" })

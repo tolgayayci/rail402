@@ -1,12 +1,18 @@
 import { parseArgs } from "node:util";
 import { localhostAllowedHostnames, localhostAllowedOrigins } from "@modelcontextprotocol/server";
-import { paymentError, resolveAgentConfig, type AgentConfig, type PaymentError } from "@rail402.dev/sdk";
+import {
+  CONFIRM_POLICIES,
+  PUBNET,
+  paymentError,
+  resolveAgentConfig,
+  type AgentConfig,
+  type ConfirmPolicy,
+  type PaymentError,
+} from "@rail402.dev/sdk";
 
 /** Environment variable holding the HTTP transport's bearer token; removed from the environment once read. */
 export const MCP_TOKEN_ENV = "RAIL402_MCP_TOKEN";
 export const DEFAULT_HTTP_PORT = 3402;
-/** Largest HTTP request body accepted. */
-export const MAX_HTTP_BODY_BYTES = 1_048_576;
 /** Shortest bearer token accepted: 32 random bytes in base64 are 43 characters or more. */
 const MIN_TOKEN_LENGTH = 43;
 const TOKEN = /^[A-Za-z0-9+/=_.~-]+$/;
@@ -29,6 +35,12 @@ export type TransportConfig =
 export interface McpServerConfig {
   readonly agent: AgentConfig;
   readonly transport: TransportConfig;
+  /**
+   * When a payment is confirmed by the user through the MCP client (form elicitation) before it is
+   * signed: `RAIL402_MCP_CONFIRM`. Default `first-per-session` on pubnet (asked once per recipient and
+   * listing or resource in each budget window), `never` on testnet.
+   */
+  readonly confirm: ConfirmPolicy;
 }
 
 export type McpCommand =
@@ -49,6 +61,12 @@ Configuration comes from the environment:
   RAIL402_RPC_URL, RAIL402_BAZAAR_URL   endpoints (required on pubnet)
   RAIL402_MCP_TOKEN           bearer token for --http (required when a key is configured)
   RAIL402_MCP_ALLOWED_ORIGINS browser origins allowed for --http (default: localhost)
+  RAIL402_MCP_CONFIRM         first-per-session (pubnet default) | every | never (testnet default):
+                              when the user confirms a payment through the MCP client before it is signed;
+                              first-per-session asks again for every new recipient, listing or resource
+  RAIL402_UPTO_FACILITATORS   upto settlement authorities accepted (required for upto on pubnet)
+Pubnet needs a key file tagged for pubnet; a seed in RAIL402_SECRET_KEY is refused there, and so is
+RAIL402_BUDGET_STORE=memory when a key is configured.
 Logs go to stderr.
 `;
 
@@ -85,11 +103,25 @@ export function resolveMcpCommand(
   if (values.version === true) return { kind: "version" };
 
   const agent = resolveAgentConfig(env);
+  const confirmText = env["RAIL402_MCP_CONFIRM"]?.trim();
+  const confirm: ConfirmPolicy =
+    confirmText === undefined || confirmText === ""
+      ? agent.network === PUBNET
+        ? "first-per-session"
+        : "never"
+      : CONFIRM_POLICIES.includes(confirmText as ConfirmPolicy)
+        ? (confirmText as ConfirmPolicy)
+        : (() => {
+            throw invalid(
+              "RAIL402_MCP_CONFIRM",
+              `the confirmation policy is one of ${CONFIRM_POLICIES.join(", ")}.`,
+            );
+          })();
   if (values.http !== true) {
     if (values.host !== undefined || values.port !== undefined) {
       throw invalid("--http", "--host and --port apply to the HTTP transport; add --http.");
     }
-    return { kind: "serve", config: { agent, transport: { kind: "stdio" } } };
+    return { kind: "serve", config: { agent, confirm, transport: { kind: "stdio" } } };
   }
 
   const host = values.host ?? "127.0.0.1";
@@ -126,6 +158,7 @@ export function resolveMcpCommand(
     kind: "serve",
     config: {
       agent,
+      confirm,
       transport: {
         kind: "http",
         host,

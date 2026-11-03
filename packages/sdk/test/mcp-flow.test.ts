@@ -3,11 +3,15 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { ProtocolError, SdkError, SdkErrorCode } from "@modelcontextprotocol/client";
 import {
   budgetSnapshot,
+  createConfirmationGate,
   isPaymentError,
   type FlowContext,
   type PaymentError,
   type PaymentTarget,
+  type SignIntent,
+  type WindowSpec,
 } from "@rail402.dev/sdk";
+import { TESTNET } from "@rail402.dev/stellar";
 
 type McpTarget = Extract<PaymentTarget, { kind: "mcp" }>;
 import {
@@ -78,7 +82,7 @@ describe.each<McpMode>(["stateless", "stateful", "sse"])("paid MCP tool calls (%
         payTo,
         transaction: TX_HASH,
         authorized: { amount: "0.002", atomic: "20000" },
-        explorerUrl: `https://stellar.expert/explorer/testnet/tx/${TX_HASH}`,
+        explorerUrl: `https://explorer.rail402.dev/testnet/tx/${TX_HASH}`,
       },
     });
     expect(seller.calls.slice(before)).toEqual([
@@ -137,6 +141,22 @@ describe.each<McpMode>(["stateless", "stateful", "sse"])("paid MCP tool calls (%
     latest = LATEST + 100_000;
     await refusal(payMcp(ctx, target("broken"), options));
     expect(signer.signatures).toBe(2);
+  });
+
+  it("never pays twice for a keyed retry after a new budget session starts", async () => {
+    const signer = countingSigner();
+    const ctx = await context({ signer });
+    const options = { maxAmount: cap, idempotencyKey: "tool-session-1" };
+    const paidCalls = () => seller.calls.filter((call) => call.tool === "broken" && call.paid).length;
+    await refusal(payMcp(ctx, target("broken"), options));
+    const sent = paidCalls();
+    ctx.ledger.startWindow(ctx.spec as WindowSpec);
+    expect(await refusal(payMcp(ctx, target("broken"), options))).toMatchObject({
+      code: "payment_settlement_unconfirmed",
+      paid: "unknown",
+    });
+    expect(signer.signatures).toBe(1);
+    expect(paidCalls()).toBe(sent);
   });
 
   it("binds a listing's recipient", async () => {
@@ -222,6 +242,24 @@ describe.each<McpMode>(["stateless", "stateful", "sse"])("paid MCP tool calls (%
     expect(signer.signatures).toBe(1);
     // Only the unpaid probe reached the seller.
     expect(seller.calls.slice(before)).toEqual([{ tool: "forecast", paid: false }]);
+  });
+
+  it("confirms and records the normalized endpoint URL, never the raw text", async () => {
+    const shown: SignIntent[] = [];
+    const confirmation = createConfirmationGate(TESTNET, true, {
+      confirmPolicy: "every",
+      confirm: (intent) => {
+        shown.push(intent);
+        return true;
+      },
+    });
+    const raw = seller.url.replace(/^http:/, "HTTP:");
+    await payMcp(
+      await context({ signer: countingSigner(), confirmation }),
+      { ...target("forecast", { city: "Izmir" }), url: raw },
+      { maxAmount: cap },
+    );
+    expect(shown.map((intent) => intent.resource)).toEqual([`${new URL(raw).href} tool=forecast`]);
   });
 
   it("quotes a paid tool without paying", async () => {
@@ -312,7 +350,16 @@ describe("MCP flow edges", () => {
 
   it("refuses an endpoint the URL parser cannot read, with nothing paid", async () => {
     const ctx = await flowContext();
-    for (const url of ["https://%", "http://[::1", "https://exa mple.com/mcp"]) {
+    for (const url of [
+      "https://%",
+      "http://[::1",
+      "https://exa mple.com/mcp",
+      // Parseable (the parser drops or encodes them), but they would rewrite the confirmation text.
+      "https://a.example/mcp\nVerified by Rail402",
+      "https://a.example/mcp\tx",
+      "https://a.example/\u202emcp",
+      "https://a.example/mcp\u2028To: G",
+    ]) {
       await expect(
         payMcp(ctx, { kind: "mcp", url, toolName: "forecast" }, { maxAmount: cap }),
       ).rejects.toMatchObject({ code: "egress_url_invalid", paid: "none" });

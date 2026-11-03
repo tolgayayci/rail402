@@ -15,6 +15,7 @@ import {
   toJson,
   type CliErrorCode,
 } from "@rail402.dev/cli";
+import { reportFailure } from "../src/output.ts";
 
 function usageReason(fn: () => unknown): string {
   try {
@@ -186,6 +187,75 @@ describe("failures", () => {
     });
   });
 
+  it("says whether running the command again, with a new payment, can succeed", () => {
+    const refused = (code?: string) =>
+      failureFrom(
+        paymentError("payment_rejected", {
+          details: { upstream: { reason: "refused", ...(code === undefined ? {} : { code }) } },
+        }),
+        true,
+      );
+    // A new payment can pass, as the facilitator's table says: busy channels, limits, budgets.
+    for (const code of [
+      "settle_exact_stellar_channel_unavailable",
+      "settle_upto_stellar_channel_unavailable",
+      "settle_exact_stellar_payer_rate_limited",
+      "settle_upto_stellar_caller_budget_exhausted",
+      "unexpected_settle_error",
+    ]) {
+      expect(refused(code), code).toMatchObject({ retryable: true, paid: "not_settled" });
+      expect(exitStatusFor(refused(code)), code).toBe(EXIT.rejected);
+    }
+    // The request must change, the facilitator calls the payment final, or no code a table knows: the
+    // seller's text never makes a refusal more retryable than the facilitator's table.
+    for (const code of [
+      "settle_exact_stellar_transaction_expired",
+      "settle_upto_stellar_transaction_expired",
+      "invalid_exact_stellar_payload_missing_payer_signature",
+      "invalid_exact_stellar_signature_expiration_too_far",
+      "something_the_seller_made_up",
+      undefined,
+    ]) {
+      expect(refused(code), String(code)).toMatchObject({ retryable: false, paid: "not_settled" });
+    }
+    // The refused payment may still settle: never retryable, and its money is unknown. Upstream
+    // facilitators answer a DUPLICATE send (bytes already queued) with submission_failed too.
+    for (const code of [
+      "settlement_pending",
+      "settle_exact_stellar_transaction_submission_failed",
+      "settle_upto_stellar_transaction_submission_failed",
+      "settle_exact_stellar_transaction_failed",
+      "settle_exact_stellar_settlement_in_progress",
+      "settle_upto_stellar_settlement_in_progress",
+      "settle_exact_stellar_idempotency_conflict",
+    ]) {
+      expect(refused(code), code).toMatchObject({ retryable: false, paid: "unknown" });
+      expect(exitStatusFor(refused(code)), code).toBe(EXIT.paid);
+    }
+  });
+
+  it("never tells a seller-relayed submission failure that nothing moved", () => {
+    const printed = (code: string) => {
+      let stderr = "";
+      const failure = failureFrom(
+        paymentError("payment_rejected", { details: { upstream: { code } } }),
+        true,
+      );
+      const status = reportFailure(
+        { stdout: () => undefined, stderr: (text) => (stderr += text) },
+        false,
+        "pay",
+        failure,
+      );
+      return { stderr, status };
+    };
+    const relayed = printed("settle_exact_stellar_transaction_submission_failed");
+    expect(relayed.stderr).not.toContain("Nothing moved");
+    expect(relayed.stderr).toContain("paid: unknown");
+    expect(relayed.status).toBe(EXIT.paid);
+    expect(printed("settle_exact_stellar_channel_unavailable").stderr).toContain("Nothing moved");
+  });
+
   it("reports an egress stage, a timeout, and redacts internal errors", () => {
     expect(failureFrom(new EgressError("egress_timeout", "response"), false)).toMatchObject({
       code: "egress_timeout",
@@ -210,6 +280,9 @@ describe("failures", () => {
     const text = toJson({ note: "a\u009b31mb‮c" });
     expect(text).toBe('{"note":"a\\u009b31mb\\u202ec"}');
     expect(JSON.parse(text)).toEqual({ note: "a\u009b31mb‮c" });
+    const mark = toJson({ note: "a\u061Cb" });
+    expect(mark).toBe('{"note":"a\\u061cb"}');
+    expect(JSON.parse(mark)).toEqual({ note: "a\u061Cb" });
     expect(toJson({ amount: 10n })).toBe('{"amount":"10"}');
   });
 });

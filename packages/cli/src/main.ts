@@ -13,7 +13,7 @@ import { resolveContext, wantsJson } from "./config.ts";
 import { HELP, commandHelp } from "./help.ts";
 import { failureFrom, reportFailure, reportSuccess, successDocument, type CliIo } from "./output.ts";
 import { openBuyer } from "./runtime.ts";
-import { readSecret } from "./secret-input.ts";
+import { askOnTerminal, readSecret } from "./secret-input.ts";
 
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 
@@ -37,6 +37,7 @@ const defaultDeps: CliDeps = {
   openBuyer,
   fetch: (input, init) => globalThis.fetch(input, init),
   readSecret: () => readSecret(process.stdin, process.stderr),
+  ask: (question) => askOnTerminal(process.stdin, process.stderr, question),
 };
 
 const processIo: CliIo = {

@@ -13,7 +13,9 @@ import { paymentEcho } from "@rail402.dev/testkit";
 import {
   KeyHolder,
   MemorySpendLedger,
+  createConfirmationGate,
   windowSpecFor,
+  type ConfirmationGate,
   type FlowChain,
   type FlowContext,
   type PaymentEvent,
@@ -62,6 +64,7 @@ export interface ContextOptions {
   readonly ports?: readonly number[];
   readonly verify?: FlowContext["verify"];
   readonly events?: PaymentEvent[];
+  readonly confirmation?: ConfirmationGate;
 }
 
 /** A payment flow context with offline signing, a fake chain and loopback egress. */
@@ -83,10 +86,11 @@ export async function flowContext(options: ContextOptions = {}): Promise<FlowCon
     clock: clock(),
     rpcUrl: "http://127.0.0.1:1",
     chain: options.chain ?? fundedChain(),
-    explorer: "stellar.expert",
+    explorer: "rail402",
     verify: options.verify ?? "off",
     verifyDelayMs: 1,
     onEvent: options.events === undefined ? undefined : (event) => options.events?.push(event),
+    confirmation: options.confirmation ?? createConfirmationGate(TESTNET, true, {}),
     fetch: createSafeFetch(egress),
     openSession: () => createSafeFetch(egress),
   };

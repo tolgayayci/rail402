@@ -9,6 +9,7 @@ import type { SafeFetch } from "@rail402.dev/safe-fetch/shared";
 import type { StellarNetwork } from "@rail402.dev/stellar";
 import { assembleBuyer, type Buyer, type BuyerTransport } from "./buyer-core.ts";
 import { paymentError } from "./codes.ts";
+import type { ConfirmPolicy, ConfirmSigning, SignIntent } from "./confirm.ts";
 import type { PaymentEventListener } from "./events.ts";
 import type { ExplorerProvider } from "./explorer.ts";
 import type { Sep43AuthSigner } from "./keys.ts";
@@ -29,6 +30,7 @@ export type {
   SearchPage,
 } from "./buyer-core.ts";
 export * from "./codes.ts";
+export * from "./confirm.ts";
 export * from "./discovery.ts";
 export * from "./events.ts";
 export * from "./explorer.ts";
@@ -38,7 +40,13 @@ export * from "./networks.ts";
 export * from "./redact.ts";
 export type * from "./flow/receipt.ts";
 export * from "./flow/types.ts";
-export { paymentIdentifier, type FlowContext, type FlowChain } from "./flow/common.ts";
+export {
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- still exported for existing callers
+  paymentIdentifier,
+  randomPaymentIdentifier,
+  type FlowContext,
+  type FlowChain,
+} from "./flow/common.ts";
 export { ALLOWED_REQUEST_HEADERS, INLINE_BODY_BYTES, buildHttpRequest } from "./flow/http.ts";
 export { MCP_PAYMENT_META_KEY, MCP_PAYMENT_RESPONSE_META_KEY, MAX_TOOL_ARGUMENTS_BYTES } from "./flow/mcp.ts";
 export * from "./inspect/transaction.ts";
@@ -77,6 +85,10 @@ export interface BrowserBuyerOptions {
   /** On-chain receipt check after a settlement. Default `sync`. */
   readonly verify?: "sync" | "async" | "off";
   readonly onEvent?: PaymentEventListener;
+  /** Asked before signing; see `BuyerOptions.confirm`. */
+  readonly confirm?: ConfirmSigning;
+  readonly confirmPolicy?: ConfirmPolicy;
+  readonly onBeforeSign?: (intent: SignIntent) => void;
 }
 
 /**
@@ -112,6 +124,11 @@ export async function createBrowserBuyer(options: BrowserBuyerOptions): Promise<
     explorer: options.explorer,
     verify: options.verify,
     onEvent: options.onEvent,
+    confirmation: {
+      confirm: options.confirm,
+      confirmPolicy: options.confirmPolicy,
+      onBeforeSign: options.onBeforeSign,
+    },
     seller,
     openSession: transport.openSession ?? (() => sharedSession(seller)),
     operator: transport.operator,

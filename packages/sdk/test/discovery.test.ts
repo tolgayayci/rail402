@@ -124,6 +124,8 @@ describe("discovery", () => {
   let url = "";
   const seen: string[] = [];
   const listings: Record<string, unknown> = {};
+  /** Error answers by path, ahead of everything else. */
+  const failures: Record<string, [number, unknown]> = {};
 
   beforeAll(async () => {
     const route = (requestUrl: string): [number, unknown] => {
@@ -157,7 +159,13 @@ describe("discovery", () => {
           },
         ];
       }
-      const listing = listings[pathname.replace("/discovery/resources/", "")];
+      const failure = failures[pathname];
+      if (failure !== undefined) return failure;
+      const after = searchParams.get("after");
+      const listing =
+        listings[
+          `${pathname.replace("/discovery/resources/", "").replace("/discovery/", "")}${after === null ? "" : `?after=${after}`}`
+        ];
       if (listing === undefined) {
         return [404, { error: { code: "discovery_listing_not_found", reason: "No listing." } }];
       }
@@ -234,6 +242,127 @@ describe("discovery", () => {
     await expect(client.versions("../x")).rejects.toMatchObject({ code: "listing_not_found" });
     listings[`${LISTING}/versions`] = { id: LISTING, versions: [{ version: "one" }] };
     await expect(client.versions(LISTING)).rejects.toMatchObject({ code: "discovery_rejected" });
+  });
+
+  it("reads usage: settlement links, a listing's usage and a seller's, on the client's network", async () => {
+    const ref = {
+      id: LISTING,
+      type: "http",
+      resource: "https://weather.example/now",
+      method: "GET",
+      payTo: owner,
+      scheme: "exact",
+      amount: "10000",
+      asset: usdc,
+      network: TESTNET,
+      lastUpdated: "2026-09-30T00:00:00.000Z",
+    };
+    const [paid, other] = ["a".repeat(64), "b".repeat(64)];
+    const links = {
+      items: [{ transaction: paid, listing: ref, observedAt: "2026-09-30T00:00:01.000Z" }],
+      asOf: "2026-09-30T00:01:00.000Z",
+    };
+    listings["settlements"] = links;
+    const usage = {
+      listingId: LISTING,
+      payments: 1,
+      payers: 1,
+      firstObservedAt: "2026-09-30T00:00:01.000Z",
+      lastObservedAt: "2026-09-30T00:00:01.000Z",
+      recent: [
+        {
+          transaction: paid,
+          payer: owner,
+          asset: usdc,
+          amount: "10000",
+          observedAt: "2026-09-30T00:00:01.000Z",
+        },
+      ],
+    };
+    listings[`${LISTING}/usage`] = usage;
+    const seller = {
+      payTo: owner,
+      totals: { payments: 1, payers: 1 },
+      listings: [{ listing: ref, payments: 1, payers: 1, lastObservedAt: "2026-09-30T00:00:01.000Z" }],
+      truncated: false,
+    };
+    listings[`sellers/${owner}/usage`] = seller;
+    const client = new DiscoveryClient({ baseUrl: url, network: TESTNET });
+
+    seen.length = 0;
+    await expect(client.settlements([paid, other, paid])).resolves.toEqual(links);
+    expect(seen).toEqual([
+      `/discovery/settlements?network=stellar%3Atestnet&transactions=${paid}%2C${other}`,
+    ]);
+    await expect(client.usage(LISTING)).resolves.toEqual(usage);
+    expect(seen.at(-1)).toBe(`/discovery/resources/${LISTING}/usage?network=stellar%3Atestnet`);
+    await expect(client.sellerUsage(owner)).resolves.toEqual(seller);
+    expect(seen.at(-1)).toBe(`/discovery/sellers/${owner}/usage?network=stellar%3Atestnet`);
+
+    // Refused before anything is sent.
+    seen.length = 0;
+    for (const hashes of [
+      [],
+      [paid.toUpperCase()],
+      ["x"],
+      Array.from({ length: 101 }, (_, i) => i.toString(16).padStart(64, "0")),
+    ]) {
+      await expect(client.settlements(hashes)).rejects.toMatchObject({ code: "discovery_rejected" });
+    }
+    await expect(client.usage("../x")).rejects.toMatchObject({ code: "listing_not_found" });
+    for (const payTo of ["nobody", `S${owner.slice(1)}`, owner.toLowerCase()]) {
+      await expect(client.sellerUsage(payTo)).rejects.toMatchObject({ code: "discovery_rejected" });
+    }
+    expect(seen).toEqual([]);
+
+    // An unknown listing is not found; one whose usage is private says so by its code; an unexpected
+    // shape is refused.
+    await expect(client.usage(MCP_LISTING)).rejects.toMatchObject({ code: "listing_not_found" });
+    failures[`/discovery/resources/${MCP_LISTING}/usage`] = [
+      404,
+      {
+        error: {
+          code: "discovery_usage_private",
+          reason: "The seller of this listing keeps its usage private.",
+          retryable: false,
+        },
+      },
+    ];
+    await expect(client.usage(MCP_LISTING)).rejects.toMatchObject({
+      code: "discovery_rejected",
+      details: { upstream: { code: "discovery_usage_private" } },
+    });
+    listings[`${LISTING}/usage`] = { ...usage, payments: "one" };
+    await expect(client.usage(LISTING)).rejects.toMatchObject({ code: "discovery_rejected" });
+  });
+
+  it("reads every page of a long version history", async () => {
+    const version = (n: number) => ({
+      version: n,
+      createdAt: "2026-09-30T00:00:00.000Z",
+      cause: "settlement",
+      owner,
+      trust: "settled",
+      state: "published",
+      content: {},
+    });
+    const page = (from: number, to: number, next?: number) => ({
+      x402Version: 2,
+      id: LISTING,
+      versions: Array.from({ length: to - from + 1 }, (_, index) => version(from + index)),
+      pagination: { limit: 100, after: from - 1, latest: 250, ...(next === undefined ? {} : { next }) },
+    });
+    listings[`${LISTING}/versions`] = page(1, 100, 100);
+    listings[`${LISTING}/versions?after=100`] = page(101, 200, 200);
+    listings[`${LISTING}/versions?after=200`] = page(201, 250);
+    const client = new DiscoveryClient({ baseUrl: url, network: TESTNET });
+    const versions = await client.versions(LISTING);
+    expect(versions.map((entry) => entry.version)).toEqual(
+      Array.from({ length: 250 }, (_, index) => index + 1),
+    );
+    // A `next` that does not move forward ends the read instead of looping.
+    listings[`${LISTING}/versions`] = page(1, 2, 0);
+    await expect(client.versions(LISTING)).resolves.toHaveLength(2);
   });
 
   it("flattens an item to its listing on the buyer's network", async () => {

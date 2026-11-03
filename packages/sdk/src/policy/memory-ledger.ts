@@ -5,9 +5,9 @@ import {
   TRANSITIONS,
   UNFINISHED_STATES,
   checkReservation,
-  idempotencyConflict,
-  keyReusable,
+  keyedReservation,
   planWindow,
+  takeKey,
   usageOf,
   validateSpec,
   type BudgetWindow,
@@ -62,12 +62,14 @@ export class MemorySpendLedger implements SpendLedger {
   reserve(spec: WindowSpec, request: ReservationRequest, now = Date.now()): Reservation {
     const window = this.window(spec, now);
     const key = request.idempotencyKey;
+    let paymentId: string | undefined;
     if (key !== undefined) {
-      const existing = this.findByIdempotencyKey(window.id, key);
-      if (existing !== undefined) {
-        if (!keyReusable(existing)) throw idempotencyConflict(existing);
+      // A key outlives its window: an earlier window or session of the payer may hold it.
+      const taken = takeKey(this.keyed(spec.network, spec.payer, key), request);
+      for (const existing of taken.release) {
         this.reservations.set(existing.id, { ...existing, idempotencyKey: undefined });
       }
+      paymentId = taken.paymentId;
     }
     checkReservation(window, spec, request, this.usage(window.id));
     const reservation: Reservation = {
@@ -88,6 +90,7 @@ export class MemorySpendLedger implements SpendLedger {
       signedAtLedger: undefined,
       transaction: undefined,
       idempotencyKey: key,
+      paymentId,
       result: undefined,
       awaitingProof: false,
       unprovable: false,
@@ -175,6 +178,10 @@ export class MemorySpendLedger implements SpendLedger {
     return undefined;
   }
 
+  findIdempotencyKey(network: StellarNetwork, payer: string, key: string): Reservation | undefined {
+    return keyedReservation(this.keyed(network, payer, key));
+  }
+
   unfinished(network: StellarNetwork, payer: string): Reservation[] {
     return [...this.reservations.values()]
       .filter((row) => {
@@ -210,6 +217,15 @@ export class MemorySpendLedger implements SpendLedger {
 
   close(): void {
     // Nothing to release.
+  }
+
+  /** The reservations of the payer on the network that hold the key, in any window. */
+  private keyed(network: StellarNetwork, payer: string, key: string): Reservation[] {
+    return [...this.reservations.values()].filter((row) => {
+      if (row.idempotencyKey !== key) return false;
+      const window = this.windows.get(row.windowId);
+      return window?.network === network && window.payer === payer;
+    });
   }
 
   private openWindow(spec: WindowSpec): BudgetWindow | undefined {

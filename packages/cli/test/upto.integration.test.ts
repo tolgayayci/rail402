@@ -157,6 +157,8 @@ describe.skipIf(!available)("rail402 pays upto resources on the local network", 
       "--max",
       "0.1 TUSD",
     ]);
+    // The error is in the expectation, so a refusal names its cause.
+    expect({ status: paid.status, error: paid.error }).toEqual({ status: 0, error: undefined });
     expect(paid).toMatchObject({
       status: 0,
       ok: true,

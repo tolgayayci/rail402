@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from "node:fs";
-import { HTTP_METHODS, type HttpMethod } from "@rail402.dev/sdk";
+import { HTTP_METHODS, TESTNET, type HttpMethod } from "@rail402.dev/sdk";
 import type { OriginReport, ValidationReport } from "@rail402.dev/sdk/seller";
-import { stringFlag } from "../args.ts";
+import { booleanFlag, stringFlag } from "../args.ts";
 import { EXIT, usage } from "../codes.ts";
 import type { CommandHandler, CommandInput, CommandOutcome } from "../command.ts";
 import { clean, fields } from "../output.ts";
@@ -12,6 +12,11 @@ import { clean, fields } from "../output.ts";
  * the asset, whether the facilitator settles it, and the domain's stellar.toml claim.
  * `rail402 seller validate <file>` runs the catalog's validation on a saved PAYMENT-REQUIRED (JSON,
  * or the header's base64) and shows the listing it would produce.
+ *
+ * Both judge the resource as a catalog with the default setting does, which lists only public hosts;
+ * `--discovery-allow-loopback` judges it as a self-hosted testnet catalog run with
+ * `DISCOVERY_ALLOW_LOOPBACK=true` does. `--allow-http` and `--allow-private-network` only let the check
+ * reach a seller on this machine; they never change the verdict.
  *
  * Both exit 0 when the resource would be cataloged and 3 when not; nothing is signed.
  */
@@ -42,6 +47,7 @@ async function check(input: CommandInput): Promise<CommandOutcome> {
       throw usage("--args is a JSON object.");
   }
   const { agent, facilitatorUrl } = input.context;
+  const discoveryAllowLoopback = loopbackCatalog(input);
   const { checkSellerOrigin } = await import("@rail402.dev/sdk/seller");
   const report = await checkSellerOrigin(url, {
     network: agent.network,
@@ -50,13 +56,15 @@ async function check(input: CommandInput): Promise<CommandOutcome> {
     ...(method === undefined ? {} : { method }),
     ...(tool === undefined ? {} : { toolName: tool }),
     ...(args === undefined ? {} : { arguments: args as Record<string, unknown> }),
+    // Where the check may connect; the catalog's verdict follows discoveryAllowLoopback alone.
     allowLoopback: agent.egress.allowPrivateNetwork === "loopback",
+    discoveryAllowLoopback,
     signal: input.signal,
   });
   return {
     result: report,
     exit: report.ok ? EXIT.ok : EXIT.refused,
-    human: () => originText(report),
+    human: () => originText(report, discoveryAllowLoopback),
   };
 }
 
@@ -64,17 +72,29 @@ async function validate(input: CommandInput): Promise<CommandOutcome> {
   const path = input.parsed.positionals[0] ?? "";
   const required = readPaymentRequired(path);
   const method = methodFlag(input);
+  const discoveryAllowLoopback = loopbackCatalog(input);
   const { validateListing } = await import("@rail402.dev/sdk/seller");
   const report = await validateListing(required as Parameters<typeof validateListing>[0], {
     network: input.context.network,
-    allowLoopback: input.context.agent.egress.allowPrivateNetwork === "loopback",
+    allowLoopback: discoveryAllowLoopback,
     ...(method === undefined ? {} : { method }),
   });
   return {
     result: report,
     exit: report.catalogable ? EXIT.ok : EXIT.refused,
-    human: () => validationText(report),
+    human: () => validationText(report, discoveryAllowLoopback),
   };
+}
+
+/** `--discovery-allow-loopback`: judge as a testnet catalog with DISCOVERY_ALLOW_LOOPBACK=true does. */
+function loopbackCatalog(input: CommandInput): boolean {
+  if (!booleanFlag(input.parsed.flags, "discovery-allow-loopback")) return false;
+  if (input.context.network !== TESTNET) {
+    throw usage(
+      "--discovery-allow-loopback is for a self-hosted testnet catalog; a pubnet catalog lists public hosts only.",
+    );
+  }
+  return true;
 }
 
 function methodFlag(input: CommandInput): HttpMethod | undefined {
@@ -117,13 +137,20 @@ function readPaymentRequired(path: string): unknown {
   return body;
 }
 
-function originText(report: OriginReport): string {
+function originText(report: OriginReport, discoveryAllowLoopback: boolean): string {
   const lines = [
     fields([
       ["resource", report.url],
       ["type", report.type],
       ["status", report.status === undefined ? undefined : String(report.status)],
-      ["result", report.ok ? "ok: the catalog would list it after a settlement" : "problems found"],
+      [
+        "result",
+        report.ok
+          ? discoveryAllowLoopback
+            ? "ok: a catalog with DISCOVERY_ALLOW_LOOPBACK=true would list it after a settlement"
+            : "ok: the catalog would list it after a settlement"
+          : "problems found",
+      ],
       [
         "domain",
         report.domain === undefined
@@ -138,22 +165,30 @@ function originText(report: OriginReport): string {
       ],
     ]),
   ];
-  if (report.validation !== undefined) lines.push(validationText(report.validation));
+  if (report.validation !== undefined) lines.push(validationText(report.validation, discoveryAllowLoopback));
   for (const item of report.receivable ?? []) {
     const state =
       item.receivable === undefined ? "undecidable" : item.receivable ? "can receive" : "cannot receive";
-    lines.push(`payTo ${item.payTo} ${state} ${item.asset}`);
+    lines.push(`payTo ${clean(item.payTo, 120)} ${state} ${clean(item.asset, 120)}`);
   }
-  for (const finding of report.findings) lines.push(`finding: ${finding.code}: ${clean(finding.reason)}`);
+  for (const finding of report.findings)
+    lines.push(`finding: ${clean(finding.code, 64)}: ${clean(finding.reason)}`);
   return lines.join("\n");
 }
 
-function validationText(report: ValidationReport): string {
+function validationText(report: ValidationReport, discoveryAllowLoopback: boolean): string {
   const lines = [
     report.catalogable
-      ? "catalog: would be listed"
-      : `catalog: would not be listed: ${report.code ?? "unknown"}: ${clean(report.reason ?? "")}`,
+      ? discoveryAllowLoopback
+        ? "catalog: would be listed by a catalog with DISCOVERY_ALLOW_LOOPBACK=true (the hosted catalog lists public hosts only)"
+        : "catalog: would be listed"
+      : `catalog: would not be listed: ${clean(report.code ?? "unknown", 64)}: ${clean(report.reason ?? "")}`,
   ];
+  if (report.code === "bazaar_resource_unsafe" && !discoveryAllowLoopback) {
+    lines.push(
+      "hint: the hosted catalog lists public hosts only; a self-hosted testnet catalog run with DISCOVERY_ALLOW_LOOPBACK=true also lists loopback hosts: judge against one with --discovery-allow-loopback",
+    );
+  }
   if (report.preview !== undefined) {
     const { preview } = report;
     lines.push(
@@ -169,6 +204,6 @@ function validationText(report: ValidationReport): string {
   if (report.dropped.length > 0)
     lines.push(`dropped by the catalog: ${report.dropped.map((item) => clean(item)).join(", ")}`);
   for (const item of report.lint)
-    lines.push(`advice: ${item.code} at ${clean(item.path)}: ${clean(item.reason)}`);
+    lines.push(`advice: ${clean(item.code, 64)} at ${clean(item.path)}: ${clean(item.reason)}`);
   return lines.join("\n");
 }

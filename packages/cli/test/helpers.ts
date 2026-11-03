@@ -107,7 +107,7 @@ export function paidResult(overrides: Partial<CallResult> = {}): CallResult {
       payTo: seller,
       payer,
       transaction: TX_HASH,
-      explorerUrl: `https://stellar.expert/explorer/testnet/tx/${TX_HASH}`,
+      explorerUrl: `https://explorer.rail402.dev/testnet/tx/${TX_HASH}`,
       verifiedOnChain: true,
     },
     response: {
@@ -145,7 +145,7 @@ export function txReport(): TransactionReport {
     ],
     x402: { shape: "exact", checks: ["one token transfer invocation"] },
     facilitator: { url: "https://testnet.rail402.dev", attributed: true },
-    explorerUrl: `https://stellar.expert/explorer/testnet/tx/${TX_HASH}`,
+    explorerUrl: `https://explorer.rail402.dev/testnet/tx/${TX_HASH}`,
   };
 }
 

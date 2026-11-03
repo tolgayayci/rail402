@@ -7,7 +7,8 @@ import { Account, Keypair, MuxedAccount, StrKey, hash } from "@stellar/stellar-s
 import { httpCodes, mergeCodes } from "@rail402.dev/errors";
 import { EgressError } from "@rail402.dev/safe-fetch";
 import { PUBNET, TESTNET, exactStellarCodes } from "@rail402.dev/stellar";
-import { asPaymentError } from "../src/flow/common.ts";
+import { asPaymentError, upstreamMessage } from "../src/flow/common.ts";
+import { untrustedReason } from "../src/redact.ts";
 import {
   KeyHolder,
   PaymentError,
@@ -140,6 +141,30 @@ describe("redaction", () => {
     expect(sanitizeText("abcdef", 3)).toBe("abc…");
   });
 
+  it("strips terminal controls from an upstream message quoted in a reason", () => {
+    const message = upstreamMessage(new Error("bad\u001b]52;c;djIz\u0007\r\nline\u009b2J\u202e  end"));
+    expect(message).toBe("bad]52;c;djIz line2J end");
+  });
+
+  it("strips the Arabic letter mark and invisible format characters", () => {
+    const invisible = "a\u061Cb\u00ADc\u2060d\u2064e\uFEFFf\u{E0041}\u{E007F}g";
+    expect(sanitizeText(invisible, 100)).toBe("abcdefg");
+    expect(sanitizeText("\uFEFFstart", 100)).toBe("start");
+  });
+
+  it("strips controls before redacting, so one inside a seed cannot hide it", () => {
+    const seed = Keypair.random().secret();
+    const split = `${seed.slice(0, 20)}\u0007${seed.slice(20, 40)}\u001b${seed.slice(40)}`;
+    for (const text of [
+      upstreamMessage(new Error(`failed: ${split}`)),
+      untrustedReason(`failed: ${split}`, 300),
+    ]) {
+      expect(text).not.toContain(seed);
+      expect(text).not.toMatch(/S[A-Z2-7]{55}/);
+      expect(text).toContain("[redacted]");
+    }
+  });
+
   it("drops seller JSON nested deeper than it cleans", () => {
     let deep: unknown = "a\u202Eb";
     for (let level = 0; level < 40; level++) deep = { next: deep };
@@ -219,10 +244,13 @@ describe("networks and explorer links", () => {
     );
   });
 
-  it("links transactions on stellar.expert or a template", () => {
+  it("links transactions on the Rail402 Explorer, stellar.expert or a template", () => {
     const tx = "AB".repeat(32);
-    expect(explorerUrl(TESTNET, tx)).toBe(`https://stellar.expert/explorer/testnet/tx/${"ab".repeat(32)}`);
-    expect(explorerUrl(PUBNET, tx)).toBe(`https://stellar.expert/explorer/public/tx/${"ab".repeat(32)}`);
+    expect(explorerUrl(TESTNET, tx)).toBe(`https://explorer.rail402.dev/testnet/tx/${"ab".repeat(32)}`);
+    expect(explorerUrl(PUBNET, tx)).toBe(`https://explorer.rail402.dev/tx/${"ab".repeat(32)}`);
+    expect(explorerUrl(PUBNET, tx, "stellar.expert")).toBe(
+      `https://stellar.expert/explorer/public/tx/${"ab".repeat(32)}`,
+    );
     const template = explorerTemplate("https://explorer.example/{network}/tx/{hash}");
     expect(explorerUrl(TESTNET, tx, template)).toBe(`https://explorer.example/testnet/tx/${"ab".repeat(32)}`);
     expect(() => explorerUrl(TESTNET, "abc")).toThrow(

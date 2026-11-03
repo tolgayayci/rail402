@@ -42,7 +42,8 @@ export interface ExactOptions {
   readonly maxTimeoutSeconds?: number;
   /**
    * `authorization` (the default) verifies before the handler runs and settles after it succeeds;
-   * `upfront` settles before the handler runs. Pair `upfront` with `withSettleDedupe`.
+   * `upfront` settles before the handler runs. In either flow, wrap the facilitator client with
+   * `withSettleDedupe`: copies of one payment sent together all pass verification before it settles.
    */
   readonly paymentFlow?: "authorization" | "upfront";
 }

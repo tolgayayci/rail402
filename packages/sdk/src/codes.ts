@@ -3,6 +3,9 @@ import { Rail402Error, defineCodes, mergeCodes, type ErrorOptions } from "@rail4
 import { egressCodes } from "@rail402.dev/safe-fetch/codes";
 import type { Receipt } from "./flow/receipt.ts";
 import { redact, redactDeep } from "./redact.ts";
+import { refusalOutcome, upstreamCodeOf } from "./refusal.ts";
+
+export { refusalOutcome, refusalOutcomes, upstreamCodeOf, type RefusalOutcome } from "./refusal.ts";
 
 /**
  * Whether money may have moved when a call failed:
@@ -175,6 +178,17 @@ export const paymentCodes = defineCodes({
     retryable: true,
     reason: "A call with this idempotency key is still running; wait, then retry to read its result.",
   },
+  payment_confirmation_declined: {
+    status: 403,
+    retryable: false,
+    reason: "The payment was not confirmed, so nothing was signed.",
+  },
+  payment_confirmation_unavailable: {
+    status: 403,
+    retryable: false,
+    reason:
+      "The payment needs a confirmation that cannot be asked for here (no terminal or no elicitation support); nothing was signed.",
+  },
   payment_ledger_unavailable: {
     status: 503,
     retryable: true,
@@ -241,6 +255,12 @@ export const networkCodes = defineCodes({
     retryable: false,
     reason: "The RPC has no such transaction within its retention window.",
   },
+  transaction_unreadable: {
+    status: 422,
+    retryable: false,
+    reason:
+      "The transaction has an account or address this reader cannot represent, so it cannot be explained.",
+  },
 });
 
 /** Key handling. Reasons never contain key material. */
@@ -260,6 +280,17 @@ export const keyCodes = defineCodes({
     status: 409,
     retryable: false,
     reason: "A key already exists at this location; it is never overwritten.",
+  },
+  key_network_mismatch: {
+    status: 400,
+    retryable: false,
+    reason: "The key file is tagged for another Stellar network than the one configured.",
+  },
+  key_network_untagged: {
+    status: 400,
+    retryable: false,
+    reason:
+      "Pubnet needs a key file tagged for pubnet; an untagged key file or a seed in the environment is refused there.",
   },
 });
 
@@ -338,22 +369,31 @@ export interface PaymentErrorOptions extends ErrorOptions {
 }
 
 /**
- * An SDK failure: a registered code, a non-empty reason, whether retrying can help, and whether money
- * may have moved. Reasons and detail strings are redacted, so an upstream message that quoted a
- * secret or signed XDR never reaches the caller.
+ * An SDK failure: a registered code, a non-empty reason, whether making the same call again can
+ * succeed, and whether money may have moved. Reasons and detail strings are redacted, so an upstream
+ * message that quoted a secret or signed XDR never reaches the caller.
+ *
+ * A paying call signs a new payment each time it runs, so `retryable` never invites a second payment
+ * while the first may still settle. For `payment_rejected` both `retryable` and `paid` come from the
+ * facilitator's code the seller passed on (`details.upstream.code`), through `refusalOutcome`.
  */
 export class PaymentError extends Rail402Error<AgentCode> {
+  override readonly retryable: boolean;
   readonly paid: Paid;
   readonly callId: string | undefined;
   readonly receipt: Receipt | undefined;
 
   constructor(code: AgentCode, options: PaymentErrorOptions = {}) {
+    const details = options.details === undefined ? undefined : redactDeep(options.details);
     super(code, agentCodes[code], {
       reason: options.reason === undefined ? undefined : redact(options.reason),
-      details: options.details === undefined ? undefined : redactDeep(options.details),
+      details,
       cause: options.cause,
     });
-    this.paid = options.paid ?? defaultPaid[code];
+    const own = { retryable: agentCodes[code].retryable, paid: options.paid ?? defaultPaid[code] };
+    const outcome = code === "payment_rejected" ? refusalOutcome(upstreamCodeOf(details), own) : own;
+    this.retryable = outcome.retryable;
+    this.paid = outcome.paid;
     this.callId = options.callId;
     this.receipt = options.receipt;
   }
