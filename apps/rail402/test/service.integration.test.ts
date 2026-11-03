@@ -3,15 +3,15 @@
  * driven by upstream's stock HTTPFacilitatorClient. Needs `docker compose --profile stellar up -d`.
  */
 import { randomBytes } from "node:crypto";
+import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { serve, type ServerType } from "@hono/node-server";
 import { Keypair } from "@stellar/stellar-sdk";
 import { HTTPFacilitatorClient } from "@x402/core/http";
 import { SettleError, VerifyError, type PaymentPayload, type PaymentRequirements } from "@x402/core/types";
 import { silentLogger } from "@rail402.dev/facilitator";
 import { createDatabase } from "@rail402.dev/store-postgres";
-import { Metrics, createApp, createRuntime, loadConfig, type Runtime } from "@rail402.dev/service";
+import { Metrics, createApp, createRuntime, listen, loadConfig, type Runtime } from "@rail402.dev/service";
 import { LocalNetwork, requirementsFor, type IssuedAsset } from "@rail402.dev/testkit";
 import { sql } from "kysely";
 
@@ -24,7 +24,7 @@ describe.skipIf(!available)("service over HTTP with the stock facilitator client
   let usdc: IssuedAsset;
   let seller: Keypair;
   let runtime: Runtime;
-  let server: ServerType;
+  let server: Server;
   let client: HTTPFacilitatorClient;
   let schema: string;
 
@@ -60,7 +60,12 @@ describe.skipIf(!available)("service over HTTP with the stock facilitator client
       readiness: () => runtime.readiness(),
       version: "test",
     });
-    server = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" });
+    ({ server } = listen(app.fetch, {
+      port: 0,
+      host: "127.0.0.1",
+      responseWriteTimeoutMs: config.http.responseWriteTimeoutMs,
+      maxPipelinedRequests: config.http.maxPipelinedRequests,
+    }));
     await new Promise((resolve) => server.once("listening", resolve));
     const { port } = server.address() as AddressInfo;
     client = new HTTPFacilitatorClient({ url: `http://127.0.0.1:${String(port)}` });
@@ -110,6 +115,27 @@ describe.skipIf(!available)("service over HTTP with the stock facilitator client
     expect(again).toEqual(settled);
     expect(extensionResponses).toEqual({ rail402: { settlement: { repeat: true, settledBy: "rail402" } } });
     expect(await net.tokenBalance(usdc.sac, seller.publicKey())).toBeGreaterThanOrEqual(1_000_000n);
+  });
+
+  it("echoes the settle attempt id the first request carried to every repeat", async () => {
+    const [payer] = (await net.holders(usdc, 1, "10")) as [Keypair];
+    const requirements = requirementsFor(usdc.sac, seller.publicKey(), 1_000_000n) as PaymentRequirements;
+    const payment = (await net.payment(
+      payer,
+      requirementsFor(usdc.sac, seller.publicKey(), 1_000_000n),
+    )) as PaymentPayload;
+    const attempt = (id: string): PaymentPayload => ({
+      ...payment,
+      extensions: { ...payment.extensions, rail402: { settlement: { attempt: id } } },
+    });
+    const settled = await client.settle(attempt("first-attempt-id-0001"), requirements);
+    expect(settled).toMatchObject({ success: true, payer: payer.publicKey() });
+    expect(settled.extensionResponses?.["rail402"]).toBeUndefined();
+    const again = await client.settle(attempt("second-attempt-id-002"), requirements);
+    expect(again.transaction).toBe(settled.transaction);
+    expect(again.extensionResponses).toEqual({
+      rail402: { settlement: { repeat: true, settledBy: "rail402", attempt: "first-attempt-id-0001" } },
+    });
   });
 
   it("returns coded rejections the stock client can read", async () => {

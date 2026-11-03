@@ -7,6 +7,43 @@ export interface ClientRateLimiter {
   sweep(): void | Promise<void>;
 }
 
+/** Limits whose size depends on the bucket: per network, per key or per address. */
+export interface KeyedRateLimiter {
+  /** Takes one request for `key` under `perMinute`. Returns 0 when allowed, else seconds to wait. */
+  takeLimit(key: string, perMinute: number): number | Promise<number>;
+  sweep(): void | Promise<void>;
+}
+
+/**
+ * The service-wide limit a request meets before its body is read: `take` charges a client address at
+ * `RATE_LIMIT_PER_MINUTE`, `takeLimit` an access key at the size of its own bucket.
+ */
+export type CallerRateLimiter = ClientRateLimiter & KeyedRateLimiter;
+
+/** A process-local `KeyedRateLimiter`: one token bucket per key, sized by the limit it is taken with. */
+export class LocalKeyedRateLimiter implements KeyedRateLimiter {
+  private readonly buckets = new Map<string, RateLimiter>();
+  private readonly now: () => number;
+
+  constructor(now: () => number = Date.now) {
+    this.now = now;
+  }
+
+  takeLimit(key: string, perMinute: number): number {
+    const id = `${key}\u0000${String(perMinute)}`;
+    let bucket = this.buckets.get(id);
+    if (bucket === undefined) this.buckets.set(id, (bucket = new RateLimiter(perMinute, this.now)));
+    return bucket.take(key);
+  }
+
+  sweep(): void {
+    for (const [id, bucket] of this.buckets) {
+      bucket.sweep();
+      if (bucket.empty) this.buckets.delete(id);
+    }
+  }
+}
+
 /**
  * Token-bucket rate limiter for a single process (STORE=memory). With Postgres, the shared
  * PostgresRateLimiter applies one limit across every replica instead.
@@ -42,6 +79,11 @@ export class RateLimiter implements ClientRateLimiter {
     return Math.ceil((1 - bucket.tokens) / this.refillPerMs / 1_000);
   }
 
+  /** Whether no bucket is held. */
+  get empty(): boolean {
+    return this.buckets.size === 0;
+  }
+
   /** Drops buckets that have refilled completely, bounding memory. */
   sweep(): void {
     const now = this.now();
@@ -49,6 +91,25 @@ export class RateLimiter implements ClientRateLimiter {
       if (bucket.tokens + (now - bucket.updatedAt) * this.refillPerMs >= this.capacity)
         this.buckets.delete(key);
     }
+  }
+}
+
+/** A process-local `CallerRateLimiter`: addresses at the limit it is built with, keys at the limit given. */
+export class LocalCallerRateLimiter extends RateLimiter implements KeyedRateLimiter {
+  private readonly keyed: LocalKeyedRateLimiter;
+
+  constructor(perMinute: number, now: () => number = Date.now) {
+    super(perMinute, now);
+    this.keyed = new LocalKeyedRateLimiter(now);
+  }
+
+  takeLimit(key: string, perMinute: number): number {
+    return this.keyed.takeLimit(key, perMinute);
+  }
+
+  override sweep(): void {
+    super.sweep();
+    this.keyed.sweep();
   }
 }
 

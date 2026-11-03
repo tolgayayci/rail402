@@ -8,7 +8,7 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express from "express";
-import { type Keypair } from "@stellar/stellar-sdk";
+import { FeeBumpTransaction, TransactionBuilder, rpc, type Keypair } from "@stellar/stellar-sdk";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
@@ -196,6 +196,30 @@ describe.skipIf(!available)("Bazaar: settlement-gated cataloging through a real 
     };
     expect(outcome).toMatchObject({ status: "processing", code: "awaiting_origin_verification" });
     expect(outcome.reason.trim()).not.toBe("");
+
+    // The settlement is linked to its listing by the hash /settle returned: the fee bump's, which is
+    // the transaction on chain, never its inner transaction's.
+    const landed = await net.server.getTransaction(settled.transaction);
+    if (landed.status !== rpc.Api.GetTransactionStatus.SUCCESS) throw new Error("settlement not found");
+    const bump = TransactionBuilder.fromXDR(landed.envelopeXdr.toXDR("base64"), net.passphrase);
+    expect(bump).toBeInstanceOf(FeeBumpTransaction);
+    expect(bump.hash().toString("hex")).toBe(settled.transaction);
+    const inner = (bump as FeeBumpTransaction).innerTransaction.hash().toString("hex");
+    const { items } = await list(`?payTo=${seller.publicKey()}`);
+    const links = (await (
+      await fetch(
+        `${service.url}/discovery/settlements?network=stellar:testnet&transactions=${settled.transaction},${inner}`,
+      )
+    ).json()) as { items: { transaction: string; listing: { id: string; payTo: string } }[] };
+    expect(links.items).toEqual([
+      expect.objectContaining({
+        transaction: settled.transaction,
+        listing: expect.objectContaining({
+          id: items[0]?.rail402.listings[0]?.id,
+          payTo: seller.publicKey(),
+        }) as unknown,
+      }),
+    ]);
   });
 
   it("refuses a different payTo for the same resource, with a coded reason", async () => {
@@ -257,22 +281,38 @@ describe.skipIf(!available)("Bazaar: settlement-gated cataloging through a real 
 
   it("finds cataloged resources with natural-language search", async () => {
     await service.runtime.bazaar?.search.refresh();
-    const response = await fetch(
-      `${service.url}/discovery/search?query=${encodeURIComponent("city weather conditions")}`,
-    );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      x402Version: number;
-      resources: { resource: string; type: string }[];
-      partialResults: boolean;
-      pagination: { limit: number; cursor: string | null };
-      rail402: { method: string };
+    const search = async () => {
+      const response = await fetch(
+        `${service.url}/discovery/search?query=${encodeURIComponent("city weather conditions")}`,
+      );
+      expect(response.status).toBe(200);
+      return (await response.json()) as {
+        x402Version: number;
+        resources: { resource: string; type: string }[];
+        partialResults: boolean;
+        pagination: { limit: number; cursor: string | null };
+        rail402: { method: string; queryEmbedding: string };
+      };
     };
+    // The model is warmed at startup, so the query is embedded within its budget; on a busy machine an
+    // index build may still hold the embedder, and the query then falls back to lexical. Hybrid search
+    // must answer once the embedder is free.
+    let body = await search();
+    await expect
+      .poll(
+        async () => {
+          if (body.rail402.method !== "hybrid") body = await search();
+          return body.rail402.method;
+        },
+        { timeout: 30_000, interval: 500 },
+      )
+      .toBe("hybrid");
+    expect(["computed", "cached"]).toContain(body.rail402.queryEmbedding);
     expect(body.x402Version).toBe(2);
     expect(body.resources[0]?.resource).toBe(`${sellerUrl}/weather`);
     expect(typeof body.partialResults).toBe("boolean");
-    expect(body.pagination.limit).toBe(10);
-    expect(body.rail402.method).toBe("hybrid");
+    // The number of results in this page, as the Bazaar specification defines it.
+    expect(body.pagination.limit).toBe(body.resources.length);
 
     const mainnet = (await (
       await fetch(`${service.url}/discovery/search?query=${encodeURIComponent("weather on mainnet")}`)

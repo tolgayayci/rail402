@@ -1,4 +1,12 @@
-import { pino, stdSerializers, type DestinationStream, type Logger, type LevelWithSilent } from "pino";
+import { EventEmitter } from "node:events";
+import {
+  pino,
+  stdSerializers,
+  symbols,
+  type DestinationStream,
+  type Logger,
+  type LevelWithSilent,
+} from "pino";
 
 /**
  * Fields that must never reach a log line, at the top level of a log call or one level down (e.g. a
@@ -11,6 +19,9 @@ export const REDACTED_PATHS = [
   ...SECRET_FIELDS.map((field) => `*.${field}`),
   "*.transaction",
   "req.headers.authorization",
+  'req.headers["x-api-key"]',
+  "*.headers.authorization",
+  '*.headers["x-api-key"]',
 ];
 
 /**
@@ -53,4 +64,24 @@ export function createLogger(
     },
     destination,
   );
+}
+
+/**
+ * Calls `then` once the lines `log` has taken so far have been written out, or after `maxMs`. Call it
+ * right after logging: it waits for the destination to drain, which a line still being written makes it
+ * do. A process that exits at once could otherwise write its last line before an earlier one still on
+ * its way out, or lose it.
+ */
+export function afterLogsWritten(log: Logger, then: () => void, maxMs = 1_000): void {
+  let called = false;
+  const finish = () => {
+    if (called) return;
+    called = true;
+    clearTimeout(timer);
+    then();
+  };
+  const timer = setTimeout(finish, maxMs);
+  const stream = (log as unknown as Record<symbol, unknown>)[symbols.streamSym];
+  if (stream instanceof EventEmitter) stream.once("drain", finish);
+  else finish();
 }

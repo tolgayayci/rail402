@@ -210,7 +210,10 @@ describe.skipIf(!available)("observability: every signal moves when its cause ha
     // Two channels, ten settlements: most of them waited for a lease.
     expect(count(after, quick) - count(before, quick)).toBeLessThan(10);
     expect(
-      count(after, `rail402_rpc_requests_total{network="${NETWORK}",method="getTransaction",outcome="ok"}`),
+      count(
+        after,
+        `rail402_rpc_requests_total{network="${NETWORK}",provider="primary",method="getTransaction",outcome="ok"}`,
+      ),
     ).toBeGreaterThan(0);
     expect(
       count(after, `rail402_rpc_request_duration_seconds_count{network="${NETWORK}",method="getHealth"}`),
@@ -309,8 +312,8 @@ describe.skipIf(!available)("observability: every signal moves when its cause ha
 
     const exposition = await metrics();
     for (const series of [
-      `rail402_rpc_requests_total{network="${NETWORK}",method="getHealth",outcome="http_error"}`,
-      `rail402_rpc_requests_total{network="${NETWORK}",method="getHealth",outcome="network_error"}`,
+      `rail402_rpc_requests_total{network="${NETWORK}",provider="primary",method="getHealth",outcome="http_error"}`,
+      `rail402_rpc_requests_total{network="${NETWORK}",provider="primary",method="getHealth",outcome="network_error"}`,
       `rail402_rpc_transport_errors_total{network="${NETWORK}",target="rpc",kind="http_5xx"}`,
       `rail402_rpc_transport_errors_total{network="${NETWORK}",target="rpc",kind="network"}`,
     ]) {

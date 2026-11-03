@@ -4,21 +4,66 @@
  */
 import { randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { connect, createServer, type AddressInfo, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
 import { sql } from "kysely";
 import { settledPayment } from "@rail402.dev/bazaar";
 import { silentLogger } from "@rail402.dev/facilitator";
 import { loadManifest } from "@rail402.dev/search";
-import { Metrics, createRuntime, loadConfig, type Runtime } from "@rail402.dev/service";
+import {
+  Metrics,
+  READINESS_DATABASE_TTL_MS,
+  createRuntime,
+  loadConfig,
+  type Runtime,
+} from "@rail402.dev/service";
 import { createDatabase } from "@rail402.dev/store-postgres";
 import { LocalNetwork, startRpcProxy, type IssuedAsset } from "@rail402.dev/testkit";
 import { DATABASE_URL } from "./service-harness.ts";
 
 const net = new LocalNetwork();
 const available = await net.available();
+
+/**
+ * A TCP proxy to `target` that can stop passing bytes either way, as a stalled network path does:
+ * connections stay open and nothing they send arrives.
+ */
+async function stallingProxy(target: URL) {
+  let stalled = false;
+  const sockets = new Set<Socket>();
+  const server = createServer((client) => {
+    const upstream = connect(Number(target.port || 5432), target.hostname);
+    for (const [from, to] of [
+      [client, upstream],
+      [upstream, client],
+    ] as const) {
+      sockets.add(from);
+      from.on("data", (chunk) => {
+        if (!stalled) to.write(chunk);
+      });
+      from.on("error", () => to.destroy());
+      from.on("close", () => {
+        sockets.delete(from);
+        to.destroy();
+      });
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return {
+    port: (server.address() as AddressInfo).port,
+    stall(on: boolean) {
+      stalled = on;
+    },
+    async close() {
+      for (const socket of sockets) socket.destroy();
+      await new Promise((resolve) => server.close(resolve));
+    },
+  };
+}
 
 describe.skipIf(!available)("service runtime", () => {
   const cleanups: (() => Promise<void>)[] = [];
@@ -92,6 +137,7 @@ describe.skipIf(!available)("service runtime", () => {
         "stellar:testnet:assets",
         "stellar:testnet:channels",
         "stellar:testnet:rpc",
+        "stellar:testnet:serving",
         "stellar:testnet:sponsor",
       ]);
       expect(checks).toMatchObject({
@@ -104,6 +150,50 @@ describe.skipIf(!available)("service runtime", () => {
       });
     });
 
+    it("fails the database check within the acquire timeout once its connection stops answering", async () => {
+      const schema = `rt_${randomBytes(6).toString("hex")}`;
+      const admin = createDatabase({ connectionString: DATABASE_URL, maxConnections: 1 });
+      await sql`CREATE SCHEMA ${sql.id(schema)}`.execute(admin);
+      cleanups.push(async () => {
+        await sql`DROP SCHEMA IF EXISTS ${sql.id(schema)} CASCADE`.execute(admin);
+        await admin.destroy();
+      });
+      const proxy = await stallingProxy(new URL(DATABASE_URL));
+      cleanups.push(() => proxy.close());
+      const url = new URL(DATABASE_URL);
+      url.hostname = "127.0.0.1";
+      url.port = String(proxy.port);
+      url.search = `?options=-c%20search_path%3D${schema}`;
+      const { runtime } = await runtimeWith({
+        STORE: "postgres",
+        DATABASE_URL: url.toString(),
+        DATABASE_ACQUIRE_TIMEOUT_MS: "1000",
+        BAZAAR_ENABLED: "false",
+      });
+      // Runs first among the cleanups, so the runtime stops through a path that answers.
+      cleanups.push(() => {
+        proxy.stall(false);
+        return Promise.resolve();
+      });
+      expect((await runtime.readiness()).checks["database"]).toEqual({ ok: true });
+
+      proxy.stall(true);
+      await sleep(READINESS_DATABASE_TTL_MS + 100);
+      // Answered from the last probe while a new one runs on the stalled connection.
+      expect((await runtime.readiness()).checks["database"]).toEqual({ ok: true });
+      await sleep(1_000 + 500);
+      expect((await runtime.readiness()).checks["database"]).toEqual({
+        ok: false,
+        detail: "timed out (details in the service log)",
+      });
+
+      // The stalled connection was dropped: once the path answers, a new one passes.
+      proxy.stall(false);
+      await expect
+        .poll(async () => (await runtime.readiness()).checks["database"], { timeout: 10_000, interval: 500 })
+        .toEqual({ ok: true });
+    });
+
     it("has no database check with STORE=memory and no search check without the Bazaar", async () => {
       const { runtime } = await runtimeWith({ BAZAAR_ENABLED: "false" });
       runtime.start();
@@ -112,6 +202,7 @@ describe.skipIf(!available)("service runtime", () => {
         "stellar:testnet:assets",
         "stellar:testnet:channels",
         "stellar:testnet:rpc",
+        "stellar:testnet:serving",
         "stellar:testnet:sponsor",
       ]);
     });
@@ -206,6 +297,45 @@ describe.skipIf(!available)("service runtime", () => {
     });
   });
 
+  it("fails over to the next RPC provider and reports the active one", async () => {
+    const proxy = await startRpcProxy(net.rpcUrl);
+    cleanups.push(() => proxy.close());
+    const { runtime, metrics } = await runtimeWith({
+      TESTNET_RPC_URL: "",
+      TESTNET_RPC_URLS: `first=${proxy.url},second=${net.rpcUrl}`,
+      BAZAAR_ENABLED: "false",
+    });
+    runtime.start();
+    await ready(runtime);
+    expect(runtime.health().networks["stellar:testnet"]?.rpc).toMatchObject({
+      active: "first",
+      providers: ["first", "second"],
+    });
+    // Both switches are exported at zero before either happens, so the first one is an increase.
+    const before = await metrics.registry.getSingleMetricAsString("rail402_rpc_failovers_total");
+    expect(before).toContain(
+      'rail402_rpc_failovers_total{network="stellar:testnet",from="first",to="second"} 0',
+    );
+    expect(before).toContain(
+      'rail402_rpc_failovers_total{network="stellar:testnet",from="second",to="first"} 0',
+    );
+    proxy.failRequests(503);
+    await expect
+      .poll(() => runtime.health().networks["stellar:testnet"]?.rpc.active, {
+        timeout: 60_000,
+        interval: 1_000,
+      })
+      .toBe("second");
+    expect(runtime.health().warnings.map((warning) => warning.code)).toContain("rpc_failover_active");
+    expect(await metrics.registry.getSingleMetricAsString("rail402_rpc_failovers_total")).toContain(
+      'rail402_rpc_failovers_total{network="stellar:testnet",from="first",to="second"} 1',
+    );
+    // Settlements and reads keep working through the second provider.
+    await expect
+      .poll(async () => (await runtime.readiness()).checks["stellar:testnet:rpc"]?.ok, { timeout: 30_000 })
+      .toBe(true);
+  });
+
   it("re-checks the search index every 5 seconds in the background", async () => {
     const { runtime } = await runtimeWith();
     const bazaar = runtime.bazaar;
@@ -240,10 +370,12 @@ describe.skipIf(!available)("service runtime", () => {
   it("reconciles once more when it stops", async () => {
     const { runtime } = await runtimeWith();
     runtime.start();
-    const reconcile = vi.spyOn(runtime.facilitator, "reconcile");
+    const reconcile = vi.spyOn(runtime.facilitator, "reconcileNetwork");
     await runtime.stop();
     cleanups.pop();
-    expect(reconcile).toHaveBeenCalledTimes(1);
+    // Once per network: each network reconciles on its own.
+    expect(reconcile).toHaveBeenCalledTimes(runtime.facilitator.networks.size);
+    expect(reconcile).toHaveBeenCalledWith("stellar:testnet");
   });
 
   describe("with embeddings on", () => {

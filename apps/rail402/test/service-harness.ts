@@ -1,11 +1,10 @@
 import { randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
-import { serve, type ServerType } from "@hono/node-server";
 import { Keypair } from "@stellar/stellar-sdk";
 import { sql } from "kysely";
 import { silentLogger } from "@rail402.dev/facilitator";
 import { createDatabase } from "@rail402.dev/store-postgres";
-import { Metrics, createApp, createRuntime, loadConfig, type Runtime } from "@rail402.dev/service";
+import { Metrics, createApp, createRuntime, listen, loadConfig, type Runtime } from "@rail402.dev/service";
 import type { IssuedAsset, LocalNetwork } from "@rail402.dev/testkit";
 
 export const DATABASE_URL =
@@ -78,15 +77,28 @@ export async function startService(
     metrics,
     log: silentLogger,
     readiness: () => runtime.readiness(),
+    networkReadiness: (network) => runtime.networkReadiness(network),
     health: () => runtime.health(),
     version: "test",
     ...(runtime.bazaar === undefined ? {} : { bazaar: runtime.bazaar }),
     // As main.ts wires them: the shared Postgres limiter and meter.
     ...(runtime.access === undefined
       ? {}
-      : { rateLimiter: runtime.access.rateLimiter, meter: runtime.access.meter }),
+      : {
+          rateLimiter: runtime.access.rateLimiter,
+          ...(runtime.access.discoveryLimiter === undefined
+            ? {}
+            : { discoveryLimiter: runtime.access.discoveryLimiter }),
+          meter: runtime.access.meter,
+        }),
   });
-  const server: ServerType = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" });
+  // As main.ts serves it.
+  const { server } = listen(app.fetch, {
+    port: 0,
+    host: "127.0.0.1",
+    responseWriteTimeoutMs: config.http.responseWriteTimeoutMs,
+    maxPipelinedRequests: config.http.maxPipelinedRequests,
+  });
   await new Promise((resolve) => server.once("listening", resolve));
   const { port } = server.address() as AddressInfo;
 

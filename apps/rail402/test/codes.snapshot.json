@@ -4,6 +4,10 @@
       "status": 400,
       "retryable": false
     },
+    "bazaar_catalog_full": {
+      "status": 503,
+      "retryable": true
+    },
     "bazaar_catalog_unavailable": {
       "status": 503,
       "retryable": true
@@ -20,6 +24,10 @@
       "status": 400,
       "retryable": false
     },
+    "bazaar_listing_too_large": {
+      "status": 400,
+      "retryable": false
+    },
     "bazaar_owner_conflict": {
       "status": 409,
       "retryable": false
@@ -33,6 +41,10 @@
       "retryable": false
     },
     "bazaar_resource_unsafe": {
+      "status": 400,
+      "retryable": false
+    },
+    "bazaar_resource_unverifiable": {
       "status": 400,
       "retryable": false
     },
@@ -56,11 +68,11 @@
       "status": 400,
       "retryable": false
     },
-    "bazaar_settlement_offchain": {
+    "bazaar_settlement_below_minimum": {
       "status": 400,
       "retryable": false
     },
-    "bazaar_settlement_zero": {
+    "bazaar_settlement_offchain": {
       "status": 400,
       "retryable": false
     },
@@ -68,9 +80,17 @@
       "status": 409,
       "retryable": false
     },
+    "bazaar_settlement_zero": {
+      "status": 400,
+      "retryable": false
+    },
     "bazaar_unsupported_version": {
       "status": 400,
       "retryable": false
+    },
+    "discovery_catalog_unavailable": {
+      "status": 503,
+      "retryable": true
     },
     "discovery_invalid_parameter": {
       "status": 400,
@@ -79,6 +99,14 @@
     "discovery_listing_not_found": {
       "status": 404,
       "retryable": false
+    },
+    "discovery_usage_private": {
+      "status": 404,
+      "retryable": false
+    },
+    "discovery_overloaded": {
+      "status": 503,
+      "retryable": true
     },
     "forbidden": {
       "status": 403,
@@ -213,6 +241,10 @@
       "retryable": false
     },
     "invalid_exact_stellar_payload_unexpected_pending_signatures": {
+      "status": 400,
+      "retryable": false
+    },
+    "invalid_exact_stellar_payload_operation_source_set": {
       "status": 400,
       "retryable": false
     },
@@ -544,6 +576,22 @@
       "status": 503,
       "retryable": true
     },
+    "settle_exact_stellar_caller_budget_exhausted": {
+      "status": 429,
+      "retryable": true
+    },
+    "settle_exact_stellar_payer_rate_limited": {
+      "status": 429,
+      "retryable": true
+    },
+    "settle_exact_stellar_payto_rate_limited": {
+      "status": 429,
+      "retryable": true
+    },
+    "settle_exact_stellar_payer_cooldown": {
+      "status": 429,
+      "retryable": true
+    },
     "settle_exact_stellar_transaction_expired": {
       "status": 400,
       "retryable": false
@@ -590,6 +638,22 @@
     },
     "settle_upto_stellar_sponsor_unavailable": {
       "status": 503,
+      "retryable": true
+    },
+    "settle_upto_stellar_caller_budget_exhausted": {
+      "status": 429,
+      "retryable": true
+    },
+    "settle_upto_stellar_payer_rate_limited": {
+      "status": 429,
+      "retryable": true
+    },
+    "settle_upto_stellar_payto_rate_limited": {
+      "status": 429,
+      "retryable": true
+    },
+    "settle_upto_stellar_payer_cooldown": {
+      "status": 429,
       "retryable": true
     },
     "settle_upto_stellar_transaction_expired": {

@@ -2,14 +2,26 @@
  * The service process itself (src/main.ts): startup and SIGTERM handling, observed from outside as an
  * operator's supervisor sees them. Needs `docker compose --profile stellar up -d` for the RPC.
  */
+import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
 import { connect, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
-import { LocalNetwork, ServiceProcess, stopServiceProcesses } from "@rail402.dev/testkit";
+import { deriveChannelKeypairs, provisionChannels } from "@rail402.dev/facilitator";
+import {
+  LocalNetwork,
+  ServiceProcess,
+  classicTestAsset,
+  exactDriver,
+  startRpcProxy,
+  stopServiceProcesses,
+  type IssuedAsset,
+  type PaymentDriver,
+  type RpcProxy,
+} from "@rail402.dev/testkit";
 
 const MAIN = fileURLToPath(new URL("../src/main.ts", import.meta.url));
 const net = new LocalNetwork();
@@ -80,52 +92,160 @@ describe.skipIf(!available)("service process", () => {
     expect(lifecycle(service)).toEqual(["rail402 listening", "shutting down", "stopped"]);
   });
 
-  it("lets an in-flight request finish before exiting", async () => {
+  it("drops a request whose body is still arriving, and exits 0 without waiting for it", async () => {
     const service = await startMain({ SHUTDOWN_GRACE_MS: "10000" });
     await listening(service);
-    const body = JSON.stringify({ x402Version: 2 });
-    const request = await partialRequest(service.port, body, 5);
+    const request = await partialRequest(service.port, JSON.stringify({ x402Version: 2 }), 5);
     await expect.poll(() => request.socket.bytesWritten).toBeGreaterThan(0);
-
-    service.process.kill("SIGTERM");
-    await expect.poll(() => service.messages, { timeout: 10_000, interval: 50 }).toContain("shutting down");
-    // New connections are refused while the in-flight request is still open.
-    await expect(
-      new Promise((resolve, reject) => {
-        const probe = connect(service.port, "127.0.0.1", () => {
-          probe.destroy();
-          resolve("connected");
-        });
-        probe.on("error", reject);
-      }),
-    ).rejects.toMatchObject({ code: "ECONNREFUSED" });
-    expect(service.process.exitCode).toBeNull();
-
-    request.socket.write(body.slice(5));
-    const { code } = await service.exited;
-    expect(request.response()).toMatch(/^HTTP\/1\.1 400 /);
-    expect(request.response()).toContain('"invalidReason":"invalid_payload"');
-    expect(code).toBe(0);
-    expect(lifecycle(service)).toEqual(["rail402 listening", "shutting down", "stopped"]);
-  });
-
-  it("exits 1 once SHUTDOWN_GRACE_MS has passed with a request still in flight", async () => {
-    const service = await startMain({ SHUTDOWN_GRACE_MS: "1500" });
-    await listening(service);
-    await partialRequest(service.port, JSON.stringify({ x402Version: 2 }), 5);
 
     const signalled = performance.now();
     service.process.kill("SIGTERM");
     const { code, at } = await service.exited;
-    expect(code).toBe(1);
-    expect(at - signalled).toBeGreaterThanOrEqual(1_400);
-    expect(at - signalled).toBeLessThan(10_000);
-    expect(lifecycle(service)).toEqual([
-      "rail402 listening",
-      "shutting down",
-      "shutdown grace period elapsed; exiting",
-    ]);
+    expect(code).toBe(0);
+    expect(at - signalled).toBeLessThan(5_000);
+    expect(request.response()).toBe("");
+    expect(lifecycle(service)).toEqual(["rail402 listening", "shutting down", "stopped"]);
   });
+
+  describe("with a settlement in flight", () => {
+    let usdc: IssuedAsset;
+    let seller: Keypair;
+    let sponsor: Keypair;
+    let driver: PaymentDriver;
+    let proxy: RpcProxy;
+
+    beforeAll(async () => {
+      usdc = await net.issueAsset("USDC");
+      [seller] = (await net.holders(usdc, 1, "0")) as [Keypair];
+      sponsor = Keypair.random();
+      await net.fund(sponsor);
+      await provisionChannels({
+        server: net.server,
+        passphrase: net.passphrase,
+        sponsor,
+        channels: deriveChannelKeypairs(sponsor, "stellar:testnet", 1),
+      });
+      driver = exactDriver(net, classicTestAsset(net, usdc));
+      proxy = await startRpcProxy(net.rpcUrl);
+    }, 180_000);
+
+    afterEach(() => {
+      proxy.discardHeld();
+      proxy.reset();
+    });
+
+    afterAll(async () => {
+      // Unset when beforeAll failed before starting it.
+      await (proxy as RpcProxy | undefined)?.close();
+    });
+
+    /** The service settling through the proxy, with one settlement whose submission the proxy holds. */
+    async function settling(graceMs: number) {
+      const service = await startMain({
+        TESTNET_RPC_URL: proxy.url,
+        TESTNET_SPONSOR_SECRET: sponsor.secret(),
+        TESTNET_CHANNEL_COUNT: "1",
+        TESTNET_ASSETS: `${usdc.sac}:USDC:7`,
+        TESTNET_MAX_TX_FEE_STROOPS: "2000000",
+        TESTNET_MIN_SPONSOR_BALANCE_XLM: "1",
+        SHUTDOWN_GRACE_MS: String(graceMs),
+      });
+      await listening(service);
+      await expect
+        .poll(async () => (await fetch(`${service.url}/ready/testnet`)).status, {
+          timeout: 60_000,
+          interval: 500,
+        })
+        .toBe(200);
+      const [payer] = (await net.holders(usdc, 1, "10")) as [Keypair];
+      const published = driver.requirements(seller.publicKey(), 1_000n, { maxTimeoutSeconds: 60 });
+      const payload = await driver.pay({ kind: "G", address: payer.publicKey(), keypair: payer }, published);
+      proxy.holdResponses("sendTransaction");
+      const held = once(proxy.events, "held");
+      const answer = fetch(`${service.url}/settle`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          x402Version: 2,
+          paymentPayload: payload,
+          paymentRequirements: driver.settleRequirements(published, 1_000n),
+        }),
+      }).then(
+        async (response) => ({ status: response.status, body: await response.json() }),
+        () => undefined,
+      );
+      await held;
+      return { service, answer };
+    }
+
+    it("lets it finish before exiting, refusing new connections meanwhile", async () => {
+      const { service, answer } = await settling(10_000);
+      service.process.kill("SIGTERM");
+      await expect.poll(() => service.messages, { timeout: 10_000, interval: 50 }).toContain("shutting down");
+      await expect(
+        new Promise((resolve, reject) => {
+          const probe = connect(service.port, "127.0.0.1", () => {
+            probe.destroy();
+            resolve("connected");
+          });
+          probe.on("error", reject);
+        }),
+      ).rejects.toMatchObject({ code: "ECONNREFUSED" });
+      expect(service.process.exitCode).toBeNull();
+
+      await proxy.releaseHeld();
+      expect(await answer).toMatchObject({ status: 200, body: { success: true } });
+      expect((await service.exited).code).toBe(0);
+      expect(lifecycle(service)).toEqual(["rail402 listening", "shutting down", "stopped"]);
+    });
+
+    it("exits 1 once SHUTDOWN_GRACE_MS has passed with it still in flight", async () => {
+      const { service } = await settling(1_500);
+      const signalled = performance.now();
+      service.process.kill("SIGTERM");
+      const { code, at } = await service.exited;
+      expect(code).toBe(1);
+      expect(at - signalled).toBeGreaterThanOrEqual(1_400);
+      expect(at - signalled).toBeLessThan(10_000);
+      expect(lifecycle(service)).toEqual([
+        "rail402 listening",
+        "shutting down",
+        "shutdown grace period elapsed; exiting",
+      ]);
+    });
+  });
+
+  it.each([
+    ["a JSON-RPC error object", { code: -32603, message: "captive core is not ready" }],
+    ["a string", "overloaded"],
+    ["null", null],
+  ])(
+    "starts with its network held, not exiting, when the RPC makes startup throw %s",
+    async (_kind, error) => {
+      const proxy = await startRpcProxy(net.rpcUrl);
+      try {
+        proxy.answerError(error);
+        const service = await startMain({
+          TESTNET_RPC_URL: proxy.url,
+          TESTNET_AUTO_PROVISION_CHANNELS: "true",
+        });
+        await listening(service);
+        const ready = await fetch(`${service.url}/ready`);
+        expect(ready.status).toBe(503);
+        expect(await (await fetch(`${service.url}/ready/testnet`)).json()).toMatchObject({
+          state: "held",
+          holdReason: "rpc_unreachable",
+        });
+        expect(service.process.exitCode).toBeNull();
+        expect(service.stderr).not.toContain("[object Object]");
+        expect(service.messages).toContain(
+          "a startup chain check failed; the network is held until it passes",
+        );
+      } finally {
+        await proxy.close();
+      }
+    },
+  );
 
   describe("with embeddings on", () => {
     const directories: string[] = [];
@@ -138,7 +258,7 @@ describe.skipIf(!available)("service process", () => {
       directories.push(directory);
       const service = await startMain({ BAZAAR_ENABLED: "true", SEARCH_MODEL_DIR: directory });
       expect((await service.exited).code).toBe(1);
-      expect(service.stderr).toMatch(/^rail402: fatal: .*embedding model file .* is missing/);
+      expect(service.stderr).toMatch(/^rail402: startup_failed: .*embedding model file .* is missing/);
       expect(service.messages).not.toContain("rail402 listening");
     });
   });

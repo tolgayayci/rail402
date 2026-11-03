@@ -14,6 +14,7 @@ import {
   metricsCatalogObserver,
   metricsObserver,
   metricsSearchObserver,
+  exposition as fullExposition,
   type AppDependencies,
   type UsageEvent,
   type UsageMeter,
@@ -282,7 +283,45 @@ describe("facilitator HTTP surface", () => {
     expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
     expect(await limited.json()).toMatchObject({ isValid: false, invalidReason: "rate_limited" });
     expect((await app.request("/verify", from("10.0.0.2"))).status).toBe(200);
-    expect(await metrics.registry.getSingleMetricAsString("rail402_rate_limited_total")).toContain(" 1");
+    expect(await metrics.registry.getSingleMetricAsString("rail402_rate_limited_total")).toContain(
+      'rail402_rate_limited_total{scope="ip"} 1',
+    );
+  });
+
+  it("falls back to a local bucket for testnet while the shared limiter is unavailable", async () => {
+    const config = loadConfig({
+      STORE: "memory",
+      TESTNET_RPC_URL: "http://localhost:8000/rpc",
+      TESTNET_SPONSOR_SECRET: SECRET,
+      RATE_LIMIT_PER_MINUTE: "1",
+      TRUSTED_PROXY_HOPS: "1",
+    });
+    const metrics = new Metrics();
+    const app = createApp({
+      config,
+      facilitator: {
+        core: {
+          getSupported: () => ({ kinds: [], extensions: [], signers: {} }),
+        },
+        networks: new Map(),
+      } as unknown as StellarFacilitator,
+      metrics,
+      log: silentLogger,
+      readiness: () => Promise.resolve({ ready: true, checks: {} }),
+      version: "test",
+      rateLimiter: {
+        enabled: true,
+        take: () => Promise.reject(new Error("database down")),
+        takeLimit: () => Promise.reject(new Error("database down")),
+        sweep: () => undefined,
+      },
+    });
+    const from = { headers: { "x-forwarded-for": "10.0.0.9" } };
+    expect((await app.request("/supported", from)).status).toBe(200);
+    expect((await app.request("/supported", from)).status).toBe(429);
+    expect(await metrics.registry.getSingleMetricAsString("rail402_rate_limiter_failures_total")).toContain(
+      'rail402_rate_limiter_failures_total{scope="ip"} 2',
+    );
   });
 
   it("rate-limits an IPv6 client by its /64 and a mapped IPv4 client as IPv4", async () => {
@@ -423,7 +462,7 @@ describe("metering", () => {
       usage: { operation: string; outcome: string; requests: number; settledAmount: string }[];
     };
     expect(usage.subject).toMatch(/^key:[0-9a-f]{16}$/);
-    expect(usage.serviceFee).toEqual({ perSettlementUsd: "0.0005", accruedUsd: "0.0010" });
+    expect(usage.serviceFee).toMatchObject({ perSettlementUsd: "0.0005", accruedUsd: "0.0010" });
     expect(usage.usage).toContainEqual(
       expect.objectContaining({
         operation: "settle",
@@ -450,23 +489,15 @@ describe("metering", () => {
       meter,
       verify: () => Promise.reject(new Error("boom")),
       env: {
-        RATE_LIMIT_PER_MINUTE: "1",
-        TRUSTED_PROXY_HOPS: "1",
+        TESTNET_KEY_DEFAULT_REQUESTS_PER_MINUTE: "2",
         BODY_LIMIT_BYTES: "2048",
         TESTNET_REQUIRE_API_KEY: "true",
       },
     });
-    // One request per client address keeps every request but the rate-limited one within its limit.
-    let client = 0;
+    // The key's limit of 2 a minute on testnet counts only requests that pass every earlier check: the
+    // failing verification and the first settlement below. The second settlement is limited.
     const send = (path: string, payload: string, headers: Record<string, string> = {}) =>
-      app.request(
-        path,
-        post(path, payload, {
-          authorization: `Bearer ${API_KEY}`,
-          "x-forwarded-for": `10.0.0.${String(++client)}`,
-          ...headers,
-        }),
-      );
+      app.request(path, post(path, payload, { authorization: `Bearer ${API_KEY}`, ...headers }));
     const statuses = [
       (await send("/verify", "{not json")).status,
       (await send("/settle", body({ padding: "x".repeat(4096) }))).status,
@@ -481,12 +512,8 @@ describe("metering", () => {
       ).json(),
     ];
     statuses.push((await send("/verify", body())).status);
-    const limited = post("/settle", body(), {
-      authorization: `Bearer ${API_KEY}`,
-      "x-forwarded-for": "10.9.9.9",
-    });
-    await app.request("/settle", limited);
-    statuses.push((await app.request("/settle", limited)).status);
+    await send("/settle", body());
+    statuses.push((await send("/settle", body())).status);
 
     expect(statuses).toEqual([400, 413, 415, 401, 500, 429]);
     expect(refused).toMatchObject([
@@ -494,7 +521,7 @@ describe("metering", () => {
       { errorReason: "unsupported_scheme" },
     ]);
     expect(calls).toEqual(["verify", "settle"]);
-    // Only the settlement from 10.9.9.9 that the limiter let through was counted.
+    // Only the settlement the limiter let through was counted.
     expect(events).toEqual([
       {
         subject: `key:${createHash("sha256").update(API_KEY).digest("hex").slice(0, 16)}`,
@@ -545,7 +572,7 @@ describe("operational endpoints", () => {
     }
     expect((await app.request("/usage", from)).status).toBe(429);
     expect(await metrics.registry.getSingleMetricAsString("rail402_rate_limited_total")).toContain(
-      "rail402_rate_limited_total 2",
+      'rail402_rate_limited_total{scope="ip"} 2',
     );
   });
 
@@ -764,7 +791,14 @@ describe("metrics", () => {
     metrics.backgroundErrors.inc({ task: "poll" });
     metrics.sponsorGuardRefusals.inc({ network: "stellar:testnet", reason: "reserve" });
     metrics.sponsorFeesCommitted.set({ network: "stellar:testnet" }, 0);
-    metrics.rpcRequests.inc({ network: "stellar:testnet", method: "getHealth", outcome: "ok" });
+    metrics.rpcRequests.inc({
+      network: "stellar:testnet",
+      provider: "primary",
+      method: "getHealth",
+      outcome: "ok",
+    });
+    metrics.rpcActive.set({ network: "stellar:testnet", provider: "primary" }, 1);
+    metrics.rpcFailovers.inc({ network: "stellar:testnet", from: "primary", to: "fallback" });
     metrics.rpcDuration.observe({ network: "stellar:testnet", method: "getHealth" }, 0.01);
     metrics.rpcTransportErrors.inc({ network: "stellar:testnet", target: "rpc", kind: "http_5xx" });
     metrics.rpcLatestLedger.set({ network: "stellar:testnet" }, 100);
@@ -774,6 +808,7 @@ describe("metrics", () => {
     // The runtime's upto poll and keeper, and the settle route for upto payments.
     metrics.uptoSettlements.inc({ network: "stellar:testnet", amount: "partial", mode: "onchain" });
     metrics.uptoAuthorityBalance.set({ network: "stellar:testnet" }, 0);
+    metrics.uptoRestoreHoldPending.set({ network: "stellar:testnet" }, 0);
     metrics.uptoTtlKeeperActions.inc({ network: "stellar:testnet", action: "extend", outcome: "ok" });
     metrics.catalogListings.set({ state: "published" }, 1);
     metrics.catalogOutboxPending.set(0);
@@ -824,11 +859,20 @@ describe("metrics", () => {
     observer.reconciled(network, "succeeded");
     observer.repeat(network, "exact");
     observer.ledgerReadFailed(network);
+    observer.sequenceConflict(network, { outcome: "declined", reason: "may_be_public" });
+    metrics.inclusionFeeBid.set({ network }, 200);
+    metrics.inclusionFeePinned.inc({ network, cause: "cap" });
+    metrics.recordServing(network, true, null);
+    metrics.accessKeys.set({ network, state: "active" }, 1);
+    metrics.sponsorBudgetUsed.set({ network }, 0.5);
+    metrics.sponsorBalanceFloor.set({ network }, 250_000_000);
+    metrics.accessSponsorCommitted.set({ network, key_id: "acme-prod-1" }, 1_000);
 
     const response = await app.request("/metrics");
     expect(response.headers.get("content-type")).toContain("text/plain");
     const exposition = await response.text();
-    const found = labelSets(exposition);
+    // Series labelled with a key id are private; the full view must document them too.
+    const found = labelSets(`${exposition}\n${await fullExposition(metrics.registry)}`);
     expect(Object.keys(DOCUMENTED).length).toBeGreaterThan(30);
     for (const [name, labels] of Object.entries(DOCUMENTED)) {
       expect(found.get(name), name).toEqual(new Set([[...labels].sort().join(",")]));
@@ -856,20 +900,39 @@ describe("metrics", () => {
 });
 
 describe("channels in use", () => {
-  it("is read from the channel pool on every scrape, keeping the last value when a read fails", async () => {
+  it("is counted in the background, never by a scrape, keeping the last value when a count fails", async () => {
     const metrics = new Metrics();
-    let leased: number | Error = 3;
-    metrics.readChannelsInUse("stellar:testnet", () =>
-      leased instanceof Error ? Promise.reject(leased) : Promise.resolve(leased),
-    );
+    let leased: number | Error | Promise<number> = 3;
+    let counts = 0;
+    metrics.readChannelsInUse("stellar:testnet", () => {
+      counts++;
+      return leased instanceof Error ? Promise.reject(leased) : Promise.resolve(leased);
+    });
     const line = async () =>
       (await metrics.registry.metrics())
         .split("\n")
         .find((entry) => entry.startsWith("rail402_channels_in_use{"));
+    // /metrics is public: however often it is scraped, it never counts.
+    await line();
+    await line();
+    expect(counts).toBe(0);
+    await metrics.refreshChannelsInUse();
     expect(await line()).toBe('rail402_channels_in_use{network="stellar:testnet"} 3');
     leased = 5;
+    await metrics.refreshChannelsInUse();
     expect(await line()).toBe('rail402_channels_in_use{network="stellar:testnet"} 5');
     leased = new Error("database unavailable");
+    await metrics.refreshChannelsInUse();
     expect(await line()).toBe('rail402_channels_in_use{network="stellar:testnet"} 5');
+    // One count per network at a time: a refresh while one runs skips that network.
+    const slow = Promise.withResolvers<number>();
+    leased = slow.promise;
+    counts = 0;
+    const first = metrics.refreshChannelsInUse();
+    await metrics.refreshChannelsInUse();
+    slow.resolve(7);
+    await first;
+    expect(counts).toBe(1);
+    expect(await line()).toBe('rail402_channels_in_use{network="stellar:testnet"} 7');
   });
 });

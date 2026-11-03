@@ -7,10 +7,14 @@ import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { Keypair, rpc, xdr } from "@stellar/stellar-sdk";
 import { catalogBackgroundCodes, catalogResultCodes } from "@rail402.dev/bazaar";
-import { silentLogger, type StellarFacilitator } from "@rail402.dev/facilitator";
+import { SEQUENCE_CONFLICT_REASONS, silentLogger, type StellarFacilitator } from "@rail402.dev/facilitator";
 import {
   ContractTtlMonitor,
+  DISCOVERY_SHED_REASONS,
+  RESET_REASONS,
+  HOLD_REASONS,
   Metrics,
+  SPONSOR_REFUSALS,
   RPC_METHODS,
   allCodes,
   createApp,
@@ -41,7 +45,17 @@ const ALLOWED: Record<string, ReadonlySet<string>> = {
   amount: new Set(["zero", "partial", "max"]),
   mode: new Set(["onchain", "offchain"]),
   action: new Set(["extend", "restore"]),
-  reason: new Set([...Object.keys(allCodes), "", "unregistered"]),
+  reason: new Set([
+    ...Object.keys(allCodes),
+    "",
+    "unregistered",
+    ...HOLD_REASONS,
+    ...SPONSOR_REFUSALS,
+    ...DISCOVERY_SHED_REASONS,
+    ...RESET_REASONS,
+    ...SEQUENCE_CONFLICT_REASONS.finished_early,
+    ...SEQUENCE_CONFLICT_REASONS.declined,
+  ]),
   code: new Set([...Object.keys(allCodes), ...catalogResultCodes, ...catalogBackgroundCodes]),
   method: new Set([
     ...RPC_METHODS,
@@ -60,6 +74,11 @@ const ALLOWED: Record<string, ReadonlySet<string>> = {
   contract: aliases,
   entry: new Set(["instance", "code"]),
   outcome: new Set([
+    // Search query embeddings.
+    "cached",
+    "computed",
+    "saturated",
+    "none",
     "valid",
     "invalid",
     "success",
@@ -77,6 +96,13 @@ const ALLOWED: Record<string, ReadonlySet<string>> = {
     "succeeded",
     "expired",
     "unresolvable",
+    "served",
+    "unauthorized",
+    "forbidden",
+    "rate_limited",
+    // Sequence conflicts.
+    "finished_early",
+    "declined",
   ]),
   state: new Set(["succeeded", "failed", "expired", "pending", "published", "quarantined"]),
   settled_by: new Set(["rail402", "third_party"]),
@@ -93,8 +119,16 @@ const ALLOWED: Record<string, ReadonlySet<string>> = {
     ...["200", "400", "401", "404", "405", "413", "415", "429", "500", "503"],
   ]),
   kind: new Set(["bad_seq", "try_again_later", "network", "http_5xx", "http_429"]),
+  cause: new Set(["cap", "stats_unavailable"]),
+  scope: new Set(["ip", "key", "network", "discovery"]),
+  from: new Set(["primary"]),
+  to: new Set(["primary"]),
+  provider: new Set(
+    config.networks.flatMap((network) => network.rpcProviders.map((provider) => provider.alias)),
+  ),
+  key_id: new Set(["public", "invalid"]),
   target: new Set(["rpc", "horizon"]),
-  phase: new Set(["verify", "settle", "outbox", "origin_check", "enrich"]),
+  phase: new Set(["verify", "settle", "outbox", "origin_check", "enrich", "retention"]),
   stage: new Set(["document", "query"]),
   partial: new Set(["true", "false"]),
   task: new Set([
@@ -103,8 +137,10 @@ const ALLOWED: Record<string, ReadonlySet<string>> = {
     "origin_check",
     "catalog_queue",
     "listing_facts",
+    "catalog_retention",
     "search_index",
     "settlement_ledger",
+    "restore_hold",
     "catalog_stats",
     "health",
     "upto_ttl_keeper",
@@ -116,10 +152,16 @@ const ALLOWED: Record<string, ReadonlySet<string>> = {
     "/supported",
     "/health",
     "/ready",
+    "/ready/testnet",
+    "/ready/pubnet",
     "/metrics",
     "/discovery/resources",
     "/discovery/search",
     "/discovery/resources/:id",
+    "/discovery/resources/:id/versions",
+    "/discovery/resources/:id/usage",
+    "/discovery/settlements",
+    "/discovery/sellers/:payTo/usage",
     "unmatched",
   ]),
   le: new Set(), // histogram bounds are fixed by the metric definition
@@ -181,6 +223,9 @@ describe("metric label cardinality", () => {
       }
       await app.request(`/${random()}`);
       await app.request(`/discovery/resources/${random()}`, { method: round % 2 === 0 ? "GET" : "DELETE" });
+      await app.request(`/discovery/resources/${random()}/usage?network=${random()}`);
+      await app.request(`/discovery/sellers/${random()}/${random()}`);
+      await app.request(`/discovery/settlements?transactions=${random()}`);
     }
 
     const settlement = metricsObserver(metrics);

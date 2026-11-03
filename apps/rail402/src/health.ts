@@ -1,10 +1,14 @@
 import type { CatalogStats } from "@rail402.dev/bazaar";
 import type { SettlementState } from "@rail402.dev/facilitator";
+// --- discovery settings (DISCOVERY) ---
+import type { RankerIdentity } from "@rail402.dev/search";
+// --- end discovery settings ---
 import type { Counter, Gauge, Histogram } from "prom-client";
 import type { Metrics } from "./metrics.ts";
 import type { ContractTtlSnapshot } from "./ttl-monitor.ts";
 import type { UptoKeeperSnapshot } from "./upto-keeper.ts";
 import { publicReason } from "./public-reason.ts";
+import type { HoldReason, NetworkGateSnapshot, NetworkServingState } from "./network-state.ts";
 
 /**
  * The `/health` body: a snapshot the background poller builds every 15 seconds, so answering it does
@@ -21,6 +25,17 @@ export interface HealthSnapshot {
   readonly networks: Readonly<Record<string, NetworkHealth>>;
   readonly catalog?: CatalogHealth;
   readonly search?: SearchHealth;
+  /** Access keys by state, and the last reload of their file; counts only, and private only. */
+  readonly access?: AccessHealth;
+}
+
+export interface AccessHealth {
+  readonly keys: { readonly active: number; readonly expired: number; readonly revoked: number };
+  readonly lastReloadAt: string | null;
+  /** The code of the last failed reload while the file stays invalid; null otherwise. */
+  readonly reloadError: string | null;
+  /** SHA-256 of the key file in force, so an operator can confirm a replacement was loaded. */
+  readonly fileSha256?: string | null;
 }
 
 export type HealthWarningCode =
@@ -41,34 +56,54 @@ export type HealthWarningCode =
   | "upto_authority_funded"
   | "upto_authority_holds_tokens"
   | "upto_contract_restore_required"
-  | "upto_ttl_keeper_failed";
+  | "upto_ttl_keeper_failed"
+  | "network_held"
+  | "access_keys_reload_failed"
+  | "sponsor_budget_high"
+  | "rpc_failover_active";
 
 /** A problem found by the last poll. `critical` makes the state `degraded`; `warning` does not. */
 export interface HealthWarning {
   readonly code: HealthWarningCode;
   readonly severity: "critical" | "warning";
   readonly message: string;
+  /** The message the public view of pubnet shows instead, when `message` carries budget figures. */
+  readonly publicMessage?: string;
+  /** Left out of the public view of pubnet altogether: the warning itself reveals budget state. */
+  readonly operatorOnly?: boolean;
   readonly network?: string;
   readonly contract?: string;
 }
 
 export interface NetworkHealth {
+  /** Whether the network serves `/verify` and `/settle`: `starting`, `serving` or `held`. */
+  readonly state: NetworkServingState;
+  readonly holdReason: HoldReason | null;
+  readonly servingSince: string | null;
+  /** `degraded` while this network has a critical warning, so each network can be watched alone. */
+  readonly status: "healthy" | "degraded";
   readonly rpc: {
     readonly ok: boolean;
+    /** The alias of the active RPC provider; URLs are never shown. */
+    readonly active?: string;
+    readonly providers?: readonly string[];
     readonly latestLedger: number | null;
     readonly ledgerAgeSeconds: number | null;
     readonly transportErrors1h: number;
   };
   readonly sponsor: {
     readonly address: string;
-    readonly balanceStroops: string | null;
-    readonly committed1hStroops: string | null;
-    readonly wasted1hStroops: string;
+    /** Whether the balance is at or above the readiness minimum; null until the first reading. */
+    readonly funded: boolean | null;
+    /** Absent from the public view of pubnet (as are the other budget figures). */
+    readonly balanceStroops?: string | null;
+    readonly committed1hStroops?: string | null;
+    readonly wasted1hStroops?: string;
   };
   readonly channels: {
     readonly total: number;
-    readonly inUse: number | null;
-    readonly leaseWaitP95Ms: number | null;
+    readonly inUse?: number | null;
+    readonly leaseWaitP95Ms?: number | null;
     readonly leaseTimeouts1h: number;
   };
   readonly settlements: {
@@ -135,13 +170,21 @@ export interface SearchHealth {
   readonly embeddingFailures1h: number;
   readonly p50Ms: number | null;
   readonly p95Ms: number | null;
+  // --- discovery settings (DISCOVERY) ---
+  /** What ranks search results: model, file hashes, floor, depth, code version and eval baseline. */
+  readonly ranker?: RankerIdentity;
+  // --- end discovery settings ---
 }
 
 /** What the poller read for one network. */
 export interface NetworkHealthInput {
   readonly network: string;
+  /** Whether the network serves; absent, it is reported as serving. */
+  readonly serving?: NetworkGateSnapshot;
   readonly rpc: {
     readonly ok: boolean;
+    readonly active?: string;
+    readonly providers?: readonly string[];
     readonly error?: string;
     readonly latestLedger?: number;
     /** Close time of the latest ledger. */
@@ -153,6 +196,8 @@ export interface NetworkHealthInput {
     /** Below this balance the sponsor is reported as below its floor (the readiness minimum). */
     readonly floorStroops: bigint;
     readonly committed1hStroops?: bigint;
+    /** The network's hourly fee budget, when it has one. */
+    readonly budgetStroops?: bigint;
   };
   readonly channels: { readonly total: number; readonly inUse?: number };
   /** Undefined when the settlement ledger could not be read. */
@@ -180,12 +225,16 @@ export interface NetworkHealthInput {
 
 export interface HealthInput {
   readonly networks: readonly NetworkHealthInput[];
+  readonly access?: AccessHealth;
   /** Present when the Bazaar is enabled; `stats` is undefined when the catalog could not be read. */
   readonly catalog?: { readonly stats?: CatalogStats };
   readonly search?: {
     readonly indexRevision?: number;
     readonly indexedAt?: Date;
     readonly lastBuild?: "ok" | "degraded" | "failed";
+    // --- discovery settings (DISCOVERY) ---
+    readonly ranker?: RankerIdentity;
+    // --- end discovery settings ---
   };
 }
 
@@ -195,6 +244,8 @@ export interface HealthOptions {
   readonly ttlWarnLedgers: number;
   /** TTL below which a watched contract makes the service `degraded`. */
   readonly ttlCriticalLedgers: number;
+  /** Committed fees at this share (percent) of the hourly budget raise `sponsor_budget_high`; default 80. */
+  readonly budgetWarnPercent?: number;
   /** A latest ledger older than this makes the RPC stale. */
   readonly ledgerStaleSeconds?: number;
   readonly now?: () => number;
@@ -263,7 +314,7 @@ export class HealthMonitor {
 
     let search: SearchHealth | undefined;
     if (input.search !== undefined) {
-      const { indexRevision, indexedAt, lastBuild } = input.search;
+      const { indexRevision, indexedAt, lastBuild, ranker } = input.search;
       if (lastBuild === "failed") {
         warnings.push({
           code: "search_index_failed",
@@ -285,7 +336,19 @@ export class HealthMonitor {
         embeddingFailures1h: this.windows.increase("embedding_failures", now),
         p50Ms: milliseconds(bucketQuantile(durations, 0.5)),
         p95Ms: milliseconds(bucketQuantile(durations, 0.95)),
+        // --- discovery settings (DISCOVERY) ---
+        ...(ranker === undefined ? {} : { ranker }),
+        // --- end discovery settings ---
       };
+    }
+
+    if (input.access !== undefined && input.access.reloadError !== null) {
+      warnings.push({
+        code: "access_keys_reload_failed",
+        severity: "critical",
+        message: `The access-key file changed but is invalid (${input.access.reloadError}); the previous keys stay in force.`,
+        publicMessage: "The access-key configuration needs an operator's attention.",
+      });
     }
 
     this.current = {
@@ -297,6 +360,7 @@ export class HealthMonitor {
       networks,
       ...(catalog === undefined ? {} : { catalog }),
       ...(search === undefined ? {} : { search }),
+      ...(input.access === undefined ? {} : { access: input.access }),
     };
     return this.current;
   }
@@ -330,6 +394,28 @@ export class HealthMonitor {
         severity: "critical",
         network,
         message: `The fee sponsor holds ${String(balance)} stroops, below the minimum of ${String(input.sponsor.floorStroops)}.`,
+        publicMessage: "The fee sponsor holds less than its minimum balance.",
+      });
+    }
+    const primary = input.rpc.providers?.[0];
+    if (primary !== undefined && input.rpc.active !== undefined && input.rpc.active !== primary) {
+      warnings.push({
+        code: "rpc_failover_active",
+        severity: "warning",
+        network,
+        message: `The RPC provider ${primary} failed; ${input.rpc.active} serves until ${primary} is healthy again.`,
+      });
+    }
+    const budget = input.sponsor.budgetStroops;
+    const committed = input.sponsor.committed1hStroops;
+    const warnAt = BigInt(this.options.budgetWarnPercent ?? 80);
+    if (budget !== undefined && committed !== undefined && committed * 100n >= budget * warnAt) {
+      warnings.push({
+        code: "sponsor_budget_high",
+        severity: "warning",
+        network,
+        message: `The fees committed in the last hour reached ${String((committed * 100n) / budget)} % of the hourly budget; settlements are refused once it is spent.`,
+        operatorOnly: true,
       });
     }
     if (input.settlements === undefined) {
@@ -404,16 +490,34 @@ export class HealthMonitor {
     }
 
     const upto = input.upto === undefined ? undefined : uptoHealth(input.upto, network, warnings);
+    const serving = input.serving ?? { state: "serving", holdReason: null, servingSince: null };
+    if (serving.state === "held") {
+      warnings.push({
+        code: "network_held",
+        severity: "critical",
+        network,
+        message: `${network} refuses /verify and /settle until its checks pass: ${serving.holdReason ?? "held"}.`,
+      });
+    }
     const states = input.settlements?.last1h;
     return {
+      state: serving.state,
+      holdReason: serving.holdReason,
+      servingSince: serving.servingSince?.toISOString() ?? null,
+      status: warnings.some((warning) => warning.network === network && warning.severity === "critical")
+        ? "degraded"
+        : "healthy",
       rpc: {
         ok: input.rpc.ok,
+        ...(input.rpc.active === undefined ? {} : { active: input.rpc.active }),
+        ...(input.rpc.providers === undefined ? {} : { providers: input.rpc.providers }),
         latestLedger: input.rpc.latestLedger ?? null,
         ledgerAgeSeconds,
         transportErrors1h: this.windows.increase(`transport|${network}`, now),
       },
       sponsor: {
         address: input.sponsor.address,
+        funded: balance === undefined ? null : balance >= input.sponsor.floorStroops,
         balanceStroops: balance === undefined ? null : String(balance),
         committed1hStroops:
           input.sponsor.committed1hStroops === undefined ? null : String(input.sponsor.committed1hStroops),
@@ -506,6 +610,45 @@ export class HealthMonitor {
     this.windows.record("embedding_failures", now, sum(embeddings));
     this.windows.recordBuckets("search", now, searches);
   }
+}
+
+/** The networks whose sponsor and budget figures the public `/health` leaves out. */
+const REDACTED_NETWORKS: ReadonlySet<string> = new Set(["stellar:pubnet"]);
+
+/**
+ * The public `/health` body. Testnet is shown in full. Pubnet shows whether its sponsor is funded but
+ * not its balance, committed or wasted fees, channels in use or lease waits; its warnings carry no
+ * budget figures, and a warning about the budget itself (`sponsor_budget_high`) is left out, so nobody
+ * can time a drain of the mainnet budget from the outside. Access keys are left out altogether (their
+ * counts and reload state), and an access-key warning names no error. The full snapshot is for the
+ * operator only.
+ */
+export function publicHealth(snapshot: HealthSnapshot): HealthSnapshot {
+  const networks: Record<string, NetworkHealth> = {};
+  for (const [network, health] of Object.entries(snapshot.networks)) {
+    if (!REDACTED_NETWORKS.has(network)) {
+      networks[network] = health;
+      continue;
+    }
+    networks[network] = {
+      ...health,
+      sponsor: { address: health.sponsor.address, funded: health.sponsor.funded },
+      channels: { total: health.channels.total, leaseTimeouts1h: health.channels.leaseTimeouts1h },
+    };
+  }
+  const { access: _access, ...shown } = snapshot;
+  return {
+    ...shown,
+    networks,
+    warnings: snapshot.warnings.flatMap(({ publicMessage, operatorOnly, ...warning }) => {
+      if (warning.code === "access_keys_reload_failed") {
+        return [publicMessage === undefined ? warning : { ...warning, message: publicMessage }];
+      }
+      if (warning.network === undefined || !REDACTED_NETWORKS.has(warning.network)) return [warning];
+      if (operatorOnly === true) return [];
+      return [publicMessage === undefined ? warning : { ...warning, message: publicMessage }];
+    }),
+  };
 }
 
 /** The `upto` component and its warnings. The contract's own TTL is reported with the other contracts. */

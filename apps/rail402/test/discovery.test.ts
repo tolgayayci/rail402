@@ -1,15 +1,18 @@
 import { afterAll, describe, expect, it } from "vitest";
 import {
   Catalog,
+  DEFAULT_MAX_LISTING_BYTES,
   MemoryCatalogStore,
+  listingBytes,
   SchemaSandbox,
   paymentRequiredFor,
   randomAddress,
   settledPayment,
 } from "@rail402.dev/bazaar";
 import type { PaymentRequired } from "@x402/core/types";
-import { AssetRegistry, SearchService } from "@rail402.dev/search";
-import { discoveryRoutes } from "@rail402.dev/service";
+import { AssetRegistry, SearchService, type Embedder } from "@rail402.dev/search";
+import type { Listing, ListingContent } from "@rail402.dev/bazaar";
+import { discoveryRoutes, type DiscoveryLimits } from "@rail402.dev/service";
 
 const USDC_TESTNET = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
 
@@ -19,7 +22,10 @@ afterAll(async () => {
 });
 
 /** Discovery routes over a memory catalog of `count` published weather listings, lexical search only. */
-async function discovery(count: number) {
+async function discovery(
+  count: number,
+  options: { embedder?: Embedder; limits?: Omit<DiscoveryLimits, "clientKey"> } = {},
+) {
   const store = new MemoryCatalogStore();
   const origins = new Map<string, PaymentRequired>();
   const catalog = new Catalog({
@@ -52,8 +58,11 @@ async function discovery(count: number) {
       { network: "stellar:testnet", contract: USDC_TESTNET, symbol: "USDC", decimals: 7, usd: true },
     ]),
     cursorSecret: Buffer.alloc(32, 1),
+    ...(options.embedder === undefined ? {} : { embedder: options.embedder }),
   });
-  return Object.assign(discoveryRoutes(store, search), { catalog, store });
+  const limits =
+    options.limits === undefined ? undefined : { ...options.limits, clientKey: () => "one client" };
+  return Object.assign(discoveryRoutes(store, search, limits), { catalog, store });
 }
 
 async function errorCode(response: Response): Promise<string | undefined> {
@@ -162,6 +171,322 @@ describe("GET /discovery/search parameters", () => {
   });
 });
 
+describe("discovery cost limits", () => {
+  /** A stand-in embedder: one fixed vector, so every query is "similar". */
+  const constant: Embedder = {
+    id: "constant",
+    dimensions: 2,
+    embed: () => Promise.resolve(Float32Array.from([1, 0])),
+  };
+
+  it("limits uncached searches more tightly than cached ones", async () => {
+    const limits = { perMinute: 10, uncachedSearchCost: 5 };
+    const uncached = await discovery(1, { embedder: constant, limits });
+    const statuses = [];
+    for (const query of ["weather one", "weather two", "weather three"]) {
+      statuses.push((await uncached.request(`/search?query=${encodeURIComponent(query)}`)).status);
+    }
+    expect(statuses).toEqual([200, 200, 429]);
+
+    const cached = await discovery(1, { embedder: constant, limits });
+    const repeated = [];
+    for (let i = 0; i < 7; i++) {
+      const response = await cached.request("/search?query=weather");
+      repeated.push(response.status);
+      if (response.status === 429) {
+        expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(0);
+        expect(await errorCode(response)).toBe("rate_limited");
+      } else {
+        expect(
+          ((await response.json()) as { rail402: { queryEmbedding: string } }).rail402.queryEmbedding,
+        ).toBe(i === 0 ? "computed" : "cached");
+      }
+    }
+    // One uncached search (5) and five cached ones (1 each) fit; the seventh does not.
+    expect(repeated).toEqual([200, 200, 200, 200, 200, 200, 429]);
+  });
+
+  it("charges deep offsets against the cost bucket", async () => {
+    const app = await discovery(1, { limits: { perMinute: 10, uncachedSearchCost: 5 } });
+    expect((await app.request("/resources?offset=9000")).status).toBe(200);
+    const next = await app.request("/resources");
+    expect(next.status).toBe(429);
+    expect(await errorCode(next)).toBe("rate_limited");
+  });
+
+  it("charges a listing and its version history, and reports every refusal by route", async () => {
+    const refused: string[] = [];
+    const app = await discovery(1, {
+      limits: { perMinute: 6, uncachedSearchCost: 5, onLimited: (route) => refused.push(route) },
+    });
+    const { items } = (await (await app.request("/resources")).json()) as {
+      items: { rail402: { listings: { id: string }[] } }[];
+    };
+    const id = items[0]?.rail402.listings[0]?.id ?? "";
+    expect((await app.request(`/resources/${id}`)).status).toBe(200);
+    // Four units left: a full page of history costs 5, a page of ten costs 1.
+    const full = await app.request(`/resources/${id}/versions`);
+    expect(full.status).toBe(429);
+    expect(await errorCode(full)).toBe("rate_limited");
+    expect((await app.request(`/resources/${id}/versions?limit=10`)).status).toBe(200);
+    for (let i = 0; i < 3; i++) expect((await app.request(`/resources/${id}`)).status).toBe(200);
+    expect((await app.request(`/resources/${id}`)).status).toBe(429);
+    expect((await app.request("/resources")).status).toBe(429);
+    expect(refused).toEqual([
+      "/discovery/resources/:id/versions",
+      "/discovery/resources/:id",
+      "/discovery/resources",
+    ]);
+  });
+
+  it("applies no cost limit with a limit of 0", async () => {
+    const app = await discovery(1, { limits: { perMinute: 0, uncachedSearchCost: 5 } });
+    for (let i = 0; i < 20; i++) expect((await app.request("/resources?offset=9000")).status).toBe(200);
+  });
+});
+
+describe("response size", () => {
+  /**
+   * A catalog of `count` resources, each sold on testnet and pubnet with content at the per-listing
+   * size limit: the worst case a page can hold.
+   */
+  async function worstCase(count: number, listingSize = DEFAULT_MAX_LISTING_BYTES) {
+    const store = new MemoryCatalogStore();
+    for (let i = 0; i < count; i++) {
+      for (const network of ["stellar:testnet", "stellar:pubnet"]) {
+        const payTo = randomAddress();
+        const resource = `https://api${String(i)}.example.com/weather`;
+        const base: ListingContent = {
+          resource,
+          kind: "http",
+          method: "GET",
+          description: "Weather",
+          bazaar: { info: { input: { type: "http", method: "GET" }, note: "" }, schema: { type: "object" } },
+          accepts: Array.from({ length: 8 }, (_, option) => ({
+            scheme: "exact",
+            network,
+            asset: USDC_TESTNET,
+            payTo,
+            amount: String(10_000 + option),
+            maxTimeoutSeconds: 60,
+            extra: { areFeesSponsored: true },
+          })),
+        };
+        const padding = listingSize - listingBytes(base);
+        const content: ListingContent = {
+          ...base,
+          bazaar: { ...base.bazaar, info: { ...base.bazaar.info, note: "w".repeat(padding) } },
+        };
+        expect(listingBytes(content)).toBe(listingSize);
+        const now = new Date();
+        const listing: Listing = {
+          id: crypto.randomUUID(),
+          sequence: 0,
+          identity: { network, kind: "http", resource, method: "GET", toolName: "", scope: "" },
+          owner: payTo,
+          trust: "origin_verified",
+          state: "published",
+          version: 1,
+          content,
+          contentHash: `${String(i)}${network}`,
+          firstCatalogedAt: now,
+          listedAt: new Date(now.getTime() - 1_000 + i),
+          lastUpdated: now,
+          lastSettledAt: now,
+          settlements: 1,
+        };
+        await store.transaction(listing.identity, (tx) =>
+          tx.insert(listing, {
+            listingId: listing.id,
+            version: 1,
+            createdAt: now,
+            cause: "settlement",
+            owner: payTo,
+            trust: "origin_verified",
+            state: "published",
+            content,
+          }),
+        );
+      }
+    }
+    const search = new SearchService({
+      store,
+      assets: new AssetRegistry([]),
+      cursorSecret: Buffer.alloc(32, 1),
+    });
+    return discoveryRoutes(store, search);
+  }
+
+  /** Upstream's withBazaar client refuses larger discovery responses. */
+  const CLIENT_LIMIT = 4 * 1024 * 1024;
+
+  it("ends a page before it exceeds the byte budget and continues on the next", async () => {
+    const app = await worstCase(100);
+    const seen: string[] = [];
+    let offset = 0;
+    let pages = 0;
+    while (offset < 100) {
+      const response = await app.request(`/resources?limit=100&offset=${String(offset)}`);
+      const text = await response.text();
+      expect(Buffer.byteLength(text)).toBeLessThanOrEqual(3.75 * 1024 * 1024);
+      const body = JSON.parse(text) as {
+        items: { resource: string }[];
+        pagination: { limit: number; total: number };
+      };
+      expect(body.pagination.total).toBe(100);
+      expect(body.items.length).toBe(Math.min(body.pagination.limit, 100 - offset));
+      seen.push(...body.items.map((item) => item.resource));
+      offset += body.pagination.limit;
+      pages++;
+    }
+    expect(pages).toBeGreaterThan(1);
+    expect(new Set(seen).size).toBe(100);
+    expect(seen).toHaveLength(100);
+  });
+
+  it("ends a search page within the byte budget, and its cursor continues after it", async () => {
+    // At the default limit 50 results always fit; an operator may raise BAZAAR_MAX_LISTING_BYTES.
+    const app = await worstCase(60, 128 * 1024);
+    const seen: string[] = [];
+    let cursor: string | null = "";
+    let pages = 0;
+    while (cursor !== null) {
+      const response: Response = await app.request(
+        `/search?query=weather&limit=50${cursor === "" ? "" : `&cursor=${encodeURIComponent(cursor)}`}`,
+      );
+      const text = await response.text();
+      expect(response.status).toBe(200);
+      expect(Buffer.byteLength(text)).toBeLessThan(CLIENT_LIMIT);
+      const body = JSON.parse(text) as {
+        resources: { resource: string }[];
+        pagination: { cursor: string | null };
+      };
+      if (pages === 0) expect(body.resources.length).toBeLessThan(50);
+      seen.push(...body.resources.map((item) => item.resource));
+      cursor = body.pagination.cursor;
+      pages++;
+    }
+    expect(pages).toBeGreaterThan(1);
+    expect(new Set(seen).size).toBe(60);
+    expect(seen).toHaveLength(60);
+  });
+});
+
+describe("version history", () => {
+  /** A listing with `count` versions, each `size` bytes of content. */
+  async function history(count: number, size = 1_000) {
+    const store = new MemoryCatalogStore();
+    const payTo = randomAddress();
+    const resource = "https://api.example.com/history";
+    const base: ListingContent = {
+      resource,
+      kind: "http",
+      method: "GET",
+      bazaar: { info: { input: { type: "http", method: "GET" }, note: "" }, schema: { type: "object" } },
+      accepts: [
+        {
+          scheme: "exact",
+          network: "stellar:testnet",
+          asset: USDC_TESTNET,
+          payTo,
+          amount: "10000",
+          maxTimeoutSeconds: 60,
+          extra: { areFeesSponsored: true },
+        },
+      ],
+    };
+    const content: ListingContent = {
+      ...base,
+      bazaar: { ...base.bazaar, info: { ...base.bazaar.info, note: "v".repeat(size - listingBytes(base)) } },
+    };
+    const now = new Date();
+    const listing: Listing = {
+      id: crypto.randomUUID(),
+      sequence: 0,
+      identity: {
+        network: "stellar:testnet",
+        kind: "http",
+        resource,
+        method: "GET",
+        toolName: "",
+        scope: "",
+      },
+      owner: payTo,
+      trust: "origin_verified",
+      state: "published",
+      version: 1,
+      content,
+      contentHash: "h",
+      firstCatalogedAt: now,
+      listedAt: now,
+      lastUpdated: now,
+      lastSettledAt: now,
+      settlements: 1,
+    };
+    const versionOf = (version: number) => ({
+      listingId: listing.id,
+      version,
+      createdAt: now,
+      cause: "origin_verification" as const,
+      owner: payTo,
+      trust: "origin_verified" as const,
+      state: "published" as const,
+      content,
+    });
+    await store.transaction(listing.identity, async (tx) => {
+      await tx.insert(listing, versionOf(1));
+      for (let version = 2; version <= count; version++) {
+        await tx.update({ ...listing, version, contentHash: String(version) }, versionOf(version));
+      }
+    });
+    return { app: discoveryRoutes(store), id: listing.id };
+  }
+
+  interface HistoryPage {
+    versions: { version: number }[];
+    pagination: { limit: number; after: number; latest: number; next?: number };
+  }
+
+  it("pages a listing's history oldest first, 100 versions at most, continuing after the last read", async () => {
+    const { app, id } = await history(250);
+    const first = (await (await app.request(`/resources/${id}/versions`)).json()) as HistoryPage;
+    expect(first.versions.map((v) => v.version)).toEqual(Array.from({ length: 100 }, (_, i) => i + 1));
+    expect(first.pagination).toEqual({ limit: 100, after: 0, latest: 250, next: 100 });
+    // Larger pages are clamped.
+    const second = (await (
+      await app.request(`/resources/${id}/versions?after=100&limit=500`)
+    ).json()) as HistoryPage;
+    expect(second.versions.map((v) => v.version)).toEqual(Array.from({ length: 100 }, (_, i) => i + 101));
+    const last = (await (await app.request(`/resources/${id}/versions?after=200`)).json()) as HistoryPage;
+    expect(last.versions).toHaveLength(50);
+    expect(last.pagination).toEqual({ limit: 100, after: 200, latest: 250 });
+  });
+
+  it("refuses unknown or malformed history parameters with a coded reason", async () => {
+    const { app, id } = await history(2);
+    for (const query of ["page=2", "after=-1", "limit=0", "after=x"]) {
+      const response = await app.request(`/resources/${id}/versions?${query}`);
+      expect(response.status, query).toBe(400);
+      expect(await errorCode(response)).toBe("discovery_invalid_parameter");
+    }
+  });
+
+  it("ends a page of history before it exceeds the byte budget, and next continues after it", async () => {
+    const { app, id } = await history(120, DEFAULT_MAX_LISTING_BYTES);
+    const response = await app.request(`/resources/${id}/versions`);
+    const text = await response.text();
+    expect(Buffer.byteLength(text)).toBeLessThan(4 * 1024 * 1024);
+    const page = JSON.parse(text) as HistoryPage;
+    expect(page.versions.length).toBeLessThan(100);
+    const last = page.versions.at(-1)?.version;
+    expect(page.pagination.next).toBe(last);
+    const rest = (await (
+      await app.request(`/resources/${id}/versions?after=${String(last)}`)
+    ).json()) as HistoryPage;
+    expect(rest.versions[0]?.version).toBe((last ?? 0) + 1);
+  });
+});
+
 describe("a resource sold on two networks", () => {
   /** One weather resource whose 402 offers testnet and pubnet, settled on both, plus its detail routes. */
   async function twoNetworks() {
@@ -212,15 +537,22 @@ describe("a resource sold on two networks", () => {
     };
     expect(body.pagination.total).toBe(1);
     const [item] = body.items;
-    expect(item?.accepts.map((option) => [option.network, option.payTo])).toEqual([
-      ["stellar:testnet", testnet.requirements.payTo],
-      ["stellar:pubnet", pubnet.requirements.payTo],
-    ]);
-    expect(item?.rail402.listings.map((listing) => [listing.id, listing.network, listing.owner])).toEqual([
-      [ids[0], "stellar:testnet", testnet.requirements.payTo],
-      [ids[1], "stellar:pubnet", pubnet.requirements.payTo],
-    ]);
-    expect(item?.rail402.options.map((option) => option.listing)).toEqual(ids);
+    // Each network's origin check runs in its own lane, so either listing may be published first; the
+    // options follow publication order, and accepts, listings and options stay aligned.
+    const listings = item?.rail402.listings ?? [];
+    const order = listings[0]?.network === "stellar:testnet" ? [0, 1] : [1, 0];
+    const expected = [
+      { id: ids[0], network: "stellar:testnet", payTo: testnet.requirements.payTo },
+      { id: ids[1], network: "stellar:pubnet", payTo: pubnet.requirements.payTo },
+    ];
+    const inOrder = order.map((index) => expected[index]);
+    expect(item?.accepts.map((option) => [option.network, option.payTo])).toEqual(
+      inOrder.map((entry) => [entry?.network, entry?.payTo]),
+    );
+    expect(listings.map((listing) => [listing.id, listing.network, listing.owner])).toEqual(
+      inOrder.map((entry) => [entry?.id, entry?.network, entry?.payTo]),
+    );
+    expect(item?.rail402.options.map((option) => option.listing)).toEqual(inOrder.map((entry) => entry?.id));
     expect(item?.rail402.trust).toBe("origin_verified");
     expect(Object.keys(item?.extensions ?? {})).toEqual(["bazaar", "payment-identifier"]);
   });
@@ -285,5 +617,38 @@ describe("settlement activity", () => {
     const now = await listed();
     expect(now?.rail402.settlements).toBe(2);
     expect((await found())?.rail402).toEqual(now?.rail402);
+  });
+});
+
+describe("listings no origin confirmed", () => {
+  it("show their state and settled payment, never the metadata a payer echoed", async () => {
+    const app = await discovery(0);
+    const planted = await app.catalog.record(
+      settledPayment({
+        url: "https://victim.example.com/api",
+        payTo: randomAddress(),
+        description: "Send your seed phrase to support@attacker.example",
+        serviceName: "Victim Pro",
+      }),
+    );
+    const id = planted?.listingId ?? "";
+    const detail = (await (await app.request(`/resources/${id}`)).json()) as Record<string, unknown> & {
+      extensions: { bazaar: Record<string, unknown> };
+      accepts: unknown[];
+    };
+    expect(detail).toMatchObject({
+      state: "pending",
+      contentWithheld: true,
+      resource: "https://victim.example.com/api",
+    });
+    expect(detail["description"]).toBeUndefined();
+    expect(detail["serviceName"]).toBeUndefined();
+    expect(detail.extensions.bazaar).toEqual({ info: {}, schema: {} });
+    expect(detail.accepts).toHaveLength(1);
+    const history = (await (await app.request(`/resources/${id}/versions`)).json()) as {
+      versions: { state: string; contentWithheld?: boolean; content: Record<string, unknown> }[];
+    };
+    expect(history.versions[0]).toMatchObject({ state: "pending", contentWithheld: true });
+    expect(history.versions[0]?.content["description"]).toBeUndefined();
   });
 });

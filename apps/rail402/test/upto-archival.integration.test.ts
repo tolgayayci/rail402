@@ -14,6 +14,7 @@ import { Keypair } from "@stellar/stellar-sdk";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import { createEd25519Signer } from "@x402/stellar";
 import {
+  MemorySettlementLedger,
   MemoryTaskLock,
   contractLiveness,
   deriveAuthorityKeypair,
@@ -22,7 +23,7 @@ import {
 } from "@rail402.dev/facilitator";
 import { readContractTtl } from "@rail402.dev/stellar";
 import { UptoStellarScheme as UptoClient } from "@rail402.dev/upto/client";
-import { Metrics, UptoTtlKeeper } from "@rail402.dev/service";
+import { Metrics, UPTO_TTL_SPEND, UptoTtlKeeper } from "@rail402.dev/service";
 import {
   deployUpto,
   dockerAvailable,
@@ -221,6 +222,7 @@ describe.skipIf(!enabled)("upto against an archived settlement contract", () => 
   it("is restored by the TTL keeper where automatic restoration is allowed", async () => {
     await untilArchived();
     const metrics = new Metrics();
+    const spendLedger = new MemorySettlementLedger();
     const keeper = new UptoTtlKeeper({
       network: NETWORK,
       server: net.server,
@@ -240,8 +242,16 @@ describe.skipIf(!enabled)("upto against an archived settlement contract", () => 
       lock: new MemoryTaskLock(),
       metrics,
       log: silentLogger,
+      spend: {
+        reserve: (fee, limits) => spendLedger.reserveSponsorSpend(NETWORK, UPTO_TTL_SPEND, fee, limits),
+        settle: (id, fee) => spendLedger.settleSponsorSpend(id, fee),
+      },
     });
     expect(await keeper.tick()).toBe(true);
+    // Both transactions' fees are recorded, and count toward the network's hourly budget.
+    const spent = await spendLedger.sponsorSpendSince(NETWORK, new Date(Date.now() - 60_000));
+    expect(spent).toBeGreaterThan(0n);
+    expect(await spendLedger.committedFeesSince(NETWORK, new Date(Date.now() - 60_000))).toBe(spent);
     expect(keeper.snapshot()).toMatchObject({ plan: "none", lastAction: { action: "extend" } });
     expect((await metrics.uptoTtlKeeperActions.get()).values.map((entry) => entry.labels)).toEqual([
       { network: NETWORK, action: "restore", outcome: "ok" },
@@ -252,5 +262,40 @@ describe.skipIf(!enabled)("upto against an archived settlement contract", () => 
     expect(await keeper.tick()).toBe(false);
 
     await settlesAgain();
+  });
+
+  it("stops extending once the daily keeper cap is spent", async () => {
+    const spendLedger = new MemorySettlementLedger();
+    await spendLedger.recordSponsorSpend(NETWORK, UPTO_TTL_SPEND, 60_000_000n);
+    const keeper = new UptoTtlKeeper({
+      network: NETWORK,
+      server: net.server,
+      passphrase: net.passphrase,
+      sponsor: service.sponsor,
+      contract: contract.address,
+      wasmHash: contract.wasmHash,
+      ttl: {
+        keeper: true,
+        extendBelowLedgers: 5,
+        extendToLedgers: 500,
+        autoRestore: true,
+        maxFeeStroops: 50_000_000,
+        dailyMaxFeeStroops: 100_000_000,
+      },
+      inclusionFeeStroops: 100,
+      sponsorReserveStroops: 50_000_000n,
+      lock: new MemoryTaskLock(),
+      metrics: new Metrics(),
+      log: silentLogger,
+      spend: {
+        reserve: (fee, limits) => spendLedger.reserveSponsorSpend(NETWORK, UPTO_TTL_SPEND, fee, limits),
+        settle: (id, fee) => spendLedger.settleSponsorSpend(id, fee),
+      },
+    });
+    const before = await net.nativeBalance(service.sponsor.publicKey());
+    await expect(keeper.maintain("extend")).rejects.toThrow(/daily cap of 100000000/);
+    expect(keeper.snapshot().error).toMatch(/daily cap/);
+    expect(await net.nativeBalance(service.sponsor.publicKey())).toBe(before);
+    expect(await spendLedger.sponsorSpendSince(NETWORK, new Date(0))).toBe(60_000_000n);
   });
 });

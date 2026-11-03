@@ -1,12 +1,14 @@
 /**
- * A public x402 seller on the Stellar testnet, built from the stock x402 packages: express
+ * A public x402 seller on Stellar (testnet by default, or pubnet), built from the stock x402 packages: express
  * `paymentMiddleware`, the Stellar `exact` server scheme, the bazaar server extension and, for the
  * MCP tools, `@x402/mcp`. Every paid route and tool is declared with the Rail402 seller helpers, so
  * its Bazaar discovery metadata is complete and valid: a settled payment through Rail402 catalogs it,
  * and its unpaid 402 response is what Rail402's origin check confirms the listing against.
  * `POST /translate` also declares the payment-identifier extension, which discovery lists and
  * filters on. `GET /history` and the MCP tool `hourly_forecast` are metered with the `upto` scheme
- * (metered.ts): the buyer authorizes a cap and the seller settles what the call used.
+ * (metered.ts): the buyer authorizes a cap and the seller settles what the call used. Each settled
+ * payment is served once (`withSettleDedupe`), on every route and tool, and the payments the seller
+ * asks the facilitator about are limited per client and in total (limits.ts).
  */
 import express, { type Express } from "express";
 import { HTTPFacilitatorClient, x402ResourceServer, type FacilitatorClient } from "@x402/core/server";
@@ -24,8 +26,11 @@ import {
   httpRoute,
   param,
   setUptoCharge,
+  withSettleDedupe,
   type PaymentOption,
 } from "@rail402.dev/sdk/seller";
+import { Networks } from "@stellar/stellar-sdk";
+import { DEFAULT_PAID_LIMITS, PaidRequestLimits, type PaidLimits } from "./limits.ts";
 import { mcpHandler } from "./mcp.ts";
 import {
   METERED_PRICES,
@@ -35,8 +40,10 @@ import {
   historyFor,
   meteredOption,
   uptoReadiness,
+  type StellarNetwork,
 } from "./metered.ts";
 
+/** The network the seller serves when none is configured. */
 export const NETWORK = "stellar:testnet" as const;
 
 /** The hosted Rail402 testnet facilitator. */
@@ -45,8 +52,12 @@ export const DEFAULT_FACILITATOR_URL = "https://testnet.rail402.dev";
 export interface SellerOptions {
   /** The Stellar account (G…, C… or M…) that receives every payment. */
   readonly payTo: string;
+  /** `stellar:testnet` (default) or `stellar:pubnet`: the network every payment option names. */
+  readonly network?: StellarNetwork;
   /** The facilitator that verifies and settles payments; Rail402's hosted testnet by default. */
   readonly facilitator?: FacilitatorClient;
+  /** The facilitator's URL, shown on the free index route. */
+  readonly facilitatorUrl?: string;
   /**
    * Reverse proxies in front of the seller (Express `trust proxy`). Behind a TLS proxy, this makes the
    * resource URLs in 402 responses use the public `https` scheme and host.
@@ -58,15 +69,21 @@ export interface SellerOptions {
    */
   readonly publicUrl?: string;
   /**
-   * The token prices are paid in: a SEP-41 contract and its decimals. Circle's testnet USDC by
-   * default; a local network passes the USDC it issued.
+   * The token prices are paid in: a SEP-41 contract and its decimals. Circle's USDC on the seller's
+   * network by default; a local network passes the USDC it issued.
    */
   readonly asset?: { readonly contract: string; readonly decimals: number };
   /**
    * Serve the metered `upto` route and tool (true by default). They need a facilitator that serves
-   * `upto` on the testnet.
+   * `upto` on the seller's network.
    */
   readonly metered?: boolean;
+  /**
+   * Payments the seller asks the facilitator about per minute, per client and for all clients
+   * (`DEFAULT_PAID_LIMITS`). Each costs a verification and, when valid, a settlement, so keep the
+   * total well under the facilitator's limit for one address.
+   */
+  readonly paidLimits?: PaidLimits;
 }
 
 /** Each HTTP route's price in whole units of the payment asset (USDC); the MCP tools are in mcp.ts. */
@@ -76,16 +93,23 @@ export const PRICES = {
   translate: "0.002",
 } as const;
 
-/** The `exact` payment option for a price in whole units of `asset` (Circle's testnet USDC by default). */
-export function exactOption(payTo: string, amount: string, asset?: SellerOptions["asset"]): PaymentOption {
+/** The `exact` payment option for a price in whole units of `asset` (Circle's USDC by default). */
+export function exactOption(
+  payTo: string,
+  amount: string,
+  asset?: SellerOptions["asset"],
+  network: StellarNetwork = NETWORK,
+): PaymentOption {
   return exact({
-    network: NETWORK,
+    network,
     payTo,
     price: asset === undefined ? `$${amount}` : { amount, asset: asset.contract, decimals: asset.decimals },
   });
 }
 
 export { TOOL_PRICES, declareTools, type McpTools } from "./mcp.ts";
+export { sellerConfig, type DemoSellerConfig } from "./config.ts";
+export { DEFAULT_PAID_LIMITS, MAX_CLIENTS, PaidRequestLimits, type PaidLimits } from "./limits.ts";
 export {
   METERED_PRICES,
   baseUnits,
@@ -99,12 +123,22 @@ export {
  * informational routes.
  */
 export function createSeller(options: SellerOptions): Express {
-  const facilitator = options.facilitator ?? new HTTPFacilitatorClient({ url: DEFAULT_FACILITATOR_URL });
+  const network = options.network ?? NETWORK;
+  // An idempotent facilitator such as Rail402 answers every /settle of one payment with its success,
+  // and copies of a payment sent together all pass /verify before the first one settles. Every
+  // resource server settles through this client, so a payment is served once whatever its flow.
+  const facilitator = withSettleDedupe(
+    options.facilitator ?? new HTTPFacilitatorClient({ url: DEFAULT_FACILITATOR_URL }),
+  );
+  // The facilitator limits this seller by its address: payments that only have the right shape, from
+  // anyone, must not use up what paying buyers need. Counted on every resource server.
+  const limits = new PaidRequestLimits(options.paidLimits ?? DEFAULT_PAID_LIMITS);
   const resourceServer = new x402ResourceServer(facilitator)
-    .register(NETWORK, new ExactStellarScheme())
+    .register(network, new ExactStellarScheme())
     .registerExtension(bazaarResourceServerExtension)
-    .registerExtension(paymentIdentifierResourceServerExtension);
-  const pay = (amount: string): PaymentOption => exactOption(options.payTo, amount, options.asset);
+    .registerExtension(paymentIdentifierResourceServerExtension)
+    .onBeforeVerify(limits.beforeVerify);
+  const pay = (amount: string): PaymentOption => exactOption(options.payTo, amount, options.asset, network);
 
   const weather = httpRoute({
     method: "GET",
@@ -154,16 +188,19 @@ export function createSeller(options: SellerOptions): Express {
   const metered = options.metered !== false;
   const meteredServer = metered
     ? new x402ResourceServer(facilitator)
-        .register(NETWORK, new UptoStellarServerScheme())
+        .register(network, new UptoStellarServerScheme())
         .registerExtension(bazaarResourceServerExtension)
+        .onBeforeVerify(limits.beforeVerify)
     : undefined;
-  const meteredPayment = metered ? meteredOption(options.payTo, options.asset) : undefined;
+  const meteredPayment = metered ? meteredOption(options.payTo, options.asset, network) : undefined;
   const history = meteredPayment === undefined ? undefined : declareHistoryRoute(meteredPayment);
-  const meteredReady = meteredServer === undefined ? undefined : uptoReadiness(meteredServer);
+  const meteredReady = meteredServer === undefined ? undefined : uptoReadiness(meteredServer, network);
 
   const app = express();
   app.set("trust proxy", options.trustProxy ?? 0);
   app.use(express.json({ limit: "16kb" }));
+  // Before the payment middleware and the MCP endpoint: the limits key each payment by its client.
+  app.use(limits.track);
   app.use(
     paymentMiddleware(
       {
@@ -215,7 +252,7 @@ export function createSeller(options: SellerOptions): Express {
   });
 
   if (history !== undefined) {
-    const perDay = baseUnits(METERED_PRICES.perDay, options.asset);
+    const perDay = baseUnits(METERED_PRICES.perDay, options.asset, network);
     app.get("/history", (req, res) => {
       const days = historyDays(req.query["days"]);
       if (days === undefined) {
@@ -239,7 +276,7 @@ export function createSeller(options: SellerOptions): Express {
             resourceServer: meteredServer,
             ready: meteredReady,
             payment: meteredPayment,
-            perHour: baseUnits(METERED_PRICES.perHour, options.asset),
+            perHour: baseUnits(METERED_PRICES.perHour, options.asset, network),
           },
         }),
     ...(options.publicUrl === undefined ? {} : { publicUrl: options.publicUrl }),
@@ -247,7 +284,7 @@ export function createSeller(options: SellerOptions): Express {
   app.post("/mcp", mcp.post);
   app.all("/mcp", mcp.other);
 
-  // SEP-1: this domain lists the payTo account in ACCOUNTS. Only together with the payTo account naming
+  // SEP-1: this domain lists the payTo account in ACCOUNTS, under the passphrase of the seller's network. Only together with the payTo account naming
   // this host as its home_domain (set on the account itself) does the Bazaar raise this seller's
   // origin-verified listings to `domain_verified`: a one-way claim proves nothing.
   app.get("/.well-known/stellar.toml", (_req, res) => {
@@ -255,7 +292,7 @@ export function createSeller(options: SellerOptions): Express {
       .type("text/plain")
       .set("access-control-allow-origin", "*")
       .send(
-        `VERSION = "2.7.0"\nNETWORK_PASSPHRASE = "Test SDF Network ; September 2015"\nACCOUNTS = ["${options.payTo}"]\n`,
+        `VERSION = "2.7.0"\nNETWORK_PASSPHRASE = "${network === "stellar:pubnet" ? Networks.PUBLIC : Networks.TESTNET}"\nACCOUNTS = ["${options.payTo}"]\n`,
       );
   });
   // Free: not an x402 resource, so a listing for it is never published.
@@ -264,8 +301,8 @@ export function createSeller(options: SellerOptions): Express {
   });
   app.get("/", (_req, res) => {
     res.json({
-      network: NETWORK,
-      facilitator: DEFAULT_FACILITATOR_URL,
+      network,
+      facilitator: options.facilitatorUrl ?? DEFAULT_FACILITATOR_URL,
       paid: ["GET /weather?city=…", "GET /users/:id", "POST /translate"],
       metered: history === undefined ? [] : ["GET /history?city=…&days=…"],
       mcp: {

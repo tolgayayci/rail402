@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -5,11 +6,17 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FacilitatorClient } from "@x402/core/server";
-import { decodePaymentRequiredHeader } from "@x402/core/http";
-import type { PaymentRequired } from "@x402/core/types";
+import {
+  decodePaymentRequiredHeader,
+  decodePaymentResponseHeader,
+  encodePaymentSignatureHeader,
+} from "@x402/core/http";
+import type { PaymentPayload, PaymentRequired } from "@x402/core/types";
 import { accountsOf } from "@rail402.dev/bazaar";
 import { validateListing } from "@rail402.dev/sdk/seller";
 import {
+  MAX_CLIENTS,
+  PaidRequestLimits,
   createSeller,
   declareHistoryRoute,
   declareHourlyForecast,
@@ -19,6 +26,7 @@ import {
   baseUnits,
   METERED_PRICES,
   NETWORK,
+  sellerConfig,
 } from "@rail402.dev/demo-seller";
 
 /** Circle's USDC on the Stellar testnet: the seller's default price asset. */
@@ -372,5 +380,499 @@ describe("demo seller", () => {
         await new Promise((resolve) => app.close(resolve));
       }
     });
+  });
+});
+
+/** Rail402's mark on a /settle answer that repeats an earlier settlement of the same payment. */
+const REPEAT_MARKER = { rail402: { settlement: { repeat: true } } };
+
+/**
+ * A facilitator that settles like an idempotent one, Rail402 included: copies of one payment sent
+ * together all pass /verify, since none of them has settled yet, and every /settle after the first
+ * answers the first one's success again, with Rail402's repeat marker unless `marked` is false.
+ */
+function idempotentFacilitator(marked = true) {
+  const payer = Keypair.random().publicKey();
+  const settled = new Map<string, string>();
+  const client: FacilitatorClient = {
+    getSupported: () => facilitator.getSupported(),
+    verify: () => Promise.resolve({ isValid: true, payer }),
+    settle: (payload, requirements) => {
+      const key = JSON.stringify(payload.payload);
+      const earlier = settled.get(key);
+      const transaction = earlier ?? createHash("sha256").update(key).digest("hex");
+      settled.set(key, transaction);
+      return Promise.resolve({
+        success: true,
+        transaction,
+        network: requirements.network,
+        payer,
+        ...(earlier !== undefined && marked ? { extensionResponses: REPEAT_MARKER } : {}),
+      });
+    },
+  };
+  return { client, settlements: () => settled.size };
+}
+
+/** A payment for the first option of a 402; the facilitator decides whether it is any good. */
+function paymentFor(required: PaymentRequired, payload: Record<string, unknown>): PaymentPayload {
+  const [accepted] = required.accepts;
+  if (accepted === undefined) throw new Error("the 402 offers no payment option");
+  return { x402Version: 2, resource: required.resource, accepted, payload };
+}
+
+describe("demo seller serving each payment once", () => {
+  const payTo = Keypair.random().publicKey();
+  const listen = async (client: FacilitatorClient) => {
+    const app = createSeller({ payTo, facilitator: client }).listen(0, "127.0.0.1");
+    await new Promise((resolve) => app.once("listening", resolve));
+    return { app, origin: `http://127.0.0.1:${String((app.address() as AddressInfo).port)}` };
+  };
+  const close = (app: Server) => new Promise((resolve) => app.close(resolve));
+
+  /** Sends one payment for `path` three times at once; returns each answer's status and settlement. */
+  const sendCopies = async (origin: string, path: string, payload: Record<string, unknown>) => {
+    const unpaid = await fetch(`${origin}${path}`);
+    expect(unpaid.status, path).toBe(402);
+    const required = decodePaymentRequiredHeader(unpaid.headers.get("payment-required") ?? "");
+    const headers = { "payment-signature": encodePaymentSignatureHeader(paymentFor(required, payload)) };
+    const answers = await Promise.all([0, 1, 2].map(() => fetch(`${origin}${path}`, { headers })));
+    return Promise.all(
+      answers.map(async (answer) => {
+        await answer.body?.cancel();
+        const settlement = answer.headers.get("payment-response");
+        return {
+          status: answer.status,
+          settlement: settlement === null ? undefined : decodePaymentResponseHeader(settlement),
+        };
+      }),
+    );
+  };
+
+  it("serves concurrent copies of one payment once, whether or not the facilitator marks the repeats", async () => {
+    for (const marked of [true, false]) {
+      const paid = idempotentFacilitator(marked);
+      const { app, origin } = await listen(paid.client);
+      try {
+        const answers = await sendCopies(origin, "/weather?city=Ankara", { transaction: "AAAA" });
+        expect(answers.map((answer) => answer.status).sort(), `marked: ${String(marked)}`).toEqual([
+          200, 402, 402,
+        ]);
+        const refused = answers.filter((answer) => answer.status === 402);
+        for (const { settlement } of refused) {
+          expect(settlement).toMatchObject({ success: false, errorReason: "seller_settlement_repeat" });
+        }
+        expect(paid.settlements()).toBe(1);
+      } finally {
+        await close(app);
+      }
+    }
+  });
+
+  it("serves concurrent copies of one metered payment once", async () => {
+    const paid = idempotentFacilitator();
+    const { app, origin } = await listen(paid.client);
+    try {
+      const answers = await sendCopies(origin, "/history?city=Ankara&days=3", { authorization: "AAAA" });
+      expect(answers.map((answer) => answer.status).sort()).toEqual([200, 402, 402]);
+      expect(paid.settlements()).toBe(1);
+    } finally {
+      await close(app);
+    }
+  });
+
+  it("serves concurrent copies of one paid tool call once, metered or not", async () => {
+    const paid = idempotentFacilitator();
+    const { app, origin } = await listen(paid.client);
+    const client = new Client({ name: "demo-seller-test", version: "1.0.0" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)));
+    try {
+      for (const [name, args] of [
+        ["forecast", { city: "Izmir" }],
+        ["hourly_forecast", { city: "Izmir", hours: 6 }],
+      ] as const) {
+        const unpaid = await client.callTool({ name, arguments: args });
+        const payment = paymentFor(unpaid.structuredContent as PaymentRequired, { transaction: name });
+        const results = await Promise.all(
+          [0, 1, 2].map(() => client.callTool({ name, arguments: args, _meta: { "x402/payment": payment } })),
+        );
+        const served = results.filter((result) => result.isError !== true);
+        expect(served, name).toHaveLength(1);
+        expect(served[0]?.structuredContent, name).toMatchObject({ city: "Izmir" });
+      }
+      expect(paid.settlements()).toBe(2);
+    } finally {
+      await client.close();
+      await close(app);
+    }
+  });
+});
+
+/**
+ * A facilitator that refuses every payment, as it does one that only has the right shape (anyone can
+ * copy that from a 402), and counts the verifications that reached it.
+ */
+function refusingFacilitator() {
+  const calls = { verify: 0 };
+  const client: FacilitatorClient = {
+    getSupported: () => facilitator.getSupported(),
+    verify: () => {
+      calls.verify += 1;
+      return Promise.resolve({ isValid: false, invalidReason: "invalid_exact_stellar_payload_malformed" });
+    },
+    settle: () => Promise.reject(new Error("not used")),
+  };
+  return { client, calls };
+}
+
+describe("demo seller limits on paid requests", () => {
+  const payTo = Keypair.random().publicKey();
+  const listen = async (client: FacilitatorClient, paidLimits: { perClient: number; global: number }) => {
+    // One proxy in front: each request names its client in X-Forwarded-For.
+    const app = createSeller({ payTo, facilitator: client, trustProxy: 1, paidLimits }).listen(
+      0,
+      "127.0.0.1",
+    );
+    await new Promise((resolve) => app.once("listening", resolve));
+    return { app, origin: `http://127.0.0.1:${String((app.address() as AddressInfo).port)}` };
+  };
+  const close = (app: Server) => new Promise((resolve) => app.close(resolve));
+
+  /** A PAYMENT-SIGNATURE for GET /weather that only has the shape of a payment. */
+  const shapedPayment = async (origin: string) => {
+    const unpaid = await fetch(`${origin}/weather?city=Ankara`);
+    const required = decodePaymentRequiredHeader(unpaid.headers.get("payment-required") ?? "");
+    return encodePaymentSignatureHeader(paymentFor(required, { transaction: "AAAA" }));
+  };
+  /** The status of a request and the code its 402 carries. */
+  const answer = async (response: Response) => {
+    await response.body?.cancel();
+    const required = response.headers.get("payment-required");
+    return {
+      status: response.status,
+      code: required === null ? undefined : decodePaymentRequiredHeader(required).error,
+      retryAfter: response.headers.get("retry-after"),
+    };
+  };
+  const pay = async (origin: string, header: string, client: string) =>
+    answer(
+      await fetch(`${origin}/weather?city=Ankara`, {
+        headers: { "payment-signature": header, "x-forwarded-for": client },
+      }),
+    );
+  /** The code each client's payment is answered with: the facilitator's refusal, or the limit's. */
+  const codesOf = async (origin: string, header: string, clients: readonly string[]) => {
+    const codes: (string | undefined)[] = [];
+    for (const client of clients) codes.push((await pay(origin, header, client)).code);
+    return codes;
+  };
+  const REFUSED = "invalid_exact_stellar_payload_malformed";
+  const LIMITED = "rate_limited";
+  /** The `error` of each paid tool call's result in an MCP answer sent as server-sent events. */
+  const errorsOf = (body: string) =>
+    body
+      .split("\n")
+      .filter((line) => line.startsWith("data: "))
+      .map((line) => JSON.parse(line.slice("data: ".length)) as { result?: { structuredContent?: unknown } })
+      .map((message) => (message.result?.structuredContent as { error?: unknown } | undefined)?.error);
+
+  it("limits each client's paid requests before they reach the facilitator", async () => {
+    const paid = refusingFacilitator();
+    const { app, origin } = await listen(paid.client, { perClient: 2, global: 10 });
+    try {
+      const header = await shapedPayment(origin);
+      const client = "203.0.113.7";
+      expect(await codesOf(origin, header, [client, client])).toEqual([REFUSED, REFUSED]);
+      const limited = await pay(origin, header, client);
+      expect(limited).toMatchObject({ status: 402, code: LIMITED });
+      expect(Number(limited.retryAfter)).toBeGreaterThan(0);
+      expect(paid.calls.verify).toBe(2);
+      // Another client's payment, the same client's unpaid request and the free routes still pass.
+      expect((await pay(origin, header, "203.0.113.8")).code).toBe(REFUSED);
+      const unpaid = await fetch(`${origin}/weather?city=Ankara`, { headers: { "x-forwarded-for": client } });
+      expect(await answer(unpaid)).toMatchObject({ status: 402, code: "Payment required" });
+      expect((await fetch(`${origin}/health`, { headers: { "x-forwarded-for": client } })).status).toBe(200);
+      expect(paid.calls.verify).toBe(3);
+    } finally {
+      await close(app);
+    }
+  });
+
+  it("limits paid requests across all clients, however many addresses send them", async () => {
+    const paid = refusingFacilitator();
+    const { app, origin } = await listen(paid.client, { perClient: 2, global: 3 });
+    try {
+      const header = await shapedPayment(origin);
+      const clients = ["198.51.100.1", "198.51.100.2", "198.51.100.3", "198.51.100.4", "198.51.100.5"];
+      expect(await codesOf(origin, header, clients)).toEqual([REFUSED, REFUSED, REFUSED, LIMITED, LIMITED]);
+      expect(paid.calls.verify).toBe(3);
+      // The metered route draws on the same limits.
+      const unpaid = await fetch(`${origin}/history?city=Ankara&days=3`);
+      const required = decodePaymentRequiredHeader(unpaid.headers.get("payment-required") ?? "");
+      const metered = await fetch(`${origin}/history?city=Ankara&days=3`, {
+        headers: {
+          "payment-signature": encodePaymentSignatureHeader(paymentFor(required, { authorization: "AAAA" })),
+          "x-forwarded-for": "198.51.100.6",
+        },
+      });
+      expect(await answer(metered)).toMatchObject({ status: 402, code: LIMITED });
+      expect(paid.calls.verify).toBe(3);
+    } finally {
+      await close(app);
+    }
+  });
+
+  it("counts only the payments it asks the facilitator about, never a request that carries none", async () => {
+    const paid = refusingFacilitator();
+    const { app, origin } = await listen(paid.client, { perClient: 60, global: 2 });
+    try {
+      const junkClients = ["192.0.2.10", "192.0.2.11", "192.0.2.12"];
+      const junk = async (path: string, headers: Record<string, string>, body?: string) => {
+        for (const client of junkClients) {
+          const response = await fetch(`${origin}${path}`, {
+            ...(body === undefined ? {} : { method: "POST", body }),
+            headers: { ...headers, "x-forwarded-for": client },
+          });
+          await response.body?.cancel();
+        }
+      };
+      const json = { "content-type": "application/json", accept: "application/json, text/event-stream" };
+      const meta = { "x402/payment": { x402Version: 2, payload: { transaction: "AAAA" } } };
+      // Payment headers on free and unknown routes, empty or undecodable ones on a paid route.
+      await junk("/health", { "payment-signature": "x" });
+      await junk("/nope", { "payment-signature": "x", "x-payment": "x" });
+      await junk("/weather?city=Ankara", { "payment-signature": "" });
+      await junk("/weather?city=Ankara", { "payment-signature": "x" });
+      await junk("/weather?city=Ankara", { "x-payment": "x" });
+      // A payment in a JSON body where no tool reads it, or on a free tool, or one that is not a payment.
+      const call = (name: string, payment: unknown) =>
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name, arguments: { city: "Izmir" }, _meta: { "x402/payment": payment } },
+        });
+      await junk("/translate", json, JSON.stringify({ params: { _meta: meta } }));
+      await junk("/mcp", json, call("ping", meta["x402/payment"]));
+      await junk("/mcp", json, call("forecast", "x"));
+      expect(paid.calls.verify).toBe(0);
+
+      // The pool every client shares is untouched: real attempts from new clients still reach it.
+      const header = await shapedPayment(origin);
+      const codes = await codesOf(origin, header, ["203.0.113.1", "203.0.113.2", "203.0.113.3"]);
+      expect(paid.calls.verify).toBe(2);
+      expect(codes).toEqual([REFUSED, REFUSED, LIMITED]);
+      expect(paid.calls.verify).toBe(2);
+    } finally {
+      await close(app);
+    }
+  });
+
+  it("counts the IPv6 addresses of one /56 as one client, and IPv4 written as IPv6 as that IPv4", async () => {
+    const paid = refusingFacilitator();
+    const { app, origin } = await listen(paid.client, { perClient: 1, global: 100 });
+    try {
+      const header = await shapedPayment(origin);
+      // One IPv4 client, however its address is written: mapped, compatible or NAT64, hex or dotted.
+      const ipv4 = ["::ffff:c000:201", "::ffff:192.0.2.1", "::192.0.2.1", "64:ff9b::c000:201"];
+      const asIpv4 = await codesOf(origin, header, ["192.0.2.1", ...ipv4]);
+      expect(paid.calls.verify).toBe(1);
+      expect(asIpv4).toEqual([REFUSED, ...ipv4.map(() => LIMITED)]);
+      expect(await codesOf(origin, header, ["::ffff:c000:202"])).toEqual([REFUSED]);
+      // One IPv6 client per /56.
+      expect(await codesOf(origin, header, ["2001:db8:1:100::1", "2001:db8:1:1ff:ffff::3"])).toEqual([
+        REFUSED,
+        LIMITED,
+      ]);
+      expect(await codesOf(origin, header, ["2001:db8:1:200::1"])).toEqual([REFUSED]);
+      expect(paid.calls.verify).toBe(4);
+    } finally {
+      await close(app);
+    }
+  });
+
+  it("counts every paid tool call an MCP request carries, and never a free call", async () => {
+    const paid = refusingFacilitator();
+    const { app, origin } = await listen(paid.client, { perClient: 2, global: 10 });
+    const mcp = new Client({ name: "demo-seller-test", version: "1.0.0" });
+    await mcp.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)));
+    try {
+      const unpaid = await mcp.callTool({ name: "forecast", arguments: { city: "Izmir" } });
+      const payment = paymentFor(unpaid.structuredContent as PaymentRequired, { transaction: "AAAA" });
+      let id = 0;
+      const call = (method: string, params: Record<string, unknown>) => ({
+        jsonrpc: "2.0",
+        id: (id += 1),
+        method,
+        params,
+      });
+      const paidCall = () =>
+        call("tools/call", {
+          name: "forecast",
+          arguments: { city: "Izmir" },
+          _meta: { "x402/payment": payment },
+        });
+      const post = async (body: unknown, client = "203.0.113.9") => {
+        const response = await fetch(`${origin}/mcp`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            accept: "application/json, text/event-stream",
+            "x-forwarded-for": client,
+          },
+          body: JSON.stringify(body),
+        });
+        return { status: response.status, body: await response.text() };
+      };
+
+      // Three paid calls in one batch are three paid requests: one more than this client may make.
+      const batch = await post([paidCall(), paidCall(), paidCall()]);
+      expect(batch.status).toBe(200);
+      expect(errorsOf(batch.body).sort()).toEqual([REFUSED, REFUSED, LIMITED].sort());
+      expect(paid.calls.verify).toBe(2);
+      expect(errorsOf((await post(paidCall())).body)).toEqual([LIMITED]);
+      expect(paid.calls.verify).toBe(2);
+      // Free calls are not counted; another client's paid call is its own.
+      expect((await post(call("tools/list", {}))).status).toBe(200);
+      expect(errorsOf((await post(paidCall(), "203.0.113.10")).body)).toEqual([REFUSED]);
+      expect(paid.calls.verify).toBe(3);
+    } finally {
+      await mcp.close();
+      await close(app);
+    }
+  });
+
+  it("keeps a bounded number of clients in memory, forgetting the least recently seen", () => {
+    const limits = new PaidRequestLimits({ perClient: 1, global: 1_000_000 }, () => 0);
+    expect(limits.admit("192.0.2.1")).toBe(0);
+    expect(limits.admit("192.0.2.1")).toBeGreaterThan(0);
+    for (let client = 0; client < MAX_CLIENTS; client += 1) {
+      expect(
+        limits.admit(`10.${String(client >> 16)}.${String((client >> 8) & 255)}.${String(client & 255)}`),
+      ).toBe(0);
+    }
+    expect(limits.clients).toBe(MAX_CLIENTS);
+    // Forgotten, so it starts again with a full allowance; the total pool still bounds every client.
+    expect(limits.admit("192.0.2.1")).toBe(0);
+    expect(limits.clients).toBe(MAX_CLIENTS);
+  });
+});
+
+/** Circle's USDC on the Stellar public network. */
+const PUBNET_USDC = "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75";
+
+describe("demo seller on pubnet", () => {
+  const payTo = Keypair.random().publicKey();
+  const pubnetFacilitator: FacilitatorClient = {
+    getSupported: () =>
+      Promise.resolve({
+        kinds: [
+          { x402Version: 2, scheme: "exact", network: "stellar:pubnet", extra: { areFeesSponsored: true } },
+        ],
+        extensions: ["bazaar"],
+        signers: {},
+      }),
+    verify: () => Promise.reject(new Error("not used")),
+    settle: () => Promise.reject(new Error("not used")),
+  };
+  let server: Server;
+  let base: string;
+
+  beforeAll(async () => {
+    server = createSeller({
+      payTo,
+      network: "stellar:pubnet",
+      facilitator: pubnetFacilitator,
+      facilitatorUrl: "https://facilitator.example",
+      metered: false,
+    }).listen(0, "127.0.0.1");
+    await new Promise((resolve) => server.once("listening", resolve));
+    base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  });
+  afterAll(async () => {
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  it("asks for pubnet USDC and names its facilitator", async () => {
+    const response = await fetch(`${base}/weather?city=Ankara`);
+    expect(response.status).toBe(402);
+    const paymentRequired = decodePaymentRequiredHeader(response.headers.get("payment-required") ?? "");
+    expect(paymentRequired.accepts).toEqual([
+      expect.objectContaining({ scheme: "exact", network: "stellar:pubnet", asset: PUBNET_USDC, payTo }),
+    ]);
+    expect(await (await fetch(`${base}/`)).json()).toMatchObject({
+      network: "stellar:pubnet",
+      facilitator: "https://facilitator.example",
+      metered: [],
+    });
+  });
+
+  it("claims its payTo under the pubnet passphrase in stellar.toml", async () => {
+    const text = await (await fetch(`${base}/.well-known/stellar.toml`)).text();
+    expect(text).toContain('NETWORK_PASSPHRASE = "Public Global Stellar Network ; September 2015"');
+    expect(accountsOf(text)).toEqual({ ok: true, accounts: [payTo] });
+  });
+});
+
+describe("demo seller configuration", () => {
+  const payTo = Keypair.random().publicKey();
+
+  it("defaults to testnet, the hosted facilitator and metered routes", () => {
+    expect(sellerConfig({ PAY_TO: payTo })).toMatchObject({
+      network: "stellar:testnet",
+      facilitatorUrl: undefined,
+      asset: undefined,
+      metered: true,
+      port: 8080,
+    });
+  });
+
+  it("limits paid requests per client and in total, at most what the facilitator allows one address", () => {
+    // Each paid request costs a verify and a settle; the facilitator's default is 600 per minute.
+    const { paidLimits } = sellerConfig({ PAY_TO: payTo });
+    expect(paidLimits).toEqual({ perClient: 60, global: 120 });
+    expect(paidLimits.global * 2).toBeLessThan(600);
+    expect(
+      sellerConfig({ PAY_TO: payTo, PAID_PER_MINUTE: "10", PAID_GLOBAL_PER_MINUTE: "50" }).paidLimits,
+    ).toEqual({ perClient: 10, global: 50 });
+    for (const env of [{ PAID_PER_MINUTE: "0" }, { PAID_GLOBAL_PER_MINUTE: "0" }, { PAID_PER_MINUTE: "x" }]) {
+      expect(() => sellerConfig({ PAY_TO: payTo, ...env }), JSON.stringify(env)).toThrow(/PAID_/);
+    }
+  });
+
+  it("needs an https facilitator on pubnet, and turns metering off there by default", () => {
+    expect(() => sellerConfig({ PAY_TO: payTo, NETWORK: "stellar:pubnet" })).toThrow(
+      /FACILITATOR_URL is required/,
+    );
+    expect(() =>
+      sellerConfig({
+        PAY_TO: payTo,
+        NETWORK: "stellar:pubnet",
+        FACILITATOR_URL: "http://facilitator.example",
+      }),
+    ).toThrow(/https/);
+    expect(
+      sellerConfig({
+        PAY_TO: payTo,
+        NETWORK: "stellar:pubnet",
+        FACILITATOR_URL: "https://facilitator.example",
+      }),
+    ).toMatchObject({ network: "stellar:pubnet", metered: false });
+  });
+
+  it("reads the asset and refuses invalid values", () => {
+    expect(sellerConfig({ PAY_TO: payTo, ASSET: `${PUBNET_USDC}:7` }).asset).toEqual({
+      contract: PUBNET_USDC,
+      decimals: 7,
+    });
+    for (const env of [
+      { PAY_TO: "nobody" },
+      { PAY_TO: payTo, NETWORK: "stellar:mainnet" },
+      { PAY_TO: payTo, ASSET: "USDC" },
+      { PAY_TO: payTo, METERED: "maybe" },
+      { PAY_TO: payTo, PUBLIC_URL: "https://x.example/path" },
+    ]) {
+      expect(() => sellerConfig(env), JSON.stringify(env)).toThrow();
+    }
   });
 });

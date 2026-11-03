@@ -5,6 +5,7 @@ import { silentLogger, type StellarFacilitator } from "@rail402.dev/facilitator"
 import {
   CounterWindows,
   HealthMonitor,
+  publicHealth,
   Metrics,
   bucketQuantile,
   createApp,
@@ -92,9 +93,14 @@ describe("HealthMonitor", () => {
       warnings: [],
       networks: {
         [NETWORK]: {
+          state: "serving",
+          holdReason: null,
+          servingSince: null,
+          status: "healthy",
           rpc: { ok: true, latestLedger: 1_000, ledgerAgeSeconds: 3, transportErrors1h: 0 },
           sponsor: {
             address: SPONSOR,
+            funded: true,
             balanceStroops: "500000000",
             committed1hStroops: "12345",
             wasted1hStroops: "0",
@@ -134,6 +140,80 @@ describe("HealthMonitor", () => {
     expect(snapshot.search?.p95Ms).toBeLessThanOrEqual(25);
     // The handler serves exactly this object until the next refresh.
     expect(health.snapshot()).toBe(snapshot);
+  });
+
+  it("warns at 80 % of the hourly fee budget, never in the public view of pubnet", async () => {
+    const { health } = monitor();
+    const below = await health.refresh({
+      networks: [
+        network({
+          sponsor: {
+            address: SPONSOR,
+            balanceStroops: 500_000_000n,
+            floorStroops: 0n,
+            committed1hStroops: 79n,
+            budgetStroops: 100n,
+          },
+        }),
+      ],
+    });
+    expect(below.warnings.map((warning) => warning.code)).not.toContain("sponsor_budget_high");
+    const high = await health.refresh({
+      networks: [
+        network({
+          sponsor: {
+            address: SPONSOR,
+            balanceStroops: 500_000_000n,
+            floorStroops: 0n,
+            committed1hStroops: 80n,
+            budgetStroops: 100n,
+          },
+        }),
+        network({
+          network: "stellar:pubnet",
+          sponsor: {
+            address: SPONSOR,
+            balanceStroops: 500_000_000n,
+            floorStroops: 0n,
+            committed1hStroops: 95n,
+            budgetStroops: 100n,
+          },
+        }),
+      ],
+    });
+    const warnings = high.warnings.filter((warning) => warning.code === "sponsor_budget_high");
+    expect(warnings.map((warning) => [warning.network, warning.severity])).toEqual([
+      [NETWORK, "warning"],
+      ["stellar:pubnet", "warning"],
+    ]);
+    expect(warnings[0]?.message).toMatch(/80 %/);
+    // The public view keeps testnet's warning and leaves pubnet's out: it would reveal budget state.
+    const view = publicHealth(high).warnings.filter((warning) => warning.code === "sponsor_budget_high");
+    expect(view.map((warning) => warning.network)).toEqual([NETWORK]);
+    expect(view[0]?.message).toMatch(/80 %/);
+    expect(JSON.stringify(publicHealth(high))).not.toMatch(/operatorOnly|publicMessage/);
+  });
+
+  it("keeps access keys out of the public view: no counts, no reload state, no error code", async () => {
+    const { health } = monitor();
+    const snapshot = await health.refresh({
+      networks: [network()],
+      access: {
+        keys: { active: 3, expired: 1, revoked: 2 },
+        lastReloadAt: new Date(clock).toISOString(),
+        reloadError: "config_access_keys_invalid",
+        fileSha256: "ab".repeat(32),
+      },
+    });
+    expect(snapshot.access?.keys).toEqual({ active: 3, expired: 1, revoked: 2 });
+    expect(snapshot.access?.fileSha256).toBe("ab".repeat(32));
+    const view = publicHealth(snapshot);
+    expect(view.access).toBeUndefined();
+    const warning = view.warnings.find((entry) => entry.code === "access_keys_reload_failed");
+    expect(warning).toMatchObject({ severity: "critical" });
+    expect(warning?.message).not.toMatch(/config_access_keys_invalid/);
+    expect(JSON.stringify(view)).not.toMatch(/config_access_keys_invalid|revoked|lastReloadAt|publicMessage/);
+    expect(view.state).toBe("degraded");
   });
 
   it("degrades on every critical condition and only warns on a TTL below the warning level", async () => {

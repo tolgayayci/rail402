@@ -81,10 +81,10 @@ describe("meterRpcServer", () => {
     await expect(unreachable.getHealth()).rejects.toThrow();
 
     expect(await lines(metrics, "rail402_rpc_requests_total")).toEqual([
-      'rail402_rpc_requests_total{network="stellar:testnet",method="getHealth",outcome="ok"} 1',
-      'rail402_rpc_requests_total{network="stellar:testnet",method="getHealth",outcome="rpc_error"} 1',
-      'rail402_rpc_requests_total{network="stellar:testnet",method="getNetwork",outcome="http_error"} 1',
-      'rail402_rpc_requests_total{network="stellar:testnet",method="getHealth",outcome="network_error"} 1',
+      'rail402_rpc_requests_total{network="stellar:testnet",provider="primary",method="getHealth",outcome="ok"} 1',
+      'rail402_rpc_requests_total{network="stellar:testnet",provider="primary",method="getHealth",outcome="rpc_error"} 1',
+      'rail402_rpc_requests_total{network="stellar:testnet",provider="primary",method="getNetwork",outcome="http_error"} 1',
+      'rail402_rpc_requests_total{network="stellar:testnet",provider="primary",method="getHealth",outcome="network_error"} 1',
     ]);
     expect(await lines(metrics, "rail402_rpc_request_duration_seconds_count")).toEqual([
       'rail402_rpc_request_duration_seconds_count{network="stellar:testnet",method="getHealth"} 3',

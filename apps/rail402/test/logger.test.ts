@@ -1,6 +1,10 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Writable } from "node:stream";
+import { destination as fileDestination } from "pino";
 import { describe, expect, it } from "vitest";
-import { createLogger } from "../src/logger.ts";
+import { afterLogsWritten, createLogger } from "../src/logger.ts";
 
 function capture() {
   const lines: Record<string, unknown>[] = [];
@@ -52,9 +56,52 @@ describe("logger", () => {
     expect((lines[0]?.["err"] as Record<string, unknown>)["message"]).toEqual(expect.any(String));
   });
 
+  it("redacts X-API-Key and Authorization headers", () => {
+    const { lines, log } = capture();
+    log.info(
+      { req: { headers: { "x-api-key": "r402_acme_SECRETKEY", authorization: "Bearer r402_acme_OTHER" } } },
+      "request",
+    );
+    log.info(
+      { request: { headers: { "x-api-key": "r402_acme_NESTED", authorization: "Bearer NESTED2" } } },
+      "nested",
+    );
+    expect(JSON.stringify(lines)).not.toMatch(/SECRETKEY|OTHER|NESTED/);
+    expect(lines[0]?.["req"]).toEqual({
+      headers: { "x-api-key": "[redacted]", authorization: "[redacted]" },
+    });
+  });
+
   it("keeps a top-level transaction hash visible", () => {
     const { lines, log } = capture();
     log.info({ transaction: "82844c5c" }, "settlement finished");
     expect(lines[0]?.["transaction"]).toBe("82844c5c");
+  });
+});
+
+describe("afterLogsWritten", () => {
+  it("calls back once every line logged so far has been written out, in order", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "rail402-log-"));
+    try {
+      const file = join(directory, "out.log");
+      const destination = fileDestination({ dest: file, sync: false });
+      await new Promise((resolve) => destination.once("ready", resolve));
+      const log = createLogger({ level: "info", version: "test" }, destination);
+      for (let i = 0; i < 200; i++) log.info({ i }, "line");
+      log.info({}, "last");
+      const started = performance.now();
+      await new Promise<void>((resolve) => {
+        afterLogsWritten(log, resolve);
+      });
+      // The destination drained: no need to wait for the fallback.
+      expect(performance.now() - started).toBeLessThan(900);
+      const messages = readFileSync(file, "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => (JSON.parse(line) as { msg: string; i?: number }).i ?? "last");
+      expect(messages).toEqual([...Array.from({ length: 200 }, (_, i) => i), "last"]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });

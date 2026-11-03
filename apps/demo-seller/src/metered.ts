@@ -18,6 +18,10 @@ import {
   type Price,
 } from "@rail402.dev/sdk/seller";
 
+/** The networks the seller can serve, by CAIP-2 id. */
+export type StellarNetwork = "stellar:testnet" | "stellar:pubnet";
+
+/** The network the seller serves when none is configured. */
 export const NETWORK = "stellar:testnet" as const;
 
 /** Prices of the metered resources in whole units of the payment asset (USDC). */
@@ -33,7 +37,7 @@ export const METERED_PRICES = {
 export const MAX_HISTORY_DAYS = 30;
 export const MAX_FORECAST_HOURS = 48;
 
-/** The token prices are paid in; Circle's testnet USDC when undefined. */
+/** The token prices are paid in; Circle's USDC on the seller's network when undefined. */
 export type PriceAsset = { readonly contract: string; readonly decimals: number } | undefined;
 
 function priceOf(amount: string, asset: PriceAsset): Price {
@@ -41,14 +45,18 @@ function priceOf(amount: string, asset: PriceAsset): Price {
 }
 
 /** An amount in base units of the payment asset. */
-export function baseUnits(amount: string, asset: PriceAsset): bigint {
-  return BigInt(resolvePrice(priceOf(amount, asset), NETWORK).amount);
+export function baseUnits(amount: string, asset: PriceAsset, network: StellarNetwork = NETWORK): bigint {
+  return BigInt(resolvePrice(priceOf(amount, asset), network).amount);
 }
 
 /** The upto payment option for the metered resources: capped at `METERED_PRICES.cap`. */
-export function meteredOption(payTo: string, asset: PriceAsset): PaymentOption {
+export function meteredOption(
+  payTo: string,
+  asset: PriceAsset,
+  network: StellarNetwork = NETWORK,
+): PaymentOption {
   return upto({
-    network: NETWORK,
+    network,
     payTo,
     maxPrice: priceOf(METERED_PRICES.cap, asset),
     // Covers the handler and the settlement with room to spare; the authorization is single-use.
@@ -58,17 +66,20 @@ export function meteredOption(payTo: string, asset: PriceAsset): PaymentOption {
 
 /**
  * Reads the facilitator's /supported through `server` once and checks that it serves upto on the
- * testnet. A failure is retried on the next call, so the metered resources come online once the
+ * seller's network. A failure is retried on the next call, so the metered resources come online once the
  * facilitator does.
  */
-export function uptoReadiness(server: x402ResourceServer): () => Promise<void> {
+export function uptoReadiness(
+  server: x402ResourceServer,
+  network: StellarNetwork = NETWORK,
+): () => Promise<void> {
   let ready: Promise<void> | undefined;
   return () => {
     ready ??= server
       .initialize()
       .then(() => {
-        if (server.getSupportedKind(2, NETWORK, "upto") === undefined) {
-          throw new Error(`the facilitator does not serve upto on ${NETWORK}`);
+        if (server.getSupportedKind(2, network, "upto") === undefined) {
+          throw new Error(`the facilitator does not serve upto on ${network}`);
         }
       })
       .catch((error: unknown) => {

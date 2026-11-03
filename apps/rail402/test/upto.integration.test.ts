@@ -8,6 +8,7 @@
  * Needs `docker compose --profile stellar up -d`.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { sql } from "kysely";
 import { Keypair } from "@stellar/stellar-sdk";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
@@ -16,6 +17,7 @@ import { deriveAuthorityKeypair, silentLogger } from "@rail402.dev/facilitator";
 import { readContractTtl } from "@rail402.dev/stellar";
 import { UptoStellarScheme as UptoClient } from "@rail402.dev/upto/client";
 import { Metrics, createRuntime, loadConfig } from "@rail402.dev/service";
+import { createDatabase, migrate } from "@rail402.dev/store-postgres";
 import {
   LocalNetwork,
   deployUpto,
@@ -25,7 +27,13 @@ import {
   type LocalUptoContract,
 } from "@rail402.dev/testkit";
 import { upto } from "./channels-cli.ts";
-import { startService, type RunningService } from "./service-harness.ts";
+import {
+  DATABASE_URL,
+  createServiceSchema,
+  dropServiceSchema,
+  startService,
+  type RunningService,
+} from "./service-harness.ts";
 
 const net = new LocalNetwork();
 const available = await net.available();
@@ -191,6 +199,92 @@ describe.skipIf(!available)("upto through the Rail402 service", () => {
     );
   });
 
+  it("holds on-chain settlement after a database restore, from the first ledger a replica saw after it", async () => {
+    // A restored database: migrated, with its restore on record, before any replica starts.
+    const schema = await createServiceSchema();
+    const db = createDatabase({
+      connectionString: `${DATABASE_URL}?options=-c%20search_path%3D${schema}`,
+      maxConnections: 1,
+    });
+    const sponsor = Keypair.random();
+    let restored: RunningService | undefined;
+    try {
+      await migrate(db);
+      await sql`INSERT INTO settlement_rewinds (reason) VALUES ('restore')`.execute(db);
+      await net.fund(sponsor);
+      restored = await startService(net, usdc, uptoEnv(), { replicaOf: { sponsor, schema } });
+      // The network poll records the ledger the hold counts from before any payment arrives.
+      let from: number | undefined;
+      for (let attempt = 0; attempt < 60 && from === undefined; attempt += 1) {
+        const rows = await sql<{ ledger: string }>`
+          SELECT ledger::text AS ledger FROM settlement_rewind_ledgers WHERE network = ${NETWORK}`.execute(
+          db,
+        );
+        from = rows.rows[0] === undefined ? undefined : Number(rows.rows[0].ledger);
+        if (from === undefined) await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      expect(from).toBeGreaterThan(0);
+      // Recorded, so the hold is no longer pending.
+      await expect
+        .poll(
+          async () =>
+            (await restored?.metrics.uptoRestoreHoldPending.get())?.values.find(
+              (value) => value.labels["network"] === NETWORK,
+            )?.value,
+          { timeout: 20_000 },
+        )
+        .toBe(0);
+
+      // Zeros settle on chain on this network, and the hold applies all the same.
+      const restoredAuthority = deriveAuthorityKeypair(sponsor, NETWORK).publicKey();
+      const payer = await net.holder(usdc, "1");
+      const payload = await pay(payer, "forecast-restored", restoredAuthority);
+      const verified = await post(restored.url, "/verify", payload);
+      expect(verified.body).toMatchObject({
+        isValid: false,
+        invalidReason: "settle_upto_stellar_authority_unavailable",
+      });
+      expect(String(verified.body["invalidMessage"])).toMatch(/restored/);
+      const settled = await post(restored.url, "/settle", payload, 5n);
+      expect(settled.body).toMatchObject({
+        success: false,
+        errorReason: "settle_upto_stellar_authority_unavailable",
+      });
+      expect(String(settled.body["errorMessage"])).toMatch(/restored/);
+      expect(await net.tokenBalance(usdc.sac, payer.publicKey())).toBe(10_000_000n);
+
+      // A hold that cannot be read is reported, and the poll still counts the network's settlements.
+      await sql`ALTER TABLE settlement_rewind_ledgers RENAME TO settlement_rewind_ledgers_away`.execute(db);
+      const holdFailures = async () =>
+        (await restored?.metrics.backgroundErrors.get())?.values.find(
+          (value) => value.labels["task"] === "restore_hold",
+        )?.value ?? 0;
+      // Two failing polls: the health snapshot after the first one has been built by then.
+      await expect.poll(holdFailures, { timeout: 60_000, interval: 500 }).toBeGreaterThan(1);
+      expect(restored.runtime.health().networks[NETWORK]?.settlements.last1h).not.toBeNull();
+      await sql`ALTER TABLE settlement_rewind_ledgers_away RENAME TO settlement_rewind_ledgers`.execute(db);
+
+      // The recorded ledger far above the chain, as after a testnet reset: the network poll starts the
+      // hold again from the new chain, once a second poll has seen it too.
+      await sql`UPDATE settlement_rewind_ledgers SET ledger = ledger + 1000000`.execute(db);
+      const recorded = async () =>
+        Number(
+          (
+            await sql<{ ledger: string }>`
+              SELECT ledger::text AS ledger FROM settlement_rewind_ledgers WHERE network = ${NETWORK}`.execute(
+              db,
+            )
+          ).rows[0]?.ledger,
+        );
+      const raised = await recorded();
+      await expect.poll(recorded, { timeout: 60_000, interval: 500 }).toBeLessThan(raised - 900_000);
+    } finally {
+      await restored?.stop();
+      await db.destroy();
+      await dropServiceSchema(schema);
+    }
+  }, 300_000);
+
   it("never catalogs an off-chain zero settlement", async () => {
     const offchain = await startService(net, usdc, {
       ...uptoEnv(),
@@ -228,7 +322,12 @@ describe.skipIf(!available)("upto through the Rail402 service", () => {
       });
     await expect(
       createRuntime(config({ TESTNET_UPTO_WASM_HASH: "00".repeat(32) }), new Metrics(), silentLogger),
-    ).rejects.toThrow(`runs WASM ${contract.wasmHash}, not the configured ${"00".repeat(32)}`);
+    ).rejects.toMatchObject({
+      code: "upto_contract_mismatch",
+      message: expect.stringContaining(
+        `runs WASM ${contract.wasmHash}, not the configured ${"00".repeat(32)}`,
+      ) as string,
+    });
 
     // A sponsor that cannot pay yet (its account does not exist): the service starts, exact is
     // unaffected, and upto is refused with a coded answer until the authority exists.

@@ -1,7 +1,8 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import type { Keypair, rpc } from "@stellar/stellar-sdk";
+import { rpc, type Keypair } from "@stellar/stellar-sdk";
 import {
   ContractTtlError,
+  SpendRefusedError,
   contractLiveness,
   extendContractTtl,
   networkTtlLimits,
@@ -9,6 +10,7 @@ import {
   restoreContract,
   type ContractLiveness,
   type Logger,
+  type SpendLimit,
   type TaskLock,
   type TtlPlan,
   type TtlTransaction,
@@ -76,7 +78,22 @@ export interface UptoKeeperOptions {
   readonly lock: TaskLock;
   readonly metrics: Metrics;
   readonly log: Logger;
+  /**
+   * Where the keeper's fees are recorded (`SettlementLedger.reserveSponsorSpend`), so they count toward
+   * the network's hourly fee budget and the keeper's own daily cap; without it neither applies. Each
+   * transaction reserves its fee ceiling before it is submitted and is corrected to the fee charged
+   * once that is known, so a transaction that fails on chain or lands late is never left uncounted.
+   */
+  readonly spend?: {
+    reserve(maxFeeStroops: bigint, limits: readonly SpendLimit[]): Promise<string>;
+    settle(id: string, feeStroops: bigint): Promise<void>;
+  };
+  /** The network's hourly fee budget, in stroops, which the keeper's spend counts toward. */
+  readonly hourlyBudgetStroops?: bigint;
 }
+
+/** The kind under which the keeper's fees are recorded as sponsor spend. */
+export const UPTO_TTL_SPEND = "upto_ttl";
 
 /**
  * Keeps the `upto` settlement contract live on one network. Each round reads the instance and code
@@ -205,7 +222,15 @@ export class UptoTtlKeeper {
   ): Promise<T> {
     const { metrics, network, log } = this.options;
     try {
-      const result = await run();
+      const reservation = await this.reserve(action);
+      let result: T;
+      try {
+        result = await run();
+      } catch (error) {
+        if (reservation !== undefined) await this.settleFailed(reservation, error);
+        throw error;
+      }
+      if (reservation !== undefined) await this.correct(reservation, result?.feeChargedStroops ?? 0n);
       metrics.uptoTtlKeeperActions.inc({ network, action, outcome: "ok" });
       if (result !== undefined) {
         log.info(
@@ -225,6 +250,85 @@ export class UptoTtlKeeper {
         log.error({ network, transaction: error.transaction }, `the upto contract ${action} failed on-chain`);
       }
       throw error;
+    }
+  }
+
+  /**
+   * Records the transaction's fee ceiling as spend before anything is signed, within the daily cap and
+   * the network's hourly budget (atomically with settlement claims); undefined without `spend`.
+   */
+  private async reserve(action: "extend" | "restore"): Promise<string | undefined> {
+    const { spend, ttl, hourlyBudgetStroops } = this.options;
+    if (spend === undefined) return undefined;
+    const ceiling = BigInt(ttl.maxFeeStroops);
+    const limits: SpendLimit[] = [
+      ...(ttl.dailyMaxFeeStroops === undefined
+        ? []
+        : [
+            {
+              scope: "kind" as const,
+              capStroops: BigInt(ttl.dailyMaxFeeStroops),
+              since: new Date(Date.now() - 86_400_000),
+            },
+          ]),
+      ...(hourlyBudgetStroops === undefined
+        ? []
+        : [
+            {
+              scope: "network" as const,
+              capStroops: hourlyBudgetStroops,
+              since: new Date(Date.now() - 3_600_000),
+            },
+          ]),
+    ];
+    try {
+      return await spend.reserve(ceiling, limits);
+    } catch (error) {
+      if (!(error instanceof SpendRefusedError)) throw error;
+      const spent = String(error.committedStroops);
+      const cap = String(error.limit.capStroops);
+      throw new Error(
+        error.limit.scope === "kind"
+          ? `the upto contract ${action} waits: ${spent} stroops were spent on it in the last 24 hours, and its ceiling of ${String(ceiling)} would pass the daily cap of ${cap}`
+          : `the upto contract ${action} waits: ${spent} stroops of fees were committed on ${this.options.network} in the last hour, and its ceiling of ${String(ceiling)} would pass the hourly budget of ${cap}`,
+        { cause: error },
+      );
+    }
+  }
+
+  /**
+   * Corrects a reservation after a failed transaction: to the fee charged when it was included and
+   * failed, to 0 when it never reached the network. When its fate is unknown it may still land, so the
+   * ceiling stays counted.
+   */
+  private async settleFailed(reservation: string, error: unknown): Promise<void> {
+    let charged: bigint | undefined;
+    if (!(error instanceof ContractTtlError) || !error.submitted) {
+      charged = 0n;
+    } else if (error.feeChargedStroops !== undefined) {
+      charged = error.feeChargedStroops;
+    } else if (error.transaction !== undefined) {
+      try {
+        const status = await this.options.server.getTransaction(error.transaction);
+        if (status.status !== rpc.Api.GetTransactionStatus.NOT_FOUND) {
+          charged = status.resultXdr.feeCharged().toBigInt();
+        }
+      } catch {
+        // Unknown: the ceiling stays counted.
+      }
+    }
+    if (charged !== undefined) await this.correct(reservation, charged);
+  }
+
+  /** Replaces a reservation with the fee charged. On failure the ceiling stays counted (an over-count). */
+  private async correct(reservation: string, feeStroops: bigint): Promise<void> {
+    try {
+      await this.options.spend?.settle(reservation, feeStroops);
+    } catch (error) {
+      this.options.log.warn(
+        { err: error, network: this.options.network },
+        "could not correct the upto keeper's spend reservation",
+      );
     }
   }
 

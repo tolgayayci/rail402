@@ -41,7 +41,12 @@ export function rpcMethodLabel(method: unknown): string {
  * call through its HTTP client's `post`, so wrapping it sees the method in the request body and the
  * JSON-RPC error or transport failure in the answer; the call itself is unchanged.
  */
-export function meterRpcServer(server: rpc.Server, network: string, metrics: Metrics): void {
+export function meterRpcServer(
+  server: rpc.Server,
+  network: string,
+  metrics: Metrics,
+  provider = "primary",
+): void {
   const client = server.httpClient;
   const post = client.post.bind(client);
   client.post = async <T>(...args: Parameters<typeof post>) => {
@@ -57,7 +62,7 @@ export function meterRpcServer(server: rpc.Server, network: string, metrics: Met
       outcome = transportOutcome(error);
       throw error;
     } finally {
-      metrics.rpcRequests.inc({ network, method, outcome });
+      metrics.rpcRequests.inc({ network, provider, method, outcome });
       metrics.rpcDuration.observe({ network, method }, (performance.now() - started) / 1_000);
     }
   };

@@ -21,6 +21,7 @@ import { parseArgs } from "node:util";
 import { Keypair, rpc } from "@stellar/stellar-sdk";
 import {
   authorityStatus,
+  boundedRpcServer,
   deriveAuthorityKeypair,
   deriveChannelKeypairs,
   existingAccounts,
@@ -81,9 +82,7 @@ async function main(): Promise<void> {
       const channels = deriveChannelKeypairs(sponsor, network.network, count ?? network.channelCount);
       const authority = deriveAuthorityKeypair(sponsor, network.network);
       const addresses = channels.map((keypair) => keypair.publicKey());
-      const server = new rpc.Server(network.rpcUrl, {
-        allowHttp: new URL(network.rpcUrl).protocol === "http:",
-      });
+      const server = boundedRpcServer(network.rpcUrl);
       const passphrase = networkPassphrase(network.network);
       const report = { network: network.network, sponsor: sponsor.publicKey(), channels: addresses.length };
 

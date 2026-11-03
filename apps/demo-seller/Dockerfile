@@ -1,7 +1,7 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
 # The demo seller image. Build from the repository root:
 #   docker build -f apps/demo-seller/Dockerfile -t rail402-demo-seller .
-ARG NODE_IMAGE=node:24.19.0-trixie-slim
+ARG NODE_IMAGE=node:24.19.0-trixie-slim@sha256:ab3eebe934147fee049b5eb83c570f68c849a13c930bdfa482de99fcdfa3b3de
 
 FROM ${NODE_IMAGE} AS build
 RUN npm install --global pnpm@11.22.0 && npm cache clean --force

@@ -1,36 +1,28 @@
-import { StrKey } from "@stellar/stellar-sdk";
 import { HTTPFacilitatorClient } from "@x402/core/server";
-import { createSeller } from "./seller.ts";
+import { sellerConfig, type DemoSellerConfig } from "./config.ts";
+import { DEFAULT_FACILITATOR_URL, createSeller } from "./seller.ts";
 
-const payTo = process.env["PAY_TO"] ?? "";
-if (!StrKey.isValidEd25519PublicKey(payTo) && !StrKey.isValidContract(payTo)) {
-  process.stderr.write("demo-seller: PAY_TO must be a Stellar G… account or C… contract\n");
+let config: DemoSellerConfig;
+try {
+  config = sellerConfig(process.env);
+} catch (error) {
+  process.stderr.write(`demo-seller: ${error instanceof Error ? error.message : String(error)}\n`);
   process.exit(78); // EX_CONFIG
 }
-const facilitatorUrl = process.env["FACILITATOR_URL"] ?? "https://testnet.rail402.dev";
-// The public origin the MCP tools are declared at; each request's scheme and host otherwise.
-const publicUrl = process.env["PUBLIC_URL"]?.trim() || undefined;
-if (publicUrl !== undefined && !/^https?:\/\/[^/?#]+\/?$/.test(publicUrl)) {
-  process.stderr.write("demo-seller: PUBLIC_URL must be an origin such as https://demo.rail402.dev\n");
-  process.exit(78); // EX_CONFIG
-}
-// The metered upto route and tool need a facilitator that serves upto; METERED=false leaves them out.
-const meteredSetting = (process.env["METERED"] ?? "true").trim().toLowerCase();
-if (meteredSetting !== "true" && meteredSetting !== "false") {
-  process.stderr.write("demo-seller: METERED must be true or false\n");
-  process.exit(78); // EX_CONFIG
-}
-const port = Number(process.env["PORT"] ?? "8080");
-const trustProxy = Number(process.env["TRUST_PROXY_HOPS"] ?? "0");
 
+const facilitatorUrl = config.facilitatorUrl ?? DEFAULT_FACILITATOR_URL;
 createSeller({
-  payTo,
-  trustProxy,
-  metered: meteredSetting === "true",
+  payTo: config.payTo,
+  network: config.network,
+  trustProxy: config.trustProxy,
+  metered: config.metered,
+  paidLimits: config.paidLimits,
   facilitator: new HTTPFacilitatorClient({ url: facilitatorUrl }),
-  ...(publicUrl === undefined ? {} : { publicUrl }),
-}).listen(port, () => {
+  facilitatorUrl,
+  ...(config.asset === undefined ? {} : { asset: config.asset }),
+  ...(config.publicUrl === undefined ? {} : { publicUrl: config.publicUrl }),
+}).listen(config.port, () => {
   process.stdout.write(
-    `demo-seller listening on ${String(port)}, paying ${payTo} through ${facilitatorUrl}\n`,
+    `demo-seller listening on ${String(config.port)} (${config.network}), paying ${config.payTo} through ${facilitatorUrl}\n`,
   );
 });

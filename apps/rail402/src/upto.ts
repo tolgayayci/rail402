@@ -18,10 +18,11 @@
  * Networks that do not serve `upto` are skipped. Every command prints one JSON line per network.
  */
 import { parseArgs } from "node:util";
-import { Keypair, rpc } from "@stellar/stellar-sdk";
+import { Keypair, type rpc } from "@stellar/stellar-sdk";
 import {
   MemoryTaskLock,
   authorityStatus,
+  boundedRpcServer,
   contractLiveness,
   deriveAuthorityKeypair,
   planContractTtl,
@@ -74,9 +75,7 @@ async function main(): Promise<void> {
       const upto = network.upto;
       if (upto === undefined) continue;
       const sponsor = Keypair.fromSecret(network.sponsorSecret);
-      const server = new rpc.Server(network.rpcUrl, {
-        allowHttp: new URL(network.rpcUrl).protocol === "http:",
-      });
+      const server = boundedRpcServer(network.rpcUrl);
       const report = { network: network.network, contract: upto.contract };
 
       if (command === "authority status" || command === "authority provision") {
