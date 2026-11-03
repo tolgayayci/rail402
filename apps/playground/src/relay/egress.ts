@@ -27,7 +27,9 @@ export type TargetVerdict =
  *
  * The relay never contacts the Playground itself (its own host and the platform's generated domain;
  * its lab sellers are called directly by the page), the facilitator or the Bazaar (the page reads
- * those through the fixed proxies), or a configured deny-listed host. These are matched by host name;
+ * those through the fixed proxies) and the other host names of that service (`operatorSiblings`: a
+ * facilitator named `testnet.<domain>` also serves `mainnet.<domain>` or `pubnet.<domain>` from the
+ * same process, beside `explorer.<domain>`), or a configured deny-listed host. These are matched by host name;
  * in local mode by host and port, since every local service shares the loopback address. Another
  * name for one of these hosts is not caught unless the operator lists it in RELAY_DENY_HOSTS; the
  * per-host, per-client and per-network limits still bound what such a request can do.
@@ -73,7 +75,7 @@ export class RelayEgress {
       ...config.relayLoopHosts.map((host) => this.hostKey(new URL(`https://${host}`))),
     ]);
     this.operatorHosts = new Set(
-      [config.urls.facilitator, config.urls.bazaar].map((url) => this.hostKey(new URL(url))),
+      operatorSiblings([config.urls.facilitator, config.urls.bazaar]).map((url) => this.hostKey(url)),
     );
     this.denyHosts = new Set(config.relayDenyHosts);
     this.trustedHosts = new Set(config.relayTrustedHosts);
@@ -96,7 +98,7 @@ export class RelayEgress {
         ok: false,
         code: "playground_relay_target_denied",
         reason:
-          "The facilitator and the Bazaar are read through the Playground's own proxies, not the relay.",
+          "The facilitator, the Bazaar and the other hosts of that service are not reached through the relay; the page reads them through the Playground's own proxies.",
       };
     }
     if (this.denyHosts.has(host)) {
@@ -132,4 +134,30 @@ export class RelayEgress {
     if (!this.local) return host;
     return `${isLoopbackHost(host) ? "loopback" : host}:${String(effectivePort(url))}`;
   }
+}
+
+/** First labels of the host names one Rail402 deployment serves its networks and Explorer under. */
+const SERVICE_LABELS = ["testnet", "mainnet", "pubnet", "explorer"] as const;
+
+/**
+ * The facilitator and Bazaar URLs, plus, for each whose host starts with a network label
+ * (`testnet.`, `mainnet.` or `pubnet.`), the same domain under every other service label: one
+ * facilitator process answers for each network on its own host name, and the relay must not reach
+ * any of them (a Playground user would draw on one shared keyless budget, from the relay's address).
+ */
+export function operatorSiblings(urls: readonly string[]): URL[] {
+  const result: URL[] = [];
+  for (const text of urls) {
+    const url = new URL(text);
+    result.push(url);
+    const [first, ...rest] = normalizeHost(url.hostname).split(".");
+    if (first === undefined || rest.length < 2 || !["testnet", "mainnet", "pubnet"].includes(first)) continue;
+    for (const label of SERVICE_LABELS) {
+      if (label === first) continue;
+      const sibling = new URL(url.href);
+      sibling.hostname = [label, ...rest].join(".");
+      result.push(sibling);
+    }
+  }
+  return result;
 }

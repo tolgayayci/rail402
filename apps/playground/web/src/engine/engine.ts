@@ -17,7 +17,7 @@ import {
   MemorySpendLedger,
   StorageSpendLedger,
   effectiveCap,
-  explorerTemplate,
+  checkExplorerProvider,
   meetsTrust,
   paymentError,
   resolvePolicy,
@@ -207,7 +207,7 @@ export class PlaygroundEngine implements Engine {
         config,
         operator: this.#transport.operator,
         facilitatorUrl: facilitatorProxyUrl(this.#origin),
-        explorer: explorerTemplate(config.explorerTemplate),
+        explorer: checkExplorerProvider(config.explorer),
         sleep: this.#sleep,
         ...(options.now === undefined ? {} : { now: options.now }),
       });

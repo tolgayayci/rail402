@@ -57,7 +57,7 @@ export interface ProofView {
 }
 
 export interface ProofContext {
-  readonly config: Pick<PublicConfig, "asset" | "explorerTemplate">;
+  readonly config: Pick<PublicConfig, "asset" | "explorer" | "network">;
   /** Whether the seller is the Playground's own (named Rail402 without other evidence). */
   readonly ours: boolean;
 }
@@ -77,7 +77,7 @@ export function projectProof(events: readonly LabEvent[], context: ProofContext)
     const exact = toDecimal(atomic, decimals);
     return exact === undefined ? atomic : displayAmount(exact);
   };
-  const link = (address: string): string | undefined => addressLink(context.config.explorerTemplate, address);
+  const link = (address: string): string | undefined => addressLink(context.config, address);
   const payer = auth.scheme === "exact" ? auth.transfer.from : auth.address;
   const seller = auth.scheme === "exact" ? auth.transfer.to : auth.terms.recipient;
   const paidText = decimal(paid.atomic);

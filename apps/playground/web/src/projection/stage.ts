@@ -10,6 +10,7 @@
  */
 import type { JsonValue, LabEvent, OptionView, TxView } from "../engine/events.ts";
 import type { PublicConfig } from "../engine/types.ts";
+import { accountLink, type ExplorerConfig } from "./wallet.ts";
 import { CHECK_IDS, REPLAY_REFUSAL_CODES, type CheckId } from "../../../src/shared/lab.ts";
 import { DOCS, type DocRef } from "./docs.ts";
 import {
@@ -108,7 +109,7 @@ export interface StageStep {
 export interface StageContext {
   readonly mode: LabMode;
   readonly plan: StagePlan;
-  readonly config: Pick<PublicConfig, "asset" | "urls" | "lab" | "explorerTemplate">;
+  readonly config: Pick<PublicConfig, "asset" | "urls" | "lab" | "explorer" | "network">;
   /** The URL the visitor is about to pay, for the seller lane before any event names it. */
   readonly target?: string;
 }
@@ -382,7 +383,7 @@ class StageBuilder {
   }
 
   private link(address: string): string | undefined {
-    return addressLink(this.context.config.explorerTemplate, address);
+    return addressLink(this.context.config, address);
   }
 
   private payer(): string | undefined {
@@ -1511,18 +1512,9 @@ function hrefOf(href: string | undefined): { href?: string } {
   return href === undefined ? {} : { href };
 }
 
-/** An explorer link for an account (`G…`) or a contract (`C…`), from the transaction link template. */
-export function addressLink(template: string, address: string): string | undefined {
-  const kind = /^G[A-Z2-7]{55}$/.test(address)
-    ? "account"
-    : /^C[A-Z2-7]{55}$/.test(address)
-      ? "contract"
-      : undefined;
-  if (kind === undefined || !template.includes("/tx/{hash}")) return undefined;
-  const url = template.replace("/tx/{hash}", `/${kind}/${address}`).replaceAll("{network}", "testnet");
-  if (!URL.canParse(url)) return undefined;
-  const parsed = new URL(url);
-  return parsed.protocol === "https:" && parsed.username === "" && parsed.password === "" ? url : undefined;
+/** An explorer link for an account (`G…`) or a contract (`C…`) on the configured network. */
+export function addressLink(config: ExplorerConfig, address: string): string | undefined {
+  return accountLink(config, address);
 }
 
 /** Most pairs a result summary shows. */

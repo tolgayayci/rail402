@@ -222,7 +222,7 @@ function MenuBody({
   }, []);
   if (wallet.status !== "ready") return null;
   const symbol = config.asset.symbol;
-  const account = accountLink(config.explorerTemplate, wallet.address);
+  const account = accountLink(config, wallet.address);
   const toppingUp = setup.busy && setup.task?.kind === "topUp";
   const topUpTask = setup.task?.kind === "topUp" ? setup.task : null;
   return (
@@ -278,7 +278,7 @@ function MenuBody({
           )}
         </button>
         <ExternalLink className="r4-button" variant="outline" href={account}>
-          stellar.expert <ExternalIcon />
+          Explorer <ExternalIcon />
         </ExternalLink>
       </div>
       {topUpTask?.status === "ok" ? (

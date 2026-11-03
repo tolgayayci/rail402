@@ -639,7 +639,7 @@ describe("relay", () => {
     });
 
     it("treats the platform's generated domain as the Playground itself", async () => {
-      hostedApp(undefined, { RAILWAY_PUBLIC_DOMAIN: "Playground-Production.platform.example" });
+      hostedApp(undefined, { PLAYGROUND_ALIAS_HOST: "Playground-Production.platform.example" });
       expect(
         (await relayError(await relay("https://playground-production.platform.example/lab/x"))).code,
       ).toBe("playground_relay_loop");

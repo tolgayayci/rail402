@@ -105,7 +105,7 @@ describe("an upto payment", () => {
     ]);
     const submit = stage.steps.find((step) => step.kind === "submit");
     expect(submit?.facts.find((fact) => fact.label === "Transaction")?.href).toMatch(
-      /^https:\/\/stellar\.expert\/explorer\/testnet\/tx\/[0-9a-f]{64}$/,
+      /^https:\/\/explorer\.rail402\.dev\/testnet\/tx\/[0-9a-f]{64}$/,
     );
     // At most four facts a step, and the delivered body as readable pairs.
     expect(stage.steps.every((step) => step.facts.length <= 4)).toBe(true);
@@ -137,16 +137,18 @@ describe("an upto payment", () => {
       feeSponsored: true,
       facilitator: "Rail402",
     });
-    expect(proof?.tx.url).toMatch(/^https:\/\/stellar\.expert\/explorer\/testnet\/tx\//);
+    expect(proof?.tx.url).toMatch(/^https:\/\/explorer\.rail402\.dev\/testnet\/tx\//);
     expect(proof?.parties.map((party) => `${party.role}: ${party.did}`)).toEqual([
       "You: signed once, up to 0.01",
       "Seller: received 0.0021 USDC",
       "Rail402: paid the network fee (144498 stroops)",
       "Settlement contract: checked 0.0021 ≤ 0.01",
     ]);
-    expect(proof?.parties.every((party) => party.href?.startsWith("https://stellar.expert/") === true)).toBe(
-      true,
-    );
+    expect(
+      proof?.parties.every(
+        (party) => party.href?.startsWith("https://explorer.rail402.dev/testnet/") === true,
+      ),
+    ).toBe(true);
     expect(projectVerdict(events, { config: CONFIG, ours: true })).toBeUndefined();
   });
 });
@@ -282,14 +284,11 @@ describe("helpers", () => {
   });
 
   it("links accounts and contracts in the explorer, and nothing else", () => {
-    const template = CONFIG.explorerTemplate;
-    expect(addressLink(template, IDS.buyer)).toBe(
-      `https://stellar.expert/explorer/testnet/account/${IDS.buyer}`,
-    );
-    expect(addressLink(template, IDS.usdc)).toBe(
-      `https://stellar.expert/explorer/testnet/contract/${IDS.usdc}`,
-    );
-    expect(addressLink(template, "not-an-address")).toBeUndefined();
-    expect(addressLink("https://example.org/{hash}", IDS.buyer)).toBeUndefined();
+    expect(addressLink(CONFIG, IDS.buyer)).toBe(`https://explorer.rail402.dev/testnet/account/${IDS.buyer}`);
+    expect(addressLink(CONFIG, IDS.usdc)).toBe(`https://explorer.rail402.dev/testnet/account/${IDS.usdc}`);
+    expect(addressLink(CONFIG, "not-an-address")).toBeUndefined();
+    expect(
+      addressLink({ ...CONFIG, explorer: { template: "https://example.org/{hash}" } }, IDS.buyer),
+    ).toBeUndefined();
   });
 });

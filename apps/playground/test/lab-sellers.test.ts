@@ -157,6 +157,24 @@ describe("lab sellers", () => {
       expect(Object.keys(timing).sort()).toEqual(["x402-settle", "x402-verify"]);
     });
 
+    it("serves a payment once when copies of it arrive together, and traces the refused copy", async () => {
+      // Like an idempotent facilitator, the fake answers every settle of the payment with one success.
+      const facilitator = fakeFacilitator();
+      labApp(facilitator);
+      const required = requiredOf(await get(sellPath("Ankara")));
+      const payment = paymentFor(required);
+      const copies = await Promise.all(
+        ["198.51.100.41", "198.51.100.42"].map((client) =>
+          get(sellPath("Ankara"), { "x-forwarded-for": client, "payment-signature": payment }),
+        ),
+      );
+      expect(copies.map((copy) => copy.status).sort()).toEqual([200, 402]);
+      const refused = copies.find((copy) => copy.status === 402);
+      expect(refused === undefined ? undefined : traceOf(refused)).toMatchObject({
+        settle: { success: false, code: "seller_settlement_repeat", transaction: TRANSACTION },
+      });
+    });
+
     it("traces a refused verification and never settles", async () => {
       const facilitator = fakeFacilitator({
         verify: () =>
@@ -412,7 +430,18 @@ describe("lab sellers", () => {
     });
 
     it("limits unpaid and paid lab calls per client, and paid calls across clients", async () => {
-      labApp(fakeFacilitator(), {
+      // Each payment settles in a transaction of its own.
+      let settled = 0;
+      const facilitator = fakeFacilitator({
+        settle: (requirements) =>
+          Promise.resolve({
+            success: true,
+            transaction: (settled += 1).toString(16).padStart(64, "0"),
+            network: NETWORK,
+            amount: requirements.amount,
+          }),
+      });
+      labApp(facilitator, {
         LAB_UNPAID_PER_MINUTE: "2",
         LAB_PAID_PER_MINUTE: "1",
         LAB_PAID_GLOBAL_PER_MINUTE: "2",
@@ -445,7 +474,10 @@ describe("lab sellers", () => {
       // Payments the facilitator verifies draw on it.
       const required = requiredOf(await get(sellPath("Ankara"), { "x-forwarded-for": "198.51.100.30" }));
       const real = (client: string) =>
-        get(sellPath("Ankara"), { "x-forwarded-for": client, "payment-signature": paymentFor(required) });
+        get(sellPath("Ankara"), {
+          "x-forwarded-for": client,
+          "payment-signature": paymentFor(required, `AAAA-${client}`),
+        });
       expect((await real("198.51.100.31")).status).toBe(200);
       expect((await real("198.51.100.32")).status).toBe(200);
       expect((await real("198.51.100.33")).status).toBe(429);

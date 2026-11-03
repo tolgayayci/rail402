@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KeyHolder } from "@rail402.dev/sdk/browser";
+import { KEY_FILE_TAG, KeyHolder, parseKeyFile } from "@rail402.dev/sdk/browser";
 import { StrKey } from "@stellar/stellar-sdk";
 import { DATABASE_NAME, memoryKeystore, openKeystore } from "../../src/wallet/keystore.ts";
 import { WalletVault } from "../../src/wallet/vault.ts";
@@ -95,7 +95,12 @@ describe("wallet vault", () => {
     await vault.import(key.exportSecret(), NETWORK);
     const file = vault.keyFile();
     expect(file.fileName).toBe(`rail402-testnet-${key.address.slice(0, 8).toLowerCase()}.key`);
-    expect(await file.blob.text()).toBe(`${key.exportSecret()}\n`);
+    // Tagged for testnet: `keys import` and a pubnet buyer refuse it as a pubnet key.
+    expect(await file.blob.text()).toBe(`${KEY_FILE_TAG}stellar:testnet\n${key.exportSecret()}\n`);
+    expect(parseKeyFile(await file.blob.text())).toEqual({
+      network: "stellar:testnet",
+      secret: key.exportSecret(),
+    });
     expect(JSON.stringify(vault)).not.toContain(key.exportSecret());
     expect(JSON.stringify(vault.wallet)).not.toContain(key.exportSecret());
   });

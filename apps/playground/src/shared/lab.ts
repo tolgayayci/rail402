@@ -121,7 +121,8 @@ export const PRIVATE_ADDRESS_TARGETS = Object.freeze(["https://127.0.0.1/", "htt
 
 /**
  * The session-budget check pays from your own budget window, with room for exactly one payment of
- * `total` left in it (its per-call ceiling is this amount too), so the second payment cannot fit.
+ * `total` left in it (its per-call ceiling is this amount too), then tries a second payment with the
+ * window's total lowered to what it has spent, so the second payment cannot fit.
  */
 export const SESSION_CHECK_WINDOW = Object.freeze({ total: "0.001" });
 

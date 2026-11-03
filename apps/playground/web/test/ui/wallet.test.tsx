@@ -33,7 +33,7 @@ function stepStates(root: HTMLElement): (string | null)[] {
   return [...root.querySelectorAll(".setup-step")].map((step) => step.getAttribute("data-state"));
 }
 
-const TX = /^https:\/\/stellar\.expert\/explorer\/testnet\/tx\/[0-9a-f]{64}$/;
+const TX = /^https:\/\/explorer\.rail402\.dev\/testnet\/tx\/[0-9a-f]{64}$/;
 
 describe("first visit", () => {
   afterEach(() => {
@@ -140,9 +140,9 @@ describe("wallet menu", () => {
     expect(within(menu()).getByText(IDS.buyer)).toBeTruthy();
     expect(
       within(menu())
-        .getByRole("link", { name: /stellar\.expert/ })
+        .getByRole("link", { name: /^Explorer/ })
         .getAttribute("href"),
-    ).toBe(`https://stellar.expert/explorer/testnet/account/${IDS.buyer}`);
+    ).toBe(`https://explorer.rail402.dev/testnet/account/${IDS.buyer}`);
     fireEvent.click(within(menu()).getByRole("button", { name: "Copy address" }));
     expect(writeText).toHaveBeenCalledWith(IDS.buyer);
     await within(menu()).findByText("Copied");

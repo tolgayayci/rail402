@@ -61,7 +61,7 @@ import {
 test.describe.configure({ mode: "serial" });
 
 const PASSPHRASE = "Test SDF Network ; September 2015";
-const TX_LINK = /^https:\/\/stellar\.expert\/explorer\/testnet\/tx\/[0-9a-f]{64}$/;
+const TX_LINK = /^https:\/\/explorer\.rail402\.dev\/testnet\/tx\/[0-9a-f]{64}$/;
 /** What the wallet setup buys, in base units (7 decimals). */
 const SETUP_FUNDS = 10_000_000n;
 /** Demo seller prices in base units. */
@@ -193,9 +193,9 @@ test.describe("the wallet", () => {
     await expect(menu.locator(".address-text")).toHaveText(payer);
     await menu.getByRole("button", { name: "Copy address" }).click();
     expect(await clipboard()).toBe(payer);
-    await expect(menu.getByRole("link", { name: /stellar\.expert/ })).toHaveAttribute(
+    await expect(menu.getByRole("link", { name: /^Explorer/ })).toHaveAttribute(
       "href",
-      `https://stellar.expert/explorer/testnet/account/${payer}`,
+      `https://explorer.rail402.dev/testnet/account/${payer}`,
     );
     // The secret is never on the page.
     expect(await page.locator("body").innerText()).not.toMatch(/\bS[A-Z2-7]{55}\b/);

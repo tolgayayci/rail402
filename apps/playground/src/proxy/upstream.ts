@@ -53,8 +53,14 @@ export class UpstreamJson {
   /**
    * The answer for `url`, from the cache when it is younger than `ttlMs`. `admit`, when given, replaces
    * the configured admission check for this request (the caller's share of the upstream budget).
+   * `headers` go with the upstream fetch this request makes, if it makes one.
    */
-  async get(url: string, ttlMs: number, admit = this.options.admit): Promise<UpstreamResult> {
+  async get(
+    url: string,
+    ttlMs: number,
+    admit = this.options.admit,
+    headers?: Readonly<Record<string, string>>,
+  ): Promise<UpstreamResult> {
     const hit = this.cache.get(url);
     if (hit !== undefined && hit.expires > this.now()) return { ok: true, answer: hit.answer, cached: true };
     const running = this.pending.get(url);
@@ -62,16 +68,20 @@ export class UpstreamJson {
     if (admit?.() === false) {
       return { ok: false, busy: true, reason: "Too many upstream requests; retry shortly." };
     }
-    const fetched = this.load(url, ttlMs).finally(() => this.pending.delete(url));
+    const fetched = this.load(url, ttlMs, headers).finally(() => this.pending.delete(url));
     this.pending.set(url, fetched);
     return fetched;
   }
 
-  private async load(url: string, ttlMs: number): Promise<UpstreamResult> {
+  private async load(
+    url: string,
+    ttlMs: number,
+    headers: Readonly<Record<string, string>> = {},
+  ): Promise<UpstreamResult> {
     let response: Response;
     try {
       response = await this.fetch(url, {
-        headers: { accept: "application/json", "user-agent": this.options.userAgent },
+        headers: { ...headers, accept: "application/json", "user-agent": this.options.userAgent },
         redirect: "error",
         signal: AbortSignal.timeout(this.options.timeoutMs),
       });

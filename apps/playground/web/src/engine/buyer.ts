@@ -22,7 +22,7 @@ import {
   type SpendLedger,
   type SpendingPolicyInput,
   type StellarSchemeAdapter,
-  explorerTemplate,
+  checkExplorerProvider,
 } from "@rail402.dev/sdk/browser";
 import { TESTNET } from "@rail402.dev/stellar";
 import type { PublicConfig } from "../../../src/shared/public-config.ts";
@@ -147,7 +147,7 @@ export function buildBuyer(wiring: BuyerWiring): Promise<Buyer> {
     ledger: wiring.ledger,
     session: wiring.session ?? defaultSession(config),
     schemes: schemeAdapters(config),
-    explorer: explorerTemplate(config.explorerTemplate),
+    explorer: checkExplorerProvider(config.explorer),
     verify: "sync",
     onEvent: wiring.onEvent,
   });

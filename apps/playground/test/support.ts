@@ -1,7 +1,8 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Writable } from "node:stream";
+import { afterAll } from "vitest";
 import { createApp, type AppOptions, type PlaygroundApp } from "../src/app.ts";
 import { loadConfig, type PlaygroundConfig } from "../src/config.ts";
 import { createLogger } from "../src/log.ts";
@@ -41,13 +42,25 @@ export class LogLines {
   }
 }
 
-/** A built page in a temporary directory: index.html and one hashed asset. */
+let webRoot: string | undefined;
+
+afterAll(() => {
+  if (webRoot !== undefined) rmSync(webRoot, { recursive: true, force: true });
+  webRoot = undefined;
+});
+
+/**
+ * A built page in a temporary directory: index.html and one hashed asset. One directory serves every app in
+ * a test file, which never writes to it, and it is removed after the file's tests.
+ */
 export function fakeWebRoot(): string {
+  if (webRoot !== undefined) return webRoot;
   const root = mkdtempSync(join(tmpdir(), "playground-web-"));
   mkdirSync(join(root, "assets"));
   writeFileSync(join(root, "index.html"), "<!doctype html><title>Rail402 Playground</title>");
   writeFileSync(join(root, "assets", "index-abc123.js"), "console.log(1)");
   writeFileSync(join(root, "favicon.svg"), "<svg/>");
+  webRoot = root;
   return root;
 }
 

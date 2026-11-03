@@ -4,7 +4,7 @@ import { HTTPFacilitatorClient, x402ResourceServer, type FacilitatorClient } fro
 import { paymentMiddleware } from "@x402/hono";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { TESTNET } from "@rail402.dev/stellar";
-import { UptoStellarServerScheme } from "@rail402.dev/sdk/seller";
+import { UptoStellarServerScheme, withSettleDedupe } from "@rail402.dev/sdk/seller";
 import type { PlaygroundConfig } from "../config.ts";
 import { errorResponse, refuse, type ServerEnv } from "../http.ts";
 import { RateLimiter, SharedRate, type Clock } from "../limits.ts";
@@ -153,8 +153,9 @@ function coded(...args: Parameters<typeof errorResponse>): Response {
 function labSellers(options: LabOptions & { readonly now: Clock }, payTo: string): Hono {
   const { config, metrics, log, now } = options;
   const recorder = new TraceRecorder(metrics);
+  // Each settled payment is served once; the trace records a refused copy's settlement as refused.
   const facilitator = recorder.wrap(
-    options.facilitator ?? new HTTPFacilitatorClient({ url: config.urls.facilitator }),
+    withSettleDedupe(options.facilitator ?? new HTTPFacilitatorClient({ url: config.urls.facilitator })),
   );
   const exactServer = new x402ResourceServer(facilitator)
     .register(TESTNET, new ExactStellarScheme())

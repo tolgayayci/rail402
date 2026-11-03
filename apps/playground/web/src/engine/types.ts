@@ -212,7 +212,7 @@ export interface WalletActions {
    */
   fund(options?: { readonly topUp?: boolean }): RunHandle;
   /**
-   * Downloads the key as a file (the seed on one line), after the page confirmed with the user. The
+   * Downloads the key as a file (a rail402 key file tagged for testnet), after the page confirmed with the user. The
    * engine starts the download itself; the seed never reaches the page.
    */
   exportFile(): Promise<{ readonly fileName: string }>;

@@ -4,6 +4,7 @@
  * it, the Playground's own pages.
  */
 import { useEffect, useRef, useState, type ReactElement } from "react";
+import { RAIL402_EXPLORER_URL } from "@rail402.dev/sdk/browser";
 import mark from "../design/logos/rail402-mark.svg";
 import {
   AgentsIcon,
@@ -26,9 +27,6 @@ import { WalletMenu } from "./WalletMenu.tsx";
 /** The public source repository. */
 export const SOURCE_URL = "https://github.com/tolgayayci/rail402";
 
-/** The Rail402 Explorer. */
-const EXPLORER_URL = "https://explorer.rail402.dev";
-
 const PAGE_ICONS: Readonly<Record<PageId, () => ReactElement>> = {
   lab: LabIcon,
   bazaar: BazaarIcon,
@@ -41,7 +39,7 @@ function explorerHome(explorer: unknown, network: string): string {
   const base =
     typeof explorer === "object" && explorer !== null && "rail402BaseUrl" in explorer
       ? String(explorer.rail402BaseUrl).replace(/\/+$/, "")
-      : EXPLORER_URL;
+      : RAIL402_EXPLORER_URL;
   return network === "stellar:pubnet" ? base : `${base}/testnet`;
 }
 

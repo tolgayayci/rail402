@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import type { Hono } from "hono";
 import type { PlaygroundConfig } from "../config.ts";
 import { refuse, type ServerContext, type ServerEnv } from "../http.ts";
@@ -17,6 +18,19 @@ export const BAZAAR_MAX_BYTES = 2 * 1_048_576;
 export const PROXY_TIMEOUT_MS = 10_000;
 /** Longest query string passed through; Rail402 validates its content. */
 const MAX_QUERY_BYTES = 4_096;
+
+/** The header a `discovery-internal` caller forwards its own client's identifier in. */
+export const FORWARDED_CLIENT_HEADER = "x-rail402-client";
+
+/**
+ * The identifier a visitor is forwarded to the Bazaar under: an HMAC of its rate-limit key under the
+ * access key, so the Bazaar limits each visitor on its own and the visitor's address is never sent. It
+ * is a pseudonym, not anonymity: whoever holds the key can compute it for every IPv4 address and so find
+ * a visitor's. The Explorer and the hosted MCP endpoint forward their clients the same way.
+ */
+export function forwardedClientId(key: string, client: string): string {
+  return createHmac("sha256", key).update(client).digest("hex").slice(0, 32);
+}
 
 export interface ProxyOptions {
   readonly config: PlaygroundConfig;
@@ -43,7 +57,9 @@ export function proxyOrigin(c: ServerContext, config: PlaygroundConfig): Respons
  * Read-only proxy to the configured Bazaar's discovery API, so the page can read it from its own
  * origin (the Bazaar sends no CORS headers). Only these four routes exist, the target host is fixed,
  * and the query string passes through untouched: the Bazaar validates it and answers coded errors,
- * which reach the page unchanged. Requests from other sites are refused.
+ * which reach the page unchanged. Requests from other sites are refused. With a Bazaar access key, each
+ * read carries the key and the visitor's forwarded identifier; without one, the Bazaar counts every
+ * visitor as the Playground's one address.
  */
 export function mountBazaarProxy(app: Hono<ServerEnv>, options: ProxyOptions): { sweep(): void } {
   const { config, metrics } = options;
@@ -70,10 +86,17 @@ export function mountBazaarProxy(app: Hono<ServerEnv>, options: ProxyOptions): {
     }
     const started = performance.now();
     const network = c.get("networkKey");
+    const key = config.bazaarKey;
     const result = await upstream.get(
       `${base}${path}${search}`,
       ttlMs,
       () => options.upstreamGlobal.take(network) === 0,
+      key === undefined
+        ? undefined
+        : {
+            authorization: `Bearer ${key}`,
+            [FORWARDED_CLIENT_HEADER]: forwardedClientId(key, c.get("clientKey")),
+          },
     );
     if (!result.ok) {
       metrics.proxyRequests.inc({ target: "bazaar", outcome: result.busy === true ? "busy" : "failed" });

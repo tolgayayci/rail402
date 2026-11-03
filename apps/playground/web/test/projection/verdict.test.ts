@@ -28,7 +28,22 @@ describe("how a run ends", () => {
     expect(proof?.parties.map((party) => `${party.role}: ${party.did}`)).toContain(
       `Rail402: paid the network fee (${fee ?? ""} stroops)`,
     );
-    expect(proof?.tx.url).toMatch(/^https:\/\/stellar\.expert\/explorer\/testnet\/tx\/[0-9a-f]{64}$/);
+    expect(proof?.tx.url).toMatch(/^https:\/\/explorer\.rail402\.dev\/testnet\/tx\/[0-9a-f]{64}$/);
+  });
+
+  it("links the receipt by the settle response's hash, the fee bump's outer hash", () => {
+    const run = scenarioRun("pay", "normal");
+    const settled = run.flatMap((event) =>
+      event.kind === "http" && event.phase === "response" && event.settle?.success === true
+        ? [event.settle.transaction]
+        : [],
+    );
+    const outer = run.flatMap((event) =>
+      event.kind === "chain" && event.phase === "tx" ? [event.view.feeBump?.outerHash] : [],
+    );
+    expect(settled).toHaveLength(1);
+    expect(outer).toEqual(settled);
+    expect(proofOf(run)?.tx.url).toBe(`https://explorer.rail402.dev/testnet/tx/${settled[0] ?? ""}`);
   });
 
   it("shows a refusal with its code and nothing moved", () => {

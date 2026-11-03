@@ -76,7 +76,7 @@ export function ListingPanel({
   const scheme = schemeOf(listing);
   const price = listingPrice(listing, config.asset.symbol);
   const settlements = Math.max(listing.settlements, fresh?.id === listing.id ? fresh.settlements : 0);
-  const sellerHref = addressLink(config.explorerTemplate, listing.owner);
+  const sellerHref = addressLink(config, listing.owner);
   return (
     <section
       ref={ref}
@@ -207,10 +207,7 @@ function VersionList({ listingId }: { readonly listingId: string }): ReactElemen
                 </span>
               </span>
               {version.transaction === null ? null : (
-                <ExternalLink
-                  className="version-tx mono"
-                  href={explorerLink(config.explorerTemplate, version.transaction)}
-                >
+                <ExternalLink className="version-tx mono" href={explorerLink(config, version.transaction)}>
                   {short(version.transaction)} <ExternalIcon />
                 </ExternalLink>
               )}

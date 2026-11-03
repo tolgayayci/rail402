@@ -34,7 +34,7 @@ const sampleConfig: PublicConfig = {
     demoSeller: "https://demo.rail402.dev",
     docs: "https://docs.rail402.dev",
   },
-  explorerTemplate: "https://stellar.expert/explorer/{network}/tx/{hash}",
+  explorer: "rail402",
   asset: { contract, symbol: "USDC", decimals: 7, classic: { code: "USDC", issuer: account } },
   uptoContract: contract,
   caps: {
@@ -81,7 +81,8 @@ describe("PublicConfig", () => {
     expect(
       parsePublicConfig({ ...sampleConfig, caps: { ...sampleConfig.caps, perCallDefault: "0.00000001" } }),
     ).toBeUndefined();
-    expect(parsePublicConfig({ ...sampleConfig, explorerTemplate: "https://x/" })).toBeUndefined();
+    expect(parsePublicConfig({ ...sampleConfig, explorer: { template: "https://x/" } })).toBeUndefined();
+    expect(parsePublicConfig({ ...sampleConfig, explorer: "etherscan" })).toBeUndefined();
     expect(
       parsePublicConfig({ ...sampleConfig, lab: { ...sampleConfig.lab, payTo: "S".repeat(56) } }),
     ).toBeUndefined();

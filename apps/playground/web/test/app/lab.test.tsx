@@ -95,7 +95,7 @@ describe("the Lab", () => {
       within(proof)
         .getByRole("link", { name: /Open transaction/ })
         .getAttribute("href"),
-    ).toMatch(/^https:\/\/stellar\.expert\/explorer\/testnet\/tx\/[0-9a-f]{64}$/);
+    ).toMatch(/^https:\/\/explorer\.rail402\.dev\/testnet\/tx\/[0-9a-f]{64}$/);
     expect(within(proof).getByRole("list", { name: "Who did what" }).children).toHaveLength(4);
     // What came back reads as pairs, never as JSON.
     expect(proof.textContent).not.toMatch(/[{}"]/);

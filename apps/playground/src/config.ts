@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { Asset, StrKey } from "@stellar/stellar-sdk";
 import { TESTNET, USDC, networkPassphrase } from "@rail402.dev/stellar";
 import { UPTO_TESTNET_DEPLOYMENT } from "@rail402.dev/upto";
+import { explorerTemplate, rail402Explorer, type ExplorerProvider } from "@rail402.dev/sdk/browser";
 import {
   CHECK_IDS,
   CHECK_NEEDS,
@@ -18,8 +20,9 @@ import { RELAY_LIMITS, RELAY_MAX_REDIRECTS, RELAY_TIMEOUT_MAXIMA } from "./share
 
 /**
  * The Playground server's configuration, read once from the environment and validated before anything
- * starts. It holds no secret: there is no field for one, and startup refuses any environment value that
- * is a Stellar secret seed. Every value is public and most of it is published at `/api/config`.
+ * starts. Its one secret is the optional Bazaar access key, read from a file and never published;
+ * startup refuses any environment value that is a Stellar secret seed. Every other value is public and
+ * most of it is published at `/api/config`.
  */
 export interface PlaygroundConfig {
   readonly port: number;
@@ -30,6 +33,12 @@ export interface PlaygroundConfig {
   /** The Playground's own origin, without a trailing slash. */
   readonly publicUrl: string;
   readonly network: typeof TESTNET;
+  /**
+   * The Bazaar's `discovery-internal` access key (BAZAAR_KEY_FILE). With it, the Bazaar proxy sends the
+   * key and an identifier of each visitor, so the Bazaar limits every visitor on its own instead of
+   * counting them all as the Playground's one address. Never published or logged.
+   */
+  readonly bazaarKey: string | undefined;
   readonly urls: {
     readonly rpc: string;
     readonly horizon: string;
@@ -48,14 +57,14 @@ export interface PlaygroundConfig {
   readonly uptoContract: string;
   /** The account lab sellers are paid to; undefined when the lab is off. */
   readonly payTo: string | undefined;
-  readonly explorerTemplate: string;
+  readonly explorer: ExplorerProvider;
   readonly faucetUrl: string;
   readonly features: { readonly relay: boolean; readonly lab: boolean };
   /** Host names the relay never contacts, besides the Playground, facilitator and Bazaar hosts. */
   readonly relayDenyHosts: readonly string[];
   /**
-   * Other names of the Playground itself, refused as a loop like its own host: the platform's generated
-   * domain (`RAILWAY_PUBLIC_DOMAIN`) when it is set.
+   * Other names of the Playground itself, refused as a loop like its own host: an alias host
+   * (`PLAYGROUND_ALIAS_HOST`) when it is set.
    */
   readonly relayLoopHosts: readonly string[];
   /** Host names allowed the higher per-host relay rate (the demo seller by default). */
@@ -159,10 +168,22 @@ const schema = z.object({
     .string()
     .refine((value) => StrKey.isValidEd25519PublicKey(value), "must be a G… account address")
     .optional(),
+  EXPLORER: z
+    .string()
+    .refine(
+      (value) => value === "stellar.expert" || value === "rail402" || isExplorerTemplate(value),
+      'must be "rail402", "stellar.expert" or an https URL containing {hash}',
+    )
+    .default("rail402"),
   EXPLORER_TEMPLATE: z
     .string()
     .refine(isExplorerTemplate, "must be an https URL containing {hash}")
-    .default("https://stellar.expert/explorer/{network}/tx/{hash}"),
+    .optional(),
+  EXPLORER_ACCOUNT_TEMPLATE: z
+    .string()
+    .refine(isAccountTemplate, "must be an https URL containing {address}")
+    .optional(),
+  EXPLORER_BASE_URL: z.url({ protocol: /^https$/ }).optional(),
   FAUCET_URL: httpUrl.default("https://faucet.circle.com"),
   RELAY_ENABLED: bool.default(true),
   LAB_ENABLED: bool.default(true),
@@ -190,7 +211,7 @@ const schema = z.object({
   LAB_PAID_PER_MINUTE: int(1).default(20),
   LAB_PAID_GLOBAL_PER_MINUTE: int(1).default(60),
   TRUSTED_PROXY_HOPS: int(0, 10).default(0),
-  RAILWAY_PUBLIC_DOMAIN: z.string().optional(),
+  PLAYGROUND_ALIAS_HOST: z.string().optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   METRICS_TOKEN_SHA256: z
     .string()
@@ -256,6 +277,12 @@ export function loadConfig(
     throw new ConfigError("ASSET_CLASSIC does not match ASSET_CONTRACT on this network");
   }
 
+  const bazaarKey = bazaarKeyOf(env);
+  const bazaarUrl = new URL(e.BAZAAR_URL);
+  if (bazaarKey !== undefined && bazaarUrl.protocol !== "https:" && !isLoopbackHost(bazaarUrl.hostname)) {
+    throw new ConfigError("BAZAAR_KEY_FILE needs an https BAZAAR_URL: the key is never sent in clear text");
+  }
+
   const demoSellerHost = normalizeHost(new URL(e.DEMO_SELLER_URL).hostname);
   const trustedHosts =
     e.RELAY_TRUSTED_HOSTS === undefined
@@ -269,6 +296,7 @@ export function loadConfig(
     host: e.HOST ?? (e.PLAYGROUND_MODE === "local" ? "127.0.0.1" : "::"),
     mode: e.PLAYGROUND_MODE,
     publicUrl: publicUrl.origin,
+    bazaarKey,
     network: TESTNET,
     urls: {
       rpc: e.RPC_URL,
@@ -287,11 +315,11 @@ export function loadConfig(
     },
     uptoContract: e.UPTO_CONTRACT,
     payTo: e.LAB_ENABLED ? e.PLAYGROUND_PAY_TO : undefined,
-    explorerTemplate: e.EXPLORER_TEMPLATE,
+    explorer: explorerOf(e),
     faucetUrl: e.FAUCET_URL,
     features: { relay: e.RELAY_ENABLED, lab: e.LAB_ENABLED },
     relayDenyHosts: e.RELAY_DENY_HOSTS,
-    relayLoopHosts: [normalizeHost(e.RAILWAY_PUBLIC_DOMAIN ?? "")].filter(
+    relayLoopHosts: [normalizeHost(e.PLAYGROUND_ALIAS_HOST ?? "")].filter(
       (host) => host !== "" && host !== normalizeHost(publicUrl.hostname) && URL.canParse(`https://${host}/`),
     ),
     relayTrustedHosts: trustedHosts,
@@ -354,7 +382,7 @@ export function publicConfigOf(config: PlaygroundConfig): PublicConfig {
     network: config.network,
     networkPassphrase: networkPassphrase(config.network),
     urls: { public: config.publicUrl, ...config.urls },
-    explorerTemplate: config.explorerTemplate,
+    explorer: config.explorer,
     asset: {
       contract: config.asset.contract,
       symbol: config.asset.symbol,
@@ -419,6 +447,27 @@ export function isLoopbackHost(hostname: string): boolean {
   );
 }
 
+/** A Bazaar access key: `r402_<id>_<43 base64url characters>`. */
+const BAZAAR_ACCESS_KEY = /^r402_[a-z0-9][a-z0-9-]{2,31}_[A-Za-z0-9_-]{43}$/;
+
+/** The Bazaar access key of `BAZAAR_KEY_FILE`; a key given in `BAZAAR_KEY` itself is refused. */
+function bazaarKeyOf(env: Readonly<Record<string, string | undefined>>): string | undefined {
+  if ((env["BAZAAR_KEY"] ?? "") !== "") {
+    throw new ConfigError("BAZAAR_KEY is refused: put the key in a file and name it in BAZAAR_KEY_FILE");
+  }
+  const file = env["BAZAAR_KEY_FILE"];
+  if (file === undefined || file === "") return undefined;
+  let key: string;
+  try {
+    key = readFileSync(file, "utf8").trim();
+  } catch {
+    throw new ConfigError("BAZAAR_KEY_FILE cannot be read");
+  }
+  if (!BAZAAR_ACCESS_KEY.test(key))
+    throw new ConfigError("BAZAAR_KEY_FILE does not hold an r402_ access key");
+  return key;
+}
+
 /** Whether a value is, or contains, a valid Stellar secret seed (`S…`). */
 export function containsSecretSeed(value: string): boolean {
   // A lookahead finds overlapping candidates, so a seed glued to other base32 text is still found.
@@ -429,6 +478,50 @@ export function containsSecretSeed(value: string): boolean {
 }
 
 function isExplorerTemplate(template: string): boolean {
-  const sample = template.replaceAll("{network}", "testnet").replaceAll("{hash}", "0".repeat(64));
-  return template.includes("{hash}") && URL.canParse(sample) && new URL(sample).protocol === "https:";
+  try {
+    explorerTemplate(template);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isAccountTemplate(template: string): boolean {
+  try {
+    explorerTemplate("https://explorer.invalid/tx/{hash}", template);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The explorer links point to: `EXPLORER_TEMPLATE` (kept for existing deployments) wins, then
+ * `EXPLORER` (`rail402`, the default, with an optional `EXPLORER_BASE_URL`; `stellar.expert`; or a template), with
+ * `EXPLORER_ACCOUNT_TEMPLATE` for account links of a template. A template that is stellar.expert's own
+ * transaction page (an earlier default) selects the `stellar.expert` provider, so such a deployment
+ * keeps its account and contract links.
+ */
+/** stellar.expert's transaction page on the Playground's network (testnet), as a template. */
+const STELLAR_EXPERT_TX = /^https:\/\/stellar\.expert\/explorer\/(\{network\}|testnet)\/tx\/\{hash\}$/;
+
+function explorerOf(e: {
+  readonly EXPLORER: string;
+  readonly EXPLORER_TEMPLATE?: string | undefined;
+  readonly EXPLORER_ACCOUNT_TEMPLATE?: string | undefined;
+  readonly EXPLORER_BASE_URL?: string | undefined;
+}): ExplorerProvider {
+  const template = e.EXPLORER_TEMPLATE ?? (e.EXPLORER.includes("{hash}") ? e.EXPLORER : undefined);
+  if (
+    template !== undefined &&
+    e.EXPLORER_ACCOUNT_TEMPLATE === undefined &&
+    STELLAR_EXPERT_TX.test(template)
+  ) {
+    return "stellar.expert";
+  }
+  if (template !== undefined) return explorerTemplate(template, e.EXPLORER_ACCOUNT_TEMPLATE);
+  if (e.EXPLORER === "rail402") {
+    return e.EXPLORER_BASE_URL === undefined ? "rail402" : rail402Explorer(e.EXPLORER_BASE_URL);
+  }
+  return "stellar.expert";
 }

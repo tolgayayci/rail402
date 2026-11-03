@@ -126,7 +126,7 @@ describe.skipIf(!available)("the Playground engine on the local network", () => 
     });
     expect(view?.hash).toMatch(HASH);
     expect(view?.feeBump?.feeSource).not.toBe(payer);
-    expect(view?.explorerUrl).toBe(`https://stellar.expert/explorer/testnet/tx/${view?.hash ?? ""}`);
+    expect(view?.explorerUrl).toBe(`https://explorer.rail402.dev/testnet/tx/${view?.hash ?? ""}`);
     return view as TxView;
   };
 

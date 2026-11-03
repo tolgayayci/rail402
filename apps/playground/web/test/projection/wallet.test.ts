@@ -83,26 +83,46 @@ describe("wallet setup steps", () => {
 });
 
 describe("explorer links", () => {
-  const template = "https://stellar.expert/explorer/{network}/tx/{hash}";
+  const network = "stellar:testnet" as const;
+  const expert = { explorer: "stellar.expert" as const, network };
   const hash = "A".repeat(64);
+  const template = (value: string, accountTemplate?: string) => ({
+    explorer: { template: value, ...(accountTemplate === undefined ? {} : { accountTemplate }) },
+    network,
+  });
 
-  it("fills the template for a transaction hash", () => {
-    expect(explorerLink(template, hash)).toBe(`https://stellar.expert/explorer/testnet/tx/${"a".repeat(64)}`);
+  it("links a transaction on the configured network", () => {
+    expect(explorerLink(expert, hash)).toBe(`https://stellar.expert/explorer/testnet/tx/${"a".repeat(64)}`);
+    expect(explorerLink({ explorer: "rail402", network }, hash)).toBe(
+      `https://explorer.rail402.dev/testnet/tx/${"a".repeat(64)}`,
+    );
   });
 
   it("refuses anything that is not a hash, and templates that are not https", () => {
-    expect(explorerLink(template, "nope")).toBeUndefined();
-    expect(explorerLink(template, `${hash}/../x`)).toBeUndefined();
-    expect(explorerLink("javascript:alert({hash})", hash)).toBeUndefined();
-    expect(explorerLink("http://explorer.example/{hash}", hash)).toBeUndefined();
+    expect(explorerLink(expert, "nope")).toBeUndefined();
+    expect(explorerLink(expert, `${hash}/../x`)).toBeUndefined();
+    expect(explorerLink(template("javascript:alert({hash})"), hash)).toBeUndefined();
+    expect(explorerLink(template("http://explorer.example/{hash}"), hash)).toBeUndefined();
   });
 
-  it("links an account through the same explorer, and nothing else", () => {
-    expect(accountLink(template, IDS.buyer)).toBe(
+  it("links accounts and contracts through the explorer's own account pages, and nothing else", () => {
+    expect(accountLink(expert, IDS.buyer)).toBe(
       `https://stellar.expert/explorer/testnet/account/${IDS.buyer}`,
     );
-    expect(accountLink(template, "not-an-account")).toBeUndefined();
-    expect(accountLink("https://explorer.example/{hash}", IDS.buyer)).toBeUndefined();
-    expect(accountLink("http://explorer.example/tx/{hash}", IDS.buyer)).toBeUndefined();
+    expect(accountLink(expert, IDS.usdc)).toBe(
+      `https://stellar.expert/explorer/testnet/contract/${IDS.usdc}`,
+    );
+    expect(accountLink({ explorer: "rail402", network }, IDS.buyer)).toBe(
+      `https://explorer.rail402.dev/testnet/account/${IDS.buyer}`,
+    );
+    expect(accountLink(expert, "not-an-account")).toBeUndefined();
+    // A template without an account template gives no account links: nothing is rewritten.
+    expect(accountLink(template("https://explorer.example/tx/{hash}"), IDS.buyer)).toBeUndefined();
+    expect(
+      accountLink(
+        template("https://explorer.example/tx/{hash}", "https://explorer.example/a/{address}"),
+        IDS.buyer,
+      ),
+    ).toBe(`https://explorer.example/a/${IDS.buyer}`);
   });
 });

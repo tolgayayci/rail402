@@ -94,9 +94,7 @@ describe("the Bazaar", () => {
     const result = within(box).getByText(/^Paid 0.001 USDC/);
     expect(result.textContent).toContain("fee by Rail402");
     const tx = box.querySelector(".try-paid a");
-    expect(tx?.getAttribute("href")).toMatch(
-      /^https:\/\/stellar\.expert\/explorer\/testnet\/tx\/[0-9a-f]{64}$/,
-    );
+    expect(tx?.getAttribute("href")).toMatch(/^https:\/\/explorer\.rail402\.dev\/testnet\/tx\/[0-9a-f]{64}$/);
     expect(box.textContent).not.toMatch(/[{}]/);
     const watch = within(box).getByRole("link", { name: /Watch this payment in the Lab/ });
     expect(watch.getAttribute("href")).toBe(`/?watch=${LISTINGS.airQuality.id}`);

@@ -5,7 +5,13 @@
  */
 import { useEffect, useRef, type ReactElement } from "react";
 import type { EngineState } from "../engine/types.ts";
-import { explorerLink, setupSteps, type SetupStep, type SetupStepState } from "../projection/wallet.ts";
+import {
+  explorerLink,
+  setupSteps,
+  type ExplorerConfig,
+  type SetupStep,
+  type SetupStepState,
+} from "../projection/wallet.ts";
 import { CopyButton } from "../ui/CopyButton.tsx";
 import { DoneIcon, ExternalIcon, FailedIcon, Spinner } from "../ui/icons.tsx";
 import { ExternalLink } from "../ui/links.tsx";
@@ -112,7 +118,7 @@ function SetupDialog({
         </div>
         <ol className="setup-list" aria-label="Setup steps">
           {steps.map((step) => (
-            <StepItem key={step.id} step={step} template={config.explorerTemplate} />
+            <StepItem key={step.id} step={step} explorer={config} />
           ))}
         </ol>
         <span className="visually-hidden" role="status">
@@ -140,8 +146,14 @@ function SetupDialog({
   );
 }
 
-function StepItem({ step, template }: { readonly step: SetupStep; readonly template: string }): ReactElement {
-  const link = step.transaction === null ? undefined : explorerLink(template, step.transaction);
+function StepItem({
+  step,
+  explorer,
+}: {
+  readonly step: SetupStep;
+  readonly explorer: ExplorerConfig;
+}): ReactElement {
+  const link = step.transaction === null ? undefined : explorerLink(explorer, step.transaction);
   return (
     <li className="setup-step" data-state={step.state}>
       <span className="setup-mark">

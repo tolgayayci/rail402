@@ -31,7 +31,7 @@ export const CONFIG: PublicConfig = {
     demoSeller: URLS.demoSeller,
     docs: URLS.docs,
   },
-  explorerTemplate: "https://stellar.expert/explorer/{network}/tx/{hash}",
+  explorer: "rail402",
   asset: {
     contract: IDS.usdc,
     symbol: "USDC",

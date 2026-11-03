@@ -4,8 +4,9 @@
  * wallet's key never reaches the page; only its address, its setup flags and the hashes of the setup
  * transactions do.
  */
+import { checkExplorerProvider, explorerAccountUrl, explorerUrl } from "@rail402.dev/sdk/browser";
 import type { LabEvent } from "../engine/events.ts";
-import type { WalletState } from "../engine/types.ts";
+import type { PublicConfig, WalletState } from "../engine/types.ts";
 
 export type SetupStepId = "key" | "friendbot" | "usdc";
 export type SetupStepState = "done" | "live" | "pending" | "error";
@@ -120,30 +121,36 @@ export function setupComplete(wallet: WalletState): boolean {
   return wallet.status === "ready" && wallet.setup.account && wallet.setup.trustline && wallet.setup.funded;
 }
 
-const HASH = /^[0-9a-f]{64}$/i;
+/** What explorer links are built from: the configured provider and the Playground's network. */
+export type ExplorerConfig = Pick<PublicConfig, "explorer" | "network">;
 
-/**
- * A transaction link from the configured explorer template (`{network}` and `{hash}`); undefined for
- * anything that is not a transaction hash or a template that does not give an https URL.
- */
-export function explorerLink(template: string, hash: string): string | undefined {
-  if (!HASH.test(hash)) return undefined;
-  const url = template.replaceAll("{network}", "testnet").replaceAll("{hash}", hash.toLowerCase());
-  if (!URL.canParse(url)) return undefined;
+/** Only https links without credentials leave the page. */
+function safe(url: string | undefined): string | undefined {
+  if (url === undefined || !URL.canParse(url)) return undefined;
   const parsed = new URL(url);
   return parsed.protocol === "https:" && parsed.username === "" && parsed.password === "" ? url : undefined;
 }
 
-const ACCOUNT = /^G[A-Z2-7]{55}$/;
+/**
+ * A transaction link on the configured network and explorer; undefined for anything that is not a
+ * transaction hash or a provider that does not give an https URL.
+ */
+export function explorerLink(config: ExplorerConfig, hash: string): string | undefined {
+  try {
+    return safe(explorerUrl(config.network, hash, checkExplorerProvider(config.explorer)));
+  } catch {
+    return undefined;
+  }
+}
 
 /**
- * An account link from the same explorer template (its `/tx/{hash}` becomes `/account/<address>`);
- * undefined for anything that is not an account address or a template without that path.
+ * An account (`G…`) or contract (`C…`) link on the configured network and explorer; undefined for
+ * anything else, or when the provider has no account links.
  */
-export function accountLink(template: string, address: string): string | undefined {
-  if (!ACCOUNT.test(address) || !template.includes("/tx/{hash}")) return undefined;
-  const url = template.replace("/tx/{hash}", `/account/${address}`).replaceAll("{network}", "testnet");
-  if (!URL.canParse(url)) return undefined;
-  const parsed = new URL(url);
-  return parsed.protocol === "https:" && parsed.username === "" && parsed.password === "" ? url : undefined;
+export function accountLink(config: ExplorerConfig, address: string): string | undefined {
+  try {
+    return safe(explorerAccountUrl(config.network, address, checkExplorerProvider(config.explorer)));
+  } catch {
+    return undefined;
+  }
 }

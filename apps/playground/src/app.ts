@@ -87,7 +87,8 @@ export const REQUEST_TIMEOUTS = Object.freeze({ headersMs: 15_000, requestMs: 30
 
 /**
  * The Playground server: the built page, its public configuration, the relay, the fixed proxies, and
- * the operational endpoints. It holds no secret and no state beyond in-memory limits and caches.
+ * the operational endpoints. It holds no secret but the optional Bazaar access key, and no state beyond
+ * in-memory limits and caches.
  */
 export function createApp(options: AppOptions): PlaygroundApp {
   const { config, log } = options;

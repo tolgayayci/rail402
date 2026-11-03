@@ -2,7 +2,7 @@
  * The refusal checks: each tries to pay something the buyer must refuse, and passes when it ends
  * refused with the expected code, nothing signed, and the payer's balance unchanged. The network,
  * asset and amount checks pay the Playground's 402-only lab offers, which never verify or settle; the
- * recipient and session checks use a one-off buyer with the same key and ledger under a stricter
+ * recipient and session checks use one-off buyers with the same key and ledger under a stricter
  * policy (the session check in your own budget window, so what it spends shows in your budget); the
  * private-address check asks the relay for addresses it must never reach, and passes only
  * when each one is refused before any connection (local mode allows loopback, so there that target
@@ -160,23 +160,30 @@ export async function runCheck(context: RunContext, check: CheckId): Promise<Out
       break;
     }
     case "session-budget": {
-      // Your own window, with its total lowered to what it already holds plus one price: the first
-      // payment fits and counts in your budget, the second cannot fit. A window with less than one
-      // price left refuses the first payment the same way, before anything is signed.
-      const strict = await context.derive({
-        policy: {
-          perCall: SESSION_CHECK_WINDOW.total,
-          sessionTotal: await roomForOnePayment(context, SESSION_CHECK_WINDOW.total),
-        },
-        session: defaultSession(config),
-      });
-      context.judgeWith(strict);
-      for (const index of [1, 2]) {
-        const paid = await attempt(weatherUrl(context), {
-          buyer: strict,
-          key: `${context.key}-${String(index)}`,
+      // Your own window. The first payment is made with its total lowered to what it already holds
+      // (spent and pending) plus one price: it fits and counts in your budget. A window with less
+      // than one price left refuses it the same way, before anything is signed. The second is made
+      // with the total lowered to what the window has spent: a reservation still pending from an
+      // earlier payment may be released while the check runs (its authorization expired unused),
+      // but spent amounts only grow, so the second payment cannot fit.
+      const price = SESSION_CHECK_WINDOW.total;
+      const strictBuyer = async (sessionTotal: string) => {
+        const strict = await context.derive({
+          policy: { perCall: price, sessionTotal },
+          session: defaultSession(config),
         });
-        if (!paid.ok) break;
+        context.judgeWith(strict);
+        return strict;
+      };
+      const first = await attempt(weatherUrl(context), {
+        buyer: await strictBuyer(await roomForOnePayment(context, price)),
+        key: `${context.key}-1`,
+      });
+      if (first.ok) {
+        await attempt(weatherUrl(context), {
+          buyer: await strictBuyer(await spentSoFar(context, price)),
+          key: `${context.key}-2`,
+        });
       }
       return withPaidFirst(checkOutcome(check, attempts), attempts);
     }
@@ -212,6 +219,20 @@ async function roomForOnePayment(context: RunContext, price: string): Promise<st
     (toAtomic(budget?.spent ?? "0", decimals) ?? 0n) + (toAtomic(budget?.pending ?? "0", decimals) ?? 0n);
   const cap = toAtomic(budget?.sessionCap ?? price, decimals) ?? 0n;
   const wanted = used + (toAtomic(price, decimals) ?? 0n);
+  return toDecimal(wanted < cap ? wanted : cap, decimals);
+}
+
+/**
+ * A session total no larger than what your default window has spent (never below `price`, the
+ * smallest total the check's per-call ceiling allows, nor above the total that applies now).
+ */
+async function spentSoFar(context: RunContext, price: string): Promise<string> {
+  const { decimals, contract } = context.config.asset;
+  const budget = (await context.buyer.budget()).assets.find((asset) => asset.contract === contract);
+  const spent = toAtomic(budget?.spent ?? "0", decimals) ?? 0n;
+  const floor = toAtomic(price, decimals) ?? 0n;
+  const cap = toAtomic(budget?.sessionCap ?? price, decimals) ?? floor;
+  const wanted = spent > floor ? spent : floor;
   return toDecimal(wanted < cap ? wanted : cap, decimals);
 }
 

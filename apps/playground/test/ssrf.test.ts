@@ -150,6 +150,21 @@ describe("egress controls of the relay", () => {
     for (const [target, code] of cases) expect((await relayed(target)).code, target).toBe(code);
   });
 
+  it("does not let the relay reach the other network and Explorer hosts of the same facilitator", async () => {
+    hosted(() => Promise.reject(new Error("no lookup expected")), {
+      FACILITATOR_URL: "https://testnet.service.example",
+      BAZAAR_URL: "https://testnet.service.example",
+    });
+    for (const target of [
+      "https://mainnet.service.example/settle",
+      "https://PUBNET.service.example./discovery/search?query=x",
+      "https://explorer.service.example/tx/abc",
+      "https://testnet.service.example/mcp/testnet",
+    ]) {
+      expect((await relayed(target)).code, target).toBe("playground_relay_target_denied");
+    }
+  });
+
   describe("redirects", () => {
     let server: Server;
     let origin: string;

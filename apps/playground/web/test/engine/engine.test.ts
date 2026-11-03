@@ -364,7 +364,9 @@ describe("engine", () => {
     storage.setItem(`rail402.playground.session-total.v1.${address}`, "0.5");
     const exported = await engine.wallet.exportFile();
     expect(downloads[0]?.fileName).toBe(exported.fileName);
-    const seed = (await downloads[0]?.blob.text())?.trim() ?? "";
+    // A key file tagged for testnet: the tag line, then the seed.
+    const [tag, seed = ""] = ((await downloads[0]?.blob.text()) ?? "").trim().split("\n");
+    expect(tag).toBe("# rail402-key network=stellar:testnet");
     expect(seed).toMatch(/^S[A-Z2-7]{55}$/);
     expect(JSON.stringify(exported)).not.toContain(seed);
     expect(JSON.stringify(engine.state())).not.toContain(seed);

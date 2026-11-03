@@ -1,7 +1,7 @@
 /**
  * The configuration the Playground server publishes to the page at `GET /api/config`. Everything in
- * it is public: endpoints, the asset, caps and limits. The server has no secret to put here, and a
- * test refuses any property name that looks like one.
+ * it is public: endpoints, the asset, caps and limits. The server's one secret, the optional Bazaar
+ * access key, never goes here, and a test refuses any property name that looks like a secret.
  */
 import { z } from "zod";
 import { CHECK_IDS, EXPERIMENT_IDS, SCENARIO_IDS } from "./lab.ts";
@@ -35,8 +35,20 @@ export const publicConfigSchema = z.strictObject({
     demoSeller: url,
     docs: url,
   }),
-  /** Transaction links: `{network}` and `{hash}` are replaced. */
-  explorerTemplate: z.string().includes("{hash}"),
+  /**
+   * Where transaction and account links point, as the SDK's explorer provider: the Rail402 Explorer
+   * (`rail402`, or `{ rail402BaseUrl }` for a self-hosted one), `stellar.expert`, or https templates
+   * (`{ template, accountTemplate? }`). The page validates it again before linking anything.
+   */
+  explorer: z.union([
+    z.literal("stellar.expert"),
+    z.literal("rail402"),
+    z.strictObject({ rail402BaseUrl: z.url({ protocol: /^https$/ }) }),
+    z.strictObject({
+      template: z.string().includes("{hash}"),
+      accountTemplate: z.string().includes("{address}").optional(),
+    }),
+  ]),
   asset: z.strictObject({
     contract: stellarContract,
     symbol: z.string().min(1).max(12),

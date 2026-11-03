@@ -3,7 +3,7 @@
  * inside this module and goes only to the signer tap (handed to the browser buyer, whose guard wraps
  * it) and to onboarding. The engine imports this file, never the keystore.
  */
-import { KeyHolder, paymentError, type Sep43AuthSigner } from "@rail402.dev/sdk/browser";
+import { KeyHolder, keyFileContent, paymentError, type Sep43AuthSigner } from "@rail402.dev/sdk/browser";
 import { openKeystore, type Keystore, type KeystoreOptions, type StoredWallet } from "./keystore.ts";
 import {
   CHAIN_OPERATIONS,
@@ -81,14 +81,17 @@ export class WalletVault {
   }
 
   /**
-   * The key as a file: the seed on one line. A browser saves it readable by others, so it is used
-   * through `rail402 keys import < file` (or after `chmod 600`), as the page says.
+   * The key as a rail402 key file tagged for testnet (the tag line, then the seed), so it can never be
+   * used or imported as a pubnet key. A browser saves it readable by others, so it is used through
+   * `rail402 keys import < file` (or after `chmod 600`), as the page says.
    */
   keyFile(): { readonly fileName: string; readonly blob: Blob } {
     const key = this.#heldKey();
     return {
       fileName: `rail402-testnet-${key.address.slice(0, 8).toLowerCase()}.key`,
-      blob: new Blob([`${key.exportSecret()}\n`], { type: "application/octet-stream" }),
+      blob: new Blob([keyFileContent(key.exportSecret(), "stellar:testnet")], {
+        type: "application/octet-stream",
+      }),
     };
   }
 

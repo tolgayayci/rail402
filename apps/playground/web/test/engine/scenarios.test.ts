@@ -8,7 +8,17 @@ import { runOvercharge } from "../../src/engine/experiments/overcharge.ts";
 import { runReplay } from "../../src/engine/experiments/replay.ts";
 import { runPay } from "../../src/engine/scenarios/pay.ts";
 import { runUpto } from "../../src/engine/scenarios/upto.ts";
-import { HASH, LISTING_ID, fakeBuyer, fakeContext, hit, paidResult, policyFor, view } from "./fakes.ts";
+import {
+  HASH,
+  LISTING_ID,
+  budgetSnapshot,
+  fakeBuyer,
+  fakeContext,
+  hit,
+  paidResult,
+  policyFor,
+  view,
+} from "./fakes.ts";
 import { DEMO, ORIGIN, PAY_TO, exactRequired, header, testConfig } from "./helpers.ts";
 
 const config = testConfig();
@@ -382,13 +392,65 @@ describe("refusal checks", () => {
     expect(outcome.transactions).toEqual([paidResult().payment?.transaction]);
     expect(outcome.transactions?.[0]).toMatch(/^[0-9a-f]{64}$/);
     expect(keys).toEqual(["pg_run-1-1", "pg_run-1-2"]);
-    // Your own window, lowered to what it holds (0.001 spent) plus one price.
+    // Your own window, lowered to what it holds (0.001 spent) plus one price, then to what it spent.
+    const session = { name: "default", ttlMs: config.caps.sessionTtlMs, autoRenew: true };
     expect(derived).toEqual([
-      {
-        policy: { perCall: "0.001", sessionTotal: "0.002" },
-        session: { name: "default", ttlMs: config.caps.sessionTtlMs, autoRenew: true },
-      },
+      { policy: { perCall: "0.001", sessionTotal: "0.002" }, session },
+      { policy: { perCall: "0.001", sessionTotal: "0.001" }, session },
     ]);
+  });
+
+  it("keeps the session check's second payment out even when a pending reservation is released", async () => {
+    // An earlier authorization of 0.01 is pending when the check starts and released (expired
+    // unused) after its first payment: the second payment's total is what the window spent.
+    const snapshots = [
+      { spent: "0.001", pending: "0.01" },
+      { spent: "0.002", pending: "0" },
+    ];
+    const budget = () => {
+      const [next] = snapshots.length > 1 ? snapshots.splice(0, 1) : snapshots;
+      const base = budgetSnapshot();
+      return Promise.resolve({ ...base, assets: base.assets.map((asset) => ({ ...asset, ...next })) });
+    };
+    let paid = 0;
+    const strict = fakeBuyer(policy, {
+      pay: () =>
+        paid++ === 0
+          ? Promise.resolve(paidResult())
+          : Promise.reject(paymentError("payment_session_cap_exceeded")),
+    });
+    const derived: { policy?: { sessionTotal?: string } }[] = [];
+    const { context } = fakeContext({
+      buyer: fakeBuyer(policy, { budget }),
+      derive: (options) => {
+        derived.push(options);
+        return Promise.resolve(strict);
+      },
+    });
+    expect(await runCheck(context, "session-budget")).toMatchObject({
+      status: "refused",
+      code: "payment_session_cap_exceeded",
+    });
+    expect(derived.map((options) => options.policy?.sessionTotal)).toEqual(["0.012", "0.002"]);
+  });
+
+  it("makes no second payment when the session check's first is refused", async () => {
+    const strict = fakeBuyer(policy, {
+      pay: () => Promise.reject(paymentError("payment_session_cap_exceeded")),
+    });
+    const derived: unknown[] = [];
+    const { context } = fakeContext({
+      buyer: fakeBuyer(policy),
+      derive: (options) => {
+        derived.push(options);
+        return Promise.resolve(strict);
+      },
+    });
+    expect(await runCheck(context, "session-budget")).toMatchObject({
+      status: "refused",
+      code: "payment_session_cap_exceeded",
+    });
+    expect(derived).toHaveLength(1);
   });
 
   it("tries both private addresses through the relay", async () => {

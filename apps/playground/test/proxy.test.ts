@@ -1,18 +1,25 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { forwardedClientId } from "../src/proxy/bazaar.ts";
 import { testApp, testConfig, type TestApp } from "./support.ts";
 
 type Answer = () => Response | Promise<Response>;
 
-/** A fetch standing in for Rail402: records each URL and answers from `answer`. */
+/** A fetch standing in for Rail402: records each URL and its headers, and answers from `answer`. */
 function upstream(answer: Answer = () => Response.json({ items: [] })) {
   const calls: string[] = [];
+  const headers: Record<string, string>[] = [];
   let next = answer;
-  const fetch = (input: string | URL | Request) => {
+  const fetch = (input: string | URL | Request, init?: RequestInit) => {
     calls.push(input instanceof Request ? input.url : input.toString());
+    headers.push(Object.fromEntries(new Headers(init?.headers).entries()));
     return Promise.resolve(next());
   };
   return {
     calls,
+    headers,
     fetch: fetch,
     answer(value: Answer) {
       next = value;
@@ -173,6 +180,37 @@ describe("Bazaar and facilitator proxies", () => {
     const busy = await from("198.51.100.3", "d");
     expect(busy?.status).toBe(429);
     expect(((await busy?.json()) as { error: { code: string } }).error.code).toBe("playground_rate_limited");
+  });
+
+  it("forwards each visitor to the Bazaar under its own identifier with an access key, and sends none without", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "playground-key-"));
+    try {
+      const key = `r402_playground_${"A".repeat(43)}`;
+      const file = join(directory, "bazaar.key");
+      writeFileSync(file, `${key}\n`, { mode: 0o600 });
+      const bazaar = upstream();
+      app = testApp(testConfig({ BAZAAR_KEY_FILE: file, TRUSTED_PROXY_HOPS: "1" }), { fetch: bazaar.fetch });
+      const from = (ip: string, query: string) =>
+        app?.request(`/api/bazaar/discovery/search?q=${query}`, { headers: { "x-forwarded-for": ip } });
+      expect((await from("198.51.100.1", "a"))?.status).toBe(200);
+      expect((await from("198.51.100.2", "b"))?.status).toBe(200);
+      expect(bazaar.headers.map((sent) => sent["authorization"])).toEqual([`Bearer ${key}`, `Bearer ${key}`]);
+      expect(bazaar.headers.map((sent) => sent["x-rail402-client"])).toEqual([
+        forwardedClientId(key, "198.51.100.1"),
+        forwardedClientId(key, "198.51.100.2"),
+      ]);
+      // The visitor's address itself is never sent.
+      expect(JSON.stringify(bazaar.headers)).not.toContain("198.51.100");
+
+      app.close();
+      const keyless = upstream();
+      app = testApp(testConfig({ TRUSTED_PROXY_HOPS: "1" }), { fetch: keyless.fetch });
+      expect((await from("198.51.100.1", "a"))?.status).toBe(200);
+      expect(keyless.headers[0]).not.toHaveProperty("authorization");
+      expect(keyless.headers[0]).not.toHaveProperty("x-rail402-client");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it("proxies the facilitator's /supported, cached for a minute", async () => {

@@ -47,7 +47,7 @@ export function testConfig(overrides: Partial<PublicConfig> = {}): PublicConfig 
       demoSeller: DEMO,
       docs: "https://docs.example",
     },
-    explorerTemplate: "https://explorer.example/{network}/tx/{hash}",
+    explorer: { template: "https://explorer.example/{network}/tx/{hash}" },
     asset: {
       contract: USDC_CONTRACT,
       symbol: "USDC",

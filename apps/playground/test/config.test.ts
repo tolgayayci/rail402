@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Keypair } from "@stellar/stellar-sdk";
 import { describe, expect, it } from "vitest";
 import {
@@ -8,6 +11,7 @@ import {
   publicConfigOf,
 } from "../src/config.ts";
 import { secretLikeNames } from "../src/shared/public-config.ts";
+import { accountLink } from "../web/src/projection/wallet.ts";
 import { PAY_TO, testConfig } from "./support.ts";
 
 const base = { PUBLIC_URL: "https://playground.example", PLAYGROUND_PAY_TO: PAY_TO };
@@ -112,6 +116,35 @@ describe("configuration", () => {
     }
   });
 
+  it("reads the Bazaar access key from a file only, and never publishes it", () => {
+    const directory = mkdtempSync(join(tmpdir(), "playground-key-"));
+    try {
+      const key = `r402_playground_${"B".repeat(43)}`;
+      const file = join(directory, "bazaar.key");
+      writeFileSync(file, `${key}\n`, { mode: 0o600 });
+      const config = testConfig({ BAZAAR_KEY_FILE: file });
+      expect(config.bazaarKey).toBe(key);
+      expect(JSON.stringify(publicConfigOf(config))).not.toContain(key);
+      expect(testConfig().bazaarKey).toBeUndefined();
+
+      const inline = refusal({ ...base, BAZAAR_KEY: key });
+      expect(inline).toMatch(/BAZAAR_KEY is refused/);
+      expect(inline).not.toContain(key);
+      expect(refusal({ ...base, BAZAAR_KEY_FILE: join(directory, "missing") })).toMatch(
+        /BAZAAR_KEY_FILE cannot be read/,
+      );
+      expect(refusal({ ...base, BAZAAR_KEY_FILE: file, BAZAAR_URL: "http://bazaar.example" })).toMatch(
+        /needs an https BAZAAR_URL/,
+      );
+      expect(testConfig({ BAZAAR_KEY_FILE: file, BAZAAR_URL: "http://127.0.0.1:8080" }).bazaarKey).toBe(key);
+      const malformed = join(directory, "malformed.key");
+      writeFileSync(malformed, "not-a-key", { mode: 0o600 });
+      expect(refusal({ ...base, BAZAAR_KEY_FILE: malformed })).toMatch(/does not hold an r402_ access key/);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("does not judge variables by their names", () => {
     const config = testConfig({
       PLATFORM_PRIVATE_DOMAIN: "playground.internal",
@@ -152,6 +185,40 @@ describe("configuration", () => {
     expect(refusal({ ...base, EXPLORER_TEMPLATE: "https://explorer.example/tx/" })).toMatch(
       /^EXPLORER_TEMPLATE/,
     );
+    expect(refusal({ ...base, EXPLORER_ACCOUNT_TEMPLATE: "https://explorer.example/a/" })).toMatch(
+      /^EXPLORER_ACCOUNT_TEMPLATE/,
+    );
+  });
+
+  it("selects the explorer links point to", () => {
+    expect(testConfig().explorer).toBe("rail402");
+    expect(testConfig({ EXPLORER: "stellar.expert" }).explorer).toBe("stellar.expert");
+    expect(testConfig({ EXPLORER: "rail402" }).explorer).toBe("rail402");
+    expect(testConfig({ EXPLORER: "rail402", EXPLORER_BASE_URL: "https://x.example" }).explorer).toEqual({
+      rail402BaseUrl: "https://x.example",
+    });
+    expect(
+      testConfig({
+        EXPLORER_TEMPLATE: "https://x.example/tx/{hash}",
+        EXPLORER_ACCOUNT_TEMPLATE: "https://x.example/a/{address}",
+      }).explorer,
+    ).toEqual({ template: "https://x.example/tx/{hash}", accountTemplate: "https://x.example/a/{address}" });
+  });
+
+  it("keeps account links for a deployment that sets the earlier stellar.expert template", () => {
+    for (const template of [
+      "https://stellar.expert/explorer/{network}/tx/{hash}",
+      "https://stellar.expert/explorer/testnet/tx/{hash}",
+    ]) {
+      const config = testConfig({ EXPLORER_TEMPLATE: template });
+      expect(config.explorer).toBe("stellar.expert");
+      const address = Keypair.random().publicKey();
+      expect(accountLink(config, address)).toBe(`https://stellar.expert/explorer/testnet/account/${address}`);
+    }
+    // Any other template links accounts only through EXPLORER_ACCOUNT_TEMPLATE.
+    expect(testConfig({ EXPLORER_TEMPLATE: "https://x.example/tx/{hash}" }).explorer).toEqual({
+      template: "https://x.example/tx/{hash}",
+    });
   });
 });
 
