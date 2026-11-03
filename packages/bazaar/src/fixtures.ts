@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { Account, Keypair, MuxedAccount } from "@stellar/stellar-sdk";
+import { Account, Keypair, MuxedAccount, StrKey } from "@stellar/stellar-sdk";
 import type { PaymentPayload, PaymentRequired, PaymentRequirements } from "@x402/core/types";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 import type { SettledPayment } from "./extract.ts";
@@ -33,6 +33,11 @@ export interface PaymentFixture {
 
 export function randomAddress(): string {
   return Keypair.random().publicKey();
+}
+
+/** A random C… contract address, for tests that need assets of their own. */
+export function randomContract(): string {
+  return StrKey.encodeContract(randomBytes(32));
 }
 
 /** The M… address of `account` with muxed ID `id`. */

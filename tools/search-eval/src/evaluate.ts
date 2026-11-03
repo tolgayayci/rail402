@@ -131,7 +131,14 @@ export async function evaluate(dataset: Dataset, options: EvaluateOptions): Prom
   const secret = Buffer.alloc(32, 1);
   const services: Record<Mode, SearchService> = {
     lexical: new SearchService({ store, assets: registry, cursorSecret: secret }),
-    hybrid: new SearchService({ store, assets: registry, cursorSecret: secret, embedder: options.embedder }),
+    // No query-embedding cache: every reported hybrid latency includes the query's model run.
+    hybrid: new SearchService({
+      store,
+      assets: registry,
+      cursorSecret: secret,
+      embedder: options.embedder,
+      queryCacheSize: 0,
+    }),
   };
   for (const mode of MODES) await services[mode].refresh();
 
@@ -295,13 +302,13 @@ export async function evaluate(dataset: Dataset, options: EvaluateOptions): Prom
 }
 
 /** The hard filter a query ends up with: constraints parsed from its text, overridden by explicit ones. */
-function effectiveFilter(query: EvalQuery, registry: AssetRegistry): SearchFilter {
+export function effectiveFilter(query: EvalQuery, registry: AssetRegistry): SearchFilter {
   const parsed = parseQuery(query.text, registry.symbols());
   return { ...parsed.filter, ...(query.filter ?? {}) };
 }
 
 /** A search filter in the labelled-constraint vocabulary, so both are checked the same way. */
-function asConstraints(filter: SearchFilter, assets: readonly KnownAsset[]): ExpectedConstraints {
+export function asConstraints(filter: SearchFilter, assets: readonly KnownAsset[]): ExpectedConstraints {
   const symbol =
     filter.asset === undefined
       ? undefined

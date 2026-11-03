@@ -24,6 +24,8 @@ export interface Embedder {
   /** Model id; embeddings from different models are never mixed. */
   readonly id: string;
   readonly dimensions: number;
+  /** The pinned model the embedder runs, when it runs one: its identity is part of the ranker's. */
+  readonly manifest?: ModelManifest;
   embed(text: string): Promise<Float32Array>;
 }
 
@@ -94,7 +96,7 @@ function verify(bytes: Buffer, sha256: string, source: string): void {
 export class OnnxEmbedder implements Embedder {
   readonly id: string;
   readonly dimensions: number;
-  private readonly manifest: ModelManifest;
+  readonly manifest: ModelManifest;
   private readonly session: ort.InferenceSession;
   private readonly tokenizer: Tokenizer;
 

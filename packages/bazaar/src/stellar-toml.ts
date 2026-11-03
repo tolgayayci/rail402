@@ -55,7 +55,9 @@ export function fetchStellarTomlAccounts(
       },
       (response: IncomingMessage) => {
         if (response.statusCode !== 200) {
-          response.resume();
+          // The body is not needed: close now rather than drain what the host may drip-feed.
+          response.on("error", () => undefined);
+          response.destroy();
           finish({ ok: false, reason: `stellar.toml answered HTTP ${String(response.statusCode ?? 0)}` });
           return;
         }
@@ -78,9 +80,11 @@ export function fetchStellarTomlAccounts(
         });
       },
     );
+    // One deadline for the whole exchange, the body included: a host that drips its stellar.toml is
+    // cut off when it runs out, and the socket is closed with it.
     const timer = setTimeout(() => {
       request.destroy(new Error("timed out"));
-      finish({ ok: false, reason: `no response within ${String(timeoutMs)} ms` });
+      finish({ ok: false, reason: `no complete response within ${String(timeoutMs)} ms` });
     }, timeoutMs);
     request.on("error", (error: Error) => {
       finish({ ok: false, reason: error.message });

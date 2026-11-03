@@ -114,7 +114,8 @@ export function isSafeTemplate(template: string): boolean {
 
 /**
  * Whether a validated route template (e.g. `/users/:id`) describes the concrete path that was paid
- * for (e.g. `/users/42`): same number of segments, static segments equal, parameters non-empty.
+ * for (e.g. `/users/42`): same number of segments, static segments equal, parameters non-empty and
+ * decodable, so each path of the route can be the listing's example.
  */
 export function templateMatchesPath(template: string, path: string): boolean {
   const templateSegments = template.split("/");
@@ -122,9 +123,20 @@ export function templateMatchesPath(template: string, path: string): boolean {
   if (templateSegments.length !== pathSegments.length) return false;
   return templateSegments.every((segment, index) => {
     const concrete = pathSegments[index] ?? "";
-    if (segment.startsWith(":")) return /^:[A-Za-z_][A-Za-z0-9_]*$/.test(segment) && concrete !== "";
+    if (segment.startsWith(":")) {
+      return /^:[A-Za-z_][A-Za-z0-9_]*$/.test(segment) && concrete !== "" && decodes(concrete);
+    }
     return safeDecode(segment) === safeDecode(concrete);
   });
+}
+
+function decodes(value: string): boolean {
+  try {
+    decodeURIComponent(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function safeDecode(value: string): string {

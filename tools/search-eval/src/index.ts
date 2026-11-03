@@ -4,3 +4,4 @@ export * from "./evaluate.ts";
 export * from "./gate.ts";
 export * from "./metrics.ts";
 export * from "./conformance.ts";
+export * from "./http.ts";

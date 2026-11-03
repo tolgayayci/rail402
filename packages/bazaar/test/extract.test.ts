@@ -37,6 +37,42 @@ function candidate(extraction: Extraction) {
   return extraction.candidate;
 }
 
+describe("declared extensions", () => {
+  it("never takes the facilitator's own rail402 extension for one the resource declares", async () => {
+    const payment = settledPayment({ url: "https://api.example.com/weather" });
+    const tagged = {
+      ...payment,
+      payload: {
+        ...payment.payload,
+        extensions: {
+          ...payment.payload.extensions,
+          "payment-identifier": { info: { id: "rail402_abcdefghijklmnop" } },
+          rail402: { settlement: { attempt: "Zq3-x_9aB2cD4eF6gH8iJk" } },
+        },
+      },
+    };
+    const extraction = candidate(await extractCandidate(tagged, { sandbox, allowLoopback: false }));
+    expect(extraction.content.extensions).toEqual(["payment-identifier"]);
+    expect(extraction.dropped).not.toContain("extensions");
+    // Nor for an MCP tool, which can be listed without an origin of its own.
+    const tool = settledPayment({ url: "mcp://tool/forecast", extension: mcpExtension("forecast") });
+    const taggedTool = {
+      ...tool,
+      payload: {
+        ...tool.payload,
+        extensions: {
+          ...tool.payload.extensions,
+          rail402: { settlement: { attempt: "Zq3-x_9aB2cD4eF6gH8iJk" } },
+        },
+      },
+    };
+    expect(
+      candidate(await extractCandidate(taggedTool, { sandbox, allowLoopback: false })).content.extensions ??
+        [],
+    ).toEqual([]);
+  });
+});
+
 describe("HTTP method inference", () => {
   it("infers GET when the input has neither a method nor a bodyType", async () => {
     const found = candidate(await extract(undeclaredMethod({ queryParams: { city: "Izmir" } })));

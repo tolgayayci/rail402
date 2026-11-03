@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { Account, Keypair, MuxedAccount } from "@stellar/stellar-sdk";
-import { tokenize, type Embedder, type KnownAsset } from "@rail402.dev/search";
+import { EVAL_BASELINE, tokenize, type Embedder, type KnownAsset } from "@rail402.dev/search";
 import {
   baselineIntegrity,
   baselineOf,
@@ -154,5 +154,14 @@ describe("search evaluation harness", () => {
     expect(unmetConstraints(muxed.content, { payTo: base }, [])).toEqual([]);
     expect(unmetConstraints(muxed.content, { payTo: sibling }, [])).toEqual(["payTo"]);
     expect(unmetConstraints(muxed.content, { payTo: Keypair.random().publicKey() }, [])).toEqual(["payTo"]);
+  });
+});
+
+describe("the ranker's eval baseline", () => {
+  it("is the tag the committed baseline names", async () => {
+    const baseline = JSON.parse(
+      await readFile(new URL("../data/baseline.json", import.meta.url), "utf8"),
+    ) as { tag: string };
+    expect(EVAL_BASELINE).toBe(baseline.tag);
   });
 });

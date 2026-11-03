@@ -12,9 +12,8 @@ import {
 } from "@rail402.dev/safe-fetch";
 
 export interface OriginFetchOptions {
+  /** Time budget for the whole exchange: connecting, sending and receiving the response headers. */
   readonly timeoutMs?: number;
-  /** Largest response body read before the connection is closed. */
-  readonly maxBytes?: number;
   /** Allow loopback targets (conformance runs on a local network only). */
   readonly allowLoopback?: boolean;
 }
@@ -33,8 +32,9 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
  * Requests a resource without payment and returns the x402 v2 PaymentRequired it answers with.
  *
  * SSRF controls: every DNS answer must be a public address (checked in the connection's own lookup,
- * so the address that was checked is the address that is dialled); redirects are not followed;
- * responses are capped in size and time; only http and https are spoken.
+ * so the address that was checked is the address that is dialled); redirects are not followed; the
+ * exchange is capped in time and the connection is closed once the headers arrive, so no body is
+ * ever read; only http and https are spoken.
  */
 export function fetchPaymentRequired(
   target: string,
@@ -42,7 +42,6 @@ export function fetchPaymentRequired(
   options: OriginFetchOptions = {},
 ): Promise<OriginResponse> {
   const timeoutMs = options.timeoutMs ?? 3_000;
-  const maxBytes = options.maxBytes ?? 65_536;
   let url: URL;
   try {
     url = new URL(target);
@@ -83,15 +82,11 @@ export function fetchPaymentRequired(
       (response: IncomingMessage) => {
         const status = response.statusCode ?? 0;
         const header = response.headers["payment-required"];
-        // The body is not needed; drain at most maxBytes so the socket can close cleanly.
-        let received = 0;
-        response.on("data", (chunk: Buffer) => {
-          received += chunk.length;
-          if (received > maxBytes) response.destroy();
-        });
+        // Everything needed is in the headers: close the connection now rather than read a body an
+        // origin could drip-feed to hold the socket open past the time budget.
         response.on("error", () => undefined);
+        response.destroy();
         if (status !== 402 || typeof header !== "string") {
-          response.resume();
           finish({ kind: "not_payment_required", status });
           return;
         }
@@ -100,7 +95,6 @@ export function fetchPaymentRequired(
         } catch {
           finish({ kind: "unreachable", reason: "the PAYMENT-REQUIRED header could not be decoded" });
         }
-        response.resume();
       },
     );
 

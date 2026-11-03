@@ -99,4 +99,27 @@ describe("origin checks", () => {
     });
     expect(received).toEqual([]);
   });
+
+  it("closes the connection once the headers arrive, so a drip-fed body never holds the socket", async () => {
+    for (const status of [402, 200]) {
+      let closed: number | undefined;
+      const drip = createServer((_request, response) => {
+        response.writeHead(status, { "PAYMENT-REQUIRED": encodePaymentRequiredHeader(required) });
+        const timer = setInterval(() => response.write("x"), 50);
+        response.on("close", () => {
+          clearInterval(timer);
+          closed = Date.now();
+        });
+      });
+      await new Promise<void>((resolve) => drip.listen(0, "127.0.0.1", resolve));
+      const url = `http://127.0.0.1:${String((drip.address() as AddressInfo).port)}/x`;
+      const result = await fetchPaymentRequired(url, "GET", { allowLoopback: true, timeoutMs: 2_000 });
+      const answered = Date.now();
+      expect(result.kind).toBe(status === 402 ? "payment_required" : "not_payment_required");
+      await expect.poll(() => closed, { timeout: 1_000 }).toBeDefined();
+      expect((closed ?? Infinity) - answered).toBeLessThan(1_000);
+      drip.closeAllConnections();
+      await new Promise((resolve) => drip.close(resolve));
+    }
+  });
 });

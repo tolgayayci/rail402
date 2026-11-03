@@ -48,6 +48,33 @@ export const FIELD_WEIGHTS: Readonly<Record<Field, number>> = {
   host: 0.5,
 };
 
+/**
+ * The most tokens a document keeps per field, and the longest token it keeps. Honest listings stay far
+ * below these; they bound how much of the index one listing can take, whatever its metadata says.
+ */
+export const FIELD_TOKEN_LIMITS: Readonly<Record<Field, number>> = {
+  name: 64,
+  tags: 64,
+  description: 256,
+  schema: 512,
+  host: 16,
+};
+export const MAX_TOKEN_LENGTH = 40;
+
+/**
+ * A field's tokens within its limits: the first ones, and none longer than MAX_TOKEN_LENGTH. Only the
+ * start of the text that can hold them is read, so a huge field costs no more to index than a full one.
+ */
+function bounded(text: string, field: Field): string[] {
+  const limit = FIELD_TOKEN_LIMITS[field];
+  const kept: string[] = [];
+  for (const token of tokenize(text.slice(0, limit * 32))) {
+    if (kept.length >= limit) break;
+    if (token.length <= MAX_TOKEN_LENGTH) kept.push(token);
+  }
+  return kept;
+}
+
 export interface SearchDocument {
   readonly id: string;
   readonly fields: Readonly<Record<Field, readonly string[]>>;
@@ -102,11 +129,11 @@ export function toDocument(listing: Listing): SearchDocument {
   return {
     id: listing.id,
     fields: {
-      name: tokenize(name),
-      tags: tokenize(tags),
-      description: tokenize(description),
-      schema: tokenize(schema),
-      host: tokenize(host),
+      name: bounded(name, "name"),
+      tags: bounded(tags, "tags"),
+      description: bounded(description, "description"),
+      schema: bounded(schema, "schema"),
+      host: bounded(host, "host"),
     },
     embeddingText: embeddingParts.join(". ").slice(0, 1_000),
   };

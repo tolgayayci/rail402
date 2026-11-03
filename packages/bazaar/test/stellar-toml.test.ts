@@ -55,4 +55,29 @@ describe("stellar.toml ACCOUNTS", () => {
     bodies.set(host, { status: 200, body: `ACCOUNTS = ["${account}"]\n` });
     expect(await fetchStellarTomlAccounts(host)).toMatchObject({ ok: false });
   });
+
+  it("keeps one deadline through the body, so a drip-fed file is cut off and its socket closed", async () => {
+    for (const status of [200, 404]) {
+      let closed = false;
+      const drip = createServer((_request, response) => {
+        response.writeHead(status, { "content-type": "text/plain" });
+        response.write(`ACCOUNTS = ["${account}"]\n#`);
+        const timer = setInterval(() => response.write("x"), 50);
+        response.on("close", () => {
+          clearInterval(timer);
+          closed = true;
+        });
+      });
+      await new Promise<void>((resolve) => drip.listen(0, "127.0.0.1", resolve));
+      const dripHost = `127.0.0.1:${String((drip.address() as AddressInfo).port)}`;
+      const started = Date.now();
+      const result = await fetchStellarTomlAccounts(dripHost, { allowLoopback: true, timeoutMs: 400 });
+      expect(Date.now() - started).toBeLessThan(1_500);
+      expect(result.ok).toBe(false);
+      expect(reason(result)).toMatch(status === 200 ? /no complete response within 400 ms/ : /HTTP 404/);
+      await expect.poll(() => closed, { timeout: 1_000 }).toBe(true);
+      drip.closeAllConnections();
+      await new Promise((resolve) => drip.close(resolve));
+    }
+  });
 });

@@ -15,6 +15,11 @@ export type SchemaVerdict =
         | "bazaar_schema_timeout"
         | "bazaar_info_invalid";
       readonly reason: string;
+      /**
+       * The schema was not judged: the sandbox was busy or its worker could not start. Validating it
+       * again later may succeed, so a settlement's cataloging is retried rather than refused.
+       */
+      readonly busy?: true;
     };
 
 export interface SchemaSandboxOptions {
@@ -61,7 +66,8 @@ export class SchemaSandbox {
       return Promise.resolve({
         ok: false,
         code: "bazaar_schema_timeout",
-        reason: "Schema validation is busy; the resource is cataloged on a later settlement.",
+        reason: "Schema validation is busy; cataloging is retried shortly.",
+        busy: true,
       });
     }
     this.queued++;
@@ -143,7 +149,8 @@ export class SchemaSandbox {
       return {
         ok: false,
         code: "bazaar_schema_timeout",
-        reason: "The schema validator could not start; the resource is cataloged on a later settlement.",
+        reason: "The schema validator could not start; cataloging is retried shortly.",
+        busy: true,
       };
     }
     const id = this.nextId++;
@@ -203,6 +210,55 @@ export class SchemaSandbox {
     thread.on("exit", failed);
     this.worker = { thread, ready };
     return this.worker;
+  }
+}
+
+/** What a validation is for: cataloging a settlement or an origin check, or a `/verify` preview. */
+export type SchemaLane = "catalog" | "preview";
+
+export interface SchemaSandboxesOptions extends SchemaSandboxOptions {
+  /** Validations allowed to wait in a network's preview lane (default 4); previews are advisory. */
+  readonly previewMaxQueued?: number;
+}
+
+/**
+ * One schema sandbox, with its own worker and queue, per network and lane. A flood of slow schemas on
+ * one network (free on testnet) never delays another network's validations, and `/verify` previews,
+ * which anyone can repeat until a payload expires, never take the place of a settlement's validation.
+ * Sandboxes start when first used.
+ */
+export class SchemaSandboxes {
+  private readonly options: SchemaSandboxesOptions;
+  private readonly lanes = new Map<string, SchemaSandbox>();
+
+  constructor(options: SchemaSandboxesOptions = {}) {
+    this.options = options;
+  }
+
+  /** The sandbox of `network`'s `lane`. */
+  for(network: string, lane: SchemaLane): SchemaSandbox {
+    const key = `${lane} ${network}`;
+    let sandbox = this.lanes.get(key);
+    if (sandbox === undefined) {
+      sandbox = new SchemaSandbox({
+        ...this.options,
+        ...(lane === "preview" ? { maxQueued: this.options.previewMaxQueued ?? 4 } : {}),
+      });
+      this.lanes.set(key, sandbox);
+    }
+    return sandbox;
+  }
+
+  /** Starts the cataloging sandbox of each network; false if any could not start. */
+  async warm(networks: readonly string[]): Promise<boolean> {
+    const started = await Promise.all(networks.map((network) => this.for(network, "catalog").warm()));
+    return started.every(Boolean);
+  }
+
+  async close(): Promise<void> {
+    const lanes = [...this.lanes.values()];
+    this.lanes.clear();
+    await Promise.all(lanes.map((sandbox) => sandbox.close()));
   }
 }
 

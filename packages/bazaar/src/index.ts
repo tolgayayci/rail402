@@ -5,6 +5,7 @@ export * from "./filter.ts";
 export * from "./mcp-origin.ts";
 export * from "./memory-store.ts";
 export * from "./origin.ts";
+export * from "./policy.ts";
 export * from "./schema-sandbox.ts";
 export * from "./store.ts";
 export * from "./types.ts";

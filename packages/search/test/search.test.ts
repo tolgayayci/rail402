@@ -671,7 +671,7 @@ describe("SearchService", () => {
     });
     for (const failure of ["fail", "slow"] as const) {
       mode = failure;
-      const result = await service.search({ query: "weather", filter: {}, limit: 10 });
+      const result = await service.search({ query: `weather ${failure}`, filter: {}, limit: 10 });
       expect(result, failure).toMatchObject({ method: "lexical", partialResults: true });
       expect(result.resources.flat().map((l) => l.id)).toEqual([weather.id]);
     }
@@ -730,12 +730,15 @@ describe("SearchService", () => {
     expect(events.splice(0)).toEqual(["build:ok", "search:hybrid:false"]);
 
     failing = true;
+    // A cached query needs no embedder; a new one finds it failing.
     await healthy.search({ query: "maps", filter: {}, limit: 10 });
+    expect(events.splice(0)).toEqual(["search:hybrid:false"]);
+    await healthy.search({ query: "maps of cities", filter: {}, limit: 10 });
     expect(events.splice(0)).toEqual(["embedding:query", "search:lexical:true"]);
 
     const unreadable = new SearchService({
       store: Object.assign(Object.create(next) as MemoryCatalogStore, {
-        published: () => Promise.reject(new Error("database unavailable")),
+        scanPublished: () => Promise.reject(new Error("database unavailable")),
       }),
       assets,
       cursorSecret: secret,
@@ -744,6 +747,167 @@ describe("SearchService", () => {
     await expect(unreadable.refresh()).rejects.toThrow("database unavailable");
     expect(events.splice(0)).toEqual(["build:failed"]);
     expect(timings.every((ms) => ms >= 0)).toBe(true);
+  });
+
+  it("serves a repeated query's embedding from a bounded cache, least recently used first", async () => {
+    const embedded: string[] = [];
+    const counting: Embedder = {
+      ...hashEmbedder,
+      embed: (text) => {
+        embedded.push(text);
+        return hashEmbedder.embed(text);
+      },
+    };
+    const service = new SearchService({
+      store: await storeWith([listing({ serviceName: "Weather" })]),
+      assets,
+      embedder: counting,
+      cursorSecret: secret,
+      queryCacheSize: 2,
+    });
+    await service.refresh();
+    embedded.length = 0;
+    const ask = async (query: string) =>
+      (await service.search({ query, filter: {}, limit: 10 })).queryEmbedding;
+    expect(service.isQueryCached("weather")).toBe(false);
+    expect(await ask("weather")).toBe("computed");
+    expect(service.isQueryCached("weather")).toBe(true);
+    // Constraints are not part of the key: the same text with a network costs no embedding.
+    expect(await ask("weather on testnet")).toBe("cached");
+    expect(await ask("maps")).toBe("computed");
+    expect(await ask("weather")).toBe("cached");
+    expect(await ask("tides")).toBe("computed");
+    // "maps" was the least recently used of the two kept, so it was evicted.
+    expect(await ask("maps")).toBe("computed");
+    expect(embedded).toEqual(["weather", "maps", "tides", "maps"]);
+    expect(service.isQueryCached("on testnet")).toBe(true);
+  });
+
+  it("answers lexical-only once the embedder is at its concurrency cap", async () => {
+    let release: () => void = () => undefined;
+    let blocking = false;
+    const gated: Embedder = {
+      ...hashEmbedder,
+      embed: (text) =>
+        blocking
+          ? new Promise((resolve) => {
+              release = () => {
+                resolve(hashEmbedder.embed(text));
+              };
+            })
+          : hashEmbedder.embed(text),
+    };
+    const outcomes: string[] = [];
+    const service = new SearchService({
+      store: await storeWith([listing({ serviceName: "Weather" })]),
+      assets,
+      embedder: gated,
+      cursorSecret: secret,
+      embedConcurrency: 1,
+      embedQueueLength: 0,
+      observer: {
+        indexBuild: () => undefined,
+        embeddingFailure: () => undefined,
+        search: () => undefined,
+        queryEmbedding: (outcome) => outcomes.push(outcome),
+      },
+    });
+    await service.refresh();
+    blocking = true;
+    const first = service.search({ query: "weather report", filter: {}, limit: 10 });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const second = await service.search({ query: "weather radar", filter: {}, limit: 10 });
+    expect(second).toMatchObject({ method: "lexical", partialResults: true, queryEmbedding: "saturated" });
+    expect(second.resources).toHaveLength(1);
+    release();
+    expect(await first).toMatchObject({
+      method: "hybrid",
+      partialResults: false,
+      queryEmbedding: "computed",
+    });
+    blocking = false;
+    // The slot is free again.
+    expect(await service.search({ query: "weather radar", filter: {}, limit: 10 })).toMatchObject({
+      queryEmbedding: "computed",
+    });
+    expect(outcomes).toEqual(["saturated", "computed", "computed"]);
+  });
+
+  it("lets a query wait for a slot while the queue has room", async () => {
+    let release: () => void = () => undefined;
+    let blocking = true;
+    const gated: Embedder = {
+      ...hashEmbedder,
+      embed: (text) =>
+        blocking
+          ? new Promise((resolve) => {
+              blocking = false;
+              release = () => {
+                resolve(hashEmbedder.embed(text));
+              };
+            })
+          : hashEmbedder.embed(text),
+    };
+    const queued = new SearchService({
+      store: await storeWith([listing({ serviceName: "Weather" })]),
+      assets,
+      embedder: gated,
+      cursorSecret: secret,
+      embedConcurrency: 1,
+      embedQueueLength: 1,
+    });
+    // The index build takes the slot first; the query waits for it, then runs.
+    const building = queued.search({ query: "weather", filter: {}, limit: 10 });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    release();
+    expect(await building).toMatchObject({ method: "hybrid", queryEmbedding: "computed" });
+  });
+
+  it("expires the oldest cursor's snapshot when the snapshot cap is reached", async () => {
+    const store = await storeWith(
+      Array.from({ length: 3 }, (_, i) => listing({ serviceName: `Weather ${String(i)}` })),
+    );
+    const kept: number[] = [];
+    const service = new SearchService({
+      store,
+      assets,
+      cursorSecret: secret,
+      maxSnapshots: 2,
+      observer: {
+        indexBuild: () => undefined,
+        embeddingFailure: () => undefined,
+        search: () => undefined,
+        snapshots: (count, bytes) => {
+          kept.push(count);
+          expect(bytes).toBeGreaterThan(0);
+        },
+      },
+    });
+    const publishOne = async () => {
+      const late = listing({ serviceName: "Weather later" });
+      await store.transaction(late.identity, (tx) =>
+        tx.insert(late, {
+          listingId: late.id,
+          version: 1,
+          createdAt: new Date(),
+          cause: "settlement",
+          owner: late.owner,
+          trust: "settled",
+          state: "published",
+          content: late.content,
+        }),
+      );
+      await service.refresh();
+    };
+    const oldest = await service.search({ query: "weather", filter: {}, limit: 1 });
+    await publishOne();
+    const middle = await service.search({ query: "weather", filter: {}, limit: 1 });
+    await publishOne();
+    const page = (cursor: string | null) =>
+      service.search({ query: "weather", filter: {}, limit: 1, cursor: cursor ?? "" });
+    await expect(page(oldest.nextCursor)).rejects.toMatchObject({ code: "search_cursor_expired" });
+    expect((await page(middle.nextCursor)).revision).toBe(middle.revision);
+    expect(Math.max(...kept)).toBe(2);
   });
 
   it("never lets a throwing observer affect a search", async () => {
@@ -779,6 +943,68 @@ describe("SearchService", () => {
     expect(revision).toHaveBeenCalledTimes(2);
   });
 
+  it("reads a page's listings once per revisionMaxAgeMs at one revision, never past a withdrawal", async () => {
+    let clock = 0;
+    const kept = listing({ serviceName: "Weather" });
+    const withdrawn = listing({ serviceName: "Weather radar" });
+    const store = await storeWith([kept, withdrawn]);
+    const reads = vi.spyOn(store, "getMany");
+    const service = new SearchService({
+      store,
+      assets,
+      cursorSecret: secret,
+      revisionMaxAgeMs: 1_000,
+      now: () => clock,
+    });
+    const ids = async () =>
+      (await service.search({ query: "weather", filter: {}, limit: 10 })).resources.flat().map((l) => l.id);
+    expect(new Set(await ids())).toEqual(new Set([kept.id, withdrawn.id]));
+    await ids();
+    expect(reads).toHaveBeenCalledTimes(1);
+
+    // A settlement count changes without a revision: shown once the kept read is a second old.
+    await store.transaction(kept.identity, (tx) => tx.update({ ...kept, settlements: 9 }));
+    clock += 1_000;
+    const counted = await service.search({ query: "weather", filter: {}, limit: 10 });
+    expect(counted.resources.flat().find((l) => l.id === kept.id)?.settlements).toBe(9);
+    expect(reads).toHaveBeenCalledTimes(2);
+
+    // A withdrawal moves the revision: the kept listing is read again, not shown from the cache.
+    await store.transaction(withdrawn.identity, (tx) =>
+      tx.update(
+        { ...withdrawn, state: "quarantined", version: 2 },
+        {
+          listingId: withdrawn.id,
+          version: 2,
+          createdAt: new Date(),
+          cause: "quarantine",
+          owner: withdrawn.owner,
+          trust: withdrawn.trust,
+          state: "quarantined",
+          content: withdrawn.content,
+        },
+      ),
+    );
+    clock += 1_000;
+    expect(await ids()).toEqual([kept.id]);
+  });
+
+  it("reads every page from the store when page caching is off", async () => {
+    const store = await storeWith([listing({ serviceName: "Weather" })]);
+    const reads = vi.spyOn(store, "getMany");
+    const service = new SearchService({
+      store,
+      assets,
+      cursorSecret: secret,
+      revisionMaxAgeMs: 1_000,
+      pageCacheSize: 0,
+      now: () => 0,
+    });
+    await service.search({ query: "weather", filter: {}, limit: 10 });
+    await service.search({ query: "weather", filter: {}, limit: 10 });
+    expect(reads).toHaveBeenCalledTimes(2);
+  });
+
   it("reads the revision on every refresh, so it indexes every change made before it", async () => {
     const store = await storeWith([listing({ serviceName: "Weather now" })]);
     const service = new SearchService({
@@ -799,12 +1025,14 @@ describe("SearchService", () => {
 
   it("builds again when a refresh joins a build that read the catalog before its revision", async () => {
     const store = await storeWith([listing({ serviceName: "Weather now" })]);
-    const published = store.published.bind(store);
+    const scan = store.scanPublished.bind(store);
     let release: (() => void) | undefined;
-    const reads = vi.spyOn(store, "published").mockImplementationOnce(async () => {
-      const early = await published();
+    const reads = vi.spyOn(store, "scanPublished").mockImplementationOnce(async (visit, size) => {
+      const early: (readonly Listing[])[] = [];
+      const revision = await scan((batch) => early.push(batch), size);
       await new Promise<void>((resolve) => (release = resolve));
-      return early;
+      for (const batch of early) visit(batch);
+      return revision;
     });
     const service = new SearchService({ store, assets, cursorSecret: secret });
 
@@ -864,7 +1092,7 @@ describe("SearchService", () => {
         content: late.content,
       }),
     );
-    const published = vi.spyOn(store, "published");
+    const published = vi.spyOn(store, "scanPublished");
     // No background refresh has run: the search waits for one build, shared with a concurrent refresh.
     const [result] = await Promise.all([
       service.search({ query: "weather", filter: {}, limit: 10 }),
@@ -874,6 +1102,70 @@ describe("SearchService", () => {
     expect(result.revision).not.toBe(before.revision);
     expect(result.resources.flat().map((l) => l.id)).toContain(late.id);
     expect(published).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers from the previous snapshot while an index build cannot read the catalog", async () => {
+    const indexed = listing({ serviceName: "Weather now" });
+    const store = await storeWith([indexed]);
+    const service = new SearchService({ store, assets, cursorSecret: secret });
+    const before = await service.refresh();
+    const late = await insert(store, listing({ serviceName: "Weather later" }));
+    // The build gets no connection for its catalog read, as a pool answers after its acquire timeout.
+    const scan = vi
+      .spyOn(store, "scanPublished")
+      .mockRejectedValue(new Error("timeout exceeded when trying to connect"));
+
+    const result = await service.search({ query: "weather", filter: {}, limit: 10 });
+    expect(result.revision).toBe(before.revision);
+    expect(result.resources.flat().map((l) => l.id)).toEqual([indexed.id]);
+    // The refresh still reports the failure; without a snapshot there is nothing to answer from.
+    await expect(service.refresh()).rejects.toThrow(/timeout exceeded/);
+    const cold = new SearchService({ store, assets, cursorSecret: secret });
+    await expect(cold.search({ query: "weather", filter: {}, limit: 10 })).rejects.toThrow(
+      /timeout exceeded/,
+    );
+
+    // The next build catches up.
+    scan.mockRestore();
+    const caughtUp = await service.search({ query: "weather", filter: {}, limit: 10 });
+    expect(caughtUp.revision).toBe(await store.revision());
+    expect(caughtUp.resources.flat().map((l) => l.id)).toContain(late.id);
+  });
+
+  it("builds the index, and reads a refresh's revision, through the index store only", async () => {
+    const catalog = await storeWith([listing({ serviceName: "Weather now" })]);
+    const calls: string[] = [];
+    /** The catalog through a pool of its own: calls are logged, and scans fail when `scans` is busy. */
+    const through = (name: string, scans: "free" | "busy"): MemoryCatalogStore =>
+      new Proxy(catalog, {
+        get(target, property) {
+          const value = Reflect.get(target, property, target) as unknown;
+          if (typeof value !== "function") return value;
+          return (...args: unknown[]) => {
+            calls.push(`${name}.${String(property)}`);
+            if (property === "scanPublished" && scans === "busy")
+              return Promise.reject(new Error("timeout exceeded when trying to connect"));
+            return (value as (...parameters: unknown[]) => unknown).apply(target, args);
+          };
+        },
+      });
+    // Request load holds every connection searches read through, so a scan there would fail.
+    const service = new SearchService({
+      store: through("request", "busy"),
+      indexStore: through("index", "free"),
+      assets,
+      cursorSecret: secret,
+    });
+
+    await service.refresh();
+    expect(calls.splice(0)).toEqual(["index.revision", "index.scanPublished"]);
+
+    const late = await insert(catalog, listing({ serviceName: "Weather later" }));
+    const result = await service.search({ query: "weather", filter: {}, limit: 10 });
+    expect(result.revision).toBe(await catalog.revision());
+    expect(result.resources.flat().map((l) => l.id)).toContain(late.id);
+    // The search read the revision and its page where it was asked; the build read the index store.
+    expect(calls).toEqual(["request.revision", "index.scanPublished", "request.getMany"]);
   });
 
   it("shows each result's settlements, last settlement and facts as they are now", async () => {
@@ -891,7 +1183,7 @@ describe("SearchService", () => {
       if (current === undefined) throw new Error("missing listing");
       await tx.update({ ...current, settlements: 3, lastSettledAt: settledAt, facts });
     });
-    const published = vi.spyOn(store, "published");
+    const published = vi.spyOn(store, "scanPublished");
     const second = await service.search({ query: "weather", filter: {}, limit: 10 });
     expect(second.revision).toBe(first.revision);
     expect(published).not.toHaveBeenCalled();
@@ -903,20 +1195,29 @@ describe("SearchService", () => {
     });
   });
 
-  it("keeps the indexed facts of a result whose options changed since its snapshot", async () => {
+  it("shows a result as the store holds it now, and never one withdrawn since its snapshot", async () => {
     const indexed = listing({ serviceName: "Weather now" });
-    const store = await storeWith([indexed]);
+    const other = listing({ serviceName: "Weather later" });
+    const store = await storeWith([indexed, other]);
     const service = new SearchService({ store, assets, cursorSecret: secret, revisionMaxAgeMs: 60_000 });
     await service.refresh();
-    const facts = { checkedAt: new Date() } as unknown as NonNullable<Listing["facts"]>;
+    const facts = { checkedAt: new Date(), options: [] } as unknown as NonNullable<Listing["facts"]>;
+    const description = "Forecasts for every city, refreshed hourly";
     await store.transaction(indexed.identity, async (tx) => {
       const current = await tx.get(indexed.id);
       if (current === undefined) throw new Error("missing listing");
-      await tx.update({ ...current, contentHash: "changed", facts, settlements: 2 });
+      const content = { ...current.content, description };
+      await tx.update({ ...current, content, contentHash: contentHash(content), facts, settlements: 2 });
     });
+    await store.transaction(other.identity, async (tx) => {
+      const current = await tx.get(other.id);
+      if (current === undefined) throw new Error("missing listing");
+      await tx.update({ ...current, state: "quarantined" });
+    });
+    // Same revision as the snapshot (no new version was written): the page reads the store.
     const result = await service.search({ query: "weather", filter: {}, limit: 10 });
-    expect(result.resources[0]?.[0]).toMatchObject({ settlements: 2 });
-    expect(result.resources[0]?.[0]?.facts).toBeUndefined();
+    expect(result.resources.flat().map((entry) => entry.id)).toEqual([indexed.id]);
+    expect(result.resources[0]?.[0]).toMatchObject({ settlements: 2, facts, content: { description } });
   });
 
   it("rejects blank and oversized queries with codes", async () => {

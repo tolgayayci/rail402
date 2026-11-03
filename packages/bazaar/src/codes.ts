@@ -52,6 +52,21 @@ export const bazaarCodes = defineCodes({
     retryable: false,
     reason: "The resource URL points to a private, loopback or otherwise non-public host.",
   },
+  bazaar_resource_unverifiable: {
+    status: 400,
+    retryable: false,
+    reason: "Tools without an https endpoint cannot be verified and are not cataloged on this network.",
+  },
+  bazaar_settlement_below_minimum: {
+    status: 400,
+    retryable: false,
+    reason: "The settled amount is below this network's minimum for cataloging a resource.",
+  },
+  bazaar_listing_too_large: {
+    status: 400,
+    retryable: false,
+    reason: "The listing would publish more than the catalog's per-listing size limit.",
+  },
   bazaar_owner_conflict: {
     status: 409,
     retryable: false,
@@ -89,6 +104,12 @@ export const bazaarCodes = defineCodes({
     reason:
       "This payTo has created too many new listings recently; the resource will be cataloged on a later settlement.",
   },
+  bazaar_catalog_full: {
+    status: 503,
+    retryable: true,
+    reason:
+      "The catalog holds as many listings on this network as it publishes; the resource will be cataloged on a later settlement once listings expire.",
+  },
   bazaar_catalog_unavailable: {
     status: 503,
     retryable: true,
@@ -105,6 +126,21 @@ export const bazaarCodes = defineCodes({
     status: 404,
     retryable: false,
     reason: "No listing has this identifier.",
+  },
+  discovery_usage_private: {
+    status: 404,
+    retryable: false,
+    reason: "The seller of this listing keeps its usage private.",
+  },
+  discovery_overloaded: {
+    status: 503,
+    retryable: true,
+    reason: "Discovery is at capacity; retry after the Retry-After interval.",
+  },
+  discovery_catalog_unavailable: {
+    status: 503,
+    retryable: true,
+    reason: "The catalog could not be read right now; retry after the Retry-After interval.",
   },
 });
 
@@ -139,15 +175,27 @@ export const catalogBackgroundCodes = [
   "origin_withdrawn",
   /** The resource could not be reached; the check is retried later. */
   "origin_retry",
+  /**
+   * A listing waits for room in its network's or its owner's hourly quota of new listings before it is
+   * first published; its check runs again later, without spending a retry.
+   */
+  "publication_deferred",
   /** A listing's Stellar facts were read again. */
   "facts_refreshed",
   /** A listing's Stellar facts could not be read; it keeps its old facts and is tried again. */
   "facts_unavailable",
+  /** A listing past its network's retention was withdrawn. */
+  "listing_expired",
+  /** A listing never published, withdrawn for a week, was deleted with its versions. */
+  "listing_pruned",
 ] as const;
 
 export type CatalogBackgroundCode = (typeof catalogBackgroundCodes)[number];
 
-/** Why an origin check quarantined a listing; recorded on the listing's `quarantine` version. */
+/**
+ * Why a listing was quarantined: by an origin check, or by the catalog's limits and retention. Recorded
+ * on the listing's `quarantine` version.
+ */
 export const quarantineReasons = [
   /** The resource could not be reached through every retry. */
   "origin_unreachable",
@@ -164,6 +212,18 @@ export const quarantineReasons = [
    * settled scheme, network, asset, payTo and price (the cap, for upto).
    */
   "origin_payment_mismatch",
+  /** The resource's own 402 describes more than a listing may publish (the per-listing size limit). */
+  "origin_listing_too_large",
+  /**
+   * The origin confirmed the listing while its network held as many published listings as it may; a
+   * later settlement checks it again.
+   */
+  "catalog_full",
+  /**
+   * The listing was not settled for longer than its network keeps such listings (see the catalog
+   * budget's retention); a later settlement by its owner lists it again.
+   */
+  "listing_expired",
 ] as const;
 
 export type QuarantineReason = (typeof quarantineReasons)[number];

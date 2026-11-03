@@ -31,7 +31,13 @@ export interface ExtractOptions {
 export type Extraction =
   /** The payment carries no bazaar extension: nothing to catalog, nothing to report. */
   | { readonly kind: "absent" }
-  | { readonly kind: "rejected"; readonly code: BazaarCode; readonly reason: string }
+  | {
+      readonly kind: "rejected";
+      readonly code: BazaarCode;
+      readonly reason: string;
+      /** Not a verdict on the payment: the schema could not be validated now (see SchemaVerdict). */
+      readonly busy?: true;
+    }
   | { readonly kind: "candidate"; readonly candidate: Candidate };
 
 export interface SettledPayment {
@@ -65,7 +71,11 @@ export async function extractCandidate(
     return reject("bazaar_info_unsupported", structure.errors?.[0]);
   }
   const verdict = await options.sandbox.validate(schema, info);
-  if (!verdict.ok) return reject(verdict.code, verdict.reason);
+  if (!verdict.ok) {
+    if (verdict.busy === true)
+      return { kind: "rejected", code: verdict.code, reason: verdict.reason, busy: true };
+    return reject(verdict.code, verdict.reason);
+  }
 
   const input = info["input"] as Record<string, unknown>;
   const kind = input["type"] as ResourceKind;
@@ -224,12 +234,18 @@ function cleanDescription(value: unknown): string | undefined {
 }
 
 /**
+ * Keys a payment's extensions may carry that no resource declares: `bazaar` is cataloged on its own,
+ * and `rail402` is the resource server's own word to the facilitator (its settle attempt id).
+ */
+const NOT_DECLARED = new Set(["bazaar", "rail402"]);
+
+/**
  * The keys of the other extensions in `extensions`, sorted. Only keys are kept: a declaration's
  * payload can change with every response (a sign-in challenge), and a buyer's echo can carry its own
  * data (a payment identifier), neither of which belongs in a public catalog.
  */
 function declaredExtensionKeys(extensions: Record<string, unknown>, dropped: string[]): string[] {
-  const keys = Object.keys(extensions).filter((key) => key !== "bazaar");
+  const keys = Object.keys(extensions).filter((key) => !NOT_DECLARED.has(key));
   const valid = [...new Set(keys.filter((key) => EXTENSION_KEY.test(key)))].sort();
   if (valid.length < keys.length || valid.length > MAX_EXTENSIONS) dropped.push("extensions");
   return valid.slice(0, MAX_EXTENSIONS);

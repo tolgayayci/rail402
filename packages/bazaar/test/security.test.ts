@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import {
   SchemaSandbox,
+  SchemaSandboxes,
   canonicalizeUrl,
   externalReference,
   isPublicAddress,
@@ -93,6 +94,32 @@ describe("SchemaSandbox", () => {
       expect(await small.validate({ type: "object" }, {})).toEqual({ ok: true });
     } finally {
       await small.close();
+    }
+  });
+
+  it("validates each network's settlements and its previews in their own lanes, so a flood of slow schemas starves no one else", async () => {
+    const lanes = new SchemaSandboxes({ timeoutMs: 250 });
+    try {
+      const slow = { type: "string", pattern: "^(a+)+$" };
+      const info = "a".repeat(40) + "!";
+      // Testnet previews flooded with catastrophic patterns, beyond their queue.
+      const flood = Array.from({ length: 8 }, () =>
+        lanes.for("stellar:testnet", "preview").validate(slow, info),
+      );
+      const refused = await lanes.for("stellar:testnet", "preview").validate({ type: "object" }, {});
+      expect(refused).toMatchObject({ ok: false, code: "bazaar_schema_timeout", busy: true });
+      // Settlements on either network validate at once, on lanes of their own.
+      const started = performance.now();
+      expect(await lanes.for("stellar:pubnet", "catalog").validate({ type: "object" }, {})).toEqual({
+        ok: true,
+      });
+      expect(await lanes.for("stellar:testnet", "catalog").validate({ type: "object" }, {})).toEqual({
+        ok: true,
+      });
+      expect(performance.now() - started).toBeLessThan(2_000);
+      await Promise.all(flood);
+    } finally {
+      await lanes.close();
     }
   });
 

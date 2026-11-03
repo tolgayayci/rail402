@@ -132,6 +132,20 @@ export interface Listing {
   readonly firstCatalogedAt: Date;
   /** When the listing was first published; undefined while it has never been. Orders discovery. */
   readonly listedAt?: Date;
+  /**
+   * From when the listing counts toward its owner's hourly quota of new listings at its origin: its
+   * first publication, once its origin confirmed a settlement that paid the owner the price there.
+   * Undefined while none did, and again after an ownership transfer: dust settlements and listings
+   * handed over never use up a payTo's quota.
+   */
+  readonly quotaChargedAt?: Date;
+  /**
+   * The path of the listing's route template its origin confirmed, spelled as it was asked: the path of
+   * the check that listed it, whose parameters are the template's example (`info.input.pathParams`).
+   * Absent for an example kept from before examples were confirmed: that example is checked all the
+   * same, but never withdraws or rewrites the listing until its own answer lists it.
+   */
+  readonly confirmedExample?: string;
   /** Stellar facts; absent until first checked. */
   readonly facts?: ListingFacts;
   readonly lastUpdated: Date;
@@ -151,22 +165,82 @@ export type VersionCause =
 /** Why a listing's origin must be (re)checked. */
 export type OriginCheckReason = "created" | "changed" | "owner_conflict";
 
+/**
+ * How the settlement that requested an MCP origin check proposes to call the tool unpaid: the
+ * `info.input.example` arguments and `transport` its payload declared.
+ */
+export interface ToolCallProposal {
+  readonly arguments?: Readonly<Record<string, unknown>>;
+  readonly transport?: string;
+}
+
+/** The payment option a settlement paid, as its listing publishes it, and the amount it moved. */
+export interface SettledOption extends PaymentOption {
+  /**
+   * The amount the settlement moved, in base units: for `upto`, what it charged, never more than the
+   * cap in `amount`. Absent on checks requested before it was recorded.
+   */
+  readonly settledAmount?: string;
+}
+
 export interface OriginCheck {
   readonly listingId: string;
   readonly reason: OriginCheckReason;
   /** The concrete URL to fetch. */
   readonly url: string;
-  /** A different payTo that settled for this listing and claims it. */
-  readonly proposedOwner?: string;
+  /**
+   * Different payTos that settled for this listing and claim it, in the order they first did. A claim
+   * is kept until a check ran with it; one claimant never replaces another's claim.
+   */
+  readonly proposedOwners?: readonly string[];
   /**
    * The payment option of the settlement that requested the check. An MCP tool whose content its
    * origin never confirmed is published only if its origin offers this option.
    */
-  readonly settled?: PaymentOption;
+  readonly settled?: SettledOption;
+  /**
+   * For an MCP tool, the unpaid call the owner's settlement proposed. The check calls the tool as its
+   * listing describes first and tries this call only when that one is not answered with a 402 (for a
+   * published tool, not while it fails for now), taking only a 402 that names the owner: a tool whose
+   * arguments changed since it was listed is still confirmed, and a payload's arguments can never fail
+   * the check of a tool, nor decide one whose listed call fails for now.
+   */
+  readonly probe?: ToolCallProposal;
+  /**
+   * The paths settlements that paid the owner asked the check to try, each with its payment and
+   * proposed call, in the order they came (see `mergeCandidates`). A listing not yet listed is listed
+   * from one of them; `url`, `settled` and `probe` are the latest's.
+   */
+  readonly candidates?: readonly CheckCandidate[];
   readonly attempts: number;
+  /**
+   * Whether a request made it due before its scheduled retry: a passing error then waits for that
+   * retry and spends none (see `deferOriginCheck`), so only scheduled runs use up the retry schedule.
+   */
+  readonly early?: boolean;
   /** Changes with every request: a check re-requested during a fetch outlives that fetch. */
   readonly requestId: string;
 }
+
+/** A path a settlement that paid a listing's owner asked its origin check to try. */
+export interface CheckCandidate {
+  readonly url: string;
+  /** The payment option the settlement paid, and what it moved. */
+  readonly settled?: SettledOption;
+  /** For an MCP tool, the unpaid call the settlement proposed. */
+  readonly probe?: ToolCallProposal;
+  /**
+   * How an earlier run of the open check found it: `refused` when its answer (for an MCP tool, its
+   * proposed call's) did not list the listing, and it is not asked again; `failed` when that answer
+   * was a passing error, and `underpaid` when it listed the listing for a payment below its price:
+   * such candidates are asked after those no run asked yet.
+   */
+  readonly asked?: CandidateOutcome;
+}
+
+/** How a run of an origin check found a candidate. */
+export type CandidateOutcome =
+  { readonly refused: QuarantineReason } | { readonly failed: true } | { readonly underpaid: true };
 
 export interface ListingVersion {
   readonly listingId: string;
