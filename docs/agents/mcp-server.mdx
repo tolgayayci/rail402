@@ -9,7 +9,7 @@ the [buyer SDK](/agents/sdk), so every payment passes the same spending policy a
 stdio by default and, optionally, Streamable HTTP on a loopback address.
 
 ```sh
-npm install -g @rail402.dev/mcp@0.4.2
+npm install -g @rail402.dev/mcp@0.5.1
 rail402-mcp --help
 ```
 
@@ -17,7 +17,7 @@ The paying account's key stays in a key file that the server reads; the agent ne
 fund it on the testnet with the [CLI](/agents/cli):
 
 ```sh
-npm install -g @rail402.dev/cli@0.4.2
+npm install -g @rail402.dev/cli@0.5.1
 rail402 keys new                  # ~/.config/rail402/keys/stellar-testnet.key, mode 0600
 rail402 account setup --usdc 1    # Friendbot, USDC trustline, 1 testnet USDC
 ```
@@ -95,7 +95,11 @@ Each result has `listingId` (pass it to `pay_and_call`), `type`, `resource`, `me
 | `query`, `body`           | HTTP call input; `pathParams` fills a listing's `:name` path parameters                                                                                |
 | `headers`                 | Only `accept`, `accept-language` and `x-request-id`                                                                                                    |
 | `arguments`               | MCP tool arguments                                                                                                                                     |
-| `idempotencyKey`          | 8-128 letters, digits, `_` or `-`. Repeating a call with the same key never pays twice in the window; a key used again for another resource is refused |
+| `idempotencyKey`          | 8-128 letters, digits, `_` or `-`. A call repeated with the same key never pays twice (see the note); a key used again for another resource is refused |
+
+An `idempotencyKey` belongs to the payer on its network, not to a budget window, and holds for as long as the
+budget ledger keeps it: across windows, sessions and restarts with the SQLite store (the default), and only
+while the process runs with `RAIL402_BUDGET_STORE=memory`.
 
 A success has `paid`, `replayed`, the `target`, the `payment` receipt (`status`, `scheme`, `authorized` and
 `settled` amounts, `payer`, `payTo`, `transaction`, `explorerUrl`, `verifiedOnChain`), the seller's `response`
@@ -111,7 +115,11 @@ before the tool answers. `get_budget` shows the `schemes` in force, the pinned `
 
 A refusal is a tool result with `isError: true` and
 `structuredContent: { ok: false, error: { code, reason, retryable, paid, details? } }`. `paid` tells the
-agent whether money may have moved (`none`, `not_settled`, `settled`, `unknown`).
+agent whether money may have moved (`none`, `not_settled`, `settled`, `unknown`). `retryable` says whether
+the same call, which signs a new payment, can succeed. For a refused payment (`payment_rejected`) both come
+from the facilitator's code the seller passed on, exactly as in the SDK and the CLI: a refusal after which the
+payment may still settle is `paid: "unknown"` and never retryable. See
+[refused payments](/reference/error-codes#refused-payments).
 
 The tool descriptions tell the agent to retry anything but `none` only with the same `idempotencyKey`. Such a
 retry never pays twice:
@@ -126,7 +134,7 @@ it shows the budget. It never pays.
 
 Arguments that do not match the tool's schema are
 `tool_input_invalid`, never a protocol error. A request that never reaches a tool is a JSON-RPC error whose
-`data` carries `{ code, reason }` like a tool's error: `tool_unknown` (`-32602`) for an unknown tool,
+`data` carries `{ code, reason, retryable, paid }` like a tool's error, with `paid: "none"`: `tool_unknown` (`-32602`) for an unknown tool,
 `rpc_params_invalid` (`-32602`) for a `tools/call` without a tool name or with arguments that are not an
 object, and `rpc_method_unknown` (`-32601`) for a method the server does not serve. Every code is in the
 [error-code reference](/reference/error-codes#client-codes).
@@ -158,27 +166,60 @@ The `./tools` entry is in `@rail402.dev/mcp` from version 0.4.0 on.
 
 ## Configuration
 
-| Variable                                                                       | Meaning                                                                                                                                              |
-| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RAIL402_NETWORK`                                                              | `stellar:testnet` (default) or `stellar:pubnet`                                                                                                      |
-| `RAIL402_SECRET_KEY_FILE`                                                      | Key file (0600) of the paying account. `RAIL402_SECRET_KEY` also works and is removed from the environment once read                                 |
-| `RAIL402_MAX_PER_CALL`, `RAIL402_MAX_TOTAL`                                    | Per-call ceiling and budget-window total, e.g. `0.05 USDC`; comma-separated for several assets                                                       |
-| `RAIL402_ASSETS`                                                               | More SEP-41 tokens as `SYMBOL:C…:DECIMALS`; decimals and symbol are verified on chain                                                                |
-| `RAIL402_RPC_URL`, `RAIL402_BAZAAR_URL`                                        | Endpoints; testnet has defaults, pubnet requires both                                                                                                |
-| `RAIL402_SESSION`, `RAIL402_SESSION_TTL`                                       | Budget window name and length (default `default`, `24h`)                                                                                             |
-| `RAIL402_BUDGET_STORE`, `RAIL402_LEDGER_PATH`                                  | `sqlite` (default, shared with the CLI) or `memory`; the SQLite file                                                                                 |
-| `RAIL402_ALLOWED_RECIPIENTS`, `RAIL402_DENIED_RECIPIENTS`                      | Comma-separated Stellar addresses                                                                                                                    |
-| `RAIL402_REQUIRE_LISTING`, `RAIL402_MIN_TRUST`                                 | Pay listings only; lowest listing trust paid, e.g. `http=origin_verified,mcp=domain_verified`                                                        |
-| `RAIL402_SCHEMES`                                                              | `exact,upto` on testnet by default (`exact` on pubnet, or when no upto contract is pinned)                                                           |
-| `RAIL402_UPTO_CONTRACTS`, `RAIL402_UPTO_FACILITATORS`                          | Pinned upto settlement contracts (testnet: the canonical one); allowed settlement authorities (default: any `G…` account; a `C…` one cannot be paid) |
-| `RAIL402_EXPLORER`                                                             | `stellar.expert` (default) or an https template containing `{hash}`                                                                                  |
-| `RAIL402_LOG_LEVEL`                                                            | `info` by default; logs go to stderr only                                                                                                            |
-| `RAIL402_ALLOW_HTTP`, `RAIL402_ALLOW_PRIVATE_NETWORK`, `RAIL402_ALLOWED_PORTS` | Local development on testnet only: plain http, `loopback` destinations, extra ports. Refused on pubnet                                               |
+| Variable                                                                       | Meaning                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RAIL402_NETWORK`                                                              | `stellar:testnet` (default) or `stellar:pubnet`                                                                                                                                                                                                                         |
+| `RAIL402_SECRET_KEY_FILE`                                                      | Key file (0600) of the paying account, tagged for its network by `rail402 keys new`. `RAIL402_SECRET_KEY` also works on testnet and is removed from the environment once read                                                                                           |
+| `RAIL402_MCP_CONFIRM`                                                          | `first-per-session` (pubnet default), `every` or `never` (testnet default): when the user confirms a payment through the MCP client before it is signed                                                                                                                 |
+| `RAIL402_ALLOW_UNTAGGED_KEY`, `RAIL402_ALLOW_LARGE_CAPS`                       | Pubnet escape hatches: accept an untagged key file; accept USDC caps above 1 per call or 10 per window, and caps on any other pubnet asset                                                                                                                              |
+| `RAIL402_SESSION_AUTO_RENEW`                                                   | `true` renews the budget window when it ends (the default on testnet; pubnet windows do not renew)                                                                                                                                                                      |
+| `RAIL402_MAX_PER_CALL`, `RAIL402_MAX_TOTAL`                                    | Per-call ceiling and budget-window total, e.g. `0.05 USDC`; comma-separated for several assets                                                                                                                                                                          |
+| `RAIL402_ASSETS`                                                               | More SEP-41 tokens as `SYMBOL:C…:DECIMALS`; decimals and symbol are verified on chain                                                                                                                                                                                   |
+| `RAIL402_RPC_URL`, `RAIL402_BAZAAR_URL`                                        | Endpoints; testnet has defaults, pubnet requires both                                                                                                                                                                                                                   |
+| `RAIL402_SESSION`, `RAIL402_SESSION_TTL`                                       | Budget window name and length (default `default`, `24h`)                                                                                                                                                                                                                |
+| `RAIL402_BUDGET_STORE`, `RAIL402_LEDGER_PATH`                                  | `sqlite` (default, shared with the CLI) or `memory`; the SQLite file. On pubnet with a key only `sqlite` is accepted: `memory` would give every restart a full budget                                                                                                   |
+| `RAIL402_ALLOWED_RECIPIENTS`, `RAIL402_DENIED_RECIPIENTS`                      | Comma-separated Stellar addresses                                                                                                                                                                                                                                       |
+| `RAIL402_REQUIRE_LISTING`, `RAIL402_MIN_TRUST`                                 | Pay listings only; lowest listing trust paid, e.g. `http=origin_verified,mcp=domain_verified`                                                                                                                                                                           |
+| `RAIL402_SCHEMES`                                                              | `exact,upto` on testnet by default (`exact` on pubnet, or when no upto contract is pinned)                                                                                                                                                                              |
+| `RAIL402_UPTO_CONTRACTS`, `RAIL402_UPTO_FACILITATORS`                          | Pinned upto settlement contracts (testnet: the canonical one); allowed settlement authorities (testnet default: any `G…` account other than the payer and the recipient; a `C…` one cannot be paid). On pubnet, upto with a key needs `RAIL402_UPTO_FACILITATORS`       |
+| `RAIL402_EXPLORER`                                                             | `rail402` (default: the Rail402 Explorer; `RAIL402_EXPLORER_BASE_URL` for a self-hosted one), `stellar.expert` or an https template with `{hash}`; templates may also use `{network}` (`public`/`testnet`) and `{networkPath}` (empty on pubnet, `/testnet` on testnet) |
+| `RAIL402_EXPLORER_ACCOUNT_URL`                                                 | Account and contract links for a template explorer, an https template with `{address}`                                                                                                                                                                                  |
+| `RAIL402_LOG_LEVEL`                                                            | `info` by default; logs go to stderr only                                                                                                                                                                                                                               |
+| `RAIL402_ALLOW_HTTP`, `RAIL402_ALLOW_PRIVATE_NETWORK`, `RAIL402_ALLOWED_PORTS` | Local development on testnet only: plain http, `loopback` destinations, extra ports. Refused on pubnet                                                                                                                                                                  |
 
 Invalid or unsafe configuration stops the server at startup with one JSON line on stderr carrying a code (for
 example `payment_policy_invalid` with `details.setting`) and exit status 1. On `stellar:pubnet` the server
-needs `RAIL402_RPC_URL`, `RAIL402_BAZAAR_URL` and, with a key, both caps; see
+needs `RAIL402_RPC_URL`, `RAIL402_BAZAAR_URL` and, with a key, both caps (USDC at most 1 per call and 10 per
+window, and no caps on other assets, unless `RAIL402_ALLOW_LARGE_CAPS=true`) and a key file tagged for
+pubnet; a seed in `RAIL402_SECRET_KEY` is refused there (`key_network_untagged`). See
 [choosing the network](/agents/sdk#choose-the-network).
+
+### Confirming pubnet payments
+
+On pubnet the first `pay_and_call` of each budget window to each recipient and listing asks the user before
+anything is signed. The server answers the call with a form elicitation showing the network, amount, token,
+recipient, resource, listing and, for upto, the settlement authority, with one `confirm` checkbox. The form
+also says what approving covers. Under `first-per-session` (the pubnet default) it reads, for example:
+"Approving also lets this session pay G… for this listing again without asking, up to 0.10 USDC per call and
+1 USDC in total, until 2026-10-24T09:00:00.000Z. Any other recipient, listing or resource is asked about
+again." So one approval never covers another recipient (compared by base account), another listing, or, for a
+payment without a listing, another resource; a different token or settlement authority is asked about too.
+Under `every` the form says it covers this one payment only. Resource and listing text is shown on one line,
+without control, line-break or bidirectional characters, and an MCP endpoint whose raw text carries them is
+refused with `egress_url_invalid`. On the 2026-07-28 protocol this is an `input_required` result that the client fulfils and
+retries; on the 2025 handshake over stdio the server sends `elicitation/create` itself. Only an accepted
+form with `confirm: true` pays, and only a payment that matches what was shown (same network, scheme, token,
+recipient, resource, listing, settlement authority and budget window, at most the same amount): a declined or
+cancelled form is `payment_confirmation_declined`. When the window renews, or the session is restarted, before
+the answer arrives, the payment is asked about again with the new window's end and budget. The question is sealed in the retry's request state with a key that never
+leaves the server process and expires after ten minutes. Each request state is accepted once and only for
+the exact call it was asked for (same tool and arguments): a replayed approval is refused with
+`rpc_confirmation_used` and one sent with other arguments with `rpc_confirmation_mismatch`, so under
+`RAIL402_MCP_CONFIRM=every` one approval pays once. The client is trusted to show the form to a person.
+
+A client that does not declare form elicitation support (and the stateless 2025 HTTP transport, which has no
+channel back to the client) gets `payment_confirmation_unavailable`, with nothing signed. For a headless
+agent that its caps alone bound, set `RAIL402_MCP_CONFIRM=never`; `every` asks before every payment.
 
 ## HTTP transport
 

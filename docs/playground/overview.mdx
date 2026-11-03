@@ -5,7 +5,7 @@ description: A browser page that makes real x402 payments on the Stellar testnet
 
 The Playground (`apps/playground`) is a page and a small server for trying x402 on Stellar in a browser. Every
 payment it makes is real: a testnet key in your tab signs a Soroban authorization, a seller asks Rail402 to
-verify and settle it, and the transaction lands on the Stellar testnet, where its link opens in the explorer.
+verify and settle it, and the transaction lands on the Stellar testnet, where its link opens in the [Rail402 Explorer](/explorer).
 Nothing is simulated, and the page draws each step from what actually happened.
 
 The Playground is hosted at [playground.rail402.dev](https://playground.rail402.dev), against the hosted testnet
@@ -78,7 +78,9 @@ check pays once first):
 | Private address        | a loopback and a cloud-metadata address               | `egress_destination_not_allowed`  |
 
 The session check pays once inside its window before the second payment is refused; its result links that
-first payment's transaction, and its run report names it in the summary (`transactions`).
+first payment's transaction, and its run report names it in the summary (`transactions`). The second payment
+is tried with the window's total lowered to what it has spent, so an earlier authorization whose reservation
+is released during the check (it expired unused) cannot make room for it.
 
 After signing, **Send it twice** pays the weather route and then sends the same `PAYMENT-SIGNATURE` again: the
 copy is refused and you are charged once. **Seller charges over the cap** has a Playground seller ask Rail402

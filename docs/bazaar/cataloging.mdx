@@ -25,13 +25,15 @@ most 2 seconds for cataloging; past that, the response reports `processing` with
 A settled payment with a bazaar extension is written to a queue before cataloging starts and removed once
 cataloging reached an outcome. If the service stops in between, a background worker (every
 `ORIGIN_CHECK_INTERVAL_MS`, 30 seconds after the settlement at the earliest) finishes it; cataloging is
-idempotent per settlement, so nothing is cataloged twice. When the catalog store cannot take it, the worker
+idempotent per settlement, so nothing is cataloged twice. When the catalog store cannot take it, or the
+schema validator is busy (`/settle` then reports `processing` / `cataloging_in_progress`), the worker
 retries after 10 seconds, 1 minute, 5 minutes, 30 minutes and 2 hours.
 
 A new HTTP resource, or an MCP tool at an `http(s)` endpoint, is cataloged at once but **listed only after
 its own `402` response confirms it** (for a tool, the answer to an unpaid `tools/call`; see
 [Origin verification](#origin-verification)): until then it is `pending`, visible only through
-`GET /discovery/resources/{id}`. An MCP tool under an `mcp://` URL names no server to ask, so it is listed on
+`GET /discovery/resources/{id}`, which shows its state and settled payment but withholds the metadata the
+buyer echoed. An MCP tool under an `mcp://` URL names no server to ask, so it is listed on
 settlement, at trust `settled`.
 
 ## What is read from the payment
@@ -59,7 +61,11 @@ Checked in this order. The first failure rejects cataloging with its code; the p
     references (`#…`) are allowed (`bazaar_schema_external_reference`). The schema is then compiled as JSON
     Schema Draft 2020-12 (`bazaar_schema_invalid`) and `info` validated against it (`bazaar_info_invalid`) in
     an isolated worker thread with a 250 ms budget; a worker that runs over is terminated
-    (`bazaar_schema_timeout`).
+    (`bazaar_schema_timeout`). Each network has its own validator for settlements and origin checks and
+    another for `/verify` previews, each with its own worker and queue (16 waiting validations, 4 for
+    previews). A full queue decides nothing: a preview reports `processing` / `awaiting_settlement`, and a
+    settlement's cataloging stays queued and is retried. A flood of slow schemas on testnet, or of previews,
+    never delays another network's or a settlement's validation.
   </Step>
   <Step title="Method or tool name">
     For `info.input.type: "http"` the method is `info.input.method`, which upstream's structural check accepts
@@ -117,12 +123,15 @@ An HTTP seller whose route has path parameters can declare `routeTemplate`, for 
    caught: the decoded template may not contain `..` or `://`. Rail402 also refuses a template that decodes to
    NUL, CR, LF, a backslash or an empty segment (`//`).
 2. It describes the path that was actually paid for: the same number of segments, every static segment equal
-   to the paid segment after percent-decoding, and every `:param` segment matching a non-empty paid segment.
+   to the paid segment after percent-decoding, and every `:param` segment matching a non-empty paid segment
+   that percent-decodes.
 
 When both hold, the listing's `resource` is the origin plus the template, percent-encoding normalized like a
 path. Otherwise the template is ignored, `routeTemplate` appears in `dropped`, and the listing uses the
-concrete path. The `pathParams` in a templated listing's `info.input` are the example of the first path paid:
-paying another path of the same route is recorded against the listing and changes nothing else.
+concrete path. The `pathParams` in a templated listing's `info.input` are its example: the path the settlement
+that created the listing paid, never the `pathParams` its payer echoed, and then the path at which the origin
+check that listed it (first, or again after a withdrawal) confirmed it. Paying another path of the same route
+is recorded against the listing and does not change its example.
 
 ## Identity and deduplication
 
@@ -145,19 +154,103 @@ payment with a different resource is refused (`bazaar_settlement_reused`).
 
 Each listing belongs to the `payTo` that its first settlement paid. Later settlements are handled like this:
 
-| Situation                                      | Outcome                                                                                                                                                                                                                                                                                                                                                                 |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A new HTTP resource or `http(s)` MCP tool      | `processing` / `awaiting_origin_verification`: the listing is created `pending` and listed once the origin check confirms it                                                                                                                                                                                                                                            |
-| A new MCP tool under an `mcp://` URL           | `success` / `cataloged`: the listing is published at trust `settled`                                                                                                                                                                                                                                                                                                    |
-| Same owner, same content                       | `success` / `recorded`: the settlement count and `lastSettled` are updated; a `pending` or quarantined listing is checked against its origin again                                                                                                                                                                                                                      |
-| Same owner, changed metadata or price          | `processing` / `awaiting_origin_verification`: the settlement is counted, and the published content changes only through the origin check                                                                                                                                                                                                                               |
-| Same owner, changed metadata, `mcp://` tool    | `success` / `recorded`: the settlement is counted but the change is not applied; a tool under an `mcp://` URL keeps its first-seen content, since there is no origin to check                                                                                                                                                                                           |
-| A different `payTo`                            | `rejected` / `bazaar_owner_conflict` for an HTTP resource: the origin is checked, and the listing moves to the new owner only if the resource's own `402` names it. An MCP tool is scoped to its owner, so a different `payTo` gets its own listing instead                                                                                                             |
-| A new listing beyond an hourly quota           | `rejected` / `bazaar_rate_limited`: per owner `BAZAAR_MAX_NEW_LISTINGS_PER_OWNER_PER_HOUR` (20; only listings the owner's origin confirmed count, so payers cannot use up a seller's quota with listings the seller never confirmed), per payer `BAZAAR_MAX_NEW_LISTINGS_PER_PAYER_PER_HOUR` (10), and for the whole catalog `BAZAAR_MAX_NEW_LISTINGS_PER_HOUR` (1,000) |
-| A settlement already used for another resource | `rejected` / `bazaar_settlement_reused`: nothing is cataloged                                                                                                                                                                                                                                                                                                           |
-| An `upto` settlement of zero, off chain        | `rejected` / `bazaar_settlement_offchain`: there is no transaction to bind a listing to                                                                                                                                                                                                                                                                                 |
-| A settlement of zero, on chain                 | `rejected` / `bazaar_settlement_zero`: a listing needs a settlement that moved value, since a zero `upto` settlement needs no balance or trustline                                                                                                                                                                                                                      |
-| The catalog store is unreachable               | `rejected` / `bazaar_catalog_unavailable`: a later settlement catalogs it                                                                                                                                                                                                                                                                                               |
+| Situation                                      | Outcome                                                                                                                                                                                                                                                     |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A new HTTP resource or `http(s)` MCP tool      | `processing` / `awaiting_origin_verification`: the listing is created `pending` and listed once the origin check confirms it                                                                                                                                |
+| A new MCP tool under an `mcp://` URL           | `success` / `cataloged`: the listing is published at trust `settled`. On pubnet: `rejected` / `bazaar_resource_unverifiable`                                                                                                                                |
+| Same owner, same content                       | `success` / `recorded`: the settlement count and `lastSettled` are updated; a `pending` or quarantined listing is checked against its origin again                                                                                                          |
+| Same owner, changed metadata or price          | `processing` / `awaiting_origin_verification`: the settlement is counted, and the published content changes only through the origin check                                                                                                                   |
+| Same owner, changed metadata, `mcp://` tool    | `success` / `recorded`: the settlement is counted but the change is not applied; a tool under an `mcp://` URL keeps its first-seen content, since there is no origin to check                                                                               |
+| A different `payTo`                            | `rejected` / `bazaar_owner_conflict` for an HTTP resource: the origin is checked, and the listing moves to the new owner only if the resource's own `402` names it. An MCP tool is scoped to its owner, so a different `payTo` gets its own listing instead |
+| A new listing beyond an hourly quota           | `rejected` / `bazaar_rate_limited`: per owner and origin, per payer and for the whole catalog, each counted on the listing's own network (see [Quotas per network](#quotas-per-network))                                                                    |
+| A new listing on a full network                | `rejected` / `bazaar_catalog_full`: the network holds `<NET>_BAZAAR_MAX_PUBLISHED_LISTINGS` published listings                                                                                                                                              |
+| A settlement already used for another resource | `rejected` / `bazaar_settlement_reused`: nothing is cataloged                                                                                                                                                                                               |
+| An `upto` settlement of zero, off chain        | `rejected` / `bazaar_settlement_offchain`: there is no transaction to bind a listing to                                                                                                                                                                     |
+| A settlement of zero, on chain                 | `rejected` / `bazaar_settlement_zero`: a listing needs a settlement that moved value, since a zero `upto` settlement needs no balance or trustline                                                                                                          |
+| The catalog store is unreachable               | `rejected` / `bazaar_catalog_unavailable`: a later settlement catalogs it                                                                                                                                                                                   |
+
+### Pubnet rules
+
+Listings on pubnet reach buyers paying real money, so pubnet catalogs only what can be verified:
+
+- A resource URL must use `https` (`bazaar_resource_invalid` for `http`).
+- An MCP tool under an `mcp://` URL is refused with `rejected` / `bazaar_resource_unverifiable`, at `/verify`
+  and at `/settle`, before anything is written. It has no origin to check, so nothing but its settlement would
+  vouch for its content. MCP tools at an `https` endpoint are cataloged through their origin check as on
+  testnet. Testnet keeps publishing `mcp://` tools at trust `settled` unless `TESTNET_BAZAAR_ORIGINLESS_MCP`
+  is `refuse`; `PUBNET_BAZAAR_ORIGINLESS_MCP` accepts only `refuse`: `publish` stops startup
+  (`config_bazaar_policy_invalid`), and so does any other value (`config_invalid`).
+- An optional minimum settled amount per asset, `<NET>_BAZAAR_MIN_SETTLED` (`CONTRACT:AMOUNT,…` in base
+  units; off by default on both networks), refuses cheaper settlements with
+  `bazaar_settlement_below_minimum`. At `/verify` the offered amount is compared (for `upto`, the cap).
+
+### Listing size
+
+A listing's published content (resource, metadata, the bazaar `info` and `schema`, and its payment options),
+as JSON, may take at most `BAZAAR_MAX_LISTING_BYTES` (36 KiB by default). A settlement whose listing would be
+larger is refused with `bazaar_listing_too_large`, at `/verify` and `/settle`; an origin whose `402` describes
+a larger listing has it withdrawn (`origin_listing_too_large`). Nothing is cut silently: a shortened `info`
+could fail its own `schema`. A listing publishes at most 8 of its origin's payment options, in the origin's
+order; when the option that was paid comes later, it takes the eighth place. A tool's paid option is matched
+against all of its origin's options before that cap. With these limits, and the per-response budget of [discovery](/bazaar/discovery#response-size), every
+page fits what stock clients accept.
+
+### Quotas per network
+
+Every cataloging budget is kept per network: listings created on testnet never count against pubnet's
+quotas, and the reverse. Pubnet has stricter defaults, and a pubnet setting never falls back to a testnet one.
+
+| Budget                                                         | Testnet default | Pubnet default | Variable (`<NET>` is `TESTNET` or `PUBNET`)        |
+| -------------------------------------------------------------- | --------------- | -------------- | -------------------------------------------------- |
+| New listings the catalog publishes per hour                    | 1,000           | 200            | `<NET>_BAZAAR_MAX_NEW_LISTINGS_PER_HOUR`           |
+| New listings one `payTo` may create per hour at one origin     | 20              | 5              | `<NET>_BAZAAR_MAX_NEW_LISTINGS_PER_OWNER_PER_HOUR` |
+| New listings the settlements of one payer create per hour      | 10              | 5              | `<NET>_BAZAAR_MAX_NEW_LISTINGS_PER_PAYER_PER_HOUR` |
+| Origin requests one host receives per minute                   | 30              | 10             | `<NET>_BAZAAR_ORIGIN_CHECKS_PER_HOST_PER_MINUTE`   |
+| Listings published at once                                     | 5,000           | 25,000         | `<NET>_BAZAAR_MAX_PUBLISHED_LISTINGS`              |
+| Listings one `payTo` may have published at once (0: no limit)  | 0               | 250            | `<NET>_BAZAAR_MAX_PUBLISHED_PER_OWNER`             |
+| Hours an unverified listing stays after its last settlement    | 168             | 168            | `<NET>_BAZAAR_UNVERIFIED_TTL_HOURS`                |
+| Days any listing stays after its last settlement (0: no limit) | 90              | 90             | `<NET>_BAZAAR_IDLE_TTL_DAYS`                       |
+
+The owner's quota is kept per origin (scheme, host and port). A listing counts toward it from its first
+publication, once that origin confirmed a settlement that paid the owner its price there: an `exact` payment of the listed
+amount or more, or an `upto` settlement of the whole cap. Any host can answer a 402 naming any `payTo`, and a
+seller's server may answer several spellings of one route alike (case, repeated or trailing slashes), each a
+listing of its own; so listings on another party's host, listings paid with dust, and listings handed over to
+a seller by an ownership transfer never use up the seller's quota, and no listing is charged past it.
+Listings that do not count, and a seller's listings across all of its origins, stay bounded by the payer and
+network-wide quotas. The network-wide quota counts listings first published in the last hour: listings never
+published, which any payer can create for any `payTo` with a dust payment, never count there, so they cannot
+block other sellers. They count toward their payer's quota, which counts every listing its settlements
+created.
+
+Both quotas are spent when a listing is first published, however long it waited for its origin, not when it
+is created. A listing its origin confirms while either is spent stays as it is, pending or withdrawn, and its
+check runs again once the earliest listing that quota counts leaves the hour, without spending a retry and
+without asking the origin meanwhile. So any number of listings created at once, or kept pending for hours,
+publish at the quotas' pace. A new listing is refused with `bazaar_rate_limited` while a quota is spent.
+
+A network holds at most `<NET>_BAZAAR_MAX_PUBLISHED_LISTINGS` published listings that an origin confirmed.
+While it is full, a new listing is refused with `bazaar_catalog_full`, and a pending listing its origin
+confirms is withdrawn (`catalog_full`) instead of published; a later settlement checks it again. The limit is
+checked when a listing is created and when it is first published.
+
+An `mcp://` tool has no origin to confirm it, and any payer can list one under any `payTo` with a dust
+payment, so such tools are counted apart: on a network that publishes them, they may take at most half of
+`<NET>_BAZAAR_MAX_NEW_LISTINGS_PER_HOUR` and half of `<NET>_BAZAAR_MAX_PUBLISHED_LISTINGS`, on top of what
+listings an origin confirmed take. They never use up the quota or the room of sellers with an origin. A tool
+listed again after its retention takes its place in the same share.
+
+Listings are not kept forever. A background task withdraws (quarantines, reason `listing_expired`) a
+published listing no origin ever confirmed, such as an `mcp://` tool at trust `settled`, once its last
+settlement is older than `<NET>_BAZAAR_UNVERIFIED_TTL_HOURS`, and, when `<NET>_BAZAAR_IDLE_TTL_DAYS` is set,
+any listing not settled for that long. Its owner's next settlement lists it again: an `mcp://` tool at once
+with its first content (while the network has room), a listing with an origin once its origin confirms it.
+A listing that was never published, because its origin never confirmed it, is deleted with its history once
+it has stayed withdrawn for 7 days (`listing_pruned`): what a payer echoed for it was never public, and a later
+settlement stages it again. Together these bound what free testnet payments can add to the catalog. On pubnet, where room is the scarce
+part, one `payTo` may also hold at most `<NET>_BAZAAR_MAX_PUBLISHED_PER_OWNER` published listings, and a listing
+whose seller stops being paid leaves after `<NET>_BAZAAR_IDLE_TTL_DAYS`: a party that publishes from origins it
+later abandons cannot keep the network full, and comes back only when an origin confirms a listing again.
 
 An `upto` payment settles an amount from zero up to the cap the buyer signed, and that amount changes from
 call to call, so an `upto` listing shows the cap: the most one call costs, as the seller's own `402` offers it.
@@ -177,14 +270,18 @@ word. After a listing is created, after a change is proposed, and after an owner
 task (every `ORIGIN_CHECK_INTERVAL_MS`, 5 seconds by default) asks the resource itself, without payment. For
 an HTTP resource:
 
-- It sends the listing's method to the concrete paid URL (a `POST`, `PUT` or `PATCH` carries the body `{}`),
-  with the user agent `rail402-bazaar-origin-check/1 (+https://rail402.dev)`.
+- It sends the listing's method to the URL that decides the listing (see below; a `POST`, `PUT` or `PATCH`
+  carries the body `{}`), with the user agent `rail402-bazaar-origin-check/1 (+https://rail402.dev)`.
 - Every DNS answer must be a public address, checked in the connection's own lookup. Redirects are not
   followed.
+- It reads only the status and headers, then closes the connection; no response body is read, and the whole
+  exchange has 3 seconds.
 - It expects `402` with a `PAYMENT-REQUIRED` header. When the resource cannot be reached, times out, or
   answers `408`, `429` or `5xx`, the check is retried 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours
   later; when every retry fails, the listing is withdrawn (quarantined). Any other answer, or a `402` without
-  an `accepts` array, withdraws it at once: the resource does not sell what is listed.
+  an `accepts` array, withdraws it at once: the resource does not sell what is listed. Later settlements never
+  reset the retries. A run a settlement makes due before the next retry spends none: when it fails for now,
+  the check waits for that retry, so the schedule keeps its times however often settlements come.
 - Each check is independent: a malformed response only affects its own listing.
 
 For an MCP tool, the check speaks MCP to the listing's `resource` URL, over the transport its
@@ -200,22 +297,45 @@ whole exchange. It then:
   as `@x402/mcp` returns it (an error result whose `structuredContent` or first text item is the JSON), or a
   JSON-RPC error `-32042` or `402` carrying it in `data`. A result without it withdraws the listing
   (`origin_not_payment_required`);
+- when the call gets no `PaymentRequired` that way, calls the tool again with each `info.input.example` and
+  `transport` that the settlements behind the check declared, if they differ, until one gets a
+  `PaymentRequired` that names the owner. A tool listed before it declared an example, or whose arguments
+  changed, is thus confirmed by its owner's next settlement. A payload's arguments can never withdraw a tool
+  that answers its listed call: only the listed call's answer withdraws a tool. A published tool whose listed
+  call fails for now is retried without calling it with a payload's arguments, as an HTTP resource whose
+  example path fails for now is. These calls count against the host's budget below;
 - treats a server it cannot connect to or speak MCP with like an unreachable HTTP resource: retried on the same
   schedule, then withdrawn (`origin_unreachable`).
 
 The tool is confirmed only by a `PaymentRequired` whose `resource.url` and bazaar extension describe the same
 endpoint and tool name. While no origin check has ever confirmed a tool listing, it is also required to offer
-the payment that created or changed it: an option with the settled scheme, network, asset, `payTo` and
-price (the cap, for `upto`). A payer who pays a seller one base unit, or signs an `upto` cap of any size,
-while echoing its own description or price therefore never gets that content listed: the listing is
-quarantined (`origin_payment_mismatch`), and the next settlement the tool itself asked for publishes the
-tool's own content. Once confirmed, a tool is refreshed from its own answer like an HTTP resource, and a
-planted settlement can neither change nor withdraw it.
+a payment settled for it, the one that created it or one its check keeps: an option with that settlement's
+scheme, network, asset, `payTo` and price (the cap, for `upto`). A payer who pays a seller one base unit, or
+signs an `upto` cap of any size, while echoing its own description or price therefore never gets that content
+listed: a listing it created is quarantined (`origin_payment_mismatch`), and the next settlement the tool
+itself asked for publishes the tool's own content. A later settlement adds what it paid and never narrows
+it. Once confirmed, a tool is decided by its listed call, as an HTTP resource is by its example path: a
+planted settlement can neither change nor withdraw a tool whose listed call answers with a `PaymentRequired`
+or fails for now. Once that call is answered without one, a call a payer proposed whose `PaymentRequired`
+lists the tool for its owner updates it, with the tool's own answer to that call.
 
-- A worker claims a due check for 60 seconds before fetching it, so with several replicas each check is
-  fetched once. A check requested again while it is being fetched runs again afterwards.
-- One host receives at most 30 origin requests a minute from each replica; a check over the budget waits
-  for the next minute without spending a retry.
+- A worker claims a due check for 60 seconds before asking its origin. A check usually takes a few seconds,
+  so with several replicas each check is asked once; a tool check whose calls are slow can outlast the claim
+  (each call may take up to 10 seconds, and a check makes up to 9), and another replica may then ask it again.
+  A settlement that pays the owner of a listing not yet published makes a running check run again; with
+  several replicas, another replica may then run it while the first run is still asking, and the first run
+  records neither its retry nor what it found. Any other settlement leaves the run's result in place, its
+  retry delay included.
+- Each network's checks run in their own lane: every `ORIGIN_CHECK_INTERVAL_MS`, a replica claims up to 10
+  due checks of each network whose lane is idle and runs them 4 at a time. A lane still waiting on slow or
+  unanswering hosts is skipped, so a backlog of testnet checks never delays pubnet listings.
+- One host receives at most 30 origin requests a minute (10 for pubnet listings) from each replica, counted
+  per network. A check makes at most 9: its example path and 8 paths payers paid, or a tool's listed call and
+  8 calls payers proposed. A check that gets no answer within the budget waits for its claim to lapse, without
+  spending a retry. One that runs out part-way decides from the answers it got when one lists the listing;
+  otherwise it records how each path or call answered and goes on from there a minute later, skipping those
+  refused, so a budget below 9 makes a large check take a few minutes but never stops it. Keep the budget at
+  9 or more for checks to finish in one run.
 
 From the `402`, it takes the bazaar extension, the keys of any other extensions it declares (such as
 `payment-identifier`, which the `extensions` discovery filter matches), and the payment options on the
@@ -227,14 +347,51 @@ amount and a positive integer `maxTimeoutSeconds`; others are ignored. When the 
 | The origin's `402`                                                   | Result                                                                               |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Names the owner, with a valid bazaar extension for the same resource | The listing's content is replaced by the origin's; `trust` becomes `origin_verified` |
-| Names the other `payTo` from an ownership conflict, not the owner    | The listing moves to that `payTo` (`ownership_transfer`)                             |
+| Names a `payTo` that claimed the listing, not the owner              | The listing moves to the first such claimant (`ownership_transfer`)                  |
 | Names neither                                                        | The listing is quarantined (`origin_owner_mismatch`)                                 |
 | No longer declares a valid bazaar extension for this resource        | The listing is quarantined (`origin_metadata_mismatch`)                              |
 | A tool never confirmed, not offering the settled payment             | The listing is quarantined (`origin_payment_mismatch`)                               |
+| Describes more than a listing may publish (see below)                | The listing is quarantined (`origin_listing_too_large`)                              |
+
+Which answer decides depends on whether the listing is published:
+
+- A published listing is decided by one answer only, at its resource, or for a route template at its example
+  path (below). A settlement's payer chooses the path it paid, so no other path's answer changes or withdraws
+  a published listing. A route template whose example was kept from before examples were confirmed is checked
+  at that example all the same; its answer confirms the example when it lists the listing for its owner, and
+  until then a failing answer there neither withdraws nor changes the listing.
+- A listing not yet listed, or withdrawn, keeps the paths the settlements that paid its owner proposed while
+  its check is open, with what each paid: up to 4 per asset, the largest payments (the earliest of equal
+  ones leaving first), and 8 in all, the latest. A check that lists or withdraws the listing drops them. A
+  check asks them largest payments first and lists the listing from an answer that lists it for its owner,
+  preferring one whose settlement paid that answer's own price, then the first asked; an answer for a
+  payment below its price waits while a path not asked yet was paid at least that answer's price (which that
+  path's own price may not be), and that path is asked first. A dust payment at another path therefore does
+  not keep a buyer's path from listing it, nor decide its example, while the buyer's payment is kept: 4
+  payments of its asset at least as large, or 8 payments in other assets made after it, push it out (the
+  listing is then decided by the others, and the next buyer's settlement adds its path again). While none
+  lists it and one failed for now, the check is retried; when every answer refuses it, it is withdrawn with
+  the reason of the first. Every settlement that pays its owner makes its check run now, keeping its retry
+  count, and has its path asked again even when an earlier answer there refused it.
 
 A `pending` or quarantined listing is not returned by discovery or search. A later origin check that succeeds
-publishes it; every settlement for it by its owner, and every settlement by a different `payTo`, triggers one.
-Every one of these changes is a new version in the listing's history.
+publishes it. Every settlement for it by its owner makes its check due now; a settlement by a different
+`payTo` makes it due within a minute. Every one of these changes is a new version in the listing's history.
+
+Ownership claims are kept, not replaced. Every `payTo` that settles for a listing it does not own joins the
+pending check's claimants (up to 32); a claim never resets the check's retries, and a check already scheduled
+later runs within a minute. The listing moves to the first claimant the origin names. A check that only
+claims asked for never withdraws a published listing: when the origin names no claimant, answers something
+other than a `402`, or stays unreachable, the owner's listing stays as it is. So another `payTo`'s
+settlements can neither replace a seller's claim nor take a seller's listing down by timing a check to a
+passing error of its origin.
+
+A claim is weighed at the URL that decides the listing alone, never at the path the claimant paid: its
+resource, or for a route-template listing (one listing for every path of `/users/:id`) its example path (its
+template filled with the `pathParams` it keeps). On a host that serves one tenant per path, each tenant's path
+names its own `payTo`, so a template listing moves to a claimant only when its example path names that
+claimant, and not its owner; the listing then takes what that path answers. Any other answer there, a passing
+error included, refuses the claim.
 
 ## Trust
 
@@ -255,14 +412,15 @@ longest-listed. None of these can be bought by repeating payments.
 ## Stellar facts and domain claims
 
 A background task (every `ORIGIN_CHECK_INTERVAL_MS`) reads, for each published listing, and again six hours
-later:
+later, in one lane per network (a lane still waiting on slow hosts or RPC reads is skipped, so one network's
+listings never delay another network's facts and domain trust):
 
 - **Each payment option's token**, from the token contract itself: `symbol()`, `name()` and `decimals()`.
 - **Whether its `payTo` can receive that token now.** A contract (`C…`) account always can. For a Stellar
   Asset Contract, a `G…` or `M…` account can if it is the asset's issuer or holds an authorized trustline
   (for native XLM, if it exists). For another SEP-41 token this is left unknown.
 - **The domain's claim.** Rail402 reads `https://<resource host>/.well-known/stellar.toml` (SEP-1; at most
-  100 KB, same DNS and redirect rules as origin checks) and the owner's account on the listing's network. If
+  100 KB within 3 seconds for the whole file, same DNS and redirect rules as origin checks) and the owner's account on the listing's network. If
   the `ACCOUNTS` list contains the owner (`claimsOwner`) **and** the owner's `home_domain` is the resource host
   (`homeDomainMatches`), an origin-verified listing becomes `domain_verified`; if a later read no longer shows
   both, `trust` falls back to `origin_verified`. Each change is a `domain_verification` version. A one-way
@@ -273,23 +431,27 @@ later:
 
 The facts appear on every discovery item: token facts under `rail402.options`, one per `accepts` entry, and
 the check time and domain claim under each listing's `stellar`. They are not part of the listing's versioned
-content.
+content. A listing just published has none yet: they appear with the next round, together with `stellar`.
+When the network's RPC cannot be reached, a listing keeps the facts it had and is read again on the next
+round; a token is shown without a symbol only when its contract does not answer `symbol()`, `name()` and
+`decimals()`.
 
 ## Version history
 
 Every change to a listing's published content, owner, trust or state creates a version with a cause:
 
-| Cause                 | When                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------- |
-| `settlement`          | The listing was created by a settlement (`pending` when it has an origin to check)          |
-| `origin_verification` | The origin's `402` confirmed or updated the content                                         |
-| `ownership_transfer`  | The origin's `402` named a different `payTo`                                                |
-| `quarantine`          | The origin stopped supporting the listing, or stayed unreachable through every retry        |
-| `domain_verification` | The two-way SEP-1 binding of the resource's domain and the owner started or stopped holding |
+| Cause                 | When                                                                                                                                                  |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `settlement`          | The listing was created by a settlement (`pending` when it has an origin to check)                                                                    |
+| `origin_verification` | The origin's `402` confirmed or updated the content                                                                                                   |
+| `ownership_transfer`  | The origin's `402` named a different `payTo`                                                                                                          |
+| `quarantine`          | The origin stopped supporting the listing, stayed unreachable through every retry, the network was full when it was confirmed, or the listing expired |
+| `domain_verification` | The two-way SEP-1 binding of the resource's domain and the owner started or stopped holding                                                           |
 
-A `quarantine` version made by an origin check carries a `reason`: `origin_unreachable`,
-`origin_not_payment_required`, `origin_tool_not_listed`, `origin_owner_mismatch`, `origin_metadata_mismatch`
-or `origin_payment_mismatch`.
+A `quarantine` version carries a `reason`: from an origin check `origin_unreachable`,
+`origin_not_payment_required`, `origin_tool_not_listed`, `origin_owner_mismatch`, `origin_metadata_mismatch`,
+`origin_payment_mismatch` or `origin_listing_too_large`; from the catalog's limits `catalog_full` or
+`listing_expired`.
 
 The history is public at [`GET /discovery/resources/{id}/versions`](/bazaar/discovery#version-history).
 

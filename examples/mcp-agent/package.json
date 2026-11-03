@@ -1,6 +1,6 @@
 {
-  "name": "@rail402.dev/example-mcp-agent",
-  "version": "0.4.2",
+  "name": "rail402-example-mcp-agent",
+  "version": "0.5.1",
   "private": true,
   "description": "An MCP client that finds a paid resource through rail402-mcp, pays it under a spending cap and prints the result.",
   "license": "Apache-2.0",
@@ -9,7 +9,10 @@
     "start": "node src/index.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/client": "catalog:",
-    "@rail402.dev/mcp": "workspace:*"
+    "@modelcontextprotocol/client": "2.3.1",
+    "@rail402.dev/mcp": "0.5.1"
+  },
+  "engines": {
+    "node": ">=24.11"
   }
 }

@@ -8,8 +8,9 @@ description: Charge for an HTTP endpoint with the stock @x402/express middleware
   paid MCP tools, with discovery metadata the catalog accepts as is, and check it before the first sale.
 </Tip>
 
-A seller runs a stock x402 resource server and names Rail402 as its facilitator. Nothing Rail402-specific
-is installed: the facilitator is just a URL. This page uses the hosted testnet facilitator.
+A seller runs a stock x402 resource server and names Rail402 as its facilitator, which is just a URL. The one
+Rail402 package installed is the SDK, for `withSettleDedupe`, which serves each settled payment once. This page
+uses the hosted testnet facilitator.
 
 <Info>
   Requires Node.js 24, which runs the `.ts` file below directly. The upstream x402 e2e suite also passes
@@ -22,7 +23,7 @@ is installed: the facilitator is just a URL. This page uses the hosted testnet f
 ```sh
 mkdir x402-seller && cd x402-seller
 npm init -y && npm pkg set type=module
-npm install express@5 @x402/express@2.27.0 @x402/core@2.27.0 @x402/stellar@2.27.0 @x402/extensions@2.27.0 @stellar/stellar-sdk@16.3.0
+npm install express@5 @x402/express@2.28.0 @x402/core@2.28.0 @x402/stellar@2.28.0 @x402/extensions@2.28.0 @stellar/stellar-sdk@16.3.0 @rail402.dev/sdk@0.5.1
 ```
 
 ## 2. A receiving account
@@ -47,11 +48,12 @@ import { HTTPFacilitatorClient, x402ResourceServer } from "@x402/core/server";
 import { paymentMiddleware } from "@x402/express";
 import { bazaarResourceServerExtension, declareDiscoveryExtension } from "@x402/extensions/bazaar";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
+import { withSettleDedupe } from "@rail402.dev/sdk/seller";
 
 const NETWORK = "stellar:testnet";
-const facilitator = new HTTPFacilitatorClient({
-  url: process.env.FACILITATOR_URL ?? "{{facilitatorUrl}}",
-});
+const facilitator = withSettleDedupe(
+  new HTTPFacilitatorClient({ url: process.env.FACILITATOR_URL ?? "{{facilitatorUrl}}" }),
+);
 const resourceServer = new x402ResourceServer(facilitator)
   .register(NETWORK, new ExactStellarScheme())
   .registerExtension(bazaarResourceServerExtension);
@@ -91,6 +93,10 @@ node seller.ts
   `amount: "100000"` (7 decimals) of contract `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`.
 - `x402ResourceServer` reads `/supported` from the facilitator, so the payment requirements carry
   `extra: { areFeesSponsored: true }`.
+- `withSettleDedupe` serves each settled payment once. Rail402 answers every `/settle` of the same payment
+  with its success, and copies of a payment sent at the same time all pass `/verify` before the first one
+  settles; the wrapper refuses the copies with `seller_settlement_repeat`. See
+  [Serve each payment once](/sellers/helpers#serve-each-payment-once).
 - `bazaarResourceServerExtension` and `declareDiscoveryExtension` publish the route's discovery metadata:
   the query parameters it takes, their JSON Schema, and an example output.
 
@@ -156,8 +162,9 @@ changed metadata. The full outcome also carries
 [x402] extension responses: {"bazaar":{"status":"rejected","rejectedReason":"Host \"localhost\" is not a public host.","code":"bazaar_resource_unsafe"}}
 ```
 
-Deploy the seller on a public host name to be listed. Behind a TLS-terminating proxy, call
-`app.set("trust proxy", 1)` so Express reports the `https` URL the buyer used: the resource URL comes from
+Deploy the seller on a public host name to be listed. To try cataloging before you deploy, run your own
+instance with loopback cataloging on ([Try the Bazaar locally](/facilitator/docker#try-the-bazaar-locally)).
+Behind a TLS-terminating proxy, call `app.set("trust proxy", 1)` so Express reports the `https` URL the buyer used: the resource URL comes from
 the request, and Rail402 fetches it later, without payment, to confirm the listing.
 
 </Warning>

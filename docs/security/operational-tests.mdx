@@ -63,15 +63,15 @@ From `tools/conformance/evidence/ops-local-stellar-testnet.json`: **45 of 45 exe
 | `ceiling-refusal` A settlement above the fee ceiling                                                        | S3         | Private Stellar network (1 s ledgers)                                               | Passed    | n/a           |
 | `budget-trip` The hourly fee budget is reached                                                              | S4         | Private Stellar network (1 s ledgers)                                               | Passed    | n/a           |
 | `sponsor-floor` The sponsor below its reserve                                                               | S5         | The Rail402 service on the private network                                          | Passed    | n/a           |
-| `ssrf-origin` Origin checks and SEP-1 fetches to private addresses                                          | X1, X5     | Local sockets and a stub resolver                                                   | Passed    | n/a           |
-| `ssrf-rebinding` DNS rebinding                                                                              | X2         | Local sockets and a stub resolver                                                   | Passed    | n/a           |
-| `ssrf-redirect` Redirects to private or other destinations                                                  | X3         | Local sockets and a stub resolver                                                   | Passed    | 1 of 1 passed |
+| `ssrf-origin` Origin checks and SEP-1 fetches to private addresses                                          | X1, X5     | Local sockets and a stub resolver                                                   | Passed    | not recorded  |
+| `ssrf-rebinding` DNS rebinding                                                                              | X2         | Local sockets and a stub resolver                                                   | Passed    | not recorded  |
+| `ssrf-redirect` Redirects to private or other destinations                                                  | X3         | Local sockets and a stub resolver                                                   | Passed    | 1 of 2 passed |
 | `ssrf-oversized` Oversized, compressed and slow answers                                                     | X4         | Local sockets and a stub resolver                                                   | Passed    | n/a           |
 | `catalog-takeover` Another payTo pays for a listed resource                                                 | P2         | The Rail402 service on the private network                                          | Passed    | 1 of 1 passed |
-| `forged-metadata` Echoed metadata that the origin does not confirm                                          | P1         | Postgres                                                                            | Passed    | 1 of 1 passed |
+| `forged-metadata` Echoed metadata that the origin does not confirm                                          | P1         | Postgres                                                                            | Passed    | 1 of 3 passed |
 | `mcp-tool-planting` A payer plants content under a seller's MCP tool                                        | P9         | Postgres                                                                            | Passed    | 1 of 1 passed |
 | `schema-redos` Hostile JSON Schema                                                                          | P3         | In-process, with the RPC or store simulated                                         | Passed    | 1 of 1 passed |
-| `route-traversal` Encoded traversal in route templates and parameters                                       | P4         | Postgres                                                                            | Passed    | 1 of 1 passed |
+| `route-traversal` Encoded traversal in route templates and parameters                                       | P4         | Postgres                                                                            | Passed    | 1 of 4 passed |
 | `crash-k0` Killed after the network accepted the transaction                                                | O1         | Rail402 service processes over Postgres on the private network, killed with SIGKILL | Passed    | 2 of 2 passed |
 | `crash-k1` Killed before the broadcast left                                                                 | O1         | Rail402 service processes over Postgres on the private network, killed with SIGKILL | Passed    | 2 of 2 passed |
 | `crash-k2` Killed after inclusion, before confirmation                                                      | O1         | Rail402 service processes over Postgres on the private network, killed with SIGKILL | Passed    | n/a           |
@@ -278,7 +278,7 @@ Threats A2 · Private Stellar network (1 s ledgers)
 
 **Procedure.** Pay exact from an OpenZeppelin smart account with a delegate key under its own context rule, then, through the RPC proxy between the settle-time simulation and the broadcast, have the owner remove that rule.
 
-**Expected.** The transaction fails on chain in the account's \_\_check_auth, is named smart_account_rejected, moves nothing, and its fee is the only sponsor cost, counted as wasted.
+**Expected.** The transaction fails on chain in the account's \_\_check_auth and moves nothing. /settle answers settlement_pending, since the owner could accept the authorization again and anyone holding the payment land it, and names smart_account_rejected only once the authorization expired unused; its fee is the only sponsor cost, counted as wasted.
 
 **Tests**
 
@@ -295,7 +295,7 @@ Threats S1 · Private Stellar network (1 s ledgers)
 
 **Procedure.** Verify a payment, then move the payer's whole balance away: once before /settle, and once through the RPC proxy between the settle-time simulation and the broadcast.
 
-**Expected.** Before settle: refused as insufficient_funds with nothing submitted. After simulation: the transaction fails on chain, is named insufficient_funds, and its fee is the only sponsor cost, counted as wasted.
+**Expected.** Before settle: refused as insufficient_funds with nothing submitted. After simulation: the transaction fails on chain; /settle answers settlement_pending, since the payer could top up and anyone holding the payment land it, and names insufficient_funds only once the authorization expired unused; its fee is the only sponsor cost, counted as wasted.
 
 **Tests**
 
@@ -413,6 +413,12 @@ Threats X1, X5 · Local sockets and a stub resolver
 - never connects to a private address unless loopback is explicitly allowed: 1 of 1 passed in 0.0 s
 - refuses loopback discovery fetches on a service that serves pubnet: 1 of 1 passed in 0.0 s
 
+**On the public testnet**
+
+- `live-bazaar` case `unsafe-private-address`: not recorded in the current evidence format yet
+- `live-bazaar` case `unsafe-loopback`: not recorded in the current evidence format yet
+- `live-bazaar` case `ssrf-private-name`: not recorded in the current evidence format yet
+
 ### `ssrf-rebinding` DNS rebinding
 
 Threats X2 · Local sockets and a stub resolver
@@ -428,6 +434,10 @@ Threats X2 · Local sockets and a stub resolver
 **Observed.** Passed (5 ms).
 
 - checks every DNS answer, so a rebinding name cannot reach a private address: 1 of 1 passed in 0.0 s
+
+**On the public testnet**
+
+- `live-bazaar` case `ssrf-private-name`: not recorded in the current evidence format yet
 
 ### `ssrf-redirect` Redirects to private or other destinations
 
@@ -450,6 +460,7 @@ Threats X3 · Local sockets and a stub resolver
 **On the public testnet**
 
 - `rejection-audit` case `mcp-redirect-private`: Passed (`tools/conformance/evidence/rejection-audit-hosted-stellar-testnet.json`)
+- `live-bazaar` case `ssrf-redirect`: not recorded in the current evidence format yet
 
 ### `ssrf-oversized` Oversized, compressed and slow answers
 
@@ -514,6 +525,8 @@ Threats P1 · Postgres
 **On the public testnet**
 
 - `live-bazaar` case `forged-metadata`: Passed (`tools/conformance/evidence/live-bazaar-stellar-testnet.json`)
+- `live-bazaar` case `forged-price`: not recorded in the current evidence format yet
+- `live-bazaar` case `forged-asset`: not recorded in the current evidence format yet
 
 ### `mcp-tool-planting` A payer plants content under a seller's MCP tool
 
@@ -586,6 +599,9 @@ Threats P4 · Postgres
 **On the public testnet**
 
 - `live-bazaar` case `route-template`: Passed (`tools/conformance/evidence/live-bazaar-stellar-testnet.json`)
+- `live-bazaar` case `traversal-route-template`: not recorded in the current evidence format yet
+- `live-bazaar` case `traversal-dot-segments`: not recorded in the current evidence format yet
+- `live-bazaar` case `traversal-encoded-separators`: not recorded in the current evidence format yet
 
 ### `crash-k0` Killed after the network accepted the transaction
 
@@ -1010,5 +1026,173 @@ Threats O6 · Private Stellar network (1 s ledgers) and Postgres
 
 - reports, provisions and retires channel accounts with STORE=memory: 1 of 1 passed in 9.8 s
 - reports durable state and refuses to retire while a channel is leased: 1 of 1 passed in 7.5 s
+
+{/* generated:end */}
+
+## Recovery drills
+
+Each recovery procedure of the [operator runbook](/runbook#recovery-procedures) is also run as a drill: a
+fault is injected into a running service that Prometheus scrapes with the committed alert rules, the alert
+is awaited through Alertmanager, the runbook's steps are followed, and the time to detect and to recover is
+recorded (`tools/conformance/src/drills-local.ts`, checked by `tools/conformance/src/drills.ts`). Locally
+the rules run with their hold times removed, so the detection times measure the signal path, not the
+production thresholds.
+
+The local stack also runs the Explorer indexer (its own ingester, store, metrics and health server, over
+its own database) for the `degraded-indexing-explorer` drill: its discovery source fails, and the
+indexer must catch up by itself once it answers again. Lumeus Activity does not index a private network,
+so there discovery reads the network's RPC, and `Rail402ExplorerLag` runs with a 20-second stall window
+instead of an hour. The `rpc-failover` drill configures two RPC providers, fails the primary, settles
+through the secondary, and waits for the fail-back once the primary returns.
+
+{/* generated:begin drills */}
+
+From `tools/conformance/drills/local-stellar-testnet.json` (local, stellar:testnet), 2026-10-23: **7 of 8 drills passed**, 1 skipped. Rules: deploy/monitoring/alerts.ts with every for: 0s, evaluated every 2 s.
+
+| Exercise                   | Result  | Detected by                 | Detect | Recover | Refusals seen                                      |
+| -------------------------- | ------- | --------------------------- | ------ | ------- | -------------------------------------------------- |
+| rpc-failure                | Passed  | Rail402NotReady             | 13.6 s | 37.3 s  | none                                               |
+| sequence-conflict          | Passed  | Rail402SequenceConflict     | 2.9 s  | 33 s    | settlement_pending                                 |
+| expired-authorization      | Passed  | found by a person or client | —      | 17.6 s  | invalid_exact_stellar_signature_expired            |
+| signer-rotation            | Passed  | found by a person or client | —      | 20 s    | none                                               |
+| channel-exhaustion         | Passed  | Rail402ChannelLeaseTimeouts | 2.6 s  | 11.9 s  | settle_exact_stellar_channel_unavailable           |
+| sponsor-depletion          | Passed  | Rail402SponsorBalanceLow    | 13.6 s | 34.1 s  | settle_exact_stellar_sponsor_unavailable           |
+| degraded-indexing-bazaar   | Passed  | Rail402Down                 | 2.3 s  | 13.2 s  | none                                               |
+| degraded-indexing-explorer | Skipped | —                           | —      | —       | the Explorer indexer is not part of this stack yet |
+
+### rpc-failure: The RPC stops answering
+
+**Fault.** the RPC proxy answers every request with HTTP 503. **Runbook:** [rpc-failure](/runbook#rpc-failure).
+
+**Steps**
+
+- read /ready: 503; /health warnings: rpc_unhealthy, contract_ttl_critical
+- asked the provider directly: HTTP 503
+- restored the provider and waited for /ready
+
+**Recovery checked by**
+
+- held: /ready answered 503 during the outage
+- held: the provider answered 503 when asked directly
+- held: /ready answered 200 after the provider returned
+- held: an exact payment settled after recovery
+
+_A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run._
+
+### sequence-conflict: A channel's sequence used outside the service
+
+**Fault.** a transaction from the leased channel account, signed with its derived key, submitted outside the service. **Runbook:** [sequence-conflicts](/runbook#sequence-conflicts).
+
+**Steps**
+
+- looked the transaction the service did not send up by its hash: SUCCESS
+- settled a new payment through the service
+
+**Recovery checked by**
+
+- held: the conflicting transaction is on the ledger
+- held: the affected settlement was not reported as settled (answered settlement_pending)
+- held: the next settlement succeeded
+
+_A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run._
+
+### expired-authorization: A payment settled after its authorization expired
+
+**Fault.** a payment held past its expiration ledger before /settle. **Runbook:** [expired-authorizations](/runbook#expired-authorizations).
+
+**Steps**
+
+- read the refusal code the seller received: invalid_exact_stellar_signature_expired
+- paid again with a fresh payment
+
+**Recovery checked by**
+
+- held: the late settle was refused as expired (invalid_exact_stellar_signature_expired)
+- held: a fresh payment settled
+
+_A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run._
+
+### signer-rotation: Rotate the fee sponsor
+
+**Fault.** a leaked sponsor seed: the cold key locked the old key out and swept, then the service restarted with a new, funded sponsor seed on the same database. **Runbook:** [signer-rotation](/runbook#signer-rotation).
+
+**Steps**
+
+- added the cold signer to the old sponsor (unsigned setup signed offline by deploy/stellar-keys.ts)
+- prepared the cold key's freeze, then bumped the old sponsor's sequence with the leaked key (as an attacker would)
+- locked the old key out with the cold key (deploy/keys/cli.ts freeze: master weight 0, from the cold account)
+- swept 100 XLM to the treasury in a second cold-signed transaction (deploy/keys/cli.ts sweep)
+- funded the new sponsor
+- replaced the sponsor secret and restarted
+- read /health and settled one payment
+
+**Recovery checked by**
+
+- held: the payment before the rotation was fee-bumped by the old sponsor
+- held: the leaked key bumped the old sponsor's sequence before the freeze
+- held: the cold key's freeze applied: the old key's weight is 0
+- held: the leaked key alone can no longer pay (sendTransaction ERROR: txBadAuth)
+- held: /health names the new sponsor
+- held: the payment after the rotation settled
+- held: the payment after the rotation was fee-bumped by the new sponsor
+
+_A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run._
+
+_The old channel accounts were not retired in this drill; the upto authority switch is not part of a local run (upto off)._
+
+### channel-exhaustion: More settlements than channel accounts
+
+**Fault.** 10 settlements at once against 2 channel accounts, with confirmation held back. **Runbook:** [channel-pool-exhaustion](/runbook#channel-pool-exhaustion).
+
+**Steps**
+
+- read the refusals: 8 of 10 (settle_exact_stellar_channel_unavailable)
+- let the burst drain; rail402_channels_in_use is 0 afterwards
+
+**Recovery checked by**
+
+- held: every refusal during the burst was the retryable channel_unavailable
+- held: no channel stayed leased after the burst
+- held: the next settlement succeeded
+
+_A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run._
+
+### sponsor-depletion: The fee sponsor runs low and is topped up
+
+**Fault.** the sponsor's balance spent down to about 200 XLM, below its 250 XLM reserve and 300 XLM readiness floor. **Runbook:** [sponsor-depletion](/runbook#sponsor-depletion).
+
+**Steps**
+
+- checked the spend: one payment out of the sponsor account, not settlement fees
+- topped up 5000 XLM from the treasury to the recorded sponsor address (buildTopUp refuses any other destination)
+- waited for /ready
+
+**Recovery checked by**
+
+- held: /ready failed while the sponsor was below its floor
+- held: a settlement was refused while the sponsor was below its reserve (settle_exact_stellar_sponsor_unavailable)
+- held: /ready answered 200 after the top-up
+- held: an exact payment settled after the top-up
+
+_A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run._
+
+### degraded-indexing-bazaar: The embedding model is missing at a restart
+
+**Fault.** a restart with the embedding model files missing. **Runbook:** [degraded-indexing](/runbook#degraded-indexing).
+
+**Steps**
+
+- the replica refused to start: rail402: startup_failed: embedding model file &lt;model directory&gt;/all-minilm-l6-v2/model.onnx is missing; fetch it or enable downloads
+- restarted with lexical search (SEARCH_EMBEDDINGS=false) until the model files are restored
+
+**Recovery checked by**
+
+- held: the replica refused to start without its model files
+- held: search answers HTTP 200 with lexical search (partialResults true)
+- held: an exact payment settled after the restart
+
+_A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run._
+
+_With two replicas restarted one at a time, the other replica keeps serving while this one refuses to start._
 
 {/* generated:end */}

@@ -23,7 +23,7 @@ which test covers it.
 
 {/* generated:begin codes */}
 
-159 codes in 6 groups.
+175 codes in 6 groups.
 
 ## HTTP transport
 
@@ -46,79 +46,84 @@ Returned with the listed HTTP status in `error.code` on every endpoint. On `/ver
 
 Returned by `/verify` in `invalidReason` (with `isValid: false`) and by `/settle` in `errorReason` (with `success: false`), always with HTTP 200 as the x402 specification requires. The status applies only when a code is carried by a transport-level error. Defined in `exactStellarCodes` (`@rail402.dev/stellar`).
 
-| Code                                                          | HTTP status | Retryable | Default reason                                                                                                              |
-| ------------------------------------------------------------- | ----------- | --------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `insufficient_funds`                                          | 400         | yes       | The payer's token balance is lower than the payment amount.                                                                 |
-| `invalid_payload`                                             | 400         | no        | The payment payload is malformed.                                                                                           |
-| `invalid_payment_requirements`                                | 400         | no        | The payment requirements are malformed.                                                                                     |
-| `invalid_network`                                             | 400         | no        | This facilitator does not serve the requested network.                                                                      |
-| `invalid_scheme`                                              | 400         | no        | The payment scheme is not supported.                                                                                        |
-| `invalid_x402_version`                                        | 400         | no        | Only x402 version 2 is supported.                                                                                           |
-| `invalid_transaction_state`                                   | 400         | no        | The settlement transaction failed on-chain.                                                                                 |
-| `unexpected_verify_error`                                     | 500         | yes       | Verification failed because of an unexpected internal error.                                                                |
-| `unexpected_settle_error`                                     | 500         | yes       | Settlement failed because of an unexpected internal error.                                                                  |
-| `settlement_pending`                                          | 503         | yes       | The settlement transaction was submitted but is not yet confirmed; reconcile the returned transaction hash before retrying. |
-| `unsupported_scheme`                                          | 400         | no        | The payment scheme is not supported by this facilitator.                                                                    |
-| `network_mismatch`                                            | 400         | no        | The payload's accepted network differs from the payment requirements.                                                       |
-| `verification_failed`                                         | 400         | no        | The payment failed verification.                                                                                            |
-| `invalid_exact_stellar_payload_malformed`                     | 400         | no        | The payload transaction is not a valid Stellar transaction envelope for this network.                                       |
-| `invalid_exact_stellar_payload_wrong_operation`               | 400         | no        | The transaction must contain exactly one invokeHostFunction operation invoking a contract.                                  |
-| `invalid_exact_stellar_payload_unsafe_tx_or_op_source`        | 400         | no        | The transaction or operation source is a facilitator account.                                                               |
-| `invalid_exact_stellar_payload_wrong_asset`                   | 400         | no        | The invoked token contract differs from the required asset.                                                                 |
-| `invalid_exact_stellar_payload_wrong_function_name`           | 400         | no        | The operation must call transfer(from, to, amount) with exactly three arguments.                                            |
-| `invalid_exact_stellar_payload_facilitator_is_payer`          | 400         | no        | The transfer's from address is a facilitator account.                                                                       |
-| `invalid_exact_stellar_payload_wrong_recipient`               | 400         | no        | The transfer recipient differs from the required payTo address.                                                             |
-| `invalid_exact_stellar_payload_wrong_amount`                  | 400         | no        | The transfer amount differs from the required amount.                                                                       |
-| `invalid_exact_stellar_payload_simulation_failed`             | 400         | no        | Simulating the payment against the current ledger failed.                                                                   |
-| `invalid_exact_stellar_payload_fee_exceeds_maximum`           | 400         | yes       | The network fee to settle this payment exceeds the facilitator's fee ceiling.                                               |
-| `invalid_exact_stellar_payload_event_not_transfer`            | 400         | no        | Simulation emitted a contract event other than the expected transfer.                                                       |
-| `invalid_exact_stellar_payload_event_missing_contract_id`     | 400         | no        | Simulation emitted a contract event without a contract id.                                                                  |
-| `invalid_exact_stellar_payload_event_wrong_asset`             | 400         | no        | Simulation emitted a transfer event from a contract other than the required asset.                                          |
-| `invalid_exact_stellar_payload_no_transfer_events`            | 400         | no        | Simulation emitted no transfer event.                                                                                       |
-| `invalid_exact_stellar_payload_multiple_transfers`            | 400         | no        | Simulation emitted more than one transfer event.                                                                            |
-| `invalid_exact_stellar_payload_event_wrong_from`              | 400         | no        | The simulated transfer is debited from an account other than the payer.                                                     |
-| `invalid_exact_stellar_payload_event_wrong_to`                | 400         | no        | The simulated transfer credits an account other than payTo.                                                                 |
-| `invalid_exact_stellar_payload_event_wrong_amount`            | 400         | no        | The simulated transfer amount differs from the required amount.                                                             |
-| `invalid_exact_stellar_payload_no_auth_entries`               | 400         | no        | The transaction carries no authorization entries.                                                                           |
-| `invalid_exact_stellar_payload_unsupported_credential_type`   | 400         | no        | Authorization entries must use address credentials (legacy or CAP-71 V2).                                                   |
-| `invalid_exact_stellar_payload_facilitator_in_auth`           | 400         | no        | A facilitator account appears in an authorization entry.                                                                    |
-| `invalid_exact_stellar_signature_expiration_too_far`          | 400         | no        | The authorization expires later than maxTimeoutSeconds allows.                                                              |
-| `invalid_exact_stellar_payload_has_subinvocations`            | 400         | no        | The authorization entry authorizes sub-invocations beyond the transfer.                                                     |
-| `invalid_exact_stellar_payload_missing_payer_signature`       | 400         | no        | The payer has not signed an authorization entry for the transfer.                                                           |
-| `invalid_exact_stellar_payload_unexpected_pending_signatures` | 400         | no        | The transaction requires signatures from accounts other than the payer.                                                     |
-| `settle_exact_stellar_signer_selection_failed`                | 503         | yes       | No settlement account was available to submit the transaction.                                                              |
-| `settle_exact_stellar_transaction_signing_failed`             | 500         | yes       | The facilitator could not sign the settlement transaction.                                                                  |
-| `settle_exact_stellar_fee_bump_signing_failed`                | 500         | yes       | The facilitator could not sign the fee-bump transaction.                                                                    |
-| `settle_exact_stellar_transaction_submission_failed`          | 400         | no        | The network refused the settlement transaction, so no funds moved; sign a new payment.                                      |
-| `settle_exact_stellar_transaction_failed`                     | 400         | no        | The settlement transaction failed or could not be confirmed.                                                                |
-| `invalid_exact_stellar_requirements_fees_not_sponsored`       | 400         | no        | Stellar exact payments require extra.areFeesSponsored to be true.                                                           |
-| `invalid_exact_stellar_requirements_asset_not_accepted`       | 400         | no        | This facilitator does not settle payments in the requested asset.                                                           |
-| `invalid_exact_stellar_requirements_invalid_pay_to`           | 400         | no        | payTo must be a Stellar account (G…) or contract (C…) address; muxed (M…) addresses are refused.                            |
-| `invalid_exact_stellar_requirements_invalid_amount`           | 400         | no        | amount must be a positive integer string in the asset's smallest unit.                                                      |
-| `invalid_exact_stellar_requirements_amount_out_of_range`      | 400         | no        | The payment amount is outside the range this facilitator accepts.                                                           |
-| `invalid_exact_stellar_requirements_timeout_out_of_range`     | 400         | no        | maxTimeoutSeconds is outside the range this facilitator accepts.                                                            |
-| `invalid_exact_stellar_payload_accepted_mismatch`             | 400         | no        | The payload's accepted requirements differ from the payment requirements.                                                   |
-| `invalid_exact_stellar_payload_too_large`                     | 413         | no        | The payload transaction exceeds the size limit.                                                                             |
-| `invalid_exact_stellar_payload_unsupported_preconditions`     | 400         | no        | The transaction sets ledger bounds, sequence conditions or extra signers, which settlement cannot honour.                   |
-| `invalid_exact_stellar_payload_self_payment`                  | 400         | no        | The payer and payTo are the same account; a payment to oneself moves no funds and is not settled.                           |
-| `invalid_exact_stellar_payload_auth_invocation_mismatch`      | 400         | no        | The payer's authorization entry does not authorize exactly the transfer the operation performs.                             |
-| `invalid_exact_stellar_signature_expired`                     | 400         | no        | The payer's authorization has expired; sign a new payment.                                                                  |
-| `invalid_exact_stellar_signature_expiration_too_soon`         | 400         | no        | The payer's authorization expires before settlement can safely land on-chain; sign a new payment.                           |
-| `invalid_exact_stellar_payload_nonce_already_used`            | 409         | no        | This authorization has already been used on-chain; each signed payment settles at most once.                                |
-| `invalid_exact_stellar_payload_invalid_signature`             | 400         | no        | The payer's authorization signature does not verify for this transfer.                                                      |
-| `invalid_exact_stellar_payload_unauthorized_invocation`       | 400         | no        | The transfer is not covered by the payer's authorization.                                                                   |
-| `invalid_exact_stellar_payload_smart_account_rejected`        | 400         | no        | The payer's smart account (\_\_check_auth) rejected the authorization.                                                      |
-| `invalid_exact_stellar_payload_payer_trustline_missing`       | 400         | yes       | The payer has no trustline for this asset.                                                                                  |
-| `invalid_exact_stellar_payload_recipient_trustline_missing`   | 400         | yes       | The payTo account has no trustline for this asset, so it cannot receive the payment.                                        |
-| `invalid_exact_stellar_payload_trustline_not_authorized`      | 400         | yes       | A trustline for this asset is not authorized by the issuer.                                                                 |
-| `invalid_exact_stellar_payload_account_missing`               | 400         | yes       | An account involved in the transfer does not exist on this network.                                                         |
-| `invalid_exact_stellar_payload_archived_state`                | 400         | yes       | Ledger state needed by the transfer is archived and must be restored first.                                                 |
-| `invalid_exact_stellar_payload_token_rejected`                | 400         | no        | The token contract rejected the transfer with one of its own errors.                                                        |
-| `settle_exact_stellar_idempotency_conflict`                   | 409         | no        | This authorization was already submitted for settlement with a different transaction envelope or different payment terms.   |
-| `settle_exact_stellar_settlement_in_progress`                 | 409         | yes       | Another request is settling this authorization right now; retry to receive its result.                                      |
-| `settle_exact_stellar_channel_unavailable`                    | 503         | yes       | All settlement channels are busy; retry shortly.                                                                            |
-| `settle_exact_stellar_sponsor_unavailable`                    | 503         | yes       | Fee sponsorship is temporarily unavailable on this network.                                                                 |
-| `settle_exact_stellar_transaction_expired`                    | 400         | no        | The settlement transaction expired without being included in a ledger; no funds moved.                                      |
+| Code                                                          | HTTP status | Retryable | Default reason                                                                                                                                                        |
+| ------------------------------------------------------------- | ----------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `insufficient_funds`                                          | 400         | yes       | The payer's token balance is lower than the payment amount.                                                                                                           |
+| `invalid_payload`                                             | 400         | no        | The payment payload is malformed.                                                                                                                                     |
+| `invalid_payment_requirements`                                | 400         | no        | The payment requirements are malformed.                                                                                                                               |
+| `invalid_network`                                             | 400         | no        | This facilitator does not serve the requested network.                                                                                                                |
+| `invalid_scheme`                                              | 400         | no        | The payment scheme is not supported.                                                                                                                                  |
+| `invalid_x402_version`                                        | 400         | no        | Only x402 version 2 is supported.                                                                                                                                     |
+| `invalid_transaction_state`                                   | 400         | no        | The settlement transaction failed on-chain.                                                                                                                           |
+| `unexpected_verify_error`                                     | 500         | yes       | Verification failed because of an unexpected internal error.                                                                                                          |
+| `unexpected_settle_error`                                     | 500         | yes       | Settlement failed because of an unexpected internal error.                                                                                                            |
+| `settlement_pending`                                          | 503         | yes       | The settlement transaction was submitted but is not yet confirmed; reconcile the returned transaction hash before retrying.                                           |
+| `unsupported_scheme`                                          | 400         | no        | The payment scheme is not supported by this facilitator.                                                                                                              |
+| `network_mismatch`                                            | 400         | no        | The payload's accepted network differs from the payment requirements.                                                                                                 |
+| `verification_failed`                                         | 400         | no        | The payment failed verification.                                                                                                                                      |
+| `invalid_exact_stellar_payload_malformed`                     | 400         | no        | The payload transaction is not a valid Stellar transaction envelope for this network.                                                                                 |
+| `invalid_exact_stellar_payload_wrong_operation`               | 400         | no        | The transaction must contain exactly one invokeHostFunction operation invoking a contract.                                                                            |
+| `invalid_exact_stellar_payload_unsafe_tx_or_op_source`        | 400         | no        | The transaction or operation source is a facilitator account.                                                                                                         |
+| `invalid_exact_stellar_payload_wrong_asset`                   | 400         | no        | The invoked token contract differs from the required asset.                                                                                                           |
+| `invalid_exact_stellar_payload_wrong_function_name`           | 400         | no        | The operation must call transfer(from, to, amount) with exactly three arguments.                                                                                      |
+| `invalid_exact_stellar_payload_facilitator_is_payer`          | 400         | no        | The transfer's from address is a facilitator account.                                                                                                                 |
+| `invalid_exact_stellar_payload_wrong_recipient`               | 400         | no        | The transfer recipient differs from the required payTo address.                                                                                                       |
+| `invalid_exact_stellar_payload_wrong_amount`                  | 400         | no        | The transfer amount differs from the required amount.                                                                                                                 |
+| `invalid_exact_stellar_payload_simulation_failed`             | 400         | no        | Simulating the payment against the current ledger failed.                                                                                                             |
+| `invalid_exact_stellar_payload_fee_exceeds_maximum`           | 400         | yes       | The network fee to settle this payment exceeds the facilitator's fee ceiling.                                                                                         |
+| `invalid_exact_stellar_payload_event_not_transfer`            | 400         | no        | Simulation emitted a contract event other than the expected transfer.                                                                                                 |
+| `invalid_exact_stellar_payload_event_missing_contract_id`     | 400         | no        | Simulation emitted a contract event without a contract id.                                                                                                            |
+| `invalid_exact_stellar_payload_event_wrong_asset`             | 400         | no        | Simulation emitted a transfer event from a contract other than the required asset.                                                                                    |
+| `invalid_exact_stellar_payload_no_transfer_events`            | 400         | no        | Simulation emitted no transfer event.                                                                                                                                 |
+| `invalid_exact_stellar_payload_multiple_transfers`            | 400         | no        | Simulation emitted more than one transfer event.                                                                                                                      |
+| `invalid_exact_stellar_payload_event_wrong_from`              | 400         | no        | The simulated transfer is debited from an account other than the payer.                                                                                               |
+| `invalid_exact_stellar_payload_event_wrong_to`                | 400         | no        | The simulated transfer credits an account other than payTo.                                                                                                           |
+| `invalid_exact_stellar_payload_event_wrong_amount`            | 400         | no        | The simulated transfer amount differs from the required amount.                                                                                                       |
+| `invalid_exact_stellar_payload_no_auth_entries`               | 400         | no        | The transaction carries no authorization entries.                                                                                                                     |
+| `invalid_exact_stellar_payload_unsupported_credential_type`   | 400         | no        | Authorization entries must use address credentials (legacy or CAP-71 V2).                                                                                             |
+| `invalid_exact_stellar_payload_facilitator_in_auth`           | 400         | no        | A facilitator account appears in an authorization entry.                                                                                                              |
+| `invalid_exact_stellar_signature_expiration_too_far`          | 400         | no        | The authorization expires later than maxTimeoutSeconds allows.                                                                                                        |
+| `invalid_exact_stellar_payload_has_subinvocations`            | 400         | no        | The authorization entry authorizes sub-invocations beyond the transfer.                                                                                               |
+| `invalid_exact_stellar_payload_missing_payer_signature`       | 400         | no        | The payer has not signed an authorization entry for the transfer.                                                                                                     |
+| `invalid_exact_stellar_payload_unexpected_pending_signatures` | 400         | no        | The transaction requires signatures from accounts other than the payer.                                                                                               |
+| `settle_exact_stellar_signer_selection_failed`                | 503         | yes       | No settlement account was available to submit the transaction.                                                                                                        |
+| `settle_exact_stellar_transaction_signing_failed`             | 500         | yes       | The facilitator could not sign the settlement transaction.                                                                                                            |
+| `settle_exact_stellar_fee_bump_signing_failed`                | 500         | yes       | The facilitator could not sign the fee-bump transaction.                                                                                                              |
+| `settle_exact_stellar_transaction_submission_failed`          | 400         | no        | The network refused the settlement transaction, so no funds moved; sign a new payment.                                                                                |
+| `settle_exact_stellar_transaction_failed`                     | 400         | no        | The settlement transaction failed or could not be confirmed.                                                                                                          |
+| `invalid_exact_stellar_requirements_fees_not_sponsored`       | 400         | no        | Stellar exact payments require extra.areFeesSponsored to be true.                                                                                                     |
+| `invalid_exact_stellar_requirements_asset_not_accepted`       | 400         | no        | This facilitator does not settle payments in the requested asset.                                                                                                     |
+| `invalid_exact_stellar_requirements_invalid_pay_to`           | 400         | no        | payTo must be a Stellar account (G…) or contract (C…) address; muxed (M…) addresses are refused.                                                                      |
+| `invalid_exact_stellar_requirements_invalid_amount`           | 400         | no        | amount must be a positive integer string in the asset's smallest unit.                                                                                                |
+| `invalid_exact_stellar_requirements_amount_out_of_range`      | 400         | no        | The payment amount is outside the range this facilitator accepts.                                                                                                     |
+| `invalid_exact_stellar_requirements_timeout_out_of_range`     | 400         | no        | maxTimeoutSeconds is outside the range this facilitator accepts.                                                                                                      |
+| `invalid_exact_stellar_payload_accepted_mismatch`             | 400         | no        | The payload's accepted requirements differ from the payment requirements.                                                                                             |
+| `invalid_exact_stellar_payload_too_large`                     | 413         | no        | The payload transaction exceeds the size limit.                                                                                                                       |
+| `invalid_exact_stellar_payload_unsupported_preconditions`     | 400         | no        | The transaction sets ledger bounds, sequence conditions or extra signers, which settlement cannot honour.                                                             |
+| `invalid_exact_stellar_payload_operation_source_set`          | 400         | no        | The operation sets its own source account. Settlement keeps it and cannot sign for it, so the network would refuse the transaction; leave the operation source unset. |
+| `invalid_exact_stellar_payload_self_payment`                  | 400         | no        | The payer and payTo are the same account; a payment to oneself moves no funds and is not settled.                                                                     |
+| `invalid_exact_stellar_payload_auth_invocation_mismatch`      | 400         | no        | The payer's authorization entry does not authorize exactly the transfer the operation performs.                                                                       |
+| `invalid_exact_stellar_signature_expired`                     | 400         | no        | The payer's authorization has expired; sign a new payment.                                                                                                            |
+| `invalid_exact_stellar_signature_expiration_too_soon`         | 400         | no        | The payer's authorization expires before settlement can safely land on-chain; sign a new payment.                                                                     |
+| `invalid_exact_stellar_payload_nonce_already_used`            | 409         | no        | This authorization has already been used on-chain; each signed payment settles at most once.                                                                          |
+| `invalid_exact_stellar_payload_invalid_signature`             | 400         | no        | The payer's authorization signature does not verify for this transfer.                                                                                                |
+| `invalid_exact_stellar_payload_unauthorized_invocation`       | 400         | no        | The transfer is not covered by the payer's authorization.                                                                                                             |
+| `invalid_exact_stellar_payload_smart_account_rejected`        | 400         | no        | The payer's smart account (\_\_check_auth) rejected the authorization.                                                                                                |
+| `invalid_exact_stellar_payload_payer_trustline_missing`       | 400         | yes       | The payer has no trustline for this asset.                                                                                                                            |
+| `invalid_exact_stellar_payload_recipient_trustline_missing`   | 400         | yes       | The payTo account has no trustline for this asset, so it cannot receive the payment.                                                                                  |
+| `invalid_exact_stellar_payload_trustline_not_authorized`      | 400         | yes       | A trustline for this asset is not authorized by the issuer.                                                                                                           |
+| `invalid_exact_stellar_payload_account_missing`               | 400         | yes       | An account involved in the transfer does not exist on this network.                                                                                                   |
+| `invalid_exact_stellar_payload_archived_state`                | 400         | yes       | Ledger state needed by the transfer is archived and must be restored first.                                                                                           |
+| `invalid_exact_stellar_payload_token_rejected`                | 400         | no        | The token contract rejected the transfer with one of its own errors.                                                                                                  |
+| `settle_exact_stellar_idempotency_conflict`                   | 409         | no        | This authorization was already submitted for settlement with a different transaction envelope or different payment terms.                                             |
+| `settle_exact_stellar_settlement_in_progress`                 | 409         | yes       | Another request is settling this authorization right now; retry to receive its result.                                                                                |
+| `settle_exact_stellar_channel_unavailable`                    | 503         | yes       | All settlement channels are busy; retry shortly.                                                                                                                      |
+| `settle_exact_stellar_sponsor_unavailable`                    | 503         | yes       | Fee sponsorship is temporarily unavailable on this network.                                                                                                           |
+| `settle_exact_stellar_caller_budget_exhausted`                | 429         | yes       | This caller's hourly fee-sponsorship budget on this network is spent; retry later.                                                                                    |
+| `settle_exact_stellar_payer_rate_limited`                     | 429         | yes       | This payer started too many settlements on this network; retry later.                                                                                                 |
+| `settle_exact_stellar_payto_rate_limited`                     | 429         | yes       | This payTo received too many settlements on this network; retry later.                                                                                                |
+| `settle_exact_stellar_payer_cooldown`                         | 429         | yes       | This payer's settlements failed on-chain repeatedly; it may settle again later.                                                                                       |
+| `settle_exact_stellar_transaction_expired`                    | 400         | no        | The settlement transaction expired without being included in a ledger; no funds moved.                                                                                |
 
 ## Verification and settlement (`upto` on Stellar)
 
@@ -179,6 +184,10 @@ Returned by `/verify` in `invalidReason` and by `/settle` in `errorReason` for `
 | `settle_upto_stellar_settlement_in_progress`                | 409         | yes       | Another request is settling this authorization right now; retry to receive its result.                                                  |
 | `settle_upto_stellar_channel_unavailable`                   | 503         | yes       | All settlement channels are busy; retry shortly.                                                                                        |
 | `settle_upto_stellar_sponsor_unavailable`                   | 503         | yes       | Fee sponsorship is temporarily unavailable on this network.                                                                             |
+| `settle_upto_stellar_caller_budget_exhausted`               | 429         | yes       | This caller's hourly fee-sponsorship budget on this network is spent; retry later.                                                      |
+| `settle_upto_stellar_payer_rate_limited`                    | 429         | yes       | This payer started too many settlements on this network; retry later.                                                                   |
+| `settle_upto_stellar_payto_rate_limited`                    | 429         | yes       | This payTo received too many settlements on this network; retry later.                                                                  |
+| `settle_upto_stellar_payer_cooldown`                        | 429         | yes       | This payer's settlements failed on-chain repeatedly; it may settle again later.                                                         |
 | `settle_upto_stellar_authority_unavailable`                 | 503         | yes       | The settlement authority is not available on this network.                                                                              |
 | `settle_upto_stellar_settled_elsewhere`                     | 409         | no        | Another transaction settled this authorization first, for a different amount; the returned transaction is the one that moved the funds. |
 
@@ -186,34 +195,41 @@ Returned by `/verify` in `invalidReason` and by `/settle` in `errorReason` for `
 
 Reported to the seller in the `EXTENSION-RESPONSES` header of `/verify` and `/settle` under the `bazaar` key, with `status: rejected` and the reason in `rejectedReason`. A cataloging rejection never affects the payment. Defined in `bazaarCodes` (`@rail402.dev/bazaar`).
 
-| Code                               | HTTP status | Retryable | Default reason                                                                                                                |
-| ---------------------------------- | ----------- | --------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `bazaar_extension_malformed`       | 400         | no        | The bazaar extension must be an object with `info` and `schema`.                                                              |
-| `bazaar_schema_invalid`            | 400         | no        | The bazaar `schema` is not a valid JSON Schema (Draft 2020-12).                                                               |
-| `bazaar_schema_external_reference` | 400         | no        | The bazaar `schema` uses an external $ref or $id; only same-document references (\#…) are allowed.                            |
-| `bazaar_schema_too_large`          | 400         | no        | The bazaar `schema` or `info` exceeds the size or nesting limit.                                                              |
-| `bazaar_schema_timeout`            | 400         | no        | Validating `info` against the bazaar `schema` exceeded the time budget.                                                       |
-| `bazaar_info_invalid`              | 400         | no        | The bazaar `info` does not satisfy its `schema`.                                                                              |
-| `bazaar_info_unsupported`          | 400         | no        | The bazaar `info.input` is not a valid HTTP or MCP discovery description.                                                     |
-| `bazaar_resource_invalid`          | 400         | no        | The payment's resource URL is missing or not a valid absolute URL.                                                            |
-| `bazaar_resource_unsafe`           | 400         | no        | The resource URL points to a private, loopback or otherwise non-public host.                                                  |
-| `bazaar_owner_conflict`            | 409         | no        | This resource is cataloged for a different payTo; only the listing's owner can update it.                                     |
-| `bazaar_self_payment`              | 400         | no        | The payer and payTo are the same account; self-payments do not catalog resources.                                             |
-| `bazaar_settlement_offchain`       | 400         | no        | The payment settled without a transaction (an off-chain zero `upto` settlement); only on-chain settlements catalog resources. |
-| `bazaar_settlement_zero`           | 400         | no        | The payment settled an amount of zero; only settlements that move value catalog resources.                                    |
-| `bazaar_settlement_reused`         | 409         | no        | This settlement already cataloged another resource; one payment catalogs at most one resource.                                |
-| `bazaar_unsupported_version`       | 400         | no        | Only x402 version 2 payments are cataloged.                                                                                   |
-| `bazaar_rate_limited`              | 429         | yes       | This payTo has created too many new listings recently; the resource will be cataloged on a later settlement.                  |
-| `bazaar_catalog_unavailable`       | 503         | yes       | The catalog could not record this resource right now; a later settlement will catalog it.                                     |
+| Code                               | HTTP status | Retryable | Default reason                                                                                                                                 |
+| ---------------------------------- | ----------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bazaar_extension_malformed`       | 400         | no        | The bazaar extension must be an object with `info` and `schema`.                                                                               |
+| `bazaar_schema_invalid`            | 400         | no        | The bazaar `schema` is not a valid JSON Schema (Draft 2020-12).                                                                                |
+| `bazaar_schema_external_reference` | 400         | no        | The bazaar `schema` uses an external $ref or $id; only same-document references (\#…) are allowed.                                             |
+| `bazaar_schema_too_large`          | 400         | no        | The bazaar `schema` or `info` exceeds the size or nesting limit.                                                                               |
+| `bazaar_schema_timeout`            | 400         | no        | Validating `info` against the bazaar `schema` exceeded the time budget.                                                                        |
+| `bazaar_info_invalid`              | 400         | no        | The bazaar `info` does not satisfy its `schema`.                                                                                               |
+| `bazaar_info_unsupported`          | 400         | no        | The bazaar `info.input` is not a valid HTTP or MCP discovery description.                                                                      |
+| `bazaar_resource_invalid`          | 400         | no        | The payment's resource URL is missing or not a valid absolute URL.                                                                             |
+| `bazaar_resource_unsafe`           | 400         | no        | The resource URL points to a private, loopback or otherwise non-public host.                                                                   |
+| `bazaar_resource_unverifiable`     | 400         | no        | Tools without an https endpoint cannot be verified and are not cataloged on this network.                                                      |
+| `bazaar_settlement_below_minimum`  | 400         | no        | The settled amount is below this network's minimum for cataloging a resource.                                                                  |
+| `bazaar_listing_too_large`         | 400         | no        | The listing would publish more than the catalog's per-listing size limit.                                                                      |
+| `bazaar_owner_conflict`            | 409         | no        | This resource is cataloged for a different payTo; only the listing's owner can update it.                                                      |
+| `bazaar_self_payment`              | 400         | no        | The payer and payTo are the same account; self-payments do not catalog resources.                                                              |
+| `bazaar_settlement_offchain`       | 400         | no        | The payment settled without a transaction (an off-chain zero `upto` settlement); only on-chain settlements catalog resources.                  |
+| `bazaar_settlement_zero`           | 400         | no        | The payment settled an amount of zero; only settlements that move value catalog resources.                                                     |
+| `bazaar_settlement_reused`         | 409         | no        | This settlement already cataloged another resource; one payment catalogs at most one resource.                                                 |
+| `bazaar_unsupported_version`       | 400         | no        | Only x402 version 2 payments are cataloged.                                                                                                    |
+| `bazaar_rate_limited`              | 429         | yes       | This payTo has created too many new listings recently; the resource will be cataloged on a later settlement.                                   |
+| `bazaar_catalog_full`              | 503         | yes       | The catalog holds as many listings on this network as it publishes; the resource will be cataloged on a later settlement once listings expire. |
+| `bazaar_catalog_unavailable`       | 503         | yes       | The catalog could not record this resource right now; a later settlement will catalog it.                                                      |
 
 ## Discovery API
 
 Returned with the listed HTTP status in `error.code` by `GET /discovery/resources` and its detail routes, and for a malformed parameter of `GET /discovery/search`. Defined in `bazaarCodes` (`@rail402.dev/bazaar`).
 
-| Code                          | HTTP status | Retryable | Default reason                            |
-| ----------------------------- | ----------- | --------- | ----------------------------------------- |
-| `discovery_invalid_parameter` | 400         | no        | A discovery query parameter is malformed. |
-| `discovery_listing_not_found` | 404         | no        | No listing has this identifier.           |
+| Code                            | HTTP status | Retryable | Default reason                                                                 |
+| ------------------------------- | ----------- | --------- | ------------------------------------------------------------------------------ |
+| `discovery_invalid_parameter`   | 400         | no        | A discovery query parameter is malformed.                                      |
+| `discovery_listing_not_found`   | 404         | no        | No listing has this identifier.                                                |
+| `discovery_usage_private`       | 404         | no        | The seller of this listing keeps its usage private.                            |
+| `discovery_overloaded`          | 503         | yes       | Discovery is at capacity; retry after the Retry-After interval.                |
+| `discovery_catalog_unavailable` | 503         | yes       | The catalog could not be read right now; retry after the Retry-After interval. |
 
 ## Search API
 
@@ -246,13 +262,43 @@ repeated with the same key: a finished call returns its stored result without pa
 running is refused with `payment_in_progress`. A key used again for another resource is refused with
 `payment_request_invalid`.
 
+### Refused payments
+
+For client codes, `retryable` means that making the same call again can succeed. A paying call signs a new
+payment each time it runs, so this differs from a facilitator's `retryable`, which says whether resending the
+same signed payment can succeed.
+
+A payment the seller or its facilitator refused is `payment_rejected`. Its `retryable` and `paid` come from the
+facilitator's code the seller passed on (`details.upstream.code`), through one table, `refusalOutcomes` in
+`@rail402.dev/sdk`. The SDK's `PaymentError`, the rail402-mcp tool error and the CLI's error object carry the
+same values:
+
+- A refusal after which the payment may still settle, or may already have moved funds, is `paid: "unknown"`,
+  never retryable, and exits 5: `settlement_pending`, `settle_exact_stellar_transaction_failed` (also sent when
+  a facilitator could not confirm the transaction in time), `settle_*_stellar_transaction_submission_failed`
+  (also sent when the network already holds the same transaction), `settle_*_stellar_settlement_in_progress`,
+  `settle_*_stellar_idempotency_conflict` and `settle_upto_stellar_settled_elsewhere`. So are the causes an
+  `exact` transaction can fail with on chain without ending the payer's authorization, since the network
+  rolls the failure back, nonce included, and anyone who holds the payment can still land it until the
+  authorization expires: `insufficient_funds`, `invalid_transaction_state`, and
+  `invalid_exact_stellar_payload_` with `invalid_signature`, `smart_account_rejected`, `account_missing`,
+  `payer_trustline_missing`, `recipient_trustline_missing`, `trustline_not_authorized`, `token_rejected` or
+  `unauthorized_invocation`. The budget keeps the payment pending until the chain proves its outcome.
+- Every other code of the `exact` and `upto` facilitator tables keeps the facilitator's `retryable` with
+  `paid: "not_settled"`: a busy channel, a rate limit or a spent fee budget is retryable; a malformed
+  payment or an expired settlement transaction is not. The code is the seller's text, so it never
+  makes a refusal more retryable than the facilitator's table.
+- A code neither table has, or none, is `retryable: false` with `paid: "not_settled"`.
+
+A JSON-RPC error of rail402-mcp carries the same fields in its `data`, with `paid: "none"`.
+
 {/* generated:begin client-codes */}
 
-115 codes in 13 groups.
+140 codes in 15 groups.
 
 ## Buyer payments
 
-Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `paymentCodes` (`@rail402.dev/sdk`).
+Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. For these codes, retryable means that making the same call again, which signs a new payment, can succeed; for `payment_rejected`, `retryable` and `paid` follow the facilitator's code, as Refused payments above explains. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `paymentCodes` (`@rail402.dev/sdk`).
 
 | Code                                         | HTTP status | Retryable | Paid          | CLI exit | Default reason                                                                                                                                                           |
 | -------------------------------------------- | ----------- | --------- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -287,11 +333,13 @@ Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryab
 | `payment_resource_failed`                    | 502         | no        | `settled`     | 5        | The payment settled, but the resource answered with an error.                                                                                                            |
 | `payment_redirect_after_payment`             | 502         | no        | `unknown`     | 5        | The paid request was answered with a redirect, which is never followed with a payment attached.                                                                          |
 | `payment_in_progress`                        | 409         | yes       | `unknown`     | 5        | A call with this idempotency key is still running; wait, then retry to read its result.                                                                                  |
+| `payment_confirmation_declined`              | 403         | no        | `none`        | 3        | The payment was not confirmed, so nothing was signed.                                                                                                                    |
+| `payment_confirmation_unavailable`           | 403         | no        | `none`        | 3        | The payment needs a confirmation that cannot be asked for here (no terminal or no elicitation support); nothing was signed.                                              |
 | `payment_ledger_unavailable`                 | 503         | yes       | `none`        | 6        | The budget ledger cannot be opened or stays locked; payments are disabled until it is available.                                                                         |
 
 ## Buyer discovery
 
-Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `discoveryClientCodes` (`@rail402.dev/sdk`).
+Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. For these codes, retryable means that making the same call again, which signs a new payment, can succeed; for `payment_rejected`, `retryable` and `paid` follow the facilitator's code, as Refused payments above explains. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `discoveryClientCodes` (`@rail402.dev/sdk`).
 
 | Code                    | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                                                             |
 | ----------------------- | ----------- | --------- | ------ | -------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -302,7 +350,7 @@ Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryab
 
 ## Paid MCP tools
 
-Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `mcpTargetCodes` (`@rail402.dev/sdk`).
+Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. For these codes, retryable means that making the same call again, which signs a new payment, can succeed; for `payment_rejected`, `retryable` and `paid` follow the facilitator's code, as Refused payments above explains. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `mcpTargetCodes` (`@rail402.dev/sdk`).
 
 | Code                             | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                        |
 | -------------------------------- | ----------- | --------- | ------ | -------- | ------------------------------------------------------------------------------------- |
@@ -313,17 +361,18 @@ Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryab
 
 ## Stellar RPC and transactions
 
-Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `networkCodes` (`@rail402.dev/sdk`).
+Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. For these codes, retryable means that making the same call again, which signs a new payment, can succeed; for `payment_rejected`, `retryable` and `paid` follow the facilitator's code, as Refused payments above explains. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `networkCodes` (`@rail402.dev/sdk`).
 
-| Code                       | HTTP status | Retryable | Paid   | CLI exit | Default reason                                               |
-| -------------------------- | ----------- | --------- | ------ | -------- | ------------------------------------------------------------ |
-| `rpc_unavailable`          | 503         | yes       | `none` | 6        | The Stellar RPC is unreachable or failed; retry shortly.     |
-| `transaction_hash_invalid` | 400         | no        | `none` | 2        | A transaction hash is 64 hexadecimal characters.             |
-| `transaction_not_found`    | 404         | no        | `none` | 7        | The RPC has no such transaction within its retention window. |
+| Code                       | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                                     |
+| -------------------------- | ----------- | --------- | ------ | -------- | -------------------------------------------------------------------------------------------------- |
+| `rpc_unavailable`          | 503         | yes       | `none` | 6        | The Stellar RPC is unreachable or failed; retry shortly.                                           |
+| `transaction_hash_invalid` | 400         | no        | `none` | 2        | A transaction hash is 64 hexadecimal characters.                                                   |
+| `transaction_not_found`    | 404         | no        | `none` | 7        | The RPC has no such transaction within its retention window.                                       |
+| `transaction_unreadable`   | 422         | no        | `none` | 3        | The transaction has an account or address this reader cannot represent, so it cannot be explained. |
 
 ## Outbound requests (SSRF and egress)
 
-Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `egressCodes` (`@rail402.dev/safe-fetch`).
+Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. For these codes, retryable means that making the same call again, which signs a new payment, can succeed; for `payment_rejected`, `retryable` and `paid` follow the facilitator's code, as Refused payments above explains. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `egressCodes` (`@rail402.dev/safe-fetch`).
 
 | Code                             | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                                      |
 | -------------------------------- | ----------- | --------- | ------ | -------- | --------------------------------------------------------------------------------------------------- |
@@ -342,18 +391,20 @@ Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryab
 
 ## Signing keys
 
-Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `keyCodes` (`@rail402.dev/sdk`).
+Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. For these codes, retryable means that making the same call again, which signs a new payment, can succeed; for `payment_rejected`, `retryable` and `paid` follow the facilitator's code, as Refused payments above explains. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `keyCodes` (`@rail402.dev/sdk`).
 
-| Code                | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                 |
-| ------------------- | ----------- | --------- | ------ | -------- | ------------------------------------------------------------------------------ |
-| `key_not_found`     | 400         | no        | `none` | 2        | No signing key was found at the given location.                                |
-| `key_invalid`       | 400         | no        | `none` | 2        | The signing key is not a valid Stellar secret seed.                            |
-| `key_file_insecure` | 400         | no        | `none` | 2        | The key file is readable by other users; restrict it to its owner (chmod 600). |
-| `key_exists`        | 409         | no        | `none` | 2        | A key already exists at this location; it is never overwritten.                |
+| Code                   | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                                                 |
+| ---------------------- | ----------- | --------- | ------ | -------- | -------------------------------------------------------------------------------------------------------------- |
+| `key_not_found`        | 400         | no        | `none` | 2        | No signing key was found at the given location.                                                                |
+| `key_invalid`          | 400         | no        | `none` | 2        | The signing key is not a valid Stellar secret seed.                                                            |
+| `key_file_insecure`    | 400         | no        | `none` | 2        | The key file is readable by other users; restrict it to its owner (chmod 600).                                 |
+| `key_exists`           | 409         | no        | `none` | 2        | A key already exists at this location; it is never overwritten.                                                |
+| `key_network_mismatch` | 400         | no        | `none` | 2        | The key file is tagged for another Stellar network than the one configured.                                    |
+| `key_network_untagged` | 400         | no        | `none` | 2        | Pubnet needs a key file tagged for pubnet; an untagged key file or a seed in the environment is refused there. |
 
 ## Account setup
 
-Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `accountCodes` (`@rail402.dev/sdk`).
+Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. For these codes, retryable means that making the same call again, which signs a new payment, can succeed; for `payment_rejected`, `retryable` and `paid` follow the facilitator's code, as Refused payments above explains. Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields. Printed by the rail402 command line in the `error` object of its JSON output, with the exit status shown. Defined in `accountCodes` (`@rail402.dev/sdk`).
 
 | Code                       | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                    |
 | -------------------------- | ----------- | --------- | ------ | -------- | --------------------------------------------------------------------------------- |
@@ -397,13 +448,28 @@ Returned by the rail402-mcp tools as `isError: true` with `structuredContent.err
 
 ## rail402-mcp protocol errors
 
-Returned by the rail402-mcp server as a JSON-RPC error (`-32601`, `-32602` or `-32603`) whose `data` carries `{ code, reason }`, for a request that never reaches a tool. An unknown tool is the same kind of error, with `tool_unknown`. Nothing is paid. Defined in `rpcCodes` (`@rail402.dev/mcp`).
+Returned by the rail402-mcp server as a JSON-RPC error (`-32601`, `-32602` or `-32603`) whose `data` carries `{ code, reason, retryable, paid }`, for a request that never reaches a tool. An unknown tool is the same kind of error, with `tool_unknown`. Nothing is paid. Defined in `rpcCodes` (`@rail402.dev/mcp`).
 
-| Code                 | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                           |
-| -------------------- | ----------- | --------- | ------ | -------- | ---------------------------------------------------------------------------------------- |
-| `rpc_method_unknown` | 404         | no        | `none` | -        | This server does not serve that MCP method; it serves tools (tools/list and tools/call). |
-| `rpc_params_invalid` | 400         | no        | `none` | -        | The request's params do not match the MCP schema of its method.                          |
-| `rpc_internal_error` | 500         | no        | `none` | -        | The server failed to answer the request; nothing was paid.                               |
+| Code                        | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                                                                               |
+| --------------------------- | ----------- | --------- | ------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rpc_method_unknown`        | 404         | no        | `none` | -        | This server does not serve that MCP method; it serves tools (tools/list and tools/call).                                                     |
+| `rpc_params_invalid`        | 400         | no        | `none` | -        | The request's params do not match the MCP schema of its method.                                                                              |
+| `rpc_internal_error`        | 500         | no        | `none` | -        | The server failed to answer the request; nothing was paid.                                                                                   |
+| `rpc_rate_limited`          | 429         | yes       | `none` | -        | Too many requests from this client; wait for the Retry-After time and retry.                                                                 |
+| `rpc_overloaded`            | 503         | yes       | `none` | -        | The server is answering as many requests as it takes at once; retry shortly.                                                                 |
+| `rpc_confirmation_used`     | 409         | no        | `none` | -        | This payment confirmation was already answered once; call the tool again to be asked again. Nothing was paid.                                |
+| `rpc_confirmation_mismatch` | 400         | no        | `none` | -        | This payment confirmation was given for a different tool call; a confirmation covers only the exact call it was asked for. Nothing was paid. |
+| `rpc_batch_unsupported`     | 400         | no        | `none` | -        | This endpoint takes one JSON-RPC message per request; send each call as its own request.                                                     |
+| `rpc_upstream_budget`       | 503         | yes       | `none` | -        | The endpoint has used its share of Bazaar requests for this minute; wait for the Retry-After time and retry.                                 |
+
+## Hosted MCP endpoint startup
+
+Printed by `rail402-mcp --hosted` as one JSON line on stderr when it refuses to start, with exit status 78. Nothing is served. Defined in `hostedCodes` (`@rail402.dev/mcp`).
+
+| Code                        | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                                             |
+| --------------------------- | ----------- | --------- | ------ | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `config_hosted_key_present` | 500         | no        | `none` | -        | The hosted, discovery-only MCP endpoint refuses to start when a signing key or bearer token is configured. |
+| `config_hosted_invalid`     | 500         | no        | `none` | -        | The hosted MCP endpoint's configuration is invalid.                                                        |
 
 ## rail402 command line
 
@@ -456,6 +522,25 @@ Shown by the Playground page in the browser, next to the codes of the packages a
 | `playground_run_aborted`                | 400         | yes       | `unknown` | -        | The run was stopped before it finished.                                                                            |
 | `playground_unexpected_error`           | 500         | no        | `none`    | -        | Something unexpected went wrong; nothing more is known.                                                            |
 
+## Explorer pages and read API
+
+Returned by the Explorer's read API as `{ error: { code, reason, retryable } }` with the listed HTTP status, and shown on its error pages. The Explorer only reads public ledgers, so nothing is paid. Defined in `explorerCodes` (`@rail402.dev/explorer/codes`).
+
+| Code                          | HTTP status | Retryable | Paid   | CLI exit | Default reason                                                                                                       |
+| ----------------------------- | ----------- | --------- | ------ | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| `explorer_not_found`          | 404         | no        | `none` | -        | No x402 transaction, account or page matches this path. Hashes are 64 hex characters; accounts are G… or C… strkeys. |
+| `explorer_invalid_parameter`  | 400         | no        | `none` | -        | A query parameter is unknown or has an invalid value.                                                                |
+| `explorer_invalid_limit`      | 400         | no        | `none` | -        | limit must be an integer from 1 to 100.                                                                              |
+| `explorer_offset_unsupported` | 400         | no        | `none` | -        | Pages are fetched with the cursor of the previous page; offset is not supported.                                     |
+| `explorer_invalid_cursor`     | 400         | no        | `none` | -        | The cursor is malformed or does not belong to this list; start again without it.                                     |
+| `explorer_rate_limited`       | 429         | yes       | `none` | -        | Too many requests from this client; retry after the time in Retry-After.                                             |
+| `explorer_lookup_busy`        | 429         | yes       | `none` | -        | This hash is not indexed yet and the live lookup budget is used up; retry after the time in Retry-After.             |
+| `explorer_lookup_unavailable` | 503         | yes       | `none` | -        | This hash is not indexed yet and the live lookup could not reach the network's RPC.                                  |
+| `explorer_report_unavailable` | 503         | yes       | `none` | -        | No report is available for this network yet: no ledgers are indexed or the first report is still being computed.     |
+| `explorer_unavailable`        | 503         | yes       | `none` | -        | The Explorer's database did not answer in time.                                                                      |
+| `explorer_method_not_allowed` | 405         | no        | `none` | -        | The Explorer is read-only: only GET and HEAD are accepted.                                                           |
+| `explorer_internal_error`     | 500         | yes       | `none` | -        | An unexpected error occurred while answering.                                                                        |
+
 {/* generated:end */}
 
 ## Coverage
@@ -468,14 +553,14 @@ a reason here, or the unit tests fail.
 
 {/* generated:begin coverage */}
 
-Recorded on 2026-10-22 at commit `3d9d234821a6`: **271 of 274 registered codes** are produced by a test or a recorded run. Raised while the suites ran: unit tests 197, integration tests 136; reported by conformance runs 94; named only in a test's assertions (refusals built as plain values, which the recorder does not see) 37.
+Recorded on 2026-10-22 at commit `3d9d234821a6`: **278 of 279 registered codes** are produced by a test or a recorded run. Raised while the suites ran: unit tests 204, integration tests 136; reported by conformance runs 94; named only in a test's assertions (refusals built as plain values, which the recorder does not see) 37.
 
-The 3 codes that neither produces, and why:
+The 1 codes that neither produces, and why:
 
-| Code                  | Why no test or run produces it                                                                                                                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `forbidden`           | Part of the shared HTTP set; the service does not return it. API keys have no per-endpoint scopes: a request without a valid key is refused with `unauthorized`.                                                    |
-| `method_not_allowed`  | Part of the shared HTTP set; the service does not return it. A method a route does not serve is answered like an unknown route, with `not_found` (rejection audit case `unknown-route`).                            |
-| `service_unavailable` | Part of the shared HTTP set; the service does not return it. Readiness is reported by `/ready`, and a settlement that cannot run answers the scheme's own code, such as `settle_exact_stellar_channel_unavailable`. |
+| Code                 | Why no test or run produces it                                                                                                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `method_not_allowed` | Part of the shared HTTP set; the service does not return it. A method a route does not serve is answered like an unknown route, with `not_found` (rejection audit case `unknown-route`). |
+
+Registered since this record was made, not yet measured: `bazaar_catalog_full`, `bazaar_listing_too_large`, `bazaar_resource_unverifiable`, `bazaar_settlement_below_minimum`, `config_hosted_invalid`, `config_hosted_key_present`, `discovery_catalog_unavailable`, `discovery_overloaded`, `discovery_usage_private`, `explorer_internal_error`, `explorer_invalid_cursor`, `explorer_invalid_limit`, `explorer_invalid_parameter`, `explorer_lookup_busy`, `explorer_lookup_unavailable`, `explorer_method_not_allowed`, `explorer_not_found`, `explorer_offset_unsupported`, `explorer_rate_limited`, `explorer_report_unavailable`, `explorer_unavailable`, `invalid_exact_stellar_payload_operation_source_set`, `key_network_mismatch`, `key_network_untagged`, `payment_confirmation_declined`, `payment_confirmation_unavailable`, `rpc_batch_unsupported`, `rpc_confirmation_mismatch`, `rpc_confirmation_used`, `rpc_overloaded`, `rpc_rate_limited`, `rpc_upstream_budget`, `settle_upto_stellar_payer_cooldown`, `settle_upto_stellar_payer_rate_limited`, `settle_upto_stellar_payto_rate_limited`, `transaction_unreadable`.
 
 {/* generated:end */}

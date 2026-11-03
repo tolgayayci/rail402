@@ -1,0 +1,144 @@
+---
+title: Rebuild Explorer data
+description: Rebuild the Explorer's x402 settlement rows and totals for any ledger range from public Stellar ledgers, and check them against a published manifest.
+---
+
+Every row the Rail402 Explorer shows can be rebuilt by anyone from public ledgers, with no account, no
+database, no discovery service and no access to Rail402's own systems. The rebuild reads the same ledgers,
+applies the same [indexing rules](/reference/indexing-rules) and the same facilitator registry, and writes
+byte-identical files. Equal manifest hashes mean equal results.
+
+The rebuild has two scopes (rules §14):
+
+- **full** (`--from`, `--to`): every ledger of the range. This is the audit path: it measures everything,
+  including the unattributed look-alikes in every ledger of the range, from the public data lake alone.
+- **registry** (`--ledgers-from`): only the ledgers a published Explorer manifest lists. The Explorer reads
+  just the ledgers that hold transactions of the registry's facilitator accounts and upto contracts, and
+  its manifest lists each of them with its hash; this mode reproduces that manifest.
+
+## Run it
+
+From a clone of the repository (Node.js 24.11 or later, `pnpm install`):
+
+```sh
+pnpm explorer:rebuild --network testnet --from 5330305 --to 5330320
+```
+
+```text
+network      stellar:testnet (epoch 2025-12-17)
+ledgers      5330305-5330320, last hash 0e51912b143e58971f953972b31f8bc4a25038936e4d3f1252eaf8148030b192 (scope full)
+rules        v1, registry 2026-10-23.1
+settlements  6, failed attempts 0
+output       …/.work/explorer-rebuild/testnet-5330305-5330320
+manifest     sha256 3e6a161a…
+```
+
+To check a report the Explorer published, save its manifest (`/api/v1/<network>/manifest`) and rebuild the
+ledgers it lists:
+
+```sh
+pnpm explorer:rebuild --network testnet --ledgers-from manifest.json
+```
+
+```text
+network      stellar:testnet (epoch 2025-12-17)
+ledgers      3 listed ledgers of 5330305-5330320 (scope registry)
+rules        v1, registry 2026-10-23.1
+settlements  3, failed attempts 0
+```
+
+| Option             | Meaning                                                                                                                                                                                                                                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--network`        | `testnet` or `pubnet`.                                                                                                                                                                                                                                                                                                                |
+| `--from`, `--to`   | The ledger range, inclusive (scope full). It must lie in the registry's current epoch (testnet resets start a new epoch).                                                                                                                                                                                                             |
+| `--ledgers-from`   | A published registry-scope `manifest.json` (scope registry): its range, its listed ledgers (each must have the listed hash) and its anchors (each checked against the ledger read). Not combined with `--from` or `--to`. It warns when the registry used is not the one the manifest names (`registrySha256`).                       |
+| `--out`            | Output directory. Defaults to `.work/explorer-rebuild/<network>-<from>-<to>`.                                                                                                                                                                                                                                                         |
+| `--source`         | `lake` (default) reads the public data lake; a directory path reads `<sequence>.xdr.zst` files from disk.                                                                                                                                                                                                                             |
+| `--registry`       | A registry JSON file to attribute with instead of the published one, e.g. an older version.                                                                                                                                                                                                                                           |
+| `--anchor`         | `<ledger>:<hash>`, repeatable: a ledger hash you know from elsewhere (Horizon, RPC, a published manifest) that the chain must pass through. Allowed from `from - 1` (checked against the first ledger's previous hash) to `to`; an anchor outside that range is refused (`anchor_out_of_range`).                                      |
+| `--anchors-from`   | A published `manifest.json`: every anchor it lists is checked on the chain, as with `--anchor`, so the rebuild's manifest lists the same anchors.                                                                                                                                                                                     |
+| `--anchor-horizon` | A Horizon URL with full history. In a full scan: anchors `from - 1` and `to` with the hashes it reports. With `--ledgers-from`: checks every listed ledger's hash against it before reading (in `/ledgers` pages), so the rebuild trusts neither the data lake nor the publisher's hashes alone; the manifest it writes is unchanged. |
+| `--concurrency`    | Ledger requests in flight (default 8). It never changes the output. A full scan from the data lake holds at most 64 MiB of fetched ledger bytes and decodes one ledger at a time, and writes rows to the files as it reads them, so its memory does not grow with the range.                                                          |
+
+## Where the ledgers come from
+
+The default source is the public Stellar data lake at
+`https://aws-public-blockchain.s3.us-east-2.amazonaws.com/v1.1/stellar/ledgers/`: one zstd-compressed
+`LedgerCloseMetaBatch` per ledger, readable anonymously over HTTPS. Pubnet ledgers live under `pubnet/`,
+each testnet epoch under `testnet/<reset date>/`. The reader refuses redirects and other hosts, caps object
+sizes, and checks the folder's `.config.json` and that each object holds exactly the ledger asked for.
+
+Every ledger is verified before it is classified:
+
+- its hash is the SHA-256 of its header;
+- the header's transaction set hash and result hash match the transactions and results in the object;
+- in a full scan, its previous-ledger hash is the hash of the ledger before it, with no gap; in a registry
+  scope, its hash is the one the manifest lists (listed ledgers are not consecutive, so they are checked
+  one by one).
+
+A ledger that fails any check, or is missing, stops the rebuild with a coded error (`ledger_gap`,
+`ledger_hash_mismatch`, `tx_set_hash_mismatch`, `result_set_hash_mismatch`, `anchor_mismatch`,
+`range_incomplete`). The manifest's `anchors` lists only anchors that were checked. A rebuild is never shortened or patched.
+
+Transaction metas, which carry the events, are not hashed by the header. The events the rules read are
+still bound to consensus: a successful contract call's result records the SHA-256 of its return value and
+events, and the result is covered by the header's result hash. Before reading a candidate's events, the
+classifier recomputes that hash from the meta and compares it with the result; a meta that was rewritten
+stops the rebuild with `events_unbound`.
+
+## What it writes
+
+| File                     | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `settlements.ndjson`     | One settlement row per line, sorted by ledger and application order, as canonical JSON (sorted keys, no spaces).                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `failed_attempts.ndjson` | Failed transactions with the shape of a settlement, in the same order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `aggregates.json`        | Totals: attributed x402 of registered facilitators (`headline`: the `rail402` and `facilitator` tiers), Rail402-settled, unattributed shaped matches, the concluded beta and self-payments, each apart; the part of the headline relayed by shared relayers (`headlineSharedRelayer`); per facilitator, scheme, tier and day; exclusion counts. Amounts are per asset contract, never summed across assets.                                                                                                                                     |
+| `manifest.json`          | Version 3: the `scope` (`full` or `registry`), the rules version, registry version and registry SHA-256, the versions the rows carry (`rowVersions`), the source (`data-lake` or `directory`; for registry scope `registry` with the `discovery` source that selected the ledgers), the range, for full scope the first ledger's previous hash and the last ledger's hash, for registry scope every ledger read with its hash (`ledgers`), each 64,000-ledger partition's row count and SHA-256, and every file's SHA-256, size and line count. |
+
+The command prints the SHA-256 of `manifest.json`. Two rebuilds of the same range with the same rules and
+registry print the same hash, whatever machine or concurrency produced them.
+
+## Checking a published number
+
+1. Save the published `manifest.json` and take its rules version and registry version.
+2. Check out a commit whose `RULES_VERSION` (`packages/x402-index/src/types.ts`) is that rules version and
+   whose `packages/x402-index/registry/<network>.json` has that `registryVersion`, or check out one with
+   that rules version and pass the registry file with `--registry`.
+3. Run `pnpm explorer:rebuild --network <network> --ledgers-from manifest.json` and compare the manifest
+   hash. The rebuild reads the listed ledgers from the public data lake, whatever source served them to
+   the Explorer (the data lake or an RPC; the bytes are the same, as each ledger's hash shows), checks
+   each one against its listed hash and the manifest's anchors (the ledger hashes the Explorer's indexer
+   checked against a Horizon with full history before it committed them), and lists the same anchors, so
+   equal inputs give the same hash. `totalsSha256`, the `files` hashes and the partition hashes must
+   match; if they differ, the partition hashes show the first partition that disagrees.
+4. To check that discovery missed nothing, run the full scan of the same range
+   (`--from <range.from> --to <range.to>`, printed on the report as the audit command). It reads every
+   ledger, so it also counts the unattributed look-alikes and exclusions of every ledger; its `rail402`,
+   `rail402-beta` and `facilitator` rows must equal the report's (rules §14).
+
+The Explorer's network-wide block is a full scan of a recent window. Its `rebuildCommand`
+(`--from`, `--to` and, when the window was anchored, `--anchor-horizon`) writes the manifest served at
+`/api/v1/<network>/network-window/manifest`, so the two hashes are equal when nothing differs.
+
+For a full scan, two things in the manifest describe how it was produced rather than what it found, and
+change the hash on their own: the source (a directory of ledger files gives another hash than the data
+lake) and the anchors (pass `--anchor`, `--anchors-from` or `--anchor-horizon`; only checked anchors are
+listed).
+
+The repository's tests rebuild a committed testnet slice (ledgers 5,330,305 to 5,330,320) on every run and
+compare it with the committed manifest, so a change to the rules or the reader cannot change results
+silently. They also index that slice the way the Explorer does, from recorded discovery pages, and require
+the report's manifest to equal a `--ledgers-from` rebuild of it, anchors included, and its attributed rows
+to equal the full scan's.
+
+### A check of the published testnet report
+
+On 26 October 2026 the testnet report's manifest (`/api/v1/testnet/manifest`, scope registry, ledgers
+1,420,378 to 5,405,037, rules v1, registry `2026-10-23.1`) was saved and rebuilt from the public data lake
+with `pnpm explorer:rebuild --network testnet --ledgers-from manifest.json`. The rebuild read the 24,989
+listed ledgers in 874 s and wrote 30,763 settlements and 34 failed attempts; its `manifest.json` was
+byte-identical to the published one (SHA-256
+`29f407e72e3528ff250f3059a2abcc743d2e455bfdfb80ad379396e80bb2e494`, the report's `manifestSha256`).
+A full scan of the range's last 720 ledgers (`--from 5404318 --to 5405037 --anchor-horizon
+https://horizon-testnet.stellar.org/`) found the same 89 attributed rows (72 `rail402`, 17 `facilitator`)
+as the report in that window, and 52 unattributed look-alikes the registry scope does not read.

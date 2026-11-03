@@ -107,6 +107,39 @@ A change that improves search re-baselines in a dedicated commit with
 `pnpm eval --write-baseline search-eval-vX.Y.Z`, and that commit gets the new annotated tag. CI fetches tags
 to check the baseline against it.
 
+## Parity of a running service
+
+The gate scores the ranking code in process. A running service can be scored the same way over HTTP, with
+everything production adds: the Postgres store, the HTTP layer, the index refresh, and the model binary of
+its image. Its `/health` reports the ranker it runs in `search.ranker`: the model id and revision, the SHA-256
+of the model and tokenizer files, the similarity floor, the semantic depth, the search package version and
+the evaluation tag (`search-eval-v1.1.0`) it is measured against.
+
+Start the staging service from the release image with the production configuration plus the settings
+`--print-env` prints: the corpus's assets on both networks, no rate limits, and two catalog settings that
+keep the synthetic listings published (origin checks once an hour, since their `.example` hosts never answer
+one and would be quarantined within seconds, and a ten-year retention for listings no origin confirmed,
+since their settlement dates are in the past). The service must serve both networks, as the baseline knows
+the pubnet assets: a testnet-only service cannot match or price the corpus's pubnet options and scores below
+the baseline (test nDCG@10 0.699, Recall@20 0.837), which is what the same ranker scores in process with only
+the testnet assets.
+
+```sh
+# the settings a staging service needs on top of the production configuration
+node --conditions=@rail402/source tools/search-eval/src/http-main.ts --print-env
+# seed the corpus into the staging database, wait for the index, query, apply the gate
+node --conditions=@rail402/source tools/search-eval/src/http-main.ts \
+  --seed postgres://rail402:…@localhost:5432/rail402_eval --url http://127.0.0.1:8090 --out results/http-parity.json
+```
+
+The corpus is inserted through the catalog store, never through payments. Seeding refuses a database whose
+name does not contain `eval` or `staging`, and a catalog that holds anything but the corpus, so evaluation
+listings never mix with real ones. The run fails when test nDCG@10 or Recall@20 is more than 0.02 below the
+baseline, when hybrid falls below the baseline's BM25, when any query is answered lexical-only, when a result
+breaks a filter, when a request fails, or when `/health` names another model than the baseline's. The
+integration suite runs the same check against the discovery routes over Postgres with the runtime's search
+settings.
+
 ## Dataset
 
 | Part       | Size                                                                              |

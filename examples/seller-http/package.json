@@ -1,0 +1,23 @@
+{
+  "name": "rail402-example-seller-http",
+  "version": "0.5.1",
+  "private": true,
+  "description": "A paid, discoverable HTTP API on Stellar: stock @x402/express with the @rail402.dev/sdk seller helpers, settled through Rail402.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24.11"
+  },
+  "scripts": {
+    "start": "node src/main.ts"
+  },
+  "dependencies": {
+    "@rail402.dev/sdk": "0.5.1",
+    "@stellar/stellar-sdk": "16.3.0",
+    "@x402/core": "2.28.0",
+    "@x402/express": "2.28.0",
+    "@x402/extensions": "2.28.0",
+    "@x402/stellar": "2.28.0",
+    "express": "5.2.1"
+  }
+}

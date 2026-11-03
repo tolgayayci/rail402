@@ -1,0 +1,83 @@
+---
+title: Developer testing
+description: How external developers test Rail402's docs and tools on the Stellar testnet, what they found, what was changed and how each change was verified.
+---
+
+External developers who have not worked on Rail402 follow the published docs and packages on the Stellar
+testnet while an observer records where they get stuck. Every finding is listed here with its severity, the
+change that addresses it and how that change was verified after release.
+
+<Info>
+  No testing round has been completed yet. The tables below are filled in as each round's findings are fixed
+  and verified.
+</Info>
+
+## Method
+
+- **Participants.** 5 to 8 developers per round, none of whom has contributed to Rail402: a mix of backend
+  developers who have shipped an HTTP API, developers who build AI agents or MCP tools, and at least one who
+  runs services with Docker and a database. Some are new to Stellar and to x402.
+- **Sessions.** 75 minutes, remote, thinking aloud, with only the public docs, npm packages, repository and
+  hosted testnet services. No hints beyond a fixed script; an assist after two minutes stuck is recorded as
+  one.
+- **Tasks.** Everyone does the seller path (create a receiving account, charge for an endpoint, read the
+  `402` challenge) and the buyer path (fund a buyer, pay, find a resource in the Bazaar, cap spending). Each
+  participant also does one of: the MCP path (connect `rail402-mcp` to an MCP host, let an agent pay, see a
+  refusal) or the operator path (run a facilitator with Docker, settle through it, find health and refusal
+  reasons). Each task has a time cap and a success signal.
+- **Measures.** Per task: success unaided, success with an assist, or not completed, and the time taken. After
+  the session: the System Usability Scale (SUS, 0 to 100) and open questions.
+- **Privacy.** Participants agree to the method in advance. Nothing here identifies a participant; findings are
+  described by what happened, not by who.
+
+### Severity
+
+| Severity | Meaning                                                                                                                       |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| S1       | A task could not be completed without an assist, or the docs led to an unsafe action (for example paying more than intended). |
+| S2       | Completed only after a long detour: more than twice the median time, or the answer had to be found outside the docs.          |
+| S3       | Hesitation or a wrong first attempt, recovered from the docs alone.                                                           |
+| S4       | Wording or layout, with no effect on completing the task.                                                                     |
+
+A finding seen by two or more participants moves up one level, up to S1.
+
+### From finding to verified fix
+
+1. Each distinct finding gets an ID (`DT-01`, `DT-02`, …) and a severity.
+2. It is fixed, or closed with a stated reason. Every S1 and S2 is fixed unless its cause is outside Rail402,
+   in which case the docs say how to handle it.
+3. The fix is released: docs on `docs.rail402.dev`, packages on npm, or the hosted testnet service.
+4. The fix is verified against the released build, not a branch: a changed example is run again from the
+   published page in a clean environment, a changed error message is reproduced against the hosted service,
+   and a changed explanation is retried by a developer who did not see the finding.
+
+A row is marked **Verified** only after step 4.
+
+## Rounds
+
+| Round | Dates | Participants | Docs revision | Packages | SUS (mean, median, range) |
+| ----- | ----- | ------------ | ------------- | -------- | ------------------------- |
+
+## Task results
+
+| Task                                   | Success unaided | With an assist | Not completed | Median time |
+| -------------------------------------- | --------------- | -------------- | ------------- | ----------- |
+| A1 Find where to start as a seller     |                 |                |               |             |
+| A2 Create a receiving account          |                 |                |               |             |
+| A3 Charge for an endpoint              |                 |                |               |             |
+| A4 Read the payment challenge          |                 |                |               |             |
+| B1 Fund a buyer                        |                 |                |               |             |
+| B2 Pay and find the settlement         |                 |                |               |             |
+| B3 Find a resource in the Bazaar       |                 |                |               |             |
+| B4 Cap spending per payment            |                 |                |               |             |
+| C1 Connect the MCP server              |                 |                |               |             |
+| C2 Let an agent pay                    |                 |                |               |             |
+| C3 Understand a refusal                |                 |                |               |             |
+| D1 Run a facilitator                   |                 |                |               |             |
+| D2 Settle through your own facilitator |                 |                |               |             |
+| D3 Find health and refusal reasons     |                 |                |               |             |
+
+## Findings
+
+| ID  | Area | Finding | Severity | Fix | Verification | Status |
+| --- | ---- | ------- | -------- | --- | ------------ | ------ |

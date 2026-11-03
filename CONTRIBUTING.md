@@ -12,6 +12,8 @@ pnpm install
 pnpm verify                                 # format, lint, typecheck, unit tests, licence gate
 docker compose --profile stellar up -d      # Postgres + a private Stellar network
 pnpm test:integration
+docker build -t rail402:selfhost . && RAIL402_IMAGE=rail402:selfhost pnpm test:integration apps/rail402/test/image.integration.test.ts
+                                            # the image, self-hosted with no internet access, when you touch the service or its image
 pnpm --filter @rail402.dev/playground exec playwright install chromium   # once
 pnpm --filter @rail402.dev/playground test:e2e   # the Playground in Chromium, on the private network
 pnpm eval:check                             # search quality gate, when you touch search

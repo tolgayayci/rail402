@@ -1,0 +1,79 @@
+---
+title: "Operate a facilitator"
+sidebarTitle: "Operate a facilitator"
+description: "The operator's path: run Rail402, choose networks and assets, sponsor fees, and what the facilitator checks before it settles."
+---
+
+A facilitator verifies x402 payments, submits them and pays their network fees from its sponsor account; it
+is never the source of the funds. Rail402 is built on the unmodified `@x402/stellar` scheme and also runs the
+Bazaar catalog and search. This page walks the operator's path.
+
+## 1. Run it on testnet
+
+```sh
+git clone https://github.com/tolgayayci/rail402 && cd rail402
+./deploy/docker.sh               # builds the image, creates and funds a testnet sponsor, starts Postgres and the service
+curl http://127.0.0.1:8080/supported
+```
+
+[Run your own (Docker)](/facilitator/docker) has the details; the facilitator can also run
+[in process](/facilitator/in-process) inside a seller. Point the [seller quickstart](/quickstart/sellers) at
+your URL with `FACILITATOR_URL` and pay it with the [buyer quickstart](/quickstart/buyers).
+
+## 2. Choose the networks
+
+`NETWORKS` lists the networks served (`stellar:testnet`, `stellar:pubnet`); every per-network setting has a
+`TESTNET_` or `PUBNET_` prefix ([Configuration](/configuration#per-network)). `/supported` lists each served
+network's kinds (`exact`, and `upto` where enabled) and its signers.
+
+Pubnet settings are explicit, and the service refuses to start without them: an https RPC URL, a decision on
+API keys (`PUBNET_REQUIRE_API_KEY`) and an hourly sponsor budget
+(`PUBNET_MAX_SPONSOR_SPEND_XLM_PER_HOUR`); channel accounts are provisioned by an operator, not at startup.
+Pubnet has not been exercised end to end; see [Configuration](/configuration) and
+[Operations](/operations) before enabling it.
+
+## 3. Choose the assets
+
+Each network accepts Circle USDC by default. `ASSETS` lists every accepted SEP-41 token as
+`CONTRACT:SYMBOL:DECIMALS[:MIN:MAX]`; the service reads each token's `decimals()` at startup and refuses a
+mismatch ([Accepted assets](/facilitator/assets)).
+
+## 4. Trustlines and recipients
+
+Before simulating, the facilitator checks that the payer can pay and that `payTo` can receive: for a Stellar
+Asset Contract, a `G…` account needs an authorized trustline
+(`invalid_exact_stellar_payload_payer_trustline_missing`,
+`invalid_exact_stellar_payload_recipient_trustline_missing`). The sponsor and channel accounts hold XLM only;
+they need no trustline, because they never hold the payment asset. A muxed `M…` `payTo` is refused for
+`exact`.
+
+## 5. What the buyer authorized, and what the facilitator checks
+
+- **`exact`**: one Soroban authorization entry for `transfer(payer, payTo, amount)`, with address
+  credentials. Rail402 checks the entry before any simulation: no facilitator account in it, no
+  sub-invocations, the payer's signature present, the invocation identical to the transaction's call, and
+  `signatureExpirationLedger` not past (`invalid_exact_stellar_signature_expired`) and at least
+  `EXPIRATION_MARGIN_LEDGERS` ahead (`…_expiration_too_soon`); the upstream verifier refuses one too far ahead
+  ([Authorization and expiry](/verification-rules#5-authorization-and-expiry),
+  [Expiration](/verification-rules#expiration)).
+- **`upto`**: signed terms with a cap for the `upto` settlement contract. The facilitator's settlement
+  authority authorizes the settled amount, and the contract checks `0 ≤ amount ≤ cap`
+  ([upto payments](/facilitator/upto), [upto contract](/reference/upto-contract)).
+
+Every rejection has a stable code and a reason ([Errors and verification rules](/verification-rules)).
+
+## 6. Sponsor the fees
+
+The sponsor account (`SPONSOR_SECRET`) pays every fee through a fee bump around a transaction whose source is
+one of its channel accounts, so settlements run in parallel (`CHANNEL_COUNT`). `/supported` advertises
+`extra.areFeesSponsored: true`. Fee ceilings (`MAX_TX_FEE_STROOPS`, `UPTO_MAX_TX_FEE_STROOPS`), a reserve
+(`SPONSOR_RESERVE_XLM`) and an hourly budget bound what the sponsor may spend
+([fee ceilings](/configuration#fee-ceilings), [Operations](/operations)).
+
+## 7. Run the Bazaar
+
+A settled payment that carries the `bazaar` extension is cataloged and searchable; with `STORE=postgres` (the
+default) the catalog is durable and shared by every replica. See [Cataloging](/bazaar/cataloging), [Discovery](/bazaar/discovery) and
+[Search](/bazaar/search). The catalog lists only resources on public hosts; to see a seller on your own
+machine listed and searchable, follow [Try the Bazaar locally](/facilitator/docker#try-the-bazaar-locally). The
+[hosted discovery MCP](/agents/hosted-mcp) image serves the catalog's search to remote agents with no key.

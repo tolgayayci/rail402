@@ -37,8 +37,9 @@ illustrative.
 All filters, including `asset` and `maxPrice`, must hold for one and the same payment option of a listing,
 and a result shows only the payment options that satisfy them.
 Price and symbol constraints fail closed: an option in an asset the instance does not know never satisfies
-them. A dollar ceiling applies only to options in a US-dollar stablecoin the instance accepts (`USDC`,
-`PYUSD`, `USDT` or `USDP` by symbol), and converts exactly to the asset's base units.
+them. A dollar ceiling applies only to options in an asset the instance treats as US dollars, and converts
+exactly to the asset's base units. That set is chosen by contract, never by symbol, since any token can call
+itself USDC: by default Circle's USDC on each network, or the contracts in `<NET>_BAZAAR_USD_ASSETS`.
 
 ## Response
 
@@ -67,9 +68,10 @@ them. A dollar ceiling applies only to options in a US-dollar stablecoin the ins
     }
   ],
   "partialResults": false,
-  "pagination": { "limit": 10, "cursor": null },
+  "pagination": { "limit": 1, "cursor": null },
   "rail402": {
     "method": "hybrid",
+    "queryEmbedding": "computed",
     "recognised": ["network=stellar:testnet", "maxPrice=0.02 USD"],
     "revision": 2
   }
@@ -79,7 +81,7 @@ them. A dollar ceiling applies only to options in a US-dollar stablecoin the ins
 | Field                | Meaning                                                                                                                                                                   |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `resources`          | Results, best first, in the same item shape as [`/discovery/resources`](/bazaar/discovery#response)                                                                       |
-| `pagination.limit`   | The page size, in resources                                                                                                                                               |
+| `pagination.limit`   | The number of resources in this page (the specification's meaning), at most the requested `limit`                                                                         |
 | `partialResults`     | `true` when the semantic ranking was cut at its depth, or when a ranked search ran lexical-only: no model is loaded, or embedding the query failed or took over 2 seconds |
 | `pagination.cursor`  | Pass it as `cursor` for the next page; `null` on the last page                                                                                                            |
 | `rail402.method`     | `hybrid`, `lexical` (no embedding model) or `filter` (the query was only constraints)                                                                                     |
@@ -139,11 +141,98 @@ responses (`method: "lexical"`) have `partialResults: true`, while filter-only r
 whose query cannot be embedded, because the model fails or takes over 2 seconds, is answered the same way
 rather than failing.
 
-Each process builds its first index at startup, and `/ready` stays failing until it is built. After that it
+## Load limits
+
+Search shares the service's CPU with settlement, so it is bounded:
+
+- **Query-embedding cache.** The embedding of a query's text (after recognised constraints are removed) is
+  kept in a least-recently-used cache of `SEARCH_QUERY_CACHE_SIZE` entries (1,000 by default), so a repeated
+  query costs no model run. `rail402.queryEmbedding` in each response says how the query was embedded:
+  `cached`, `computed`, `saturated`, `failed` or `none` (no embedding needed).
+- **Embedder concurrency.** At most `SEARCH_EMBED_CONCURRENCY` embeddings (1 by default) run at once, index
+  builds included. A query that finds every slot taken and `SEARCH_EMBED_QUEUE` queries (2 by default)
+  already waiting does not queue: it is answered lexical-only with `partialResults: true` and
+  `queryEmbedding: "saturated"`. Index builds wait for a slot.
+- **Cost limit per client.** Discovery requests spend cost units from a per-client bucket that refills at
+  `SEARCH_RATE_LIMIT_PER_MINUTE` units a minute (120 by default; 0 disables it), on top of the service-wide
+  `RATE_LIMIT_PER_MINUTE`. A search whose query embedding is cached, or that needs none, costs 1; one that runs
+  the model costs `SEARCH_UNCACHED_COST` (5 by default). A `/discovery/resources` page costs 1 plus 1 per
+  1,000 of `offset`, at most 10. A listing (`/discovery/resources/{id}`) costs 1, and a page of its version
+  history 1 plus 1 per 25 versions asked for (5 for a full page of 100). [Usage](/bazaar/discovery#usage): a
+  settlements lookup costs 1 plus 1 per 25 transactions, a listing's usage 1 and a seller's usage 2. Over the
+  limit the answer is `429`
+  `rate_limited` with `Retry-After`, counted by route in `rail402_discovery_rate_limited_total`. Each replica
+  keeps its own buckets. A request with a `discovery-internal` key (a hosted front end such as the hosted MCP
+  endpoint) is not charged to its address: it is charged to its forwarded client's bucket (the
+  `X-Rail402-Client` header, trusted from such a key only; as large as a direct client's) and to the
+  identity's own, which holds the key's discovery requests per minute in cost units.
+- **Load shedding.** At most `DISCOVERY_MAX_IN_FLIGHT` discovery requests (32 by default) are served at
+  once and `DISCOVERY_QUEUE_LENGTH` (64) wait for a turn, each for at most `DISCOVERY_QUEUE_TIMEOUT_MS`
+  (1 s), first come first served. Every other request is refused at once, before any limit, database read
+  or embedding, with `503` `discovery_overloaded` and `Retry-After: 1`; retry after that interval. A
+  request is served until its response has been handed to the client's connection, which a client that
+  stops reading delays by at most `RESPONSE_WRITE_TIMEOUT_MS` (30 s), so the slots also bound the pages
+  kept for clients that have not taken them. One client may have at most
+  `DISCOVERY_MAX_IN_FLIGHT_PER_CLIENT` (8) requests served or waiting at once; more are refused with `429`
+  `rate_limited` and `Retry-After: 1`. A client is an address, or a forwarded client of a
+  `discovery-internal` key whose record sets `forwardedClientRequestsPerMinute`: a front end that forwards
+  no client is one client for all its users, and a key without that field is bounded by the lane only.
+  Discovery reads the catalog through a database pool of its own (`DISCOVERY_DATABASE_POOL_SIZE`, 5), and a
+  read that gets no connection within `DISCOVERY_DATABASE_ACQUIRE_TIMEOUT_MS` (1 s) is refused the same
+  way, so discovery load never waits on, or takes, the connections settlements use. These limits apply to
+  every discovery route, per replica, and come after the embedder's own cap: a search admitted while the
+  embedder is busy is still answered lexical-only with `partialResults: true`. Refusals are counted in
+  `rail402_discovery_shed_total`.
+- **Network lanes.** Discovery admits in two lanes, each with the limits above: requests scoped to pubnet
+  (`network=stellar:pubnet`, or a pubnet host of `PUBLIC_HOSTS`) and everything else (testnet and unscoped
+  requests). With Postgres and pubnet served next to another network, the pubnet lane also reads the
+  catalog and keeps its limits through a discovery pool of its own, of the same size. Testnet or unscoped
+  discovery that fills its lane is shed without ever refusing a pubnet-scoped request. Search index builds,
+  which searches of both lanes may wait for, use neither lane's pool. A route without a `network`
+  parameter, such as a listing's detail or versions, takes the shared lane unless it is asked on a pubnet
+  host.
+- **Page reads.** A result page reads its listings from the catalog, and listings read for a page within
+  the one-second revision read, at the same catalog revision, are reused for the next pages
+  (`SEARCH_PAGE_CACHE_SIZE`, 512 listings by default). A withdrawal or a content change moves the revision,
+  so it shows at once; settlement counts and facts may be up to a second old.
+- **Index size per network.** A snapshot keeps only what ranking and the filters read: the indexed terms,
+  each listing's options without `extra`, its trust and age, and its vector. A result page reads its listings
+  from the catalog as they are now, so a listing withdrawn since the snapshot is not shown. Each field
+  indexes a bounded number of terms (64 for the name and tags, 256 for the description, 512 for the schema,
+  16 for the host), and terms longer than 40 characters are skipped. One network's listings may take an
+  estimated `SEARCH_MAX_INDEX_MB_PER_NETWORK` (96 MiB by default) of a snapshot, and listings no origin
+  confirmed (trust `settled`) at most half of that. Listings are taken in catalog order, and those that no
+  longer fit are left out of search (discovery still lists them), counted per network in
+  `rail402_search_listings_left_out`. Each network has its own share, so free testnet listings never push
+  pubnet listings out of search. The catalog is read in batches of 500 with a 15-second statement timeout
+  per batch.
+- **Snapshots.** At most `SEARCH_MAX_SNAPSHOTS` index snapshots (4 by default) and an estimated
+  `SEARCH_MAX_SNAPSHOT_MB` (256) are kept. Over either cap the oldest superseded snapshots are dropped
+  first, and cursors issued on them answer `search_cursor_expired`. The latest snapshot is always kept. The
+  estimates are calibrated against the measured heap of thousands of maximum-size listings, so they are
+  never below what a snapshot holds. `rail402_search_snapshots` and `rail402_search_snapshot_bytes` export
+  what is kept.
+
+`tools/loadtest` measures these limits: an open-loop driver with no dependencies beyond Node.js, synthetic
+datasets with SHA-256 hashes (the evaluation corpus, a tenfold expansion, the evaluation queries and generated
+uncached queries), three cache states (`warm`, `uncached`, `cold-index`), raw per-request results, p50/p95/p99
+per state, and the configuration of each run. Its README has the commands and the staging service to run
+them against, and the [load test](/reference/load-test) page gives the results of the published package.
+
+A `/discovery/resources` page runs with a 5-second database statement timeout. A search page, like a list
+page, carries at most 3.5 MiB of resources: one that would grow past it ends early, and its cursor continues
+after the last result shown.
+
+Each process runs the embedding model once when it loads it, since a model's first run is far slower than
+the rest, then builds its first index, and `/ready` stays failing until it is built. After that it
 checks every 5 seconds whether the catalog changed and rebuilds the index in the background. A search reads
 the catalog revision at most once a second; one that arrives after a catalog change, before the background
 rebuild, builds the new index itself and waits for it. An index is built from the listings and the revision
-read together, so it never carries a revision without that revision's changes.
+read together, so it never carries a revision without that revision's changes. With Postgres, index builds
+and the background check read the catalog through a database pool of their own (2 connections) that no
+request takes, so discovery load on either network never holds a connection a build needs. If a build
+still cannot read the catalog, a search answers from the previous index, and `rail402.revision` names that
+index's revision; the next build catches up.
 
 A repeat settlement or a refresh of a listing's Stellar facts changes no published version, so it starts no
 new revision. Each result is therefore read from the catalog when the page is served: its `settlements`,
@@ -159,7 +248,7 @@ Cursors are opaque and HMAC-signed. Each one pins:
 - the catalog revision of the first page, so the pages of one search never skip or repeat a result when the
   catalog changes meanwhile;
 - an expiry, 15 minutes after the page was served. The index a cursor was issued on is kept until its last
-  cursor expires, however often the catalog changes meanwhile.
+  cursor expires, unless the [snapshot caps](#load-limits) drop it earlier.
 
 | HTTP | `code`                  | When                                                                                              |
 | ---- | ----------------------- | ------------------------------------------------------------------------------------------------- |

@@ -1,0 +1,85 @@
+---
+title: "Buy and build agents"
+sidebarTitle: "Buy and build agents"
+description: "The buyer's path: a funded account, network selection, what a payment authorizes, spending caps, and agents that discover and pay."
+---
+
+A buyer signs an authorization for what the seller asks; the seller's facilitator settles it and pays the
+fee. Rail402's buyer tools (the [SDK](/agents/sdk), the [MCP server](/agents/mcp-server) and the
+[CLI](/agents/cli)) wrap the stock x402 client in a spending policy, search the Bazaar and pay listings. This
+page walks the path.
+
+## 1. Run the testnet example
+
+```sh
+npm install --global @rail402.dev/cli
+rail402 keys new                       # a key file (0600) tagged for stellar:testnet; prints the address
+rail402 account setup --usdc 1         # Friendbot, USDC trustline, 1 testnet USDC from the testnet exchange
+rail402 purchase "current weather for a city" --max 0.01
+```
+
+`purchase` searches the Bazaar, picks a payable listing, pays it and prints the answer, the receipt with its
+transaction hash and explorer link, and the remaining budget. With stock packages only, the
+[buyer quickstart](/quickstart/buyers) pays a seller with `@x402/fetch`; for an agent, the
+[MCP server](/agents/mcp-server) gives it `search_stellar_resources` and `pay_and_call`, and
+`examples/mcp-agent` is an agent that finds and pays a resource it was not told about.
+
+## 2. Choose the network
+
+`stellar:testnet` is the default of the CLI and MCP server (`--network`, `RAIL402_NETWORK`); the SDK has no
+default, so a buyer never falls back to the wrong network. A buyer pays only options on its own network
+(`payment_network_not_permitted`).
+
+On `stellar:pubnet`, where payments move real funds, the buyer tools are stricter, and each rule is enforced
+before anything is signed:
+
+| On pubnet                                                                                                                              | Refusal                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| The RPC and Bazaar URLs are explicit and https; the Bazaar and facilitator are named by public host names                              | `payment_policy_invalid`                                            |
+| Caps are set; USDC at most 1 per call and 10 per window unless larger caps are allowed explicitly                                      | `payment_policy_invalid`, `payment_cap_invalid`                     |
+| The key file is tagged for pubnet; a seed in `RAIL402_SECRET_KEY` is never used                                                        | `key_network_untagged`, `key_network_mismatch`                      |
+| Only Bazaar listings are paid, at `origin_verified` (HTTP) or `domain_verified` (MCP) trust                                            | `payment_listing_required`, `listing_not_payable`                   |
+| The first payment of each budget window to each recipient and listing is confirmed by a person, unless turned off for a headless agent | `payment_confirmation_declined`, `payment_confirmation_unavailable` |
+| The default budget window does not renew, and a keyed budget is kept in the persistent store                                           | `payment_session_expired`, `payment_policy_invalid`                 |
+| upto settlement authorities are pinned (`uptoFacilitators`, or the facilitator's `/supported`)                                         | `payment_policy_invalid`, `payment_facilitator_not_permitted`       |
+
+See [choosing the network](/agents/sdk#choose-the-network) (SDK), [paying on pubnet](/agents/cli#paying-on-pubnet)
+(CLI) and [confirming pubnet payments](/agents/mcp-server#confirming-pubnet-payments) (MCP).
+
+## 3. Assets and trustlines
+
+The buyer's account must hold the asset. For USDC, a Stellar Asset Contract, a `G…` account needs a trustline
+first (`rail402 account setup` adds it; on pubnet it needs `--yes` and adds only the trustline). The buyer
+tools check the payer's trustline and balance before signing (`payment_payer_trustline_missing`,
+`payment_insufficient_funds`) and, from the listing or the network, whether `payTo` can receive the asset
+(`payment_recipient_cannot_receive`). The spending policy pays only the assets it lists: USDC by default,
+other SEP-41 tokens with `RAIL402_ASSETS` (their decimals are verified on chain).
+
+## 4. What you sign
+
+The buyer signs a Soroban authorization entry and never a transaction: it needs no XLM and submits nothing.
+
+- **`exact`**: `transfer(buyer, payTo, amount)` on the asset contract, exactly the price. The entry's
+  `signatureExpirationLedger` is the latest ledger plus `ceil(maxTimeoutSeconds / ledger time)` (12 ledgers
+  for 60 seconds at 5-second ledgers); the policy refuses an authorization that would stay valid longer than
+  its `maxAuthorizationSeconds` (300 by default).
+- **`upto`**: terms for the `upto` settlement contract with a **cap**: the seller settles from zero to the
+  cap after serving, and the contract enforces it. The buyer tools pin the settlement contract and reserve the
+  whole cap until the chain proves what moved ([Pay upto resources](/agents/sdk#pay-upto-resources)).
+
+A signing guard checks the exact bytes signed against the option the policy selected, and reserves the
+amount in the budget in the same step ([Spending policy](/reference/spending-policy)).
+
+## 5. Fees are sponsored
+
+Stellar payments through x402 require the seller's facilitator to sponsor the fee
+(`extra.areFeesSponsored: true`); the buyer tools refuse other options (`payment_fees_not_sponsored`). The
+recorded canonical run shows the buyer's balance falling by exactly the price
+([Conformance evidence](/reference/conformance#canonical-client)).
+
+## 6. Find resources
+
+`rail402 search`, the SDK's `buyer.search()` and the MCP tool `search_stellar_resources` query the Bazaar's
+[natural-language search](/bazaar/search); [discovery](/bazaar/discovery) lists the catalog with filters. The
+[hosted discovery MCP](/agents/hosted-mcp) serves the same search to remote agents without any key; pay what
+it finds with your own tools, by `listingId`.

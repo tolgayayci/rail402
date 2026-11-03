@@ -1,0 +1,318 @@
+---
+title: Explorer
+description: Open any x402 payment on Stellar by its hash, see who paid whom through which facilitator, and read the Ecosystem Report, all rebuildable from public ledgers.
+---
+
+The Rail402 Explorer shows x402 payments on Stellar testnet and mainnet. It reads the ledgers that hold
+transactions of the facilitators in a public, evidence-backed registry, verifies each ledger against its
+own hashes, classifies its transactions under the published [indexing rules](/reference/indexing-rules),
+and attributes each settlement to a facilitator. It is an **audit aid**: every page names a transaction
+anyone can read on chain, and says how to check it without trusting the Explorer.
+
+## How it finds payments
+
+The indexer does not read every ledger of the network. It asks a discovery source, the
+[Lumeus](https://docs.lumeus.dev) Activity API, for the history of every account in the registry (sponsors, fee
+payers, channel accounts, settlement authorities, relayers, each within the ledger range the registry gives
+it) and of every registered upto contract. A contract whose settlements emit an event (`R-UPTO`) is read
+through its own activity. The concluded beta's contracts (`R-UPTO-BETA`) emit no event and move no funds
+themselves, so their activity is empty; each of their settlements grants the contract an allowance in the
+same transaction, and discovery finds them through Lumeus topic search for the token `approve` events that
+name the contract as the spender. The ledgers those histories name are the candidates. For each
+candidate the indexer reads the whole ledger (envelopes, results and metas): from Lumeus RPC `getLedgers`
+while the ledger is inside the RPC's retention of about seven days, otherwise from the public Stellar data
+lake. Every ledger is checked against its own hash, transaction-set hash and result hash, and, where
+configured (always on mainnet), against the ledger hash a Horizon with full history reports, before its
+transactions are classified and stored. Ledgers are fetched ahead of use only up to
+`EXPLORER_BYTES_IN_FLIGHT_MIB` (64 MiB) of raw bytes and decoded one at a time, so a busy stretch of
+ledgers never has to fit in memory at once.
+
+Discovery only chooses which ledgers to read; it never supplies a row, so it cannot create a settlement
+that is not on chain. A ledger it lists that holds no registry transaction adds that ledger's own real
+rows: unattributed look-alikes, failed attempts and exclusion counts, never an attributed settlement. The
+manifest lists every such ledger, the report counts them (`ledgersWithoutAttributedRow`), and each route
+adds at most `EXPLORER_MAX_CANDIDATES_PER_ROUND` new candidates per round, so a source that lists every
+ledger cannot make one round read (or, on mainnet, pay for) an unbounded number of ledgers. A ledger it
+leaves out shows up in a full scan of the same range from the data lake, which anyone can run (see
+[Rebuilding the report](#rebuilding-the-report)).
+
+Each route keeps a checkpoint (the last ledger discovery walked) stored with the candidates it found, page
+by page, so a failure loses at most the page under way and restarts lose and repeat nothing. A route keeps
+its registry bounds only: a bounded run (`EXPLORER_TO_LEDGER`) stops its walks at its last ledger, and a later
+run resumes there. When Lumeus answers under a new index generation or decoder, the route is walked again
+from its first ledger; on testnet, a new generation whose head is far behind the indexed ledgers is a
+network reset and stops the indexer until the new epoch is registered (a head that is only behind is
+counted, never a stop). The live tail polls the fee-paying routes (sponsors, fee bumps, relayers, upto
+contracts) every round and, once they reach the head, channel and settlement-authority routes every
+`EXPLORER_SLOW_ROUTE_ROUNDS` rounds. A candidate whose bytes or anchor are not available yet waits and is
+tried again later without holding back newer ones; the report still stops before it.
+
+## Pages
+
+Mainnet pages have no prefix; testnet pages live under `/testnet`. An Explorer that serves testnet only
+redirects `/` to `/testnet`.
+
+| Page             | Mainnet               | Testnet                       |
+| ---------------- | --------------------- | ----------------------------- |
+| Home             | `/`                   | `/testnet`                    |
+| Payments         | `/payments`           | `/testnet/payments`           |
+| Payments as CSV  | `/payments.csv`       | `/testnet/payments.csv`       |
+| Transaction      | `/tx/<hash>`          | `/testnet/tx/<hash>`          |
+| Account, seller  | `/account/<G… or C…>` | `/testnet/account/<G… or C…>` |
+| Services         | `/services`           | `/testnet/services`           |
+| Listing          | `/resource/<id>`      | `/testnet/resource/<id>`      |
+| Facilitators     | `/facilitators`       | `/testnet/facilitators`       |
+| Facilitator      | `/facilitator/<id>`   | `/testnet/facilitator/<id>`   |
+| Ecosystem Report | `/ecosystem`          | `/testnet/ecosystem`          |
+| Methodology      | `/methodology`        | same page                     |
+| Read API         | `/api/v1/pubnet/…`    | `/api/v1/testnet/…`           |
+
+- Both the outer hash of a fee bump and its inner hash open the payment. An upper-case hash redirects
+  (301) to lower case.
+- `/public/…`, `/pubnet/…` and `/mainnet/…` redirect (301) to the unprefixed path on the same site.
+- An `M…` muxed address opens its base account with `?muxed=<id>`, which lists only payments received by
+  that id; the totals on that page cover all muxed ids of the base account.
+- An invalid hash or address, or one nobody knows, answers 404 with the code `explorer_not_found`.
+- Search takes a hash, a G…, C… or M… address, an endpoint URL (a listing's `:name` route segments match
+  any value), an MCP tool name or a word from a listing; a scope selector narrows it to payments,
+  accounts, endpoints or MCP tools.
+
+## Three kinds of data
+
+Every page keeps three sources apart and labels them:
+
+| Source        | What it gives                                                                                                                                                               | Counted |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| Ledger index  | Every payment row, count and total, from verified ledgers under the indexing rules.                                                                                         | Yes     |
+| Bazaar        | What a payment paid for, listings, prices, listing history and the payments linked to each listing, from the Bazaar's public read API (`/discovery/…`), labelled off chain. | No      |
+| Live holdings | Current balances from Lumeus Assets on account and facilitator pages, labelled "Live · not audited".                                                                        | No      |
+
+The web role reads the Bazaar over HTTP only, never the facilitator's database. A payment shows
+**first-party** "paid for" when the Bazaar links its transaction to a public listing (Rail402 settled it
+and cataloged the resource) and that listing's payTo is the account the payment paid on chain (a muxed
+payTo counts as its base account); a link to anyone else is never shown. Otherwise it is **not
+cataloged**: the Bazaar links no public listing to it, because it was not cataloged, its seller keeps usage
+private, or cataloging has not finished. A listing whose seller keeps usage private says "usage private".
+On a network whose Bazaar publishes usage counts only (`PUBNET_BAZAAR_USAGE_DETAIL=counts`, pubnet's
+default), the Bazaar links no payment to a listing, so payments show no "paid for" and a listing's page
+shows its payment counts without the payments or their payers.
+
+All Bazaar calls of one page share one deadline of 3 seconds: when the Bazaar does not answer in time,
+the page renders from the ledger alone and says so. A payment page is cached for an hour only once its
+link is known, or once the Bazaar answered for a payment older than 10 minutes; until then, and whenever
+the Bazaar did not answer, for 15 seconds. A Bazaar answer is shared by every visitor for a minute, and a
+failure for 5 seconds; a call cut short by the page's deadline, or refused for the visitor's own budget
+(`429`, or `503` with `Retry-After`), is never kept for the next visitor.
+
+With a Bazaar access key (`EXPLORER_<NETWORK>_BAZAAR_KEY_FILE`, a `discovery-internal` key of the
+facilitator), the Explorer sends the key and an HMAC of each visitor's rate-limit key with every Bazaar
+call, so each visitor draws on its own discovery budget instead of all sharing the Explorer's address.
+The visitor's address itself is never sent; the identifier is a pseudonym, not anonymity, since the
+facilitator's operator holds the key and could compute it for every IPv4 address. The same goes for the Bazaar's limit on concurrent discovery
+requests per client (`DISCOVERY_MAX_IN_FLIGHT_PER_CLIENT`, 8 by default; a page makes up to four Bazaar
+calls at once): with a key whose record sets `forwardedClientRequestsPerMinute`, each visitor has it to
+itself, and without a key, every visitor shares the Explorer address's 8.
+
+## Payments, sellers, services and listings
+
+- **Payments** lists attributed payments newest first, with tabs per registry facilitator and a separate
+  tab for unattributed x402-shaped payments (a lower bound, never mixed in), and filters by scheme,
+  asset and time (24 hours, 7 days, 30 days). Pages are keyset-paginated; the CSV download holds the
+  newest 500 payments of the current filters, with the Bazaar listing each one paid for when known.
+- **Account** is a seller page when the address is the payTo of Bazaar listings: its listings with the
+  payments and payers the Bazaar linked to each, a "not linked to a public listing" remainder (the
+  payments the ledger shows it received in the current epoch minus those the Bazaar linked to its public
+  listings over all its history, at zero at least; it also covers private, withdrawn and unlisted
+  usage), upto payments as charged against authorized, and live holdings.
+- **Services** groups the Bazaar's listings by seller, ranked by payments received on the ledger.
+- **Listing** (`/resource/<id>`) shows a listing's payment requirements, its input and output example,
+  the payments linked to it that paid its payTo on chain, its public version history (the first 25
+  versions), and how to call it with the CLI, TypeScript, the MCP server or the Playground. A listing the
+  Bazaar does not publish (pending or withdrawn) shows only its state, its history and a warning: no
+  price, no seller and no way to call it.
+- **Facilitators** lists the registry's facilitators with their share of attributed payments; each
+  facilitator page shows its registry accounts with evidence and its current sponsor's live XLM.
+
+## A transaction page
+
+For a settlement the page shows:
+
+| Field            | What it says                                                                                                                                                                                                                       |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Network, scheme  | `stellar:testnet` or `stellar:pubnet`; `exact` or `upto`, with the rule that matched (`R-EXACT`, `R-UPTO`, `R-UPTO-BETA`).                                                                                                         |
+| Asset            | **verified** only when the token's contract id is the Stellar Asset Contract of the asset its events name; any other token is a **custom token**, whatever it calls itself.                                                        |
+| Amount, cap      | Decimal (7 places for a verified Stellar asset) and atomic units; a custom token shows atomic units only. `upto` payments also show the cap, the contract and the settlement authority.                                            |
+| Buyer, seller    | Full strkeys with a copy button; the seller's muxed id when there is one. A buyer is named only when the chain proves it authorized the payment: check E7 of the rules for `exact`, the registered settlement contract for `upto`. |
+| Facilitator      | Its registry name and tier with a link to the attribution evidence, or **unattributed x402-shaped** when no registry account submitted it.                                                                                         |
+| Fee sponsorship  | Whether the fee was sponsored, the fee payer, the fee charged in stroops and the transaction source.                                                                                                                               |
+| Hashes, position | The settlement (outer) hash, the inner hash of a fee bump, the ledger, its close time and the rules and registry versions.                                                                                                         |
+| Rule checks      | Every check of the rules that the transaction passed.                                                                                                                                                                              |
+| Verify on chain  | A link to stellar.expert, a copy-paste RPC `getTransaction` command and the `pnpm explorer:rebuild` command for that ledger.                                                                                                       |
+
+A failed transaction with the shape of a settlement is shown as a **failed attempt** and never counted.
+
+### Hashes from the CLI, the SDK and the Playground
+
+The SDK, the CLI, rail402-mcp and the Playground link receipts here by default, by the hash the settle
+response returns (a fee bump's outer hash); the inner hash opens the same page.
+
+A payment opens seconds after it settles, before the indexer reaches its ledger: a hash the index does
+not hold is read from the network's RPC (`getTransaction`, which keeps about the last seven days; Lumeus
+RPC when the operator configures a Lumeus key) and classified with the same rules. Such a page is labelled **Live lookup, not yet indexed** and is never
+cached. A transaction that exists but is not an x402 settlement says which check it missed. The RPC's
+answer must be the transaction asked for: its envelope's hash on the network (or its inner hash, for a
+fee bump) must equal the requested hash, or the answer is `503 explorer_lookup_unavailable`.
+
+Live lookups are bounded: the hash syntax is checked first, unknown hashes are remembered for 20 seconds
+and found ones for 60 seconds, concurrent lookups of one hash share one RPC call, and each client (an
+IPv4 address or an IPv6 /64) gets 6 lookups a minute per network within a budget of 60 a minute per
+network, a quarter of which is kept for clients making their first lookup in a minute. Over budget, the
+answer is 429 `explorer_lookup_busy` with `Retry-After`; many clients together can still use the budget
+up for a minute.
+
+When the rules version changes, the indexer reads every ledger of its epoch again when it starts. Until
+it has, the pages, the API and the report leave out rows, account totals and reports classified under
+other rules: such a row could name a payer the current rules do not prove. Its transaction is looked up
+live and classified again, like one the index does not hold.
+
+## The Ecosystem Report
+
+Each network's report covers the indexed ledger range and keeps every kind of activity apart:
+
+1. **Settled by the hosted Rail402 service**: payments whose fee payer or source is an account of the
+   hosted Rail402 facilitator in that ledger. Self-hosted instances are not counted here.
+   **Network-wide (sampled window)**, shown next to it when the operator runs the network window job:
+   every ledger of one recent window (for example the last 24 hours), read in full from the public data
+   lake under the same rules, by tier: the hosted Rail402 service, other registered facilitators, and
+   unregistered or unattributed x402-shaped payments. It is the only block that counts facilitators
+   outside the registry. The block states its ledgers and close times, so it is a sample of that window,
+   never lifetime totals (see [the network-wide window](#the-network-wide-window)).
+2. **Registered facilitators (Rail402 included)**: every settlement attributed to a facilitator in the
+   public registry, by facilitator, scheme, asset and day, with distinct payers and sellers. This is not
+   every x402 payment on the network: the index reads only the ledgers that hold transactions of
+   registered facilitator accounts and upto contracts, so a facilitator outside the registry is never
+   counted here. The report's `headlineScope` field says so (`registered-facilitators`).
+3. **Unattributed x402-shaped**: transactions with the exact shape of a settlement that no registered
+   account submitted. Smart-wallet relays and test scripts look the same, so they are shown apart and
+   never added to the totals above. Self-payments are counted apart too. The report reads only registry
+   ledgers, so it counts upto look-alikes through registry contracts but not exact-scheme look-alikes
+   elsewhere on the network: a count over every ledger is available only from a full-scan rebuild,
+   whose command the section prints. What the report shows there is a lower bound.
+4. **Concluded Rail402 beta**: beta transactions found on chain in the range. The beta ended on
+   22 October 2026; its settlement contracts cannot be changed and anyone can still call them, so the
+   registry counts calls through them only up to the beta's end, whoever submitted them. On testnet, the
+   beta's `exact` payments were submitted by short-lived test accounts that no public record names, so
+   they appear as unattributed x402-shaped matches, not as beta history. The beta's own explorer totals
+   are not reproducible and are not republished.
+5. **Methodology and rebuild**: the rules version, the registry version and SHA-256, the manifest
+   SHA-256 and the exact `pnpm explorer:rebuild` command for the range.
+6. **Service availability**: a link to where the operator reports it; the report itself only counts
+   payments settled on chain.
+
+Amounts of different assets are never summed. The indexer recomputes the report every five minutes from
+one consistent read of the database and publishes it; web processes only read the published report.
+
+The report covers a range in **registry scope**: from the first ledger of the index to the last ledger
+every discovery route has walked, cut before the first candidate ledger that is not read yet or failed an
+integrity check; the page says where and why it stops. Exclusion counts ("near misses") cover the ledgers
+read. The methodology section says how many ledgers were read and where their bytes came from. With
+independent anchors configured (required on mainnet), no row is served or reported before its ledger's
+hash matched Horizon's.
+
+### Rebuilding the report
+
+The report's totals are computed by the same code as the [rebuild command](/reference/explorer-rebuild).
+Its `manifest.json` lists every ledger it read with its hash, and is byte-identical to the one the command
+writes when it rebuilds those ledgers from the public data lake, with no discovery source:
+
+```sh
+pnpm explorer:rebuild --network testnet --ledgers-from manifest.json
+```
+
+The report also prints the full-scan command for its range. A full scan reads every ledger, so it measures
+the unattributed look-alikes in every ledger of the range, which the report does not, and its attributed rows must equal the
+report's:
+
+```sh
+pnpm explorer:rebuild --network testnet --from 5330305 --to 5330320
+```
+
+The repository's tests index the committed testnet ledgers into Postgres from recorded discovery pages,
+compute and publish the report as the indexer does, and require the same aggregates and manifest bytes as
+the rebuild of its ledger list, and the same attributed rows as the full scan. A test that runs against
+Lumeus testnet when a key is available does the same for recent ledgers, with bytes from Lumeus RPC, and
+for a concluded beta settlement found through topic search, with bytes from the data lake.
+
+### The network-wide window
+
+The report's other numbers come from registry discovery, which never reads a facilitator outside the
+registry. The network-wide block measures the whole network instead, over a bounded window: a separate
+job rebuilds the newest `EXPLORER_NETWORK_WINDOW_HOURS` (1 to 168) of ledgers with the rebuild command's
+own code (scope full), from the public data lake, and publishes the window's tier totals and manifest.
+Each tier excludes self-payments; the beta and failed attempts are counted apart. Unregistered or
+unattributed rows have the exact shape of an x402 settlement with no registry account behind them:
+facilitators outside the registry, smart-wallet relays and test scripts, and also transfers that only
+look like x402 payments, since the `exact` scheme leaves no marker on chain.
+
+The block prints the command that rebuilds its window, and the window's manifest is at
+`/api/v1/<network>/network-window/manifest`:
+
+```sh
+pnpm explorer:rebuild --network testnet --from 5403860 --to 5404579 --anchor-horizon https://horizon-testnet.stellar.org/
+```
+
+The command prints the same manifest SHA-256 as the block when nothing differs. The job is off unless
+the operator configures it; each run stops at its time, download and row budgets and keeps the last
+published window, and a pubnet window needs an explicit download budget. The block is not part of the
+report's own manifest.
+
+### Snapshots
+
+`pnpm --filter @rail402.dev/explorer snapshot --network testnet --out ./snapshot` exports a report as
+static files: `report.html` (standalone, no script), `report.json`, and the rebuild's
+`settlements.ndjson`, `failed_attempts.ndjson`, `aggregates.json` and `manifest.json`, plus
+`network-window-manifest.json` when a network-wide window is published.
+
+## Security
+
+- Fonts (Space Grotesk, Archivo, JetBrains Mono) are served from the Explorer's own origin under the SIL
+  Open Font License, whose texts are at `/fonts/OFL-*.txt`; no third-party origin is contacted.
+- Bazaar answers are untrusted text: each is size-capped, checked field by field, rendered escaped, and
+  an asset is named only when the index verified its contract as a Stellar Asset Contract.
+- A verified asset's bare code is shown only for an allow-listed contract (Circle's USDC on each
+  network); any other, a USDC of another issuer included, is shown with a short issuer, and "USDC
+  settled" counts the allow-listed contract only.
+
+- Pages are rendered by escaping JSX only; on-chain strings never become markup. Control, zero-width,
+  bidirectional, filler and tag characters are stripped before display.
+- Every response carries `Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
+  and `Cache-Control: … no-transform`. The only script is the Explorer's own (copy buttons, tabs and filter forms); there is no
+  third-party script.
+- Indexed settlements are cached for an hour (never as immutable) when their row carries the current
+  rules and registry versions, with the row's versions in the ETag; a row still awaiting re-attribution,
+  lists and the report are cached briefly; live lookups, not-found answers and errors are `no-store`.
+- Responses carry `Strict-Transport-Security`.
+- The web role connects as a read-only database role with a statement timeout and refuses to start
+  otherwise; it cancels any statement that outlives 2 seconds. Waiting more than 2 seconds for a database
+  connection, or more than 32 requests at once, answers `503 explorer_unavailable` with `Retry-After`.
+  Lists are keyset-paginated with at most 100 items, account totals are read from totals the indexer
+  maintains (at most 100 assets per side, verified Stellar assets first, then by payments, with a notice
+  of how many more there are), each client is rate-limited, and `/health` checks the database at most
+  once every two seconds whoever asks.
+
+See the [threat model](/security/threat-model) (W1–W5) for the controls and their tests.
+
+## Run your own
+
+The Explorer runs from one image with two roles. See `apps/explorer/README.md` for every setting and
+the database roles, and [the read API](/explorer/api) for the JSON endpoints.
+
+The indexer needs a Lumeus server key for the network it indexes, in a file (`EXPLORER_LUMEUS_KEY_FILE`).
+Give the internet-facing web role its own key for live lookups (`EXPLORER_<NETWORK>_LUMEUS_KEY_FILE`): a
+read-access server key, or a publishable key (`lum_pub_…`) whose allowed origins include the Explorer's
+public origin, so a compromise of the web role never exposes the indexer's key.
+
+```sh
+EXPLORER_LUMEUS_TESTNET_KEY_FILE=./lumeus-testnet.key \
+  docker compose -f docker-compose.yml -f apps/explorer/compose.yaml --profile explorer up -d --build
+```

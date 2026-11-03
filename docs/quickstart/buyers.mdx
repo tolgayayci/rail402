@@ -24,7 +24,7 @@ with unmodified x402 packages.
 ```sh
 mkdir x402-buyer && cd x402-buyer
 npm init -y && npm pkg set type=module
-npm install @x402/fetch@2.27.0 @x402/core@2.27.0 @x402/stellar@2.27.0 @stellar/stellar-sdk@16.3.0
+npm install @x402/fetch@2.28.0 @x402/core@2.28.0 @x402/stellar@2.28.0 @stellar/stellar-sdk@16.3.0
 ```
 
 Keep `@stellar/stellar-sdk` on the version `@x402/stellar` uses. Two copies of the SDK's XDR classes in one
@@ -136,8 +136,8 @@ The output has this shape; the values in angle brackets are placeholders:
 }
 ```
 
-The `transaction` is the settlement on the testnet; look it up at
-`https://stellar.expert/explorer/testnet/tx/<transaction>`. The network fee is paid by the facilitator's
+The `transaction` is the settlement on the testnet; look it up in the Rail402 Explorer at
+`https://explorer.rail402.dev/testnet/tx/<transaction>`. The network fee is paid by the facilitator's
 sponsor, not the buyer: the recorded [canonical client run](/reference/conformance#canonical-client) shows the
 buyer's USDC balance falling by exactly the price and the seller's rising by the same amount.
 

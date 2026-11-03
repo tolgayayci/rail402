@@ -9,15 +9,15 @@ the network fees for them. When a settled payment carries the x402 `bazaar` exte
 [cataloging rules](/bazaar/cataloging), Rail402 catalogs the paid HTTP endpoint or MCP tool, and buyers can
 find it with filters or natural-language search.
 
-It is built on the unmodified [`@x402/stellar`](https://www.npmjs.com/package/@x402/stellar) 2.27.0 scheme
+It is built on the unmodified [`@x402/stellar`](https://www.npmjs.com/package/@x402/stellar) 2.28.0 scheme
 and speaks x402 version 2 on the wire, so stock x402 clients and servers work with it without changes.
 Next to `exact`, it settles [`upto`](/facilitator/upto) payments, where the buyer signs a cap and the seller
 settles what a call used, and it ships agent tools that find and pay resources under a spending cap.
 The code is Apache-2.0.
 
 <Note>
-  The npm packages are at **0.4.2**: the facilitator, the Bazaar and search, `upto`, the agent tools and their
-  browser entries. The [hosted testnet service](/facilitator/hosted-testnet) runs 0.4.2 with `exact` and
+  The npm packages are at **0.5.1**: the facilitator, the Bazaar and search, `upto`, the agent tools and their
+  browser entries. The [hosted testnet service](/facilitator/hosted-testnet) runs 0.5.0 with `exact` and
   `upto`. The latest container image is 0.2.1 (`exact` only); later versions of the service run from a [source
   checkout](/install).
 </Note>
@@ -54,21 +54,18 @@ The code is Apache-2.0.
 
 ## Where to start
 
-<CardGroup cols={2}>
-  <Card title="Pay a Rail402 seller" icon="wallet" href="/quickstart/buyers">
-    A stock `@x402/fetch` buyer on the Stellar testnet.
+Pick the path for what you are building. Each covers choosing the network, assets, trustlines, what the
+buyer signs and fee sponsorship, with a working testnet example.
+
+<CardGroup cols={3}>
+  <Card title="Sell" icon="cash-register" href="/paths/sell">
+    Charge for an HTTP endpoint or MCP tool with stock x402 packages and get listed in the Bazaar.
   </Card>
-  <Card title="Sell through Rail402" icon="cash-register" href="/quickstart/sellers">
-    A stock `@x402/express` seller that uses the hosted testnet facilitator and its Bazaar.
+  <Card title="Buy and build agents" icon="robot" href="/paths/buy">
+    Pay x402 resources under a spending cap from a script, the CLI or an AI agent.
   </Card>
-  <Card title="Give an agent a budget" icon="robot" href="/agents/mcp-server">
-    Let an AI agent find and pay resources through the MCP server, under a cap you set.
-  </Card>
-  <Card title="Run your own" icon="docker" href="/facilitator/docker">
-    Build the container image and run it with Postgres.
-  </Card>
-  <Card title="Install from source" icon="terminal" href="/install">
-    Clone, install and verify the repository.
+  <Card title="Operate a facilitator" icon="server" href="/paths/operate">
+    Run Rail402: networks, assets, fee sponsorship and the Bazaar.
   </Card>
 </CardGroup>
 
@@ -102,7 +99,7 @@ See [Hosted testnet](/facilitator/hosted-testnet) for what it accepts and what i
 | `packages/testkit`        | Private-network test helpers (private)                                                       |
 | `contracts/stellar`       | The `upto` settlement contract, deployment records and reproducible build                    |
 | `contracts/testing`       | Test contracts: TEST6 token, spending-limit policy, composition and `upto` adversarial tests |
-| `examples`                | An SDK buyer and an MCP agent                                                                |
+| `examples`                | A paid HTTP API, an SDK buyer and an MCP agent, each installable from npm alone              |
 | `tools/conformance`       | Canonical-client and upstream e2e runs with recorded evidence                                |
 | `tools/search-eval`       | Reproducible search evaluation and release gate                                              |
 | `tools/license-gate`      | Fail-closed licence gate and dependency licence report                                       |

@@ -7,8 +7,9 @@ info:
     The Rail402 HTTP service. `/supported`, `/verify` and `/settle` follow the x402 version 2 facilitator
     interface; `/discovery/*` serves the Bazaar catalog and search.
 
-    Every endpoint except `/health`, `/ready` and `/metrics` is rate-limited per client address. A limited
-    request gets HTTP 429 with a `Retry-After` header and the code `rate_limited`.
+    Every endpoint except `/health`, `/ready` and `/metrics` is rate-limited per client address; a `/verify`
+    or `/settle` with an API key is limited per key instead. A limited request gets HTTP 429 with a
+    `Retry-After` header and the code `rate_limited`.
   license:
     name: Apache-2.0
     identifier: Apache-2.0
@@ -295,12 +296,14 @@ paths:
           $ref: "#/components/responses/InvalidParameter"
         "429":
           $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DiscoveryUnavailable"
   /discovery/resources/{id}:
     get:
       tags: [Discovery]
       operationId: getResource
       summary: Get a listing
-      description: One listing, on its one network, by id, published or quarantined, with its `state`.
+      description: One listing, on its one network, by id, pending, published or quarantined, with its `state`. A listing that is not published shows its resource and settled payment options only; the metadata no origin confirmed is withheld (`contentWithheld`).
       parameters:
         - $ref: "#/components/parameters/ListingId"
       responses:
@@ -317,10 +320,15 @@ paths:
                       state:
                         type: string
                         enum: [pending, published, quarantined]
+                      contentWithheld:
+                        type: boolean
+                        description: Present (true) when the listing is not published; its description, service metadata and bazaar `info` and `schema` are then left out.
         "404":
           $ref: "#/components/responses/ListingNotFound"
         "429":
           $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DiscoveryUnavailable"
   /discovery/resources/{id}/versions:
     get:
       tags: [Discovery]
@@ -340,6 +348,103 @@ paths:
           $ref: "#/components/responses/ListingNotFound"
         "429":
           $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DiscoveryUnavailable"
+  /discovery/resources/{id}/usage:
+    get:
+      tags: [Discovery]
+      operationId: getResourceUsage
+      summary: Get a listing's usage
+      description: |
+        How a published listing was paid for on `network`: the settlements observed against it that paid
+        its current owner, the distinct payers, and the latest 20 settlements, newest first (none on a
+        network that publishes usage counts only, pubnet's default). A listing that
+        is pending, quarantined or on another network is not found. A listing that declares the
+        `rail402-private-usage` extension, or whose content no origin confirmed (trust `settled`, such as an
+        `mcp://` tool), answers 404 with the code `discovery_usage_private`.
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+        - $ref: "#/components/parameters/UsageNetwork"
+      responses:
+        "200":
+          description: The listing's usage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingUsage"
+        "400":
+          $ref: "#/components/responses/InvalidParameter"
+        "404":
+          $ref: "#/components/responses/ListingNotFoundOrUsagePrivate"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DiscoveryUnavailable"
+  /discovery/settlements:
+    get:
+      tags: [Discovery]
+      operationId: getSettlementListings
+      summary: Find the listings settlements paid for
+      description: |
+        For each settlement transaction that paid the owner of a listing published on `network`, the
+        listing it paid for, in the order asked. Unknown transactions, and those of a listing that is not
+        published there or whose usage is private, are absent. A network that publishes usage counts only
+        (`<NET>_BAZAAR_USAGE_DETAIL=counts`, pubnet's default) links none. A transaction is the hash of the
+        transaction that settled the payment on chain: the fee bump's hash for a sponsored settlement.
+      parameters:
+        - $ref: "#/components/parameters/UsageNetwork"
+        - name: transactions
+          in: query
+          required: true
+          description: 1 to 100 comma-separated transaction hashes, each 64 lowercase hex characters.
+          schema:
+            type: string
+            pattern: "^[0-9a-f]{64}(,[0-9a-f]{64}){0,99}$"
+      responses:
+        "200":
+          description: The settlements linked to a listing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettlementLinks"
+        "400":
+          $ref: "#/components/responses/InvalidParameter"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DiscoveryUnavailable"
+  /discovery/sellers/{payTo}/usage:
+    get:
+      tags: [Discovery]
+      operationId: getSellerUsage
+      summary: Get a seller's usage
+      description: |
+        How a seller's listings published on `network` were paid for: totals over all of them, and up to
+        100 listings, most recently paid first. Only settlements that paid the seller count. Listings that
+        are pending, quarantined or keep their usage private are left out. A seller without listings has
+        an empty `listings`.
+      parameters:
+        - name: payTo
+          in: path
+          required: true
+          description: The seller's G… or C… address (the listing owner, never a muxed M… address).
+          schema:
+            type: string
+            pattern: "^[GC][A-Z2-7]{55}$"
+        - $ref: "#/components/parameters/UsageNetwork"
+      responses:
+        "200":
+          description: The seller's usage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SellerUsage"
+        "400":
+          $ref: "#/components/responses/InvalidParameter"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DiscoveryUnavailable"
   /discovery/search:
     get:
       tags: [Discovery]
@@ -413,6 +518,8 @@ paths:
                   retryable: false
         "429":
           $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DiscoveryUnavailable"
   /health:
     get:
       tags: [Operations]
@@ -431,7 +538,7 @@ paths:
                 $ref: "#/components/schemas/Health"
               example:
                 status: ok
-                version: 0.4.2
+                version: 0.5.1
                 state: healthy
                 checkedAt: "2026-09-30T12:00:00.000Z"
                 warnings: []
@@ -465,6 +572,17 @@ paths:
                   embeddingFailures1h: 0
                   p50Ms: 3.1
                   p95Ms: 9.4
+                  ranker:
+                    model: all-minilm-l6-v2
+                    revision: 1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+                    files:
+                      model: 6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452
+                      tokenizer: be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037
+                    similarityFloor: 0.3
+                    depth: 100
+                    embeddings: true
+                    searchPackage: 0.5.1
+                    evalBaseline: search-eval-v1.1.0
   /ready:
     get:
       tags: [Operations]
@@ -485,6 +603,8 @@ paths:
                 ready: true
                 checks:
                   database:
+                    ok: true
+                  stellar:testnet:serving:
                     ok: true
                   stellar:testnet:rpc:
                     ok: true
@@ -628,6 +748,14 @@ components:
         type: string
         pattern: "^[a-zA-Z0-9_-]{1,64}(,[a-zA-Z0-9_-]{1,64}){0,9}$"
         examples: [bazaar]
+    UsageNetwork:
+      name: network
+      in: query
+      required: true
+      description: The network whose listings and settlements are read.
+      schema:
+        type: string
+        enum: ["stellar:testnet", "stellar:pubnet"]
     ListingId:
       name: id
       in: path
@@ -653,6 +781,22 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorBody"
+    DiscoveryUnavailable:
+      description: >-
+        Discovery is at capacity or the catalog database is busy (`discovery_overloaded`), or the catalog
+        database cannot be reached (`discovery_catalog_unavailable`). Retry after `Retry-After`.
+      headers:
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: discovery_overloaded
+              reason: Discovery is at capacity; retry after the Retry-After interval.
+              retryable: true
     InvalidParameter:
       description: A parameter is malformed or not supported (`discovery_invalid_parameter`).
       content:
@@ -674,6 +818,19 @@ components:
             error:
               code: discovery_listing_not_found
               reason: No listing has this identifier.
+              retryable: false
+    ListingNotFoundOrUsagePrivate:
+      description:
+        No listing published on this network has this id (`discovery_listing_not_found`), or its usage is
+        private because its seller keeps it private or no origin confirmed it (`discovery_usage_private`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: discovery_usage_private
+              reason: The seller of this listing keeps its usage private.
               retryable: false
   schemas:
     PaymentRequirements:
@@ -975,6 +1132,24 @@ components:
             embeddingFailures1h: { type: integer }
             p50Ms: { type: [number, "null"] }
             p95Ms: { type: [number, "null"] }
+            ranker:
+              type: object
+              description: >-
+                What ranks search results, so the instance can be tied to the evaluation it reproduces. `model`,
+                `revision` and `files` are null when search runs lexical-only.
+              properties:
+                model: { type: [string, "null"] }
+                revision: { type: [string, "null"] }
+                files:
+                  type: [object, "null"]
+                  properties:
+                    model: { type: string, description: SHA-256 of the ONNX model file }
+                    tokenizer: { type: string, description: SHA-256 of the tokenizer file }
+                similarityFloor: { type: number }
+                depth: { type: integer }
+                embeddings: { type: boolean }
+                searchPackage: { type: string }
+                evalBaseline: { type: string }
     NetworkHealth:
       type: object
       required: [rpc, sponsor, channels, settlements, sequenceConflicts1h, contracts]
@@ -1147,7 +1322,7 @@ components:
             trust:
               type: string
               enum: [settled, origin_verified, domain_verified]
-              description: The strongest trust among the resource's listings.
+              description: The weakest trust among the listings shown (with a network filter, that network's listing's trust); never a maximum across networks.
             settlements:
               type: integer
               description: Settlements across the resource's listings.
@@ -1156,7 +1331,7 @@ components:
               minItems: 1
               items:
                 type: object
-                required: [id, network, version, trust, owner, settlements, firstCataloged, lastSettled]
+                required: [id, network, version, trust, owner, settlements, firstCataloged]
                 properties:
                   id:
                     type: string
@@ -1178,6 +1353,7 @@ components:
                   lastSettled:
                     type: string
                     format: date-time
+                    description: Absent while the listing's usage is private.
                   stellar:
                     type: object
                     description: When the listing's Stellar facts were read; absent until first checked.
@@ -1238,6 +1414,9 @@ components:
           properties:
             limit:
               type: integer
+              description: >-
+                The page size: the requested limit (at most 100), or fewer when the page ended early at the response-size
+                budget; offset + limit continues where it ended.
             offset:
               type: integer
             total:
@@ -1246,6 +1425,138 @@ components:
               type: string
               format: date-time
               description: The time this page was read at; pass it back as `asOf` to pin a pagination.
+    ListingRef:
+      type: object
+      description: >-
+        A published listing on one network. `scheme`, `asset`, `amount` and `payTo` are its payment option on
+        that network (for a settlement, the option in the asset it was paid in).
+      required: [id, type, resource, payTo, scheme, amount, asset, network, lastUpdated]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [http, mcp]
+        resource:
+          type: string
+        method:
+          type: string
+          description: HTTP resources only.
+        toolName:
+          type: string
+          description: MCP tools only.
+        description:
+          type: string
+        serviceName:
+          type: string
+        payTo:
+          type: string
+        scheme:
+          type: string
+        amount:
+          type: string
+          description: The listed price in base units; for `upto`, the cap.
+        asset:
+          type: string
+        network:
+          type: string
+        lastUpdated:
+          type: string
+          format: date-time
+    SettlementLinks:
+      type: object
+      required: [items, asOf]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [transaction, listing, observedAt]
+            properties:
+              transaction:
+                type: string
+              listing:
+                $ref: "#/components/schemas/ListingRef"
+              observedAt:
+                type: string
+                format: date-time
+                description: When the catalog recorded the settlement.
+        asOf:
+          type: string
+          format: date-time
+    ListingUsage:
+      type: object
+      required: [listingId, payments, payers, firstObservedAt, lastObservedAt, recent]
+      properties:
+        listingId:
+          type: string
+          format: uuid
+        payments:
+          type: integer
+        payers:
+          type: integer
+          description: Distinct payers.
+        firstObservedAt:
+          type: [string, "null"]
+          format: date-time
+        lastObservedAt:
+          type: [string, "null"]
+          format: date-time
+        recent:
+          type: array
+          maxItems: 20
+          description: The latest settlements, newest first.
+          items:
+            type: object
+            required: [transaction, payer, asset, amount, observedAt]
+            properties:
+              transaction:
+                type: string
+              payer:
+                type: string
+              asset:
+                type: string
+              amount:
+                type: string
+                description: The amount settled in base units; for `upto`, what was charged.
+              observedAt:
+                type: string
+                format: date-time
+    SellerUsage:
+      type: object
+      required: [payTo, totals, listings, truncated]
+      properties:
+        payTo:
+          type: string
+        totals:
+          type: object
+          required: [payments, payers]
+          description: Over every listing of the seller on the network, not only those shown.
+          properties:
+            payments:
+              type: integer
+            payers:
+              type: integer
+        listings:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [listing, payments, payers, lastObservedAt]
+            properties:
+              listing:
+                $ref: "#/components/schemas/ListingRef"
+              payments:
+                type: integer
+              payers:
+                type: integer
+              lastObservedAt:
+                type: [string, "null"]
+                format: date-time
+        truncated:
+          type: boolean
+          description: True when the seller has more than 100 such listings.
     VersionList:
       type: object
       required: [x402Version, id, versions]
@@ -1272,7 +1583,9 @@ components:
                 enum: [settlement, origin_verification, ownership_transfer, domain_verification, quarantine]
               transaction:
                 type: string
-                description: The settlement that caused this version, when there was one.
+                description:
+                  The settlement that caused this version, when there was one; absent while the listing's usage
+                  is private or on a network that publishes usage counts only.
               owner:
                 type: string
               trust:
@@ -1283,7 +1596,7 @@ components:
                 enum: [pending, published, quarantined]
               reason:
                 type: string
-                description: On a `quarantine` version made by an origin check, why the listing was withdrawn.
+                description: On a `quarantine` version, why the listing was withdrawn.
                 enum:
                   [
                     origin_unreachable,
@@ -1292,7 +1605,13 @@ components:
                     origin_owner_mismatch,
                     origin_metadata_mismatch,
                     origin_payment_mismatch,
+                    origin_listing_too_large,
+                    catalog_full,
+                    listing_expired,
                   ]
+              contentWithheld:
+                type: boolean
+                description: Present (true) on a version that is not published; its content then holds only the resource, kind and settled payment options.
               content:
                 type: object
                 description: The published content, with the catalog's field names (`kind`, `method` or `toolName`, `bazaar`, `accepts`).
@@ -1319,15 +1638,22 @@ components:
           properties:
             limit:
               type: integer
+              description: The number of resources in this page.
             cursor:
               type: [string, "null"]
         rail402:
           type: object
-          required: [method, recognised, revision]
+          required: [method, queryEmbedding, recognised, revision]
           properties:
             method:
               type: string
               enum: [hybrid, lexical, filter]
+            queryEmbedding:
+              type: string
+              enum: [cached, computed, saturated, failed, none]
+              description: >-
+                How the query was embedded: from the query-embedding cache, by the model now, not at all because
+                the embedder was at its concurrency cap (lexical-only, partial), failed or ran late, or not needed.
             recognised:
               type: array
               items:

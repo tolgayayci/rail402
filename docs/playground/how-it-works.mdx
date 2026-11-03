@@ -8,7 +8,8 @@ The Playground is two parts. The **page** holds the testnet key and runs the [bu
 browser (`@rail402.dev/sdk/browser`), with the same spending policy, signing guard and budget ledger as the
 Node SDK. The **server** (`apps/playground/src`) serves the page, relays seller requests the browser cannot
 make itself, proxies the Bazaar and the facilitator's `/supported`, and runs a few lab sellers. The server
-holds no secret and stores nothing.
+stores nothing and holds no secret but an optional Bazaar access key
+([Self-host](/playground/self-host#bazaar-access-key)).
 
 ## The wallet
 
@@ -70,9 +71,13 @@ answer:
   event stream. A body is forwarded only as `application/json`, `text/plain` or `application/octet-stream`, the
   types the SDK and MCP send. A connection to a host other than the demo seller is closed after its answer.
 - It does not call, by host name, the Playground itself (its public host and the platform's generated domain),
-  the facilitator or the Bazaar (those are read through the server's fixed proxies), or a host the operator
-  denies. Another name for one of these hosts is not recognized unless the operator lists it in
-  `RELAY_DENY_HOSTS`.
+  the facilitator or the Bazaar (those are read through the server's fixed proxies), the other host names of
+  that service, or a host the operator denies. One facilitator process answers for each network on its own
+  host name, so when the facilitator or Bazaar host starts with `testnet.`, `mainnet.` or `pubnet.`, the same
+  domain under `testnet.`, `mainnet.`, `pubnet.` and `explorer.` is denied too (for
+  `https://testnet.rail402.dev`: `mainnet.rail402.dev`, `pubnet.rail402.dev` and `explorer.rail402.dev`).
+  Any other name for one of these hosts is not recognized unless the operator lists it in
+  `RELAY_DENY_HOSTS` (empty by default).
 - Only allowlisted headers pass, both ways: `PAYMENT-SIGNATURE`, the MCP session headers, `accept` and
   `content-type` go out; `PAYMENT-REQUIRED`, `PAYMENT-RESPONSE`, `EXTENSION-RESPONSES`, `content-type` and a
   few others come back. Cookies, `authorization` and `location` never pass.

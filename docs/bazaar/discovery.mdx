@@ -1,6 +1,6 @@
 ---
 title: Discovery API
-description: List the catalog with filters and stable pagination, read a listing, and read its version history.
+description: List the catalog with filters and stable pagination, read a listing and its version history, and see which listings settlements paid for.
 ---
 
 The discovery API is public, read-only JSON. It needs no API key; requests count against the per-client
@@ -57,6 +57,14 @@ Every response carries `pagination.asOf`, the time it was read at; pass it back 
 shifts them. A resource withdrawn while you page drops out and moves the later ones up by one.
 `pagination.total` is the number of resources that match the filters, read from the same snapshot as the
 page.
+
+### Response size
+
+A response carries at most 3.5 MiB of resources, under the 4 MiB that upstream's `withBazaar` client
+accepts. A page that would grow past that ends early, and its `pagination.limit` then says how many
+resources it holds, so `offset + limit` continues exactly where it ended. Each listing publishes at most
+`BAZAAR_MAX_LISTING_BYTES` of content (36 KiB by default) and at most 8 payment options
+([Cataloging](/bazaar/cataloging#listing-size)).
 
 ### Response
 
@@ -145,9 +153,9 @@ timestamps do not come from a recorded run.
 | `extensions.bazaar`                                         | The validated `info`, `schema` and, if accepted, `routeTemplate`                                                                                                                                                                                                                                                                     |
 | `extensions.<key>`                                          | An empty object for every other extension the resource declares in its 402 response, such as `payment-identifier`. Only the key is kept: the resource's 402 carries the current declaration                                                                                                                                          |
 | `rail402.method`, `rail402.toolName`                        | HTTP resources: the method. MCP tools: the tool name                                                                                                                                                                                                                                                                                 |
-| `rail402.trust`                                             | The strongest trust among the resource's listings: `settled`, `origin_verified` or `domain_verified` ([Trust](/bazaar/cataloging#trust))                                                                                                                                                                                             |
-| `rail402.settlements`                                       | Settlements recorded across the resource's listings                                                                                                                                                                                                                                                                                  |
-| `rail402.listings[]`                                        | One per network: the listing's `id` (a UUID), `network`, current `version`, `trust`, `owner` (the settled `payTo`, or its base account), `settlements`, `firstCataloged` and `lastSettled`                                                                                                                                           |
+| `rail402.trust`                                             | The weakest trust among the listings shown: `settled`, `origin_verified` or `domain_verified` ([Trust](/bazaar/cataloging#trust)). Trust is proved per network, so it never exceeds what any one network proved; filtered by `network`, it is that network's listing's trust. Each listing's own trust is in `rail402.listings`      |
+| `rail402.settlements`                                       | The fewest settlements recorded by any of the listings shown, never a sum across networks (testnet settlements are free); with a `network` filter, that network's count. Each network's own count is in `rail402.listings[]`                                                                                                         |
+| `rail402.listings[]`                                        | One per network: the listing's `id` (a UUID), `network`, current `version`, `trust`, `owner` (the settled `payTo`, or its base account), `settlements`, `firstCataloged` and `lastSettled` (absent while the listing's usage is private)                                                                                             |
 | `rail402.listings[].stellar`                                | Once checked: `checkedAt`, and `domain` with the resource host, whether its `stellar.toml` lists the owner (`claimsOwner`), and whether the owner's `home_domain` names the host (`homeDomainMatches`). Only both together make a listing `domain_verified`. See [Stellar facts](/bazaar/cataloging#stellar-facts-and-domain-claims) |
 | `rail402.options[]`                                         | One per `accepts` entry, in the same order: the `listing` it belongs to and, once checked, the token's `symbol`, `name` and `decimals` and whether `payTo` can receive it (`receivable`)                                                                                                                                             |
 
@@ -158,18 +166,32 @@ GET /discovery/resources/{id}
 ```
 
 Returns one listing, on its one network, as an item in the same shape, with an extra `state` field
-(`pending`, `published` or `quarantined`). A quarantined listing is still readable here by its id, but is not
-listed or searched. An unknown or malformed
+(`pending`, `published` or `quarantined`). A pending or quarantined listing is still readable here by its
+id, but is not listed or searched, and its content is withheld: it shows its resource, kind and the payment
+options that were settled, with `"contentWithheld": true`, but no description, service metadata or bazaar
+`info` and `schema`. Until an origin confirms it, that metadata is only what a payer echoed under the
+`payTo` it paid. An unknown or malformed
 id returns HTTP `404` with `discovery_listing_not_found`.
 
 ## Version history
 
 ```http
-GET /discovery/resources/{id}/versions
+GET /discovery/resources/{id}/versions?after=0&limit=100
 ```
 
-Every version of the listing, oldest first. Each entry is a full snapshot of what was published. An
-illustrative example:
+The listing's versions, oldest first, a page at a time. Each published entry is a full snapshot of what was
+published; an entry in another state (`pending`, `quarantined`) has its content withheld as above
+(`"contentWithheld": true`).
+
+| Parameter | Default | Meaning                                                                      |
+| --------- | ------- | ---------------------------------------------------------------------------- |
+| `after`   | `0`     | Return the versions after this version number: the last version already read |
+| `limit`   | `100`   | Versions per page, 1–100; larger values are clamped                          |
+
+`pagination.latest` is the listing's current version. `pagination.next` is present while later versions
+remain: pass it as `after` to read on. A page also ends early, with `next`, before its versions exceed the
+response byte budget of [list pages](#response-size). Any other parameter returns `400`
+`discovery_invalid_parameter`. An illustrative example:
 
 ```json
 {
@@ -188,11 +210,10 @@ illustrative example:
         "resource": "https://api.example.com/weather",
         "kind": "http",
         "method": "GET",
-        "description": "Current weather for a city",
-        "mimeType": "application/json",
-        "bazaar": { "info": { "...": "..." }, "schema": { "...": "..." } },
+        "bazaar": { "info": {}, "schema": {} },
         "accepts": [{ "scheme": "exact", "network": "stellar:testnet", "...": "..." }]
-      }
+      },
+      "contentWithheld": true
     },
     {
       "version": 2,
@@ -203,15 +224,196 @@ illustrative example:
       "state": "published",
       "content": { "...": "..." }
     }
-  ]
+  ],
+  "pagination": { "limit": 100, "after": 0, "latest": 2 }
 }
 ```
 
 `cause` is `settlement`, `origin_verification`, `ownership_transfer`, `domain_verification` or `quarantine`.
-`transaction` is present when a settlement caused the version. A `quarantine` version made by an origin check
-carries `reason`, a code saying why ([Origin verification](/bazaar/cataloging#origin-verification)). `content` uses the catalog's internal field
+`transaction` is present when a settlement caused the version, except while the listing's usage is private
+([Private usage](#private-usage)) or on a network that publishes usage counts only
+([Usage detail per network](#usage-detail-per-network)). A `quarantine` version carries `reason`, a code
+saying why ([Origin verification](/bazaar/cataloging#origin-verification)); a quarantined listing whose
+check fails again for another reason gets a new `quarantine` version with that reason. Only versions written
+before reasons were recorded have none. `content` uses the catalog's internal field
 names (`kind` for the type, `method` or `toolName`, `bazaar`, `accepts`, and `extensions` for the keys of
 the other declared extensions).
+
+## Usage
+
+Every settlement that catalogs a resource is recorded against its listing. The usage routes link those
+settlements to the listings they paid for, so an explorer can show what a payment bought and how often a
+listing is bought. They follow the visibility rules of the list above:
+
+- only listings published on the requested `network` appear, never a pending or quarantined listing, or the
+  listing of another network;
+- a settlement counts toward a listing only when it paid the listing's current owner. A settlement another
+  `payTo` made while claiming the resource, or one paid to a previous owner, is not linked;
+- a seller can keep a listing's usage private: see [Private usage](#private-usage);
+- each network publishes either its settlements or counts only: see [Usage detail per network](#usage-detail-per-network).
+
+Each route requires `network`, `stellar:testnet` or `stellar:pubnet`, and refuses any other parameter with
+`400` `discovery_invalid_parameter`. A listing in these answers is a `ListingRef`:
+
+| Field                                | Meaning                                                                                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                 | The listing id (`rail402.listings[].id`)                                                                                                                            |
+| `type`, `resource`                   | `http` or `mcp`, and the resource as listed                                                                                                                         |
+| `method`, `toolName`                 | HTTP resources: the method. MCP tools: the tool name                                                                                                                |
+| `description`, `serviceName`         | Present when the listing has them                                                                                                                                   |
+| `payTo`, `scheme`, `amount`, `asset` | The listing's payment option on `network`; for a settlement, the option in the asset it was paid in. `amount` is the listed price in base units, the cap for `upto` |
+| `network`                            | The requested network                                                                                                                                               |
+| `lastUpdated`                        | When the listing last got a new version                                                                                                                             |
+
+### Which listing a settlement paid for
+
+```http
+GET /discovery/settlements?network=stellar:testnet&transactions=<hash>,<hash>
+```
+
+`transactions` takes 1 to 100 comma-separated transaction hashes, each 64 lowercase hex characters. A hash is
+the hash of the transaction that settled the payment on chain: for a settlement Rail402 sponsored, the fee
+bump's hash, which is the transaction hash `/settle` returns and block explorers show. The answer lists the
+settlements linked to a listing, in the order asked; a hash that is unknown, or not linked under the rules
+above, is simply absent.
+
+```json
+{
+  "items": [
+    {
+      "transaction": "018731f9f5ba3176f0a394ab4b11ef3bf0ebca3393622a836716deab3ac61340",
+      "listing": {
+        "id": "da080b45-20e1-4617-bbde-4b815e83e63a",
+        "type": "http",
+        "resource": "https://api.example.com/weather",
+        "method": "GET",
+        "description": "Current weather for a city",
+        "payTo": "GACJR6T25HXLYJ44ZK6PQK4LCBXWACO2HHWR3WGAXQPH6AS5AKCSVSGT",
+        "scheme": "exact",
+        "amount": "100000",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "network": "stellar:testnet",
+        "lastUpdated": "2026-09-28T10:05:55.470Z"
+      },
+      "observedAt": "2026-09-28T10:05:53.162Z"
+    }
+  ],
+  "asOf": "2026-09-28T12:00:00.000Z"
+}
+```
+
+`observedAt` is when the catalog recorded the settlement; `asOf` is when the answer was read.
+
+### A listing's usage
+
+```http
+GET /discovery/resources/{id}/usage?network=stellar:testnet
+```
+
+```json
+{
+  "listingId": "da080b45-20e1-4617-bbde-4b815e83e63a",
+  "payments": 2,
+  "payers": 1,
+  "firstObservedAt": "2026-09-28T10:05:53.162Z",
+  "lastObservedAt": "2026-09-28T11:20:04.511Z",
+  "recent": [
+    {
+      "transaction": "7c1e9a54d2b8f3a6e0c4d5b7a9e8f1c2d3b4a5e6f7c8d9e0a1b2c3d4e5f6a7b8",
+      "payer": "GBZX4364PEPQTDICMIQDZ56K4T75QZCR4NBEYKO6PDRJAHZKGUOJPCXB",
+      "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "amount": "100000",
+      "observedAt": "2026-09-28T11:20:04.511Z"
+    }
+  ]
+}
+```
+
+`payments` counts the linked settlements and `payers` the distinct payers among them. `recent` holds the
+latest 20, newest first; its `amount` is what each settlement moved, in base units, so for `upto` it is the
+amount charged, not the cap. `firstObservedAt` and `lastObservedAt` are `null` when no settlement is linked.
+The example is illustrative.
+
+A listing that is unknown, not published, or on another network returns `404` `discovery_listing_not_found`,
+as the listing route does. A listing whose usage is private, or whose content no origin confirmed, returns `404` with the code
+`discovery_usage_private`; the listing itself stays readable.
+
+### A seller's usage
+
+```http
+GET /discovery/sellers/{payTo}/usage?network=stellar:testnet
+```
+
+`payTo` is the seller's `G…` or `C…` address with a valid checksum: the `owner` of its listings. A muxed `M…`
+address is refused with `400` `discovery_invalid_parameter`; a listing paid to muxed addresses belongs to
+their base account.
+
+```json
+{
+  "payTo": "GACJR6T25HXLYJ44ZK6PQK4LCBXWACO2HHWR3WGAXQPH6AS5AKCSVSGT",
+  "totals": { "payments": 2, "payers": 1 },
+  "listings": [
+    {
+      "listing": { "id": "da080b45-20e1-4617-bbde-4b815e83e63a", "...": "..." },
+      "payments": 2,
+      "payers": 1,
+      "lastObservedAt": "2026-09-28T11:20:04.511Z"
+    }
+  ],
+  "truncated": false
+}
+```
+
+`listings` holds the seller's listings published on `network`, except those with private usage or no origin confirmation, most
+recently paid first, at most 100; `truncated` is `true` when there are more. `totals` count every such
+listing, with `payers` distinct across them. A seller without listings gets `200` with an empty `listings`.
+
+### Private usage
+
+A seller keeps a listing's usage private by declaring the `rail402-private-usage` extension, with an empty
+object, in the resource's 402 response, next to `bazaar`:
+
+```json
+{
+  "extensions": {
+    "bazaar": { "info": { "...": "..." }, "schema": { "...": "..." } },
+    "rail402-private-usage": {}
+  }
+}
+```
+
+It is an ordinary x402 extension declaration: clients echo it, and upstream x402 servers pass it through
+unchanged. The catalog keeps it with the listing's other declared extensions (`extensions.rail402-private-usage`
+in discovery), confirmed by the resource's own 402 like the rest of the listing. While it is declared, the
+listing stays listed and searchable, but no usage route links a settlement to it, its version history names
+no settlement transaction, and its `rail402.listings[]` entry has no `lastSettled`. Its settlement count
+(`settlements`) stays public, as on every listing.
+
+The declaration only ratchets one way from a payment:
+
+- a settlement whose payload declares `rail402-private-usage` makes the listing's usage private at once, as a
+  new version of the listing, and asks the resource's origin to confirm;
+- nothing a payer sends removes it. Only the resource's own 402, read by the origin check, can: a seller that
+  stops declaring it gets its usage published again, earlier settlements included, once a settlement and the
+  origin check update the listing.
+
+A listing no origin ever confirmed (trust `settled`, such as a tool under an `mcp://` URL) holds what the
+payment that created it echoed, not necessarily what its seller declared. Its usage is never published: the
+listing usage route answers `discovery_usage_private`, and the other usage routes leave it out.
+
+### Usage detail per network
+
+On chain, a payment shows its payer, its `payTo` and its amount, not which endpoint or tool it bought. The
+`settlements` routes add that link. What each network publishes is set by `<NET>_BAZAAR_USAGE_DETAIL`:
+
+| Value         | Default on | Published                                                                                                                                               |
+| ------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `settlements` | testnet    | Everything above: `/discovery/settlements` links each settlement to its listing, and a listing's usage lists its latest settlements with their payers   |
+| `counts`      | pubnet     | Counts and dates only: `/discovery/settlements` links nothing (`items` is empty) and a listing's usage has an empty `recent`; seller usage is unchanged |
+
+With `counts`, no usage route links a payer, or a transaction, to the listing it paid for. `payments`,
+`payers`, `firstObservedAt` and `lastObservedAt` are still published; a seller with few payments on chain
+can still be matched by their dates.
 
 ## Errors
 
@@ -227,8 +429,30 @@ Discovery errors use the transport error body:
 }
 ```
 
-| HTTP | `code`                        | When                                                  |
-| ---- | ----------------------------- | ----------------------------------------------------- |
-| 400  | `discovery_invalid_parameter` | A parameter is malformed or not supported             |
-| 404  | `discovery_listing_not_found` | No listing has this id                                |
-| 429  | `rate_limited`                | The client exceeded its rate limit; see `Retry-After` |
+| HTTP | `code`                          | When                                                                                                                             |
+| ---- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 400  | `discovery_invalid_parameter`   | A parameter is malformed or not supported                                                                                        |
+| 404  | `discovery_listing_not_found`   | No listing has this id; on a usage route, no listing published on that network has it                                            |
+| 404  | `discovery_usage_private`       | On the listing usage route: the listing's seller keeps its usage private, or no origin confirmed the listing                     |
+| 429  | `rate_limited`                  | The client exceeded its rate limit or its discovery cost budget ([Load limits](/bazaar/search#load-limits)); see `Retry-After`   |
+| 503  | `discovery_overloaded`          | Discovery is at capacity, or the catalog database is busy ([Load limits](/bazaar/search#load-limits)); retry after `Retry-After` |
+| 503  | `discovery_catalog_unavailable` | The catalog database cannot be reached; retry after `Retry-After`                                                                |
+
+## Interoperability
+
+Rail402 is checked against canonical Bazaar records generated with upstream `@x402/extensions` from the
+specification's examples (GET, POST, MCP tool, dynamic route, service metadata, an `upto` offer), in
+`tools/interop-fixtures`. Each record is settled into the catalog and read back over `/discovery/resources`
+and `/discovery/search` with its resource, payment options, bazaar extension and service metadata unchanged;
+every filter returns it exactly when it holds; and the upstream `withBazaar` client parses both responses.
+
+What Rail402 publishes differently, on purpose:
+
+- extensions other than `bazaar` are republished by key with an empty object;
+- an `upto` listing shows the seller's cap, not a settled amount;
+- HTTP resources and `http(s)` MCP tools are published from their own `402`, never from the buyer's echo;
+- Rail402's own facts live under `rail402`;
+- `resource` is canonicalized, and a dynamic route is published as origin plus `routeTemplate`;
+- a page that would exceed 3.5 MiB ends early ([Response size](#response-size));
+- pubnet refuses `mcp://` tools and plain `http` resources;
+- a resource sold on several networks is one item with every network's options.

@@ -123,6 +123,7 @@ The version reported by `/health` comes from the `RAIL402_VERSION` build argumen
       "ready": true,
       "checks": {
         "database": { "ok": true },
+        "stellar:testnet:serving": { "ok": true },
         "stellar:testnet:rpc": { "ok": true },
         "stellar:testnet:sponsor": { "ok": true, "detail": "99999997600 stroops" },
         "stellar:testnet:assets": { "ok": true, "detail": "USDC:7" },
@@ -149,6 +150,42 @@ The version reported by `/health` comes from the `RAIL402_VERSION` build argumen
   </Step>
 </Steps>
 
+## Try the Bazaar locally
+
+The Bazaar lists only resources on public hosts, so a seller on your machine is paid through the hosted
+facilitator but not listed there (`bazaar_resource_unsafe`). To watch the whole path on your own instance,
+from payment to listing to search, let it catalog loopback resources on testnet:
+
+```sh
+echo "DISCOVERY_ALLOW_LOOPBACK=true" >> .env
+docker compose --profile service up -d
+```
+
+The service then logs `DISCOVERY_ALLOW_LOOPBACK: loopback resources are cataloged`. It refuses the setting
+together with pubnet; never enable it on an instance others use.
+
+After the settlement, the service requests the resource URL itself to confirm the listing, so `localhost` has
+to reach the seller from inside the service. The service container has its own loopback: run the seller and
+the buyer in its network namespace, from a Node.js 24 shell:
+
+```sh
+docker run --rm -it --network container:rail402-rail402-1 node:24 bash
+```
+
+In that shell, follow the [seller quickstart](/quickstart/sellers) with `FACILITATOR_URL=http://localhost:8080`
+(start the seller in the background with `node seller.ts &`), then the [buyer quickstart](/quickstart/buyers).
+The seller logs `awaiting_settlement` and then `awaiting_origin_verification`; a few seconds later the listing
+is published at trust `origin_verified`, with two entries in its version history, and search finds it:
+
+```sh
+curl "http://localhost:8080/discovery/resources?payTo=$PAY_TO"
+curl "http://localhost:8080/discovery/search?query=weather%20for%20a%20city"
+```
+
+`rail402 seller check` judges a resource as the hosted catalog does, so it reports a loopback seller as
+`bazaar_resource_unsafe`. Add `--discovery-allow-loopback` (`discoveryAllowLoopback` in
+[`checkSellerOrigin`](/sellers/helpers#check-a-running-seller)) to judge it as this instance will.
+
 ## Configuration for a working self-host
 
 | Variable                 | Needed         | Notes                                                                                                                                                     |
@@ -160,14 +197,42 @@ The version reported by `/health` comes from the `RAIL402_VERSION` build argumen
 | `TRUSTED_PROXY_HOPS`     | behind a proxy | `0` by default: the TCP peer is the client. Set it to the number of reverse proxies in front of the service so rate limits apply per real client address. |
 
 Every other setting has a default. The full list is on the [Configuration](/configuration) page. The
-service validates its configuration at startup and exits with code `78` and a message naming the variable
-when something is missing or malformed:
+service validates its configuration at startup and exits with code `78` and one line, a stable
+[startup code](/configuration#startup-checks) and a message naming the variable, when something is missing
+or malformed:
 
 ```text
-rail402: invalid configuration:
-  TESTNET_RPC_URL: Invalid input: expected string, received undefined
-  TESTNET_SPONSOR_SECRET: Invalid input: expected string, received undefined
+rail402: config_rpc_missing: TESTNET_RPC_URL or TESTNET_RPC_URLS is required
 ```
+
+`node dist/check-config.js` runs the same checks without starting the service (see
+[Startup checks](/configuration#startup-checks)).
+
+## Access, limits and fees
+
+The image takes the same settings as any Rail402 deployment:
+
+| Control         | Settings                                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Authentication  | `API_KEYS_FILE` (or `API_KEYS_DIR`) and `TESTNET_REQUIRE_API_KEY=true`: requests without a valid key get HTTP 401                                |
+| Rate limits     | `RATE_LIMIT_PER_MINUTE` per client address (a key holder's `/verify` and `/settle` per key), and `requestsPerMinute` per key: past it, HTTP 429  |
+| Sponsor limits  | `TESTNET_MAX_SPONSOR_SPEND_XLM_PER_HOUR`, `TESTNET_MIN_SPONSOR_BALANCE_XLM`, `TESTNET_MAX_TX_FEE_STROOPS`, and `sponsorBudgetXlmPerHour` per key |
+| Accepted assets | `TESTNET_ASSETS`: a payment in any other token is refused                                                                                        |
+| Service fees    | `SERVICE_FEE_PER_SETTLEMENT_USD`: recorded with each settlement and reported to each key holder at `GET /usage`                                  |
+
+See [Access keys](/configuration#access-keys) and [Configuration](/configuration) for each one.
+
+## No dependency on Rail402's hosted service
+
+A self-hosted image talks to its database and to the Stellar RPC you configure; the upstream
+`@x402/stellar` verifier also reads public Horizon for a ledger-time estimate and falls back to 5 s when
+Horizon cannot be reached. Nothing in it calls a `rail402.dev` host. `apps/rail402/test/image.integration.test.ts`
+runs the image on a Docker network with no route to the internet, every `rail402.dev` host it could name
+resolved to `0.0.0.0`, its own Postgres, and a relay to a private Stellar network: the preflight exits `78`
+with the documented code for each missing required setting, and the configured service settles `exact`
+and `upto`, refuses requests without a key (401) or past a limit (429), refuses a token outside
+`TESTNET_ASSETS` and a settlement past a key's sponsor budget, and reports the service fee at `/usage`. Run it
+with `RAIL402_IMAGE=<tag>` and `docker compose --profile stellar up -d`.
 
 ## Compose profiles
 
@@ -197,13 +262,19 @@ docker compose --profile service down                                    # stop;
 ```
 
 On `SIGTERM` the service stops accepting requests, lets in-flight settlements finish for up to
-`SHUTDOWN_GRACE_MS` (30 s), reconciles once more and exits. Compose allows 40 seconds
+`SHUTDOWN_GRACE_MS` (30 s), reconciles once more and exits. Idle connections and requests whose headers or
+body are still arriving are dropped at once (none has been acted on yet), and a client gets at most 1 s more
+to take an answer, so only settlements still at work hold the shutdown up. Compose allows 40 seconds
 (`stop_grace_period`).
 
 ## Pubnet
 
 The image can be configured for `stellar:pubnet`, but pubnet has not been exercised end to end. Its
 configuration has stricter rules, checked at startup: an `https` RPC URL, an explicit
-`PUBNET_REQUIRE_API_KEY`, an explicit sponsor budget (`PUBNET_MAX_SPONSOR_SPEND_XLM_PER_HOUR`), and
-channel accounts that are not created at startup but provisioned by an operator.
+`PUBNET_REQUIRE_API_KEY`, an explicit sponsor budget (`PUBNET_MAX_SPONSOR_SPEND_XLM_PER_HOUR`), explicit
+fee ceilings and an inclusion floor of at least 200 stroops, explicit `PUBNET_ASSETS` with a minimum
+amount per asset, the sponsor's cold signer (`PUBNET_SPONSOR_COLD_SIGNER`), and channel accounts that are
+not created at startup but provisioned by an operator.
+Run `node dist/check-config.js` with the same environment before replacing a running container: it exits
+78 with the startup error code when the service would refuse the configuration.
 See [Configuration](/configuration#per-network) and [Operations](/operations#channel-accounts).

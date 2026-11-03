@@ -1,0 +1,1097 @@
+---
+title: Operator runbook
+description: What each Rail402 alert means, the first step, who is called next and how to recover; release rollback, backup restore and the recovery procedure for each failure the service is exercised against.
+---
+
+{/* The alert catalog below is rendered by `pnpm report` from deploy/monitoring/alerts.ts, the same file that renders the Prometheus rules; edit that file, not the output. */}
+
+This runbook is for operators of a Rail402 deployment. It names **roles**, not people.
+
+| Role              | Who                  | Responsibility                                                                                                               |
+| ----------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Primary on-call   | the primary operator | Receives every page and ticket; first responder.                                                                             |
+| Secondary on-call | the backup operator  | Receives every page; takes over when the primary does not acknowledge or asks for help; reviews every production change.     |
+| Key custodian     | two people           | Holds the treasury account, the cold signer and the encrypted seed backups; tops up the sponsor; approves rotations.         |
+| Release approver  |                      | Approves release tags, production deploys and accepted security findings.                                                    |
+| Security contact  |                      | Receives vulnerability reports and suspected key or access-key compromises; coordinates the response with the key custodian. |
+
+### Role assignments
+
+Who fills each role is an **operator setting**, kept with the deployment's private settings and never in
+the repository: copy
+[`deploy/monitoring/roles.example.yml`](https://github.com/tolgayayci/rail402/blob/main/deploy/monitoring/roles.example.yml),
+enter the people and contact details of every role (at least two people per role) and the paging
+service's schedule for it. Every alert carries its role in the `owner` label; Alertmanager sends all
+alerts to the paging service named by the `alert_webhook_url` file secret, which routes them to the
+role's schedule by that label. Review the sheet when someone joins or leaves, and before a release to
+mainnet.
+
+### Escalation path
+
+1. The alert's **owner** acts first: pages at once, day or night; tickets in working hours.
+2. When the owner does not acknowledge a page within 15 minutes, or the alert's escalation line says so,
+   the **secondary on-call** takes over. Each alert below names when.
+3. Topic owners are called in by the person handling the alert: the **key custodian** for anything that
+   needs the sponsor, treasury or cold key (top-ups, rotations, a freeze); the **security contact** for a
+   suspected compromise (an unknown transaction on a channel or sponsor account, a leaked access key, funds
+   no one sent); the **release approver** for a rollback or an emergency release.
+4. A suspected key compromise skips the queue: call the key custodian and the security contact at once
+   and follow [Signer rotation](#signer-rotation) from its first step.
+
+## Monitoring
+
+The committed monitoring example in
+[`deploy/monitoring`](https://github.com/tolgayayci/rail402/tree/main/deploy/monitoring) runs Prometheus,
+Alertmanager, the blackbox exporter and node_exporter beside the service, on internal networks with no
+published port:
+
+- Prometheus scrapes every facilitator replica's `/metrics/private` with a bearer token, and probes each
+  replica's process-level `/ready`, each network's `/ready/testnet` and `/ready/pubnet`, and `/supported`
+  through the blackbox exporter. Set `METRICS_PRIVATE_TOKEN_SHA256` on every deployment, one network or
+  two: without it `/metrics/private` answers 404 and every metric-based alert is blind.
+- The networks are split: the replicas share only the `scrape` network with Prometheus and the blackbox
+  exporter; Alertmanager, whose API can silence alerts without authentication, shares the `alerting`
+  network with Prometheus alone; node_exporter has a network of its own. Nothing the service runs can reach
+  Alertmanager.
+- The blackbox exporter allows only the two modules in `blackbox.yml`, and Prometheus fixes its targets,
+  so its probe endpoint cannot be used to reach other hosts.
+- node_exporter reports the host's free disk space and serves the WAL archiving and backup figures that
+  `deploy/postgres/backup-metrics.sh` writes every minute (the `rail402-host` alerts).
+- Alertmanager sends `page` alerts to both on-call roles at once and repeats them hourly, groups
+  `ticket` alerts daily, and sends the always-firing `Watchdog` alert every minute to an off-host
+  dead-man's switch, which alerts by itself when the heartbeat stops. A page silences only the
+  tickets it covers: those with the same `cause` label on the same network (Rail402ChannelsExhausted
+  covers Rail402ChannelLeaseTimeouts, Rail402RpcStale covers Rail402RpcFailover). Every other alert is
+  always sent, so an unrelated page, such as Rail402SponsorGuardRefusing, never hides an independent
+  failure, and alerts without a network label never silence each other.
+- Availability from outside is measured separately, off the host:
+  [`deploy/status/upptimerc.yml`](https://github.com/tolgayayci/rail402/blob/main/deploy/status/upptimerc.yml)
+  lists read-only checks of every public endpoint of both networks, each with a content assertion, run
+  every 5 minutes by Upptime from GitHub Actions. Each network's readiness (`/ready/testnet`,
+  `/ready/pubnet`) is its own component, because it follows that network's RPC.
+
+`alerts.yml` is checked with `promtool check rules` and unit-tested with `promtool test rules`
+(`alerts.test.yml`) in CI. The inhibition rule of `alertmanager.yml` is tested against the pinned
+Alertmanager image (`tools/conformance/test/alertmanager.integration.test.ts`): a covering page
+silences the tickets of its cause on its own network only, an unrelated page on the same network
+(the sponsor guard's while channel leases time out) silences nothing, and alerts without a network
+label silence nothing.
+
+## Alert catalog
+
+{/* generated:begin alerts */}
+
+| Alert                                                               | Severity                 | Owner                                      | Summary                                                                                                     |
+| ------------------------------------------------------------------- | ------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| [Rail402Down](#rail402down)                                         | Page                     | primary on-call                            | A Rail402 replica does not answer its metrics scrape.                                                       |
+| [Rail402NoReplica](#rail402noreplica)                               | Page                     | primary on-call                            | No Rail402 replica answers its metrics scrape.                                                              |
+| [Rail402ReplicaMissing](#rail402replicamissing)                     | Ticket                   | primary on-call                            | Fewer replicas answer than the deployment runs.                                                             |
+| [Rail402NotReady](#rail402notready)                                 | Page                     | primary on-call                            | A replica's /ready has failed for 5 minutes.                                                                |
+| [Rail402SupportedBroken](#rail402supportedbroken)                   | Page                     | primary on-call                            | /supported does not advertise sponsored fees.                                                               |
+| [Rail402NetworkNotReady](#rail402networknotready)                   | Page                     | primary on-call                            | A network's /ready/<network> has failed for 5 minutes.                                                      |
+| [Rail402NetworkHeld](#rail402networkheld)                           | Page                     | primary on-call                            | A network has not been serving payments for 5 minutes.                                                      |
+| [Rail402SponsorBalanceLow](#rail402sponsorbalancelow)               | Page (ticket on testnet) | key custodian (primary on-call on testnet) | A network's fee sponsor balance is below its readiness floor, or a pubnet sponsor below 100 XLM.            |
+| [Rail402SponsorBudgetNearlySpent](#rail402sponsorbudgetnearlyspent) | Ticket                   | primary on-call                            | More than 80% of a network's hourly sponsor budget is committed.                                            |
+| [Rail402SponsorGuardRefusing](#rail402sponsorguardrefusing)         | Page                     | primary on-call                            | The sponsor guard refused settlements.                                                                      |
+| [Rail402WastedFees](#rail402wastedfees)                             | Ticket                   | primary on-call                            | Settlements that failed on chain cost more than the hourly allowance.                                       |
+| [Rail402ChannelsExhausted](#rail402channelsexhausted)               | Page                     | primary on-call                            | Every channel account has been busy for 5 minutes.                                                          |
+| [Rail402ChannelLeaseTimeouts](#rail402channelleasetimeouts)         | Ticket                   | primary on-call                            | Settlements timed out waiting for a channel.                                                                |
+| [Rail402SequenceConflict](#rail402sequenceconflict)                 | Page                     | primary on-call                            | A channel account's sequence number was used outside Rail402.                                               |
+| [Rail402SettlementsUnresolvable](#rail402settlementsunresolvable)   | Page                     | primary on-call                            | A recorded settlement can no longer be proven landed or not.                                                |
+| [Rail402SettlementFailureRate](#rail402settlementfailurerate)       | Ticket                   | primary on-call                            | More than 20% of settlements fail.                                                                          |
+| [Rail402RpcStale](#rail402rpcstale)                                 | Page                     | primary on-call                            | The RPC's latest ledger is more than a minute old.                                                          |
+| [Rail402RpcTransportErrors](#rail402rpctransporterrors)             | Ticket                   | primary on-call                            | RPC or Horizon requests fail at the transport level.                                                        |
+| [Rail402RpcFailover](#rail402rpcfailover)                           | Ticket                   | primary on-call                            | A network failed over to another RPC provider.                                                              |
+| [Rail402ContractTtlLow](#rail402contractttllow)                     | Ticket                   | primary on-call                            | A watched contract entry expires in less than about 7 days.                                                 |
+| [Rail402UptoAuthorityFunded](#rail402uptoauthorityfunded)           | Ticket                   | key custodian                              | The settlement authority holds XLM.                                                                         |
+| [Rail402TtlKeeperFailed](#rail402ttlkeeperfailed)                   | Ticket                   | primary on-call                            | The contract TTL keeper failed an extension or restore.                                                     |
+| [Rail402SearchIndexBuildFailed](#rail402searchindexbuildfailed)     | Ticket                   | primary on-call                            | A search index build failed or fell back.                                                                   |
+| [Rail402DiscoveryShedding](#rail402discoveryshedding)               | Ticket                   | primary on-call                            | Discovery keeps refusing requests with 503 under load.                                                      |
+| [Rail402CatalogOutboxBacklog](#rail402catalogoutboxbacklog)         | Ticket                   | primary on-call                            | Settled payments are waiting to be cataloged.                                                               |
+| [Rail402BackgroundErrors](#rail402backgrounderrors)                 | Ticket                   | primary on-call                            | A background task keeps failing.                                                                            |
+| [Rail402AccessKeysReloadFailed](#rail402accesskeysreloadfailed)     | Page                     | primary on-call                            | The access-key file could not be reloaded.                                                                  |
+| [Rail402ExplorerLag](#rail402explorerlag)                           | Ticket                   | primary on-call                            | The Explorer indexer is more than about an hour behind the network, or not progressing.                     |
+| [Rail402ExplorerIndexerDown](#rail402explorerindexerdown)           | Ticket                   | primary on-call                            | An Explorer indexer does not answer its metrics scrape.                                                     |
+| [Rail402ExplorerIndexerFailures](#rail402explorerindexerfailures)   | Ticket                   | primary on-call                            | An Explorer indexer recorded indexing failures or a chain break.                                            |
+| [Rail402ExplorerDiscoveryAnomaly](#rail402explorerdiscoveryanomaly) | Ticket                   | primary on-call                            | Explorer discovery listed unusually many candidates, saw its source's head far behind, or restarted routes. |
+| [Rail402ExplorerWebDown](#rail402explorerwebdown)                   | Ticket                   | primary on-call                            | The Explorer web role does not answer its metrics scrape.                                                   |
+| [Rail402McpDown](#rail402mcpdown)                                   | Ticket                   | primary on-call                            | The hosted MCP endpoint does not answer its metrics scrape.                                                 |
+| [Rail402McpUpstreamBudget](#rail402mcpupstreambudget)               | Ticket                   | primary on-call                            | The hosted MCP endpoint keeps refusing calls for lack of upstream budget.                                   |
+| [Rail402WalArchiveFailing](#rail402walarchivefailing)               | Page                     | primary on-call                            | Postgres cannot archive WAL to the backup repository.                                                       |
+| [Rail402WalArchiveBehind](#rail402walarchivebehind)                 | Page                     | primary on-call                            | A WAL segment has waited more than 15 minutes for the archive.                                              |
+| [Rail402BackupStale](#rail402backupstale)                           | Page                     | primary on-call                            | The newest completed backup is more than 30 hours old, or none is listed.                                   |
+| [Rail402BackupMetricsStale](#rail402backupmetricsstale)             | Ticket                   | primary on-call                            | The archive and backup metrics stopped updating.                                                            |
+| [Rail402DiskAlmostFull](#rail402diskalmostfull)                     | Page                     | primary on-call                            | A host filesystem has less than 10% free space.                                                             |
+| [Rail402DiskFillingFast](#rail402diskfillingfast)                   | Page                     | primary on-call                            | A host filesystem will be full within 4 hours at its current rate.                                          |
+| [Watchdog](#watchdog)                                               | Heartbeat                | primary on-call                            | Always firing: proves the alerting pipeline works.                                                          |
+
+### Rail402Down
+
+Page · owner: primary on-call · fires after `2m` of `up{job="rail402"} == 0`
+
+**Meaning.** Prometheus cannot reach a replica: the process is down, restarting or wedged.
+
+**First step.** Check the replica's container state and its last log lines; check whether the other replica still serves (`/ready` answers 200).
+
+**Escalation.** Secondary on-call after 15 minutes, or at once if both replicas are down.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Restart the replica. If it fails its startup checks, read the coded line it printed (`rail402: <code>: …`) and fix that setting; roll back to the previous release if the failure came with a deploy.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402NoReplica
+
+Page · owner: primary on-call · fires after `2m` of `absent(up{job="rail402"} == 1)`
+
+**Meaning.** Prometheus finds no replica that answers: every replica is down, or none is registered under the service name at all (a stopped container leaves no target behind, so Rail402Down cannot fire for it).
+
+**First step.** Check the containers' state and whether the proxy still finds a ready replica.
+
+**Escalation.** Secondary on-call at once.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Start the replicas; if they fail their startup checks, fix the coded setting they print.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402ReplicaMissing
+
+Ticket · owner: primary on-call · fires after `10m` of `count(up{job="rail402"} == 1) < 2`
+
+**Meaning.** One replica has been gone or down for 10 minutes: the service still answers, but a restart or a deploy would now take it down.
+
+**First step.** Find the missing replica's container and its last log lines.
+
+**Escalation.** Secondary on-call if it is not back within a working day.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Restart the replica; a deploy restarts the replicas one at a time only when both are ready.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402NotReady
+
+Page · owner: primary on-call · fires after `5m` of `probe_success{job="rail402-ready"} == 0`
+
+**Meaning.** The process runs but one of its process-level readiness checks fails: database, search index, access keys, or a network that gates readiness (on a one-network deployment, that network's RPC, sponsor balance and channels).
+
+**First step.** Read `/ready` and `/health` on the replica: the failing check and the warning code name the cause.
+
+**Escalation.** Secondary on-call after 15 minutes.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Fix the named dependency (see the alert for that condition below); the replica returns to rotation on its own once `/ready` answers 200.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402SupportedBroken
+
+Page · owner: primary on-call · fires after `5m` of `probe_success{job="rail402-supported"} == 0`
+
+**Meaning.** The probe of `/supported` failed or its body lacks `"areFeesSponsored":true`: clients cannot discover the facilitator's payment kinds. Reachability from outside is measured by the external status page.
+
+**First step.** Fetch `/supported` from a replica and compare it with the last release's answer.
+
+**Escalation.** Secondary on-call after 15 minutes.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Roll back the release that changed it, or fix the network configuration that removed the kinds.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402NetworkNotReady
+
+Page · owner: primary on-call · fires after `5m` of `probe_success{job=~"rail402-ready-(testnet\|pubnet)"} == 0 and on (network) count by (network) (rail402_network_serving)`
+
+**Meaning.** One network's checks fail (RPC, sponsor balance, assets, channels) while the process may still be ready: with two networks in one process, neither network gates the process-level /ready, so this is the per-network outage signal. Probes of a network the service does not serve are ignored.
+
+**First step.** Read `/ready/<network>` and `/health/private`: the failing check names the cause.
+
+**Escalation.** Secondary on-call after 15 minutes; the key custodian when the check is the sponsor.
+
+**Rollback.** If it started with a configuration change, revert that change and restart the replicas one at a time; if it came with a release, roll back ([Rollback](#rollback)).
+
+**Recovery.** Fix the named dependency (RPC failure, sponsor depletion); the network is ready again on the next poll without a restart.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402NetworkHeld
+
+Page · owner: primary on-call · fires after `5m` of `rail402_network_serving == 0`
+
+**Meaning.** One network is held (or still starting): its /verify and /settle answer 503 while the other network keeps serving. The hold reason names the failed chain check.
+
+**First step.** Read `holdReason` for the network in `/health/private` or `/ready/<network>`.
+
+**Escalation.** Secondary on-call after 15 minutes; the key custodian when the reason is the sponsor account.
+
+**Rollback.** If it started with a configuration change, revert that change and restart the replicas one at a time; if it came with a release, roll back ([Rollback](#rollback)).
+
+**Recovery.** Fix the cause (RPC, sponsor funding, asset or channel accounts). The network returns to serving on the next poll without a restart, except for a contract or asset contradiction, which needs a configuration change and a restart.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402SponsorBalanceLow
+
+Page (ticket on testnet) · owner: key custodian (primary on-call on testnet) · fires after `5m` of `rail402_sponsor_balance_stroops < rail402_sponsor_balance_floor_stroops or rail402_sponsor_balance_stroops{network!="stellar:testnet"} < 1000000000`
+
+**Meaning.** The sponsor pays every settlement fee and the reserves of channels and the settlement authority. Each network is watched against its own floor (`<NET>_MIN_SPONSOR_BALANCE_XLM`, exported as `rail402_sponsor_balance_floor_stroops`): below it the network's readiness fails; below `<NET>_SPONSOR_RESERVE_XLM` settlements are refused. Every network but testnet also pages below 100 XLM whatever its floor, and pubnet refuses a floor below 1 XLM at startup, so a low or missing floor never switches the page off. Testnet XLM has no value, so a testnet sponsor raises a ticket for the primary on-call; every other network pages the key custodian.
+
+**First step.** Read the `network` label, then check the spend rate (`rail402_sponsor_fees_committed_stroops`) to see whether this is normal use or a drain.
+
+**Escalation.** Primary on-call if the custodian does not answer within 30 minutes; for testnet, secondary on-call if readiness fails.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Top up the sponsor from the treasury account with a reviewed payment to the recorded sponsor address (testnet: Friendbot or another testnet account). If the spend rate is abnormal, find the caller first (sponsor depletion procedure).
+
+**Procedure.** [Sponsor depletion](#sponsor-depletion)
+
+### Rail402SponsorBudgetNearlySpent
+
+Ticket · owner: primary on-call · fires after `5m` of `rail402_sponsor_budget_used_ratio > 0.8`
+
+**Meaning.** Fees committed in the last hour approach the network's `<NET>_MAX_SPONSOR_SPEND_XLM_PER_HOUR` (the service exports the share, so the threshold follows each network's own budget); at 100% settlements are refused.
+
+**First step.** Compare settlements per caller and per payer over the last hour; look for one caller or dust payments.
+
+**Escalation.** Secondary on-call if the guard starts refusing (Rail402SponsorGuardRefusing).
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Throttle or revoke the abusive caller; raise the budget only after deciding the traffic is legitimate.
+
+**Procedure.** [Sponsor depletion](#sponsor-depletion)
+
+### Rail402SponsorGuardRefusing
+
+Page · owner: primary on-call · fires after `0s` of `increase(rail402_sponsor_guard_refusals_total[10m]) > 0`
+
+**Meaning.** Settlements were refused because the sponsor is below its reserve or the hourly budget is spent. Sellers see a retryable refusal.
+
+**First step.** Read the `reason` label: reserve (fund the sponsor) or budget (find the spend).
+
+**Escalation.** Key custodian for a reserve refusal.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Top up, or wait for the hour to roll over after stopping the abusive caller.
+
+**Procedure.** [Sponsor depletion](#sponsor-depletion)
+
+### Rail402WastedFees
+
+Ticket · owner: primary on-call · fires after `0s` of `increase(rail402_sponsor_fees_stroops_total{outcome="wasted"}[1h]) > 5000000`
+
+**Meaning.** The sponsor paid fees for settlements that failed at inclusion (payer drained between simulation and inclusion, smart accounts failing at apply).
+
+**First step.** Group failed settlements by payer in the logs and `rail402_settlements_finalized_total`.
+
+**Escalation.** Secondary on-call if one payer causes most of them.
+
+**Rollback.** If it started with a configuration change, revert that change and restart the replicas one at a time; if it came with a release, roll back ([Rollback](#rollback)).
+
+**Recovery.** Rate-limit or block the payer; check that fee ceilings fit the payers served.
+
+**Procedure.** [Sponsor depletion](#sponsor-depletion)
+
+### Rail402ChannelsExhausted
+
+Page · owner: primary on-call · fires after `5m` of `rail402_channels_total > 0 and rail402_channels_in_use >= rail402_channels_total`
+
+Silences [Rail402ChannelLeaseTimeouts](#rail402channelleasetimeouts) on the same network while it fires.
+
+**Meaning.** All channel accounts are leased; new settlements wait and then fail with a retryable refusal.
+
+**First step.** Check settlement latency and RPC health: slow confirmation holds channels longer.
+
+**Escalation.** Secondary on-call after 30 minutes.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Fix a slow RPC first. For sustained load, raise `CHANNEL_COUNT` and provision the new channels (`channels provision`).
+
+**Procedure.** [Channel-pool exhaustion](#channel-pool-exhaustion)
+
+### Rail402ChannelLeaseTimeouts
+
+Ticket · owner: primary on-call · fires after `0s` of `increase(rail402_channel_lease_timeouts_total[10m]) > 0`
+
+Silenced on a network while [Rail402ChannelsExhausted](#rail402channelsexhausted) fires for it.
+
+**Meaning.** A settlement waited longer than its lease timeout for a free channel account.
+
+**First step.** Look at `rail402_channels_in_use` and the settlement duration histogram.
+
+**Escalation.** Secondary on-call if it repeats for an hour.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** As for Rail402ChannelsExhausted.
+
+**Procedure.** [Channel-pool exhaustion](#channel-pool-exhaustion)
+
+### Rail402SequenceConflict
+
+Page · owner: primary on-call · fires after `0s` of `increase(rail402_sequence_conflicts_total{kind="bad_seq"}[10m]) > 0`
+
+**Meaning.** A transaction from a channel account was refused with txBadSeq: something else submitted from the account, or two deployments share one sponsor seed. Once the channel's sequence number on the network has reached the settlement's and neither its hash nor its inner hash landed, the settlement gives its channel back at once, and the channel is quarantined: out of rotation for `SETTLE_CHANNEL_QUARANTINE_MS` (60 s), doubled for each further conflict in a row up to 16 times. An `upto` settlement finishes then as `settle_upto_stellar_transaction_submission_failed` (no funds moved, nothing charged; the payer signs a new payment). An `exact` one waits for the payer's authorization, which anyone holding the payment can carry until it expires: it is answered as settled when a copy landed, and as `settle_exact_stellar_transaction_submission_failed` once the authorization expired unused. When the quarantine ends, the next lease compares the account's sequence number with the one seen at the conflict; if it moved, someone still uses the account and the channel is quarantined again for twice as long (log line `the quarantined channel's sequence number moved again`). This holds whether the conflict first showed as `TRY_AGAIN_LATER` (the other transaction held the channel's queue slot) or as `txBadSeq`: every send's answer is recorded on the settlement, so any replica or the reconciler can tell whether the network ever accepted the bytes. The log line `sequence conflict not finished early` names why a settlement waits.
+
+**First step.** Check that no other deployment or tool uses the same sponsor seed; list the channel's recent transactions. The log line `another transaction took the channel's sequence number` names the channel; `rail402_sequence_conflict_outcomes_total` and the log line `sequence conflict not finished early` (once per settlement and replica) say why a settlement keeps waiting.
+
+**Escalation.** Key custodian and security contact at once if an unknown party used the account: treat it as a key compromise.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Stop the other user of the seed. If the seed may be compromised, rotate it (signer rotation procedure). A quarantined channel returns to rotation by itself; the next settlement on it reads its current sequence number.
+
+**Procedure.** [Sequence conflicts](#sequence-conflicts)
+
+### Rail402SettlementsUnresolvable
+
+Page · owner: primary on-call · fires after `0s` of `rail402_settlements_unresolvable > 0`
+
+**Meaning.** The RPC's retained history no longer covers a settlement whose outcome is unknown, or the reads that would decide one keep coming from an RPC behind the ledger they must cover (or keep failing); Rail402 will not guess and keeps it unresolved.
+
+**First step.** Look for the log line `settlement undecided` and compare the RPC providers' latest ledgers; otherwise look up the recorded transaction hashes in a full-history source (an explorer or Horizon).
+
+**Escalation.** Secondary on-call; the seller may need to be told the outcome by hand.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Record the outcome from the full-history source as described in the unresolvable settlements procedure.
+
+**Procedure.** [State, backups and recovery](/operations#state-backups-and-recovery)
+
+### Rail402SettlementFailureRate
+
+Ticket · owner: primary on-call · fires after `10m` of `sum by (network) (rate(rail402_settlements_total{outcome="failure"}[10m])) > 0.2 * sum by (network) (rate(rail402_settlements_total[10m])) and sum by (network) (rate(rail402_settlements_total[10m])) > 0.01`
+
+**Meaning.** A fifth of settlement requests on a network end in a refusal or failure.
+
+**First step.** Break failures down by `reason`; most reasons point at the payer or seller, a few at the service.
+
+**Escalation.** Secondary on-call if the reason is a service-side code.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Fix the service-side cause, or contact the seller whose requests fail.
+
+**Procedure.** [Rollback](#rollback)
+
+### Rail402RpcStale
+
+Page · owner: primary on-call · fires after `2m` of `rail402_rpc_ledger_age_seconds > 60`
+
+Silences [Rail402RpcFailover](#rail402rpcfailover) on the same network while it fires.
+
+**Meaning.** The RPC provider is down, stuck or far behind; verification and settlement cannot work on that network. The age is computed at every scrape from the last ledger read, so it keeps growing while polls fail, and on a replica that never read a ledger it counts from when the replica started watching the network: such a replica is reported 3 minutes after start.
+
+**First step.** Compare with a public status source for the network and with another provider.
+
+**Escalation.** Secondary on-call after 15 minutes.
+
+**Rollback.** If it started with a configuration change, revert that change and restart the replicas one at a time; if it came with a release, roll back ([Rollback](#rollback)).
+
+**Recovery.** Wait for failover to another provider when configured, or switch the network's RPC setting and restart one replica at a time.
+
+**Procedure.** [RPC failure](#rpc-failure)
+
+### Rail402RpcTransportErrors
+
+Ticket · owner: primary on-call · fires after `0s` of `increase(rail402_rpc_transport_errors_total[10m]) > 10`
+
+**Meaning.** Connections to a watched RPC or Horizon target fail, time out or get 5xx/429 answers.
+
+**First step.** Read the `target` and `kind` labels; 429 means a quota.
+
+**Escalation.** Secondary on-call if it persists for an hour.
+
+**Rollback.** If it started with a configuration change, revert that change and restart the replicas one at a time; if it came with a release, roll back ([Rollback](#rollback)).
+
+**Recovery.** Reduce load on the provider, raise its quota, or add a second provider.
+
+**Procedure.** [RPC failure](#rpc-failure)
+
+### Rail402RpcFailover
+
+Ticket · owner: primary on-call · fires after `0s` of `increase(rail402_rpc_failovers_total[15m]) > 0`
+
+Silenced on a network while [Rail402RpcStale](#rail402rpcstale) fires for it.
+
+**Meaning.** The active provider was unhealthy or stale for two polls and the next one took over.
+
+**First step.** Check the failed provider's status; `/health` names the active provider alias.
+
+**Escalation.** None while the fallback serves; Rail402RpcStale pages if it fails too.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Fail-back is automatic after five healthy polls of the higher-priority provider.
+
+**Procedure.** [RPC failure](#rpc-failure)
+
+### Rail402ContractTtlLow
+
+Ticket · owner: primary on-call · fires after `15m` of `rail402_contract_ttl_ledgers < 120960`
+
+**Meaning.** The upto contract or a watched token's instance or code entry approaches archival.
+
+**First step.** Check whether the TTL keeper is enabled and whether it failed (Rail402TtlKeeperFailed).
+
+**Escalation.** Secondary on-call below 2 days.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Run `upto ttl extend` for the network, or extend the token entry.
+
+**Procedure.** [Contract TTLs](/operations#contract-ttls)
+
+### Rail402UptoAuthorityFunded
+
+Ticket · owner: key custodian · fires after `15m` of `rail402_upto_authority_balance_stroops > 0`
+
+**Meaning.** The upto settlement authority is meant to hold a zero balance; funds there are not needed and are at risk.
+
+**First step.** Find who sent XLM to the authority account.
+
+**Escalation.** Primary on-call; the security contact if no one on the team sent the funds.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Move the balance back to the treasury.
+
+**Procedure.** [The `upto` settlement contract](/operations#the-upto-settlement-contract)
+
+### Rail402TtlKeeperFailed
+
+Ticket · owner: primary on-call · fires after `0s` of `increase(rail402_upto_ttl_keeper_actions_total{outcome="failed"}[1h]) > 0`
+
+**Meaning.** An automatic TTL extension of the upto contract failed.
+
+**First step.** Read the keeper's log line; check the sponsor balance and the fee ceiling for TTL operations.
+
+**Escalation.** Secondary on-call if the TTL falls below 2 days.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Run `upto ttl extend` by hand once the cause is fixed.
+
+**Procedure.** [Contract TTLs](/operations#contract-ttls)
+
+### Rail402SearchIndexBuildFailed
+
+Ticket · owner: primary on-call · fires after `0s` of `increase(rail402_search_index_builds_total{outcome!="ok"}[1h]) > 0`
+
+**Meaning.** The Bazaar search index could not be rebuilt; search serves the previous index or lexical results.
+
+**First step.** Read the `outcome` label and the search warning in `/health`.
+
+**Escalation.** Secondary on-call if search stays degraded for a day.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Fix the embedding model files or memory limits and restart one replica at a time.
+
+**Procedure.** [Degraded indexing](#degraded-indexing)
+
+### Rail402DiscoveryShedding
+
+Ticket · owner: primary on-call · fires after `5m` of `sum without (route) (increase(rail402_discovery_shed_total[10m])) > 20`
+
+**Meaning.** Discovery sheds load so searches cannot starve settlement and health checks: requests beyond `DISCOVERY_MAX_IN_FLIGHT` running and `DISCOVERY_QUEUE_LENGTH` waiting (`reason=admission`), or that got no discovery database connection or hit its statement timeout (`database_busy`), are refused with 503 `discovery_overloaded` and `Retry-After`; with the catalog database unreachable (`database_unavailable`), with 503 `discovery_catalog_unavailable`. Settlement is not affected; buyers and agents see failed searches.
+
+**First step.** Read the `reason` label. For `admission`, compare `rail402_discovery_in_flight` and `rail402_discovery_queued` with the limits and look for one client in the access log; for the database reasons, check the catalog database's load and connections.
+
+**Escalation.** Secondary on-call if it lasts an hour or the reason is `database_unavailable`.
+
+**Rollback.** If it started with a configuration change, revert that change and restart the replicas one at a time; if it came with a release, roll back ([Rollback](#rollback)).
+
+**Recovery.** Throttle or block an abusive client (`RATE_LIMIT_PER_MINUTE`, access keys); for legitimate traffic raise the discovery limits or the discovery pool together with the database's capacity. Refusals stop by themselves once the load falls.
+
+**Procedure.** [Serving per network](/operations#serving-per-network)
+
+### Rail402CatalogOutboxBacklog
+
+Ticket · owner: primary on-call · fires after `30m` of `rail402_catalog_outbox_pending > 500`
+
+**Meaning.** The catalog outbox grows: cataloging or origin checks are failing or slower than settlements.
+
+**First step.** Check `rail402_background_errors_total{task="catalog_queue"}` and origin-check outcomes.
+
+**Escalation.** Secondary on-call if the backlog keeps growing for a day.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Fix the failing task; the outbox drains by itself and nothing is lost.
+
+**Procedure.** [Degraded indexing](#degraded-indexing)
+
+### Rail402BackgroundErrors
+
+Ticket · owner: primary on-call · fires after `0s` of `increase(rail402_background_errors_total[15m]) > 5`
+
+**Meaning.** Origin checks, cataloging, listing facts, the search index or the TTL keeper raised errors.
+
+**First step.** Read the `task` label and that task's log lines.
+
+**Escalation.** Secondary on-call if it continues for a day.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Fix the task's dependency; background tasks retry on their own.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402AccessKeysReloadFailed
+
+Page · owner: primary on-call · fires after `0s` of `increase(rail402_access_keys_reload_failures_total[15m]) > 0`
+
+**Meaning.** A changed access-key file was refused; the service keeps the last good set, so a revocation may not be in force.
+
+**First step.** Validate the key file with the configuration check; read the reload error in `/health/private`.
+
+**Escalation.** Key custodian if a revocation is waiting on the reload; the security contact if the key being revoked leaked.
+
+**Rollback.** If it started with a configuration change, revert that change and restart the replicas one at a time; if it came with a release, roll back ([Rollback](#rollback)).
+
+**Recovery.** Fix the file; the next reload applies it.
+
+**Procedure.** [Access and metering](/operations#access-and-metering)
+
+### Rail402ExplorerLag
+
+Ticket · owner: primary on-call · fires after `15m` of `rail402_explorer_lag_ledgers > 720 or changes(rail402_explorer_last_ledger[1h]) == 0 or on (instance) (up{job="rail402-explorer-indexer"} == 1 unless on (instance) rail402_explorer_last_ledger)`
+
+Reads the Explorer's metrics: each indexer on port 9464, the web role on port 9465.
+
+**Meaning.** The ledger every discovery route has walked trails the discovery source's head, has not moved for an hour, or is not exported at all by an indexer that answers its scrape (a series that is missing never crosses a threshold); new payments do not appear in the Explorer yet. A stopped indexer is reported by Rail402ExplorerIndexerDown instead, not twice.
+
+**First step.** Check the indexer's log and `rail402_explorer_lumeus_errors_total` for discovery (Lumeus) or ledger source failures; a missing or frozen `rail402_explorer_last_ledger` means discovery has not completed a pass since the indexer started.
+
+**Escalation.** Secondary on-call if the lag approaches the RPC's retention window.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Restore discovery or the ledger source; the indexer resumes from every route's checkpoint by itself, and older ledgers come from the data lake.
+
+**Procedure.** [Degraded indexing](#degraded-indexing)
+
+### Rail402ExplorerIndexerDown
+
+Ticket · owner: primary on-call · fires after `5m` of `up{job="rail402-explorer-indexer"} == 0`
+
+Reads the Explorer's metrics: each indexer on port 9464, the web role on port 9465.
+
+**Meaning.** The indexer stopped: it exits on an integrity fault (`ledger_mismatch`, `anchor_mismatch`, `events_unbound`), a refused discovery key or request, or a configuration error, and the Explorer and the ecosystem report go stale for its network.
+
+**First step.** Read the indexer's last log lines for the code it stopped with; do not restart it in a loop over an integrity fault.
+
+**Escalation.** Secondary on-call if the indexer stays down for a working day.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Fix the cause (Lumeus key, ledger source, anchor Horizon, database); after an integrity fault, rebuild the affected range from the data lake before restarting. After a `heap out of memory` crash, lower `EXPLORER_BYTES_IN_FLIGHT_MIB` (the raw ledger bytes it holds, `rail402_explorer_ledger_bytes_in_flight`) or give the process more memory.
+
+**Procedure.** [Degraded indexing](#degraded-indexing)
+
+### Rail402ExplorerIndexerFailures
+
+Ticket · owner: primary on-call · fires after `0s` of `increase(rail402_explorer_failures_total[15m]) > 0 or increase(rail402_explorer_chain_breaks_total[15m]) > 0`
+
+Reads the Explorer's metrics: each indexer on port 9464, the web role on port 9465.
+
+**Meaning.** Discovery requests or ledgers failed, or a ledger's hash differed from its anchor or the ledger asked for; integrity failures stop the indexer.
+
+**First step.** Read the `code` label and the indexer's log lines around the failure.
+
+**Escalation.** Secondary on-call if failures continue for a day.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Fix discovery or the ledger source; the indexer retries transient failures by itself.
+
+**Procedure.** [Degraded indexing](#degraded-indexing)
+
+### Rail402ExplorerDiscoveryAnomaly
+
+Ticket · owner: primary on-call · fires after `0s` of `increase(rail402_explorer_candidates_capped_total[1h]) > 0 or increase(rail402_explorer_head_regressions_total[1h]) > 0 or increase(rail402_explorer_discovery_restarts_total[1h]) > 0`
+
+Reads the Explorer's metrics: each indexer on port 9464, the web role on port 9465.
+
+**Meaning.** A route listed more new candidate ledgers than one round reads (a very busy account, or a source listing ledgers it should not), the discovery source's head fell far behind the indexed candidates, or a new index generation or decoder made routes walk again from their first ledger. Nothing is counted wrongly: rows still come only from verified ledgers.
+
+**First step.** Read the `kind` label and the indexer's warnings; compare `rail402_explorer_candidates_unattributed_total` with the candidates found, and check the source's status page.
+
+**Escalation.** Secondary on-call if mainnet Lumeus credit use climbs or the report's ledgersWithoutAttributedRow grows sharply.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Nothing to do for a rebuilt index or a busy route; for a source listing invented ledgers, lower EXPLORER_MAX_CANDIDATES_PER_ROUND and raise it with the source.
+
+**Procedure.** [Degraded indexing](#degraded-indexing)
+
+### Rail402ExplorerWebDown
+
+Ticket · owner: primary on-call · fires after `5m` of `up{job="rail402-explorer-web"} == 0`
+
+Reads the Explorer's metrics: each indexer on port 9464, the web role on port 9465.
+
+**Meaning.** The public Explorer pages and read API are down.
+
+**First step.** Check the web container's health and log; check the reader role's database connection.
+
+**Escalation.** Secondary on-call after a working day.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Restart the web role once the cause is fixed; it holds no state.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402McpDown
+
+Ticket · owner: primary on-call · fires after `5m` of `up{job="rail402-mcp"} == 0`
+
+Reads the hosted MCP endpoint's metrics on port 9464.
+
+**Meaning.** Remote MCP clients cannot search the Bazaar through the hosted endpoint.
+
+**First step.** Check the endpoint's container health and log, and that the Bazaar answers it.
+
+**Escalation.** Secondary on-call after a working day.
+
+**Rollback.** If it started with a deploy, roll back to the previous release ([Rollback](#rollback)).
+
+**Recovery.** Restart the endpoint once the cause is fixed; it holds no key and no state.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402McpUpstreamBudget
+
+Ticket · owner: primary on-call · fires after `15m` of `increase(rail402_mcp_refusals_total{reason="upstream_budget"}[15m]) > 10`
+
+Reads the hosted MCP endpoint's metrics on port 9464.
+
+**Meaning.** Calls are refused with `rpc_upstream_budget`: the endpoint's requests to the Bazaar per minute (`RAIL402_MCP_UPSTREAM_PER_MINUTE`) are used up, so remote users see 503s.
+
+**First step.** Compare `rail402_mcp_calls_total` by tool with the budget; look for one client driving the load (per-client refusals).
+
+**Escalation.** Secondary on-call if it continues for a day.
+
+**Rollback.** If it started with a configuration change, revert that change and restart the replicas one at a time; if it came with a release, roll back ([Rollback](#rollback)).
+
+**Recovery.** Raise the budget within the Bazaar's limit for the endpoint's discovery key, or lower the per-client rate.
+
+**Procedure.** [Replica or network outage](#replica-or-network-outage)
+
+### Rail402WalArchiveFailing
+
+Page · owner: primary on-call · fires after `5m` of `rail402_wal_last_failed_timestamp_seconds > rail402_wal_last_archived_timestamp_seconds`
+
+Reads the host collector: node_exporter, with the textfile `deploy/postgres/backup-metrics.sh` writes.
+
+**Meaning.** The last archive attempt failed after the last success: the backup repository is unreachable, full or refusing writes. Postgres keeps every unarchived WAL segment on its disk, so the disk fills, and the recovery point falls behind.
+
+**First step.** Read the Postgres log for the archive command's error, and run `pgbackrest check` in the database container.
+
+**Escalation.** Secondary on-call after 30 minutes, or at once when the disk alert fires too.
+
+**Rollback.** If it started with a configuration change, revert that change and restart the replicas one at a time; if it came with a release, roll back ([Rollback](#rollback)).
+
+**Recovery.** Restore access to the repository (credentials, network, quota); archiving resumes by itself and the queued segments drain. Never delete WAL by hand.
+
+**Procedure.** [Backups](/operations#backups)
+
+### Rail402WalArchiveBehind
+
+Page · owner: primary on-call · fires after `0s` of `rail402_wal_archive_oldest_pending_seconds > 900`
+
+Reads the host collector: node_exporter, with the textfile `deploy/postgres/backup-metrics.sh` writes.
+
+**Meaning.** Segments are queued faster than they are archived, or the archive command stalls without failing: a restore could lose the writes since the oldest queued segment.
+
+**First step.** Check `rail402_wal_archive_pending_segments` and the archive command's latency in the Postgres log.
+
+**Escalation.** Secondary on-call after 30 minutes.
+
+**Rollback.** If it started with a configuration change, revert that change and restart the replicas one at a time; if it came with a release, roll back ([Rollback](#rollback)).
+
+**Recovery.** As for Rail402WalArchiveFailing; the queue drains once the repository keeps up.
+
+**Procedure.** [Backups](/operations#backups)
+
+### Rail402BackupStale
+
+Page · owner: primary on-call · fires after `0s` of `time() - max without (type) (rail402_backup_last_completed_timestamp_seconds) > 108000 or absent(rail402_backup_last_completed_timestamp_seconds) and on() rail402_wal_archive_enabled == 1 and on() rail402_wal_archive_enabled offset 6h == 1`
+
+Reads the host collector: node_exporter, with the textfile `deploy/postgres/backup-metrics.sh` writes.
+
+**Meaning.** The daily backup did not complete, or WAL has been archived for 6 hours while the repository lists no completed backup (none was ever taken, or `pgbackrest info` cannot read the repository): a restore would need more WAL to replay, or would have no base backup to start from.
+
+**First step.** Read the backup timer's last run (its journal) and `pgbackrest info`.
+
+**Escalation.** Secondary on-call after a working day.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Fix the cause and run the backup by hand; the alert clears when it completes.
+
+**Procedure.** [Backups](/operations#backups)
+
+### Rail402BackupMetricsStale
+
+Ticket · owner: primary on-call · fires after `5m` of `time() - rail402_backup_metrics_collected_timestamp_seconds > 600 or absent(rail402_backup_metrics_collected_timestamp_seconds)`
+
+Reads the host collector: node_exporter, with the textfile `deploy/postgres/backup-metrics.sh` writes.
+
+**Meaning.** The collector that reads Postgres' archiver and pgBackRest's backups has not written its file for 10 minutes: the archive and backup alerts above cannot fire while it is stale.
+
+**First step.** Check the collector's timer and node_exporter's textfile directory.
+
+**Escalation.** Secondary on-call if it stays stale for a day.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Restart the collector; the alerts above work again on its next run.
+
+**Procedure.** [Backups](/operations#backups)
+
+### Rail402DiskAlmostFull
+
+Page · owner: primary on-call · fires after `5m` of `node_filesystem_avail_bytes{fstype!~"tmpfs\|overlay\|squashfs\|ramfs"} / node_filesystem_size_bytes{fstype!~"tmpfs\|overlay\|squashfs\|ramfs"} < 0.1`
+
+Reads the host collector: node_exporter, with the textfile `deploy/postgres/backup-metrics.sh` writes.
+
+**Meaning.** When the database's filesystem fills, Postgres stops accepting writes and every settlement fails; other services on the same disk stop too.
+
+**First step.** Find what grows: Postgres' WAL (an archive failure), container logs, images, or backups kept on the host.
+
+**Escalation.** Secondary on-call at once if the database's filesystem is the one filling.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Fix the cause (archiving, log rotation), then free space with the owner of each item; never remove WAL or data files by hand.
+
+**Procedure.** [Disk space](#disk-space)
+
+### Rail402DiskFillingFast
+
+Page · owner: primary on-call · fires after `30m` of `predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs\|overlay\|squashfs\|ramfs"}[6h], 4 * 3600) < 0`
+
+Reads the host collector: node_exporter, with the textfile `deploy/postgres/backup-metrics.sh` writes.
+
+**Meaning.** Free space has been falling fast enough for six hours to reach zero within four.
+
+**First step.** As for Rail402DiskAlmostFull.
+
+**Escalation.** Secondary on-call after an hour.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** As for Rail402DiskAlmostFull.
+
+**Procedure.** [Disk space](#disk-space)
+
+### Watchdog
+
+Heartbeat · owner: primary on-call · fires after `0s` of `vector(1)`
+
+**Meaning.** Alertmanager sends this alert to an off-host dead-man's switch on a fixed schedule. When it stops arriving, the switch alerts the on-call: the host, Prometheus or Alertmanager is down.
+
+**First step.** When the dead-man's switch fires, check whether the host is reachable at all.
+
+**Escalation.** Secondary on-call after 15 minutes.
+
+**Rollback.** None: nothing this deployment changed causes it; recover as below.
+
+**Recovery.** Restore the host or the monitoring services; the switch clears on the next heartbeat.
+
+**Procedure.** [Monitoring](#monitoring)
+
+{/* generated:end */}
+
+## Recovery procedures
+
+Seven of the procedures below are exercised as recovery drills, nine drills in all: the fault is
+injected into a running deployment, the alert is awaited, these steps are followed and the time to
+detect and to recover is recorded. On a local, production-like stack:
+
+```sh
+docker compose --profile stellar up -d
+node --conditions=@rail402/source tools/conformance/src/drills-local.ts [--only <exercise>,…] [--write]
+```
+
+`tools/conformance/src/drills.ts` defines each exercise and checks every recorded run; the recorded results,
+with detection and recovery times and the refusals clients saw, are in
+[Recovery drills](/security/operational-tests#recovery-drills). Each procedure names its exercise.
+
+### Replica or network outage
+
+`Rail402Down`, `Rail402NoReplica`, `Rail402ReplicaMissing`, `Rail402NotReady`, `Rail402NetworkNotReady`,
+`Rail402NetworkHeld`, `Rail402SupportedBroken`, `Rail402BackgroundErrors`, and `Rail402ExplorerWebDown`,
+`Rail402McpDown` or `Rail402McpUpstreamBudget` for the Explorer and the hosted MCP endpoint.
+
+1. Find what is down: the container state and last log lines of each replica; `/ready`, `/ready/<network>`
+   and `/health/private` of a replica that answers. A replica that failed its startup checks printed one
+   coded line (`rail402: <code>: …`); [Configuration](/configuration) documents every code.
+2. If it started with a deploy or a configuration change, roll back first ([Rollback](#rollback)) and
+   investigate afterwards.
+3. Otherwise fix what the failing check names, then follow its procedure: RPC (RPC failure), sponsor
+   balance or budget (Sponsor depletion), channels (Channel-pool exhaustion), database (Restoring a backup
+   only when the data is lost or damaged; a database that is merely down needs to be started).
+4. Restart a stopped replica; restart replicas one at a time and only while the other answers `/ready`.
+5. Recovery is complete when every replica answers `/ready`, each served network answers
+   `/ready/<network>` with 200, `/supported` lists its kinds, and one payment settles.
+
+**Escalation:** secondary on-call after 15 minutes, or at once when no replica answers.
+
+### Signer rotation
+
+A planned rotation of a network's fee sponsor, or the response to a suspected leak. After a leak (on
+pubnet, where the sponsor has a cold signer) the order is **lock out, sweep, rotate**:
+
+1. **Leak only: lock the old key out first, then sweep.** The key custodian signs the transaction
+   `deploy/keys/cli.ts freeze --network pubnet --sponsor G… --cold G…` prints (compare the hash the device
+   shows with the review). It sets the hot key's weight to 0, so the leaked seed can no longer pay or
+   sponsor. Its source and fee payer is the cold account, so the leaked seed cannot block it by using or
+   bumping the sponsor's sequence; it can only spend the hot balance until the freeze applies. Once the
+   freeze has applied, the custodian signs `deploy/keys/cli.ts sweep --network pubnet --sponsor G… --cold
+G… --amount <XLM>` (the balance after the freeze, minus the reserve), which moves it to the treasury.
+   The service stops settling on that network until step 4.
+2. Create and fund the new sponsor (on pubnet: the [key ceremony](/operations#mainnet-sponsor-custody),
+   including the cold signer).
+3. Retire the old channel accounts with the old seed (`channels retire`), so their sponsored reserves
+   return to the old sponsor. After a freeze the old seed cannot sign any more: skip this, the channel
+   accounts hold only their reserves.
+4. Replace the sponsor secret (on pubnet, and `PUBNET_SPONSOR_COLD_SIGNER` when the new sponsor has
+   another cold key; pubnet is held with `sponsor_signers_unsafe` until that key alone reaches the high
+   threshold) and restart the replicas one at a time; channel accounts for the new seed are provisioned
+   at startup on testnet, and with `channels provision` on pubnet.
+5. Check that `/health` names the new sponsor and settle one payment. Ask sellers that use `upto` to
+   restart, since the settlement authority derives from the sponsor seed.
+6. Planned rotation: move what is left on the old sponsor back to the treasury (after a leak, step 1
+   already did).
+7. For the hosted service, update the Explorer registry: close the old accounts' ranges at the switch
+   ledger, add the new ones with the archived `/supported` answer, run
+   `pnpm --filter @rail402.dev/explorer registry-check --hosted-<network> <service URL> --skip-wasm`
+   until it reports no `FAIL`, and restart the Explorer indexers so stored rows are re-attributed.
+
+**Escalation:** the key custodian approves every rotation; the release approver when it needs a deploy;
+the security contact at once after a leak.
+
+**Exercise:** `signer-rotation`.
+
+### RPC failure
+
+`Rail402RpcStale`, `Rail402NotReady` or `Rail402NetworkHeld` with an RPC reason.
+
+1. Read `/ready/<network>` and `/health`: `rpc_unhealthy` names the failed poll.
+2. Check the provider from outside the service. If only one provider is down and a fallback is
+   configured (`<NET>_RPC_URLS`), the network fails over on its own (`Rail402RpcFailover`): each replica
+   reads every provider at its health poll (every 15 s) and moves to the next healthy one after two
+   unhealthy readings of the active one. Until that second reading the replica's `/ready` fails, for
+   up to one poll interval. `/health` then names the active provider (`rpc.active`, by alias) with the
+   warning `rpc_failover_active`, and payments settle through it. Nothing needs restarting.
+3. Otherwise point the network at another provider and restart the replicas one at a time.
+4. When the failed provider is back, wait for the fail-back: after five healthy readings in a row
+   (within about 75 s) the replica moves back to the higher-priority provider and the warning clears.
+5. Recovery is complete when `/ready` answers 200, `/health` names the provider you expect, and a
+   payment settles.
+
+**Escalation:** secondary on-call after 15 minutes.
+
+**Exercise:** `rpc-failure` (the only provider stops answering) and `rpc-failover` (the primary of two
+providers fails, the secondary takes over, then the primary returns).
+
+### Sequence conflicts
+
+`Rail402SequenceConflict`: a channel account's sequence number was used by a transaction the service did
+not send.
+
+1. List the channel account's recent transactions; identify the one the service did not send.
+2. Check whether another deployment or tool holds the same sponsor seed; stop it.
+3. If no one you know sent it, treat the seed as compromised: rotate it now (signer rotation).
+4. Settle a new payment; the affected settlement is finished from its recorded envelope or refused with a
+   stable code. An `exact` one is refused only once the payer's authorization expired unused (anyone holding
+   the payment can carry it until then); only then can the payer pay again without paying twice.
+
+**Escalation:** the key custodian and the security contact at once when the sender is unknown.
+
+**Exercise:** `sequence-conflict`.
+
+### Expired authorizations
+
+A seller reports refusals such as `invalid_exact_stellar_signature_expired`: it called `/settle`
+after the authorization's expiration ledger. No alert fires: the service behaves as designed.
+
+1. Read the refusal code and the payment's `maxTimeoutSeconds`.
+2. Tell the seller to settle as soon as it serves, or to raise `maxTimeoutSeconds`; the buyer pays again
+   with a fresh authorization. Nothing was moved and no fee was spent.
+3. If many sellers see it at once, compare the service's clock and ledger reading with the network's
+   (`rail402_rpc_ledger_age_seconds`).
+
+**Escalation:** none unless the clock check fails.
+
+**Exercise:** `expired-authorization`.
+
+### Channel-pool exhaustion
+
+`Rail402ChannelLeaseTimeouts` or `Rail402ChannelsExhausted`: settlements wait for, or fail to get, a
+channel account.
+
+1. Look at settlement duration and RPC health: slow confirmation keeps channels leased longer.
+2. Refusals are retryable (`channel_unavailable`), and nothing is recorded for them; sellers retry.
+3. For sustained load, raise `CHANNEL_COUNT` and provision the new channels.
+
+**Escalation:** secondary on-call after 30 minutes.
+
+**Exercise:** `channel-exhaustion`.
+
+### Sponsor depletion
+
+`Rail402SponsorBalanceLow`, then `Rail402SponsorGuardRefusing` and `/ready` failing.
+
+1. Check the spend rate (`rail402_sponsor_fees_committed_stroops`): normal growth, abuse, or a payment out
+   of the sponsor account.
+2. If it is abuse, stop the caller first (revoke its key or rate-limit it).
+3. Top up from the treasury with a reviewed payment to the recorded sponsor address
+   (`deploy/keys/cli.ts top-up`); the next health poll restores readiness without a restart.
+
+**Escalation:** the key custodian owns the top-up; primary on-call if they do not answer in 30 minutes;
+the security contact when the spend comes from a payment out of the sponsor account.
+
+**Exercise:** `sponsor-depletion`.
+
+### Degraded indexing
+
+`Rail402SearchIndexBuildFailed`, `Rail402CatalogOutboxBacklog` or `Rail402ExplorerLag`.
+
+1. Search keeps answering lexically, with `partialResults`; read the search warning in `/health`.
+2. Restore the embedding model files (or the origin or ledger source that stalls), then restart the
+   replicas one at a time. A restart with lexical search only is a safe interim state.
+3. The catalog outbox and the Explorer indexer catch up by themselves; nothing is lost. An indexer whose
+   discovery source failed walks every route on from its checkpoint once the source answers again,
+   without a restart, and indexes the payments settled meanwhile.
+
+**Escalation:** secondary on-call when degraded for a day.
+
+**Exercise:** `degraded-indexing-bazaar` (the embedding model is missing at a restart) and
+`degraded-indexing-explorer` (the Explorer indexer falls behind).
+
+### Disk space
+
+`Rail402DiskAlmostFull` or `Rail402DiskFillingFast`.
+
+1. Find what grows: Postgres' WAL (an archive failure: `Rail402WalArchiveFailing` fires too), container
+   logs, images and build caches, or dumps kept on the host.
+2. Fix the cause first: restore the backup repository's access, rotate logs, move dumps off the host.
+3. Free space only through the owner of each item. Never remove WAL or data files by hand, and never prune
+   images, volumes or caches another service on the same host uses.
+4. Recovery is complete when the alert clears and the database accepts writes (one payment settles).
+
+**Escalation:** secondary on-call at once when the database's filesystem is the one filling.
+
+## Rollback
+
+Roll back to the previous release when a deploy causes a page, before looking for the cause.
+
+1. **Release.** Deploy the previous release through the same path and the same gate: its tag and its
+   images by the digests recorded at release time (`deploy/check-deployable.ts` checks them again). The
+   replicas restart one at a time while the other answers `/ready`, so a rollback causes no downtime. A
+   deployment that keeps earlier releases installed can switch back to one without fetching it again.
+2. **Configuration.** When only a setting changed, put the previous file back (keep the previous copy of
+   every settings file with each deploy), run `check-config` and restart the replicas one at a time. The
+   settings digest the service logs at startup (`network settings loaded`) and `check-config` prints shows
+   whether the running settings are the ones you meant.
+3. **Migrations only move forward.** Every migration is expand-only (columns and tables are added, never
+   renamed or dropped in the release that introduces the change), so the previous release runs against
+   the newer schema; a rollback never reverts a migration, and no down-migrations exist. When a release
+   breaks that rule, or a migration damaged data:
+   - prefer a forward fix: a new release with a migration that repairs the schema or the rows;
+   - otherwise restore the backup taken before the upgrade ([Restoring a backup](#restoring-a-backup)) and
+     deploy the earlier release. Writes made since that backup are lost from the database (settlements,
+     catalog changes, usage); payments that landed meanwhile stay final on chain, cannot settle twice
+     (their nonces are spent), and their sellers already have their answers. `upto` zeros settled
+     off-chain meanwhile spent no nonce: the restore is recorded and holds `upto` settlements that move
+     funds until their authorizations have expired (step 5 there). An earlier release that predates the
+     record does not hold: start its replicas only once the hold of step 5 there (about 25 minutes at the
+     defaults) has passed since they stopped. Compare the chain with the restored records
+     for that window and tell affected sellers.
+4. Check `/ready`, `/ready/<network>`, `/supported` and one payment; then record the rollback and its cause.
+   A fix ships as a new release, never as an edited one.
+
+**Escalation:** the release approver approves the rollback and the next release.
+
+## Restoring a backup
+
+Restore only when data is lost or damaged; a database that is merely down needs to be started. Write
+down the time of the decision: the recovery time is measured from it.
+
+1. Choose the restore point: a point in time just before the damage (continuous WAL archiving), or the
+   newest logical dump taken before it. Keep the sponsor secrets of that time: the channel accounts in the
+   database belong to that sponsor seed.
+2. Stop the replicas (`/ready` fails; the status page shows the outage) and take a fresh dump of the
+   current database first, so the restore itself can be undone.
+3. Restore:
+   - **Point in time.** Restore with pgBackRest into an empty data directory and start Postgres on it
+     (`deploy/postgres/restore-drill.sh` shows each step, ending in `pgbackrest restore --type=time`).
+     Before any replica starts, record the restore as the owner role:
+     `INSERT INTO settlement_rewinds (reason) VALUES ('point-in-time recovery');`. A point from before the
+     release that added the table has no table yet: step 4's migration creates it and records the restore
+     itself (it counts any database migrated earlier than it as restored), so check it in step 5.
+   - **Logical dump.** `deploy/postgres/restore-dump.sh --owner <owner role> --app <runtime role> <dump>`
+     replaces the `public` schema in one transaction (anything less than a complete restore rolls back and
+     leaves the database as it was), creates every object as the owner, records the restore in
+     `settlement_rewinds` (creating the table for a dump older than it) and re-applies `grants.sql`. Without
+     the role options every object belongs to the connecting superuser, as in a one-role setup. On a new
+     database server, create the roles first (`roles.sql`, then `grants.sql`).
+   - **Explorer.** Restore its dump the same way into its own database, as its owner, then run its
+     `grants.sql` (it can also be rebuilt from the chain with its rebuild command; the dump is faster). The
+     indexers continue from the dump's last ledger.
+4. Bring the schema up to the running release: the release's migrations as the owner
+   (`node dist/migrate.js` with `DATABASE_MIGRATION_URL`, and the Explorer's migrate role), then `grants.sql`
+   again. A dump from before an upgrade comes back at its own level; the tables a newer migration added are
+   dropped with the schema and created again here.
+5. Check that the restore is recorded (`SELECT max(rewound_at) FROM settlement_rewinds` is the restore's
+   time), then start the replicas. Settlements recorded as submitted are finished from their recorded
+   envelopes and the chain; a payment already on chain can never settle twice because its nonce is spent.
+   An `upto` zero settled off-chain after the restore point spent no nonce, and its record is gone: on
+   every network serving `upto`, whatever its `UPTO_ZERO_SETTLEMENT` and ledger time are now, `/verify`
+   refuses every `upto` payment (it cannot tell yet whether the payment will settle zero) and every `upto`
+   settlement of more than zero is refused, both with `settle_upto_stellar_authority_unavailable`
+   (retryable, naming the ledger it ends after), until the chain has passed the longest window rule 7 can
+   accept, counted from the first ledger the service's network poll reads after the restore from a
+   provider of that network whose newest ledger is current (requests hold from their own reading until
+   then): about 25 minutes at the default `TIMEOUT_MAX_SECONDS` and 5-second ledgers. None of those
+   authorizations can then be charged again. `exact` payments and a `/settle` of zero (for a payment
+   verified before the hold) go through. A network reset (testnet, or a local network started again)
+   starts the hold once more from the new chain's ledger once two passing network polls have seen the new
+   chain, current, from a provider of that network (never on pubnet; a request's reading never moves it).
+   After a testnet reset the polls pass only once the sponsor exists again. To end a hold at once after
+   checking, set the recorded ledger to 0 as the owner:
+   `UPDATE settlement_rewind_ledgers SET ledger = 0 WHERE network = '<network>'`.
+6. Check `/ready`, settle one payment, and compare the latest settlement records with the chain. Check
+   that the runtime role can read and write rows and cannot create a table.
+
+**Measured.** A rehearsal on 2026-10-26 restored a hosted testnet's newest dumps into throwaway Postgres
+servers, with the live database only read. The facilitator's dump (312 KB, taken before the deploy that
+added a migration) restored in 0.2 s and migrated forward in under 1 s; every table matched the live rows
+as of the dump time and the schema matched live, and with the owner and runtime roles the runtime role kept
+row access everywhere except the migration log (read-only) and the listing history (insert-only), with no
+DDL. The Explorer's dump (9.3 MB) restored with its grants in about 4 s, its grants, owners and default
+privileges identical to live. The host's restore script, run end to end in a separate project with
+stand-in replicas (stop, restore, migrate, grants, start), took 3 s with one role, 4 s with the owner's
+migration step and 8 s for the Explorer, and a truncated dump rolled back with the data and the replicas as
+they were. With replica start-up (about 3 s to listening, up to 15 s
+until the health check sees it), the **recovery time is under 2 minutes** from the decision at that size. It
+grows with the database: rehearse again as it grows, and before relying on a new backup store.
+
+**Escalation:** the release approver approves a restore; the key custodian when the sponsor secrets of
+that time must be brought back.

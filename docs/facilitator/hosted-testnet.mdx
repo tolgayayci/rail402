@@ -71,7 +71,7 @@ curl {{facilitatorUrl}}/health
 ```json
 {
   "status": "ok",
-  "version": "0.4.2+…",
+  "version": "0.5.0+…",
   "state": "healthy",
   "checkedAt": "…",
   "networks": { "…": "…" }
@@ -90,6 +90,7 @@ curl {{facilitatorUrl}}/ready
   "ready": true,
   "checks": {
     "database": { "ok": true },
+    "stellar:testnet:serving": { "ok": true },
     "stellar:testnet:rpc": { "ok": true },
     "stellar:testnet:sponsor": { "ok": true, "detail": "99993241283 stroops" },
     "stellar:testnet:assets": { "ok": true, "detail": "USDC:7, TEST6:6" },

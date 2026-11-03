@@ -187,6 +187,22 @@ without a transaction; that is safe only because no one but its own settlement a
 authorization, and only while that record lasts until the authorization expires. The service therefore
 refuses to start with `offchain` and `STORE=memory`, and an in-process facilitator needs its settlement
 ledger set explicitly: an in-memory ledger forgets the record on restart and is not seen by other processes.
+A database restored from a backup, or recovered to a point in time, loses the records written after that
+point, so every restore is recorded (`settlement_rewinds`), and the facilitator then settles no `upto`
+payment that moves funds until every authorization from before the restore has expired: until the chain has
+passed the longest window rule 7 can accept (`TIMEOUT_MAX_SECONDS` in 1-second ledgers, the shortest it
+counts, plus seven), about 25 minutes with the defaults and 5-second ledgers. This holds whatever ledger
+time and `UPTO_ZERO_SETTLEMENT` are set now, since zeros settled off-chain before the restore spent no
+nonce. Meanwhile `/verify` and a `/settle` of more than zero answer
+`settle_upto_stellar_authority_unavailable` (retryable, naming the ledger it ends after); a `/settle` of
+zero still settles. The hold counts from a ledger that `recordRestoreHold` records from a provider of the
+network whose newest ledger is current; requests never record or move it, and hold from their own reading
+until it is recorded. The Rail402 service runs `recordRestoreHold` in its network poll, which also starts
+the hold once more from a test network's new chain after a corroborated reset (never on pubnet). An
+in-process facilitator runs it from a periodic task of its own, with its provider's newest ledger, close
+time and `getNetwork` passphrase; without it, `upto` stays held after a restore until the owner records the
+ledger. That includes the restore the migration adding the record counts for a database that already holds
+settlements or was migrated earlier.
 
 The residual allowance of a partial settlement (at most `cap − amount`) cannot be spent by anyone: only the
 settlement contract is the spender, and its only way to spend requires a fresh signature from the payer and

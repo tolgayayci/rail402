@@ -72,6 +72,15 @@ same-origin redirects (URL probes) follow at most 3 hops on the same host and po
 http URL may upgrade to https on the same host, and https never downgrades. `303` (and `301`/`302` after a POST)
 continue as a body-less `GET`, as `fetch` does.
 
+A redirect's body is never read, whether the redirect is refused or followed, and neither is a body sent with a
+`205`. The connection is kept for another request only when the exchange is already over both ways: that body
+arrived whole with the response headers, and the server took the whole request body. Otherwise it is closed at
+once. Any answer that ends before the server took the whole request body (a server that answers an upload
+without reading it) closes its connection too, and so does an answer that goes on after the end of its
+compressed body (bytes after a deflate or br stream, or gzip padding), once that body is read. A server
+therefore cannot hold a connection open past the request's limits, with a slow body, with data after a
+compressed body or with an upload it never reads.
+
 ## Local development
 
 For a seller on your own machine, testnet buyers can allow plain http and loopback destinations explicitly.

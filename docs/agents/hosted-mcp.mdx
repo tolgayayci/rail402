@@ -1,0 +1,132 @@
+---
+title: "Hosted discovery MCP"
+description: "rail402-mcp --hosted: a public, keyless, read-only MCP endpoint that searches the Bazaar and never pays."
+---
+
+`rail402-mcp --hosted` runs the MCP server as a public endpoint for discovery. It serves two read-only
+tools per network and nothing else: it holds no key, has no tool that pays, quotes or fetches a seller URL,
+and requests nothing but the one Bazaar it is configured with. An agent finds resources through it and pays
+them with its own [local rail402-mcp](/agents/mcp-server), [CLI](/agents/cli) or [SDK](/agents/sdk), under
+its own key and caps, by `listingId`.
+
+## Tools
+
+| Tool                       | Input                                     | Result                                                                                                                                     |
+| -------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `search_stellar_resources` | the same input as the local server's tool | the same results: prices in whole units, `withinPolicy` and `callable` judged against the network's default spending policy, a `listingId` |
+| `get_stellar_listing`      | `{ listingId }`                           | `{ ok, network, listing }`: the listing as a search result plus its `state` (`pending`, `published`, `quarantined`)                        |
+
+Both are annotated `readOnlyHint`. Seller-provided text is bounded and marked as untrusted data in the
+same way as on the local server, and the server instructions say so. A search returns at most 10 results.
+
+## Endpoints
+
+Each network has its own path: `/mcp/testnet` and `/mcp/pubnet`. The network is fixed by the path; every
+discovery request carries it. The transport is Streamable HTTP, stateless:
+
+- `POST` only. `GET` and `DELETE` answer `405` with `Allow: POST`; no stream is opened and no session id is
+  ever returned (2025 clients are served statelessly, 2026-07-28 clients per request).
+- The `Host` header must be one of `PUBLIC_HOSTS` (DNS rebinding protection); a request for another host is
+  refused with `403`. Any `Origin` is accepted: there are no credentials and no state to protect.
+- One request carries one JSON-RPC message. A batch (a JSON array) is refused with `400` and a JSON-RPC
+  `-32600` error whose `data.code` is `rpc_batch_unsupported`, so every limit below bounds tool calls, not
+  just HTTP requests.
+- Each client (an IPv4 address, or an IPv6 /64) may make 60 requests per minute; beyond that the answer is
+  `429` with `Retry-After: 60` and a JSON-RPC error whose `data.code` is `rpc_rate_limited`.
+- At most 8 requests run at once; beyond that the answer is `503` with `rpc_overloaded` (retryable).
+- All clients together may make 300 tool calls per minute, each at most one Bazaar request; beyond that the
+  answer is `503` with `Retry-After: 10` and `rpc_upstream_budget` (retryable). `initialize` and
+  `tools/list` reach no Bazaar and are not counted.
+- Request bodies are at most 64 KiB (`413` beyond). A Bazaar request that takes longer than 3 seconds ends
+  the tool call with `discovery_unavailable` (retryable).
+
+The limits are kept in memory by one process: run a single replica, or divide the budgets by the number of
+replicas.
+
+### The Bazaar's own limit
+
+Without an access key, every tool call reaches the Bazaar from the endpoint's one address, so the Bazaar
+counts all hosted users as one keyless client and charges every search to that address's discovery budget.
+One busy remote client can then use up discovery for every other hosted user until the minute passes.
+
+Give the endpoint a Bazaar access key with the `discovery-internal` scope instead (see
+[internal discovery callers](/configuration#access-keys)). Put the raw key (`r402_<id>_<secret>`) in a file
+readable only by the process and name the file with `RAIL402_MCP_UPSTREAM_KEY_FILE`; the key is never read
+from an environment variable (`RAIL402_MCP_UPSTREAM_KEY` is refused with `config_hosted_invalid`) and never
+logged. Every Bazaar request then carries `Authorization: Bearer <key>` and `X-Rail402-Client`, an
+identifier of the remote client (an HMAC-SHA256 of its rate-limit key, its IPv4 address or IPv6 /64, under
+the access key, cut to 32 hex characters), so the client's address is never sent and every replica holding
+the same key forwards a client the same way. The identifier is a pseudonym, not anonymity: the facilitator's
+operator holds the key and could compute it for every IPv4 address to find a client's. The Bazaar draws the endpoint's requests from the key's
+own bucket and, when the key record sets `forwardedClientRequestsPerMinute`, gives each remote client its own
+budget. A record for the endpoint looks like this:
+
+```json
+{
+  "id": "hosted-mcp",
+  "sha256": "<sha256 of the raw key>",
+  "networks": [],
+  "scopes": ["discovery-internal"],
+  "discoveryRequestsPerMinute": 3000,
+  "forwardedClientRequestsPerMinute": 60,
+  "createdAt": "2026-10-23T00:00:00Z"
+}
+```
+
+`RAIL402_MCP_UPSTREAM_PER_MINUTE` still bounds the endpoint as a whole: keep it below the key's
+`discoveryRequestsPerMinute` so the endpoint answers `rpc_upstream_budget` itself.
+
+The Bazaar also limits how many discovery requests one client may have at once
+(`DISCOVERY_MAX_IN_FLIGHT_PER_CLIENT`, 8 by default). With a key whose record sets
+`forwardedClientRequestsPerMinute`, each remote client has that share to itself; with a key without it, the
+endpoint's requests are bounded only by the Bazaar's overall discovery limits; without a key, all hosted users
+share one address's 8.
+
+## Run it
+
+```bash
+docker build -f packages/mcp/Dockerfile -t rail402-mcp-hosted .
+docker run --rm -p 8080:8080 \
+  -e RAIL402_MCP_UPSTREAM=https://testnet.rail402.dev \
+  -e PUBLIC_HOSTS=mcp.example.com \
+  -e RAIL402_MCP_NETWORKS=stellar:testnet \
+  -e TRUSTED_PROXY_HOPS=0 \
+  rail402-mcp-hosted
+```
+
+`TRUSTED_PROXY_HOPS` has no default. Behind a reverse proxy, set it to the number of proxies in front, and
+have each proxy append (not replace) `X-Forwarded-For`; with `0` behind a proxy, every client shares the
+proxy's one rate limit. When requests carry `X-Forwarded-For` while it is `0`, the process logs a warning
+once and counts each such request in `rail402_mcp_warnings_total{reason="forwarded_without_trusted_proxy"}`.
+
+| Variable                          | Meaning                                                                                                        |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `RAIL402_MCP_UPSTREAM`            | Required. The http(s) base URL of the Bazaar's discovery API; the only destination the process ever requests   |
+| `PUBLIC_HOSTS`                    | Required. Comma-separated host names the endpoint answers to                                                   |
+| `RAIL402_MCP_NETWORKS`            | `stellar:testnet,stellar:pubnet` by default                                                                    |
+| `PORT`, `HOST`                    | The MCP listener, default `8080` on `0.0.0.0`                                                                  |
+| `METRICS_PORT`                    | `/metrics` on its own listener, default `9464`; keep it on an internal network                                 |
+| `TRUSTED_PROXY_HOPS`              | Required. Proxies in front whose `X-Forwarded-For` entries identify the client; `0` uses the socket address    |
+| `RAIL402_MCP_RATE_PER_MINUTE`     | Requests per client per minute, default `60`                                                                   |
+| `RAIL402_MCP_UPSTREAM_PER_MINUTE` | Tool calls per minute across all clients, default `300`; keep it below the Bazaar budget the endpoint draws on |
+| `RAIL402_MCP_UPSTREAM_KEY_FILE`   | A file holding the Bazaar `discovery-internal` access key; sent with a per-client `X-Rail402-Client`           |
+| `RAIL402_LOG_LEVEL`               | `info` by default; logs are JSON lines on stderr                                                               |
+
+The process refuses to start, with one JSON line on stderr and exit status 78, when any of
+`RAIL402_SECRET_KEY`, `RAIL402_SECRET_KEY_FILE` or `RAIL402_MCP_TOKEN` is set, even to an empty value
+(`config_hosted_key_present`), or when its configuration is invalid (`config_hosted_invalid`). Hosted mode
+is chosen before anything else is loaded, and everything it loads is built on `@rail402.dev/sdk/discovery`:
+the process never imports the SDK's key loading, signing guard, budget ledgers, payment flows or scheme
+clients, nor the local server's payment tools. A test records the module graph of a running hosted process
+and fails if any of them appears.
+
+## Metrics
+
+`GET /metrics` on `METRICS_PORT` serves, in the Prometheus text format:
+
+- `rail402_mcp_calls_total{network, tool, outcome}`: tool calls; `outcome` is `ok` or the error code;
+- `rail402_mcp_refusals_total{reason}`: requests refused before a tool ran (`host`, `rate_limited`,
+  `overloaded`, `upstream_budget`, `batch`, `too_large`, `method_not_allowed`, `not_found`);
+- `rail402_mcp_warnings_total{reason}`: requests that show a deployment problem
+  (`forwarded_without_trusted_proxy`);
+- `rail402_mcp_upstream_seconds_count` and `_sum`: time spent on Bazaar requests.

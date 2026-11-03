@@ -5,10 +5,11 @@ description: rail402 searches the Stellar Bazaar, pays x402 resources under a sp
 
 `rail402` (package `@rail402.dev/cli`) is the [buyer SDK](/agents/sdk) on the command line. Every payment
 needs `--max`, passes the spending policy and the signing guard, and prints a receipt with the transaction
-hash and its explorer link.
+hash and its link in the [Rail402 Explorer](/explorer) (`RAIL402_EXPLORER=stellar.expert` links to
+stellar.expert instead).
 
 ```sh
-npm install -g @rail402.dev/cli@0.4.2
+npm install -g @rail402.dev/cli@0.5.1
 rail402 --help
 ```
 
@@ -36,8 +37,8 @@ rail402 tx <transaction hash>                  # who sponsored it, what moved, t
 | `session show\|list\|start\|end\|reconcile` | no    | Budget windows: `--name --max-total --ttl --force`                                                           |
 | `keys new\|import\|show\|path`              | no    | Local key files; `import` reads the seed from stdin (hidden on a terminal); only public data is printed      |
 | `account setup\|status`                     | setup | Testnet: Friendbot, trustline, `--usdc <n>` from the testnet exchange. Pubnet: trustline only, after `--yes` |
-| `seller check <url>`                        | no    | Checks a paid resource the way the catalog will (`--method --tool --args`)                                   |
-| `seller validate <file>`                    | no    | Validates a saved `PAYMENT-REQUIRED` (JSON or base64)                                                        |
+| `seller check <url>`                        | no    | Checks a paid resource the way the catalog will (`--method --tool --args --discovery-allow-loopback`)        |
+| `seller validate <file>`                    | no    | Validates a saved `PAYMENT-REQUIRED` (JSON or base64) (`--method --discovery-allow-loopback`)                |
 | `version`                                   | no    |                                                                                                              |
 
 Call input for `pay`, `purchase` and `quote`: `--method`, `--query k=v` (repeatable), `--header "k: v"`,
@@ -47,8 +48,15 @@ Call input for `pay`, `purchase` and `quote`: `--method`, `--query k=v` (repeata
 `--idempotency-key <key>`. Repeating a paid command with
 the same `--idempotency-key` never pays twice. It returns the stored result with `replayed: true`, or the
 stored error while the payment's outcome is open. It checks that payment on chain first, and pays again only
-once the chain shows the earlier authorization expired unused. A key used again for another resource in the
-same window is refused with `payment_request_invalid`.
+once the chain shows the earlier authorization expired unused. The key belongs to the payer on its network:
+it holds in later budget windows and sessions too, since the SQLite ledger keeps it. A key used again for
+another resource is refused with `payment_request_invalid`.
+
+`seller check` and `seller validate` judge a resource as the hosted catalog does, which lists public hosts
+only: a loopback or private resource URL is reported as `bazaar_resource_unsafe` with the catalog's reason, and
+the command exits 3. `--allow-http` and `--allow-private-network` only let `seller check` reach a seller on this
+machine; they never change the verdict. `--discovery-allow-loopback` judges as a self-hosted testnet catalog run
+with `DISCOVERY_ALLOW_LOOPBACK=true` does, which also lists loopback hosts; pubnet refuses it.
 
 ## upto resources
 
@@ -97,7 +105,11 @@ logs and `--verbose` payment events go to stderr.
 | `seller check`     | `{ url, type, ok, status, paymentRequired, validation, findings, receivable, domain }`                                                                                                                                                                               |
 
 Amounts are decimal strings in whole units of the asset (`"0.015"`); `atomic` fields are base units. JSON
-output escapes C1 control characters and bidirectional overrides, so seller text printed to a terminal is inert.
+output escapes C1 control characters and bidirectional overrides, so seller text printed to a terminal is inert;
+the values themselves are exactly as received. Human output strips control characters (C0 and C1, so no ESC
+starts a CSI or OSC sequence) and bidirectional overrides from every value a seller, the Bazaar or the network
+sent. One-line values such as a quote's scheme, amount, asset and `payTo` also have their line breaks and tabs
+turned into spaces; a response body keeps its lines, but a carriage return becomes a line break.
 
 ## Exit statuses
 
@@ -118,7 +130,17 @@ A script can tell from the status alone whether retrying is safe.
 paid command whose receipt status is `unknown` also exits 5, with an `ok: true` document. Status 3 also covers
 a signed payment that never reached the seller (`payment_settlement_unconfirmed` or `egress_request_too_large`
 with `paid: none`): nothing was paid, but its reserved budget stays pending until the authorization expires.
-Any failure after a payment was sent, including a budget ledger that cannot be written, reports `paid: unknown`. The
+Any failure after a payment was sent, including a budget ledger that cannot be written, reports `paid: unknown`.
+`retryable` says whether running the same command again can succeed. A paying command signs a new payment
+each time it runs, so for `payment_rejected` both `retryable` and `paid` come from the facilitator's code the
+seller passed on (`details.upstream.code`), from the same table the SDK and rail402-mcp use: `true` when the
+facilitator's code is retryable, such as `settle_exact_stellar_channel_unavailable` or a rate limit; `false`
+when the request itself must change, when the facilitator calls the payment final, or for a code the CLI does
+not know. A refusal after which the payment may still settle reports `paid: unknown` and exits 5, because a new
+payment could pay twice: `settlement_pending`, `…_settlement_in_progress`, `…_idempotency_conflict`,
+`…_transaction_submission_failed` (also sent for a submission the network already holds),
+`settle_exact_stellar_transaction_failed` and `settle_upto_stellar_settled_elsewhere`. See
+[refused payments](/reference/error-codes#refused-payments). The
 [error-code reference](/reference/error-codes#client-codes) lists the exit status of every code.
 
 ## Configuration
@@ -131,13 +153,49 @@ attribution and `seller check`; defaults to the Bazaar URL), `RAIL402_FRIENDBOT_
 `maxPerCall`, `maxTotal`, `assets`, `keyFile`, `schemes`, `uptoContracts`, …) and is refused if it holds anything that looks like a secret
 key.
 
-The key is found in this order: `--key-file`, `RAIL402_SECRET_KEY_FILE`, `RAIL402_SECRET_KEY`, the config
-file's `keyFile`, then the default key file for the network
-(`$XDG_CONFIG_HOME/rail402/keys/stellar-testnet.key`). `keys new` and `keys import` never overwrite a file
-(`key_exists`).
+The key is found in this order: `--key-file`, `RAIL402_SECRET_KEY_FILE`, `RAIL402_SECRET_KEY` (testnet only),
+the config file's `keyFile`, then the default key file for the network
+(`$XDG_CONFIG_HOME/rail402/keys/stellar-testnet.key` or `stellar-pubnet.key`). `keys new` and `keys import`
+never overwrite a file (`key_exists`) and tag it with the `--network` it is for; `keys show` prints the tag.
+`keys import` reads a bare seed or a tagged key file (such as the Playground's download, which is tagged for
+testnet) from stdin, and refuses a file tagged for another network than `--network` with
+`key_network_mismatch`.
 
 Global flags: `--network stellar:testnet|stellar:pubnet`, `--rpc-url`, `--bazaar-url`, `--facilitator-url`,
 `--key-file`, `--config`, `--json`, `--verbose`, `--timeout <seconds>` (default 120), and, for local
 development on testnet only, `--allow-http` and `--allow-private-network`. On `stellar:pubnet` the RPC and Bazaar
 URLs and both caps are required, `account setup` needs `--yes` and never uses Friendbot, and `--usdc` is
 refused with `cli_command_not_supported_on_network`.
+
+### Paying on pubnet
+
+```bash
+export RAIL402_RPC_URL=https://your-pubnet-rpc.example RAIL402_BAZAAR_URL=https://your-bazaar.example
+export RAIL402_MAX_PER_CALL="0.05 USDC" RAIL402_MAX_TOTAL="1.00 USDC"
+rail402 --network stellar:pubnet keys new          # writes keys/stellar-pubnet.key, tagged for pubnet
+rail402 --network stellar:pubnet account setup --yes
+rail402 --network stellar:pubnet purchase "weather in Istanbul" --max 0.01
+```
+
+- Before a pubnet payment is signed, `pay` and `purchase` show the network, amount, token, recipient,
+  resource, listing and, for upto, the settlement authority on the terminal and ask `Pay? [y/N]`. Each
+  command is its own buyer, so the answer covers that one payment. Only `y` or `yes` pays; anything else is
+  `payment_confirmation_declined` and nothing is signed. `--yes` skips the question for scripts. Without a
+  terminal and without `--yes`, the payment is refused with `payment_confirmation_unavailable`.
+- The question protects a person at the terminal from mistakes. It is not a control against an agent that
+  runs the CLI: an agent with a shell can pass `--yes` or answer its own terminal. For an agent, use
+  [`rail402-mcp`](/agents/mcp-server#confirming-pubnet-payments), whose confirmation the MCP client shows to
+  the person, and rely on the caps, the tagged pubnet key file and the spending policy, which the CLI enforces
+  whatever the answer.
+- A keyed pubnet budget is kept in the SQLite ledger: `RAIL402_BUDGET_STORE=memory` is refused there, since
+  every run would start with a full budget.
+- upto on pubnet needs its settlement authorities pinned: `RAIL402_UPTO_FACILITATORS`, or `--facilitator-url`
+  pointing at a facilitator whose `/supported` advertises them; otherwise the buyer refuses to open with
+  `payment_policy_invalid`.
+- The key file must be tagged for pubnet (`key_network_untagged` for an untagged file unless
+  `RAIL402_ALLOW_UNTAGGED_KEY=true`, `key_network_mismatch` for a testnet key). A seed in
+  `RAIL402_SECRET_KEY` is never used on pubnet.
+- USDC caps above 1 USDC per call or 10 USDC per window, and caps on any other pubnet asset, are refused
+  with `payment_cap_invalid` unless `RAIL402_ALLOW_LARGE_CAPS=true`.
+- The default budget window does not renew on pubnet: after 24 hours, start a new one with
+  `rail402 session start --force`, or set `RAIL402_SESSION_AUTO_RENEW=true`.

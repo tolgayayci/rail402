@@ -97,7 +97,11 @@ Each settlement is keyed by the payer's authorization (network, payer, nonce).
 
 - A repeated `/settle` for the same payment returns the recorded result, and funds move once. The
   ledger is consulted first, so this holds even after the authorization expired or while the sponsor
-  guard refuses new settlements. The repeat is marked for the seller in `EXTENSION-RESPONSES`.
+  guard refuses new settlements. The repeat is marked for the seller in `EXTENSION-RESPONSES`
+  (`rail402.settlement`: `repeat`, `settledBy`, and `attempt`, the attempt id the request holding the
+  settlement's claim when the repeat is answered carried in `extensions.rail402.settlement.attempt`: the one
+  that started it, or the one that took its stale claim over. A seller can tell its own attempt's settlement
+  from another's).
 - A different request for an authorization already held (another envelope, recipient, asset or
   amount) is refused (`settle_exact_stellar_idempotency_conflict`, or `settle_upto_stellar_idempotency_conflict`
   for an `upto` settlement asked for another amount).

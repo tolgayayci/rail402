@@ -14,8 +14,11 @@ day returned) and a metered upto tool (`hourly_forecast`, charged per forecast h
 The metered pair is served only while its facilitator serves upto (`METERED=false` leaves it out).
 
 ```sh
-npm install @rail402.dev/sdk@0.4.2 @x402/core@2.27.0 @x402/express@2.27.0 @x402/extensions@2.27.0 @x402/stellar@2.27.0
+npm init -y && npm pkg set type=module
+npm install express@5 @rail402.dev/sdk@0.5.1 @x402/core@2.28.0 @x402/express@2.28.0 @x402/extensions@2.28.0 @x402/stellar@2.28.0
 ```
+
+The examples run on Node.js 24, which runs `.ts` files directly (`PAY_TO=G... node seller.ts`).
 
 ## An HTTP route
 
@@ -25,7 +28,7 @@ import { HTTPFacilitatorClient, x402ResourceServer } from "@x402/core/server";
 import { paymentMiddleware } from "@x402/express";
 import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
-import { exact, httpRoute, param } from "@rail402.dev/sdk/seller";
+import { exact, httpRoute, param, withSettleDedupe } from "@rail402.dev/sdk/seller";
 
 const NETWORK = "stellar:testnet";
 const forecast = httpRoute({
@@ -38,7 +41,9 @@ const forecast = httpRoute({
   output: { example: { city: "Ankara", days: [{ high: 21, low: 9 }] } },
 });
 
-const resourceServer = new x402ResourceServer(new HTTPFacilitatorClient({ url: "{{facilitatorUrl}}" }))
+// Serves each settled payment once: see "Serve each payment once" below.
+const facilitator = withSettleDedupe(new HTTPFacilitatorClient({ url: "{{facilitatorUrl}}" }));
+const resourceServer = new x402ResourceServer(facilitator)
   .register(NETWORK, new ExactStellarScheme())
   .registerExtension(bazaarResourceServerExtension);
 
@@ -72,9 +77,13 @@ the exact verifier cannot match a muxed transfer to it.
 
 A price with more decimals than its asset, a non-positive price or a custom token without decimals throws
 `seller_price_invalid`. `maxTimeoutSeconds` (10-300) sets the authorization lifetime. `paymentFlow: "upfront"`
-settles before the handler runs; pair it with `withSettleDedupe` (below).
+settles before the handler runs. In either flow, wrap the facilitator client with `withSettleDedupe`
+([below](#serve-each-payment-once)).
 
 ## An MCP tool
+
+This continues the HTTP example (`NETWORK`, `resourceServer`, `exact` and `param`) and also needs
+`npm install @x402/mcp@2.28.0 @modelcontextprotocol/sdk@1.32.1`.
 
 ```ts
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -206,11 +215,26 @@ and (when `rpcUrl` is given) whether `payTo` sets the host as its `home_domain` 
 both together make the listing `domain_verified`. The request goes through [safe-fetch](/reference/egress).
 `rail402 seller check <url>` runs the same check from the [CLI](/agents/cli).
 
+The verdict is that of a catalog with the default setting, such as the hosted one: a resource URL on a
+loopback, private or otherwise non-public host is refused with `validation.code` `bazaar_resource_unsafe` and
+the catalog's reason (`Host "localhost" is not a public host.`), and `ok` is `false`. Reaching a host and
+judging it are separate options:
+
+| Option                   | Effect                                                                                                                                                                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `allowLoopback`          | The check's own requests may reach loopback URLs and a plain-http RPC, for a seller on your machine. It does not change the verdict.                                                                                                                           |
+| `discoveryAllowLoopback` | Judge as a testnet catalog run with `DISCOVERY_ALLOW_LOOPBACK=true` ([Try the Bazaar locally](/facilitator/docker#try-the-bazaar-locally)), which also lists loopback hosts. Private addresses stay refused. On pubnet it throws `seller_network_unsupported`. |
+
+`validateListing` takes that catalog setting as `allowLoopback`, with the same pubnet rule.
+
 ## Serve each payment once
 
 An idempotent facilitator answers a repeated `/settle` of the same signed payment with the original success,
-and stock middleware would then serve the resource again. With `paymentFlow: "upfront"`, wrap the facilitator
-client:
+and stock middleware would then serve the resource again. That happens in both payment flows. With
+`paymentFlow: "upfront"`, every copy of a payment goes straight to `/settle`. With the default `authorization`
+flow, verification refuses a copy sent after the payment settled, because its nonce is used, but copies sent at
+the same time all pass `/verify` before the first one settles. Whichever flow your routes and tools use, wrap
+the facilitator client the resource servers are built on:
 
 ```ts
 import { withSettleDedupe } from "@rail402.dev/sdk/seller";
@@ -219,8 +243,44 @@ const facilitator = withSettleDedupe(new HTTPFacilitatorClient({ url: "{{facilit
 ```
 
 A repeat, recognised by Rail402's `extensionResponses.rail402.settlement.repeat` marker or by a transaction
-hash the wrapper has already seen, becomes a settlement failure (`seller_settlement_repeat`) and the middleware
-answers 402. Pass a shared `memory` when the seller runs several replicas. With the default `authorization`
-flow a replayed payment is already refused at verification, because its nonce is used.
+hash the wrapper has already seen, becomes a settlement failure (`seller_settlement_repeat`): the HTTP
+middleware answers 402, and a paid MCP tool call returns the failure instead of the tool's result.
+
+Each `/settle` the wrapper sends carries a new random attempt id (`extensions.rail402.settlement.attempt`).
+Rail402 records the id of the request that holds the settlement's claim and echoes it in every repeat's
+marker, as the settlement stands when the repeat is answered: the request that started the settlement, or,
+when that request's claim went stale (its process died) and another request took it over and settled, the
+request that settled. The marker is set aside for one case only: a marked success that echoes one of the
+wrapper's own attempts which may have settled the payment without a success served for it. That success is
+served once.
+
+- An attempt may have started a settlement without a success when the facilitator answered
+  `settlement_pending` (the stock resource server settles it again at once), or when `/settle` brought no
+  answer of the facilitator's own. Anything but the facilitator's x402 settle body counts as no answer: a
+  timeout, a reset connection, an empty 502 from a proxy while the facilitator restarts, an HTML block or
+  rate-limit page from a CDN or firewall, a reply that is not x402 JSON. A refusal in the facilitator's own
+  x402 body, a rate limit included, is an answer: nothing settled in that call.
+- A marked success that echoes another id is a payment someone else settled: another seller or replica that
+  accepts the same payment, an earlier run of this process, or a request that took over this wrapper's stale
+  claim, also while one of this wrapper's requests was waiting on it. It is refused, whatever the timing, and
+  so is a second success for an attempt already served.
+- A marker without an id, from a facilitator that does not record it, is never set aside: such a seller
+  refuses a buyer whose answer was lost or pending, as before. The recovery needs a Rail402 service that
+  records and echoes the attempt id, so upgrade the service with or before the SDK.
+
+The recovery helps `upfront` routes: with the default `authorization` flow `/verify` refuses a payment that is
+being settled or was, so a buyer's second send never reaches settlement.
+
+A facilitator other than Rail402 receives the `rail402` extension key too, as one it does not know. Pass
+`attemptIds: false` if it should not see it. That also turns the recovery off: with no attempt id to echo, a
+buyer whose settlement was pending or whose answer was lost is refused with `seller_settlement_repeat` when
+the facilitator marks the repeat, as before the attempt ids.
+
+When the facilitator sends no marker, the wrapper's `memory` alone recognises repeats: give every wrapper that
+can accept the same payment (replicas, or other routes or apps with the same recipient, asset and amount) one
+shared `memory`, such as a `SettlementMemory` backed by a table with a unique key.
+
+The demo seller (`apps/demo-seller`) wraps its client this way: every route and tool, exact and upto, settles
+through one wrapper, so they share one memory.
 
 Every seller helper code is listed in the [error-code reference](/reference/error-codes#seller-helpers).

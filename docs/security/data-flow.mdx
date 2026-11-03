@@ -1,0 +1,93 @@
+---
+title: Data flow
+description: How payments, discovery data, keys and operational signals move between Rail402's parts, and which trust boundary each flow crosses.
+---
+
+This diagram shows a Rail402 deployment as the [threat model](/security/threat-model) describes it. Every
+dashed group is a trust boundary from the threat model's [boundary table](/security/threat-model#trust-boundaries),
+and every arrow is a flow that crosses one or stays inside one. A component is added here in the same change
+that adds its threats to the registry.
+
+```mermaid
+flowchart LR
+  subgraph EXT[Outside]
+    Buyer[Buyer or agent<br/>SDK, CLI, local MCP server<br/>holds the buyer key]
+    Seller[Seller resource server]
+    Operator[Operator workstation]
+    Cold[(Cold treasury<br/>hardware wallet)]
+  end
+
+  subgraph TB17[TB17 The host and co-located services]
+    Edge[Edge proxy<br/>TLS, logs without payment headers or API keys]
+    subgraph TB9[TB9 One facilitator service: testnet and pubnet]
+      API[HTTP API<br/>/verify /settle /supported<br/>/discovery /usage /metrics /ready /health]
+      Engine[Settlement engine per network<br/>channel accounts, fee bumps]
+      Guard[Sponsor guard per network<br/>fee ceiling, reserve, hourly budget]
+      Catalog[Bazaar catalog and search]
+      Keeper[upto contract TTL keeper]
+    end
+    subgraph TB4[TB4 State]
+      Secrets[(Secret files<br/>sponsor seeds, database URLs, access keys)]
+      PG[(Postgres<br/>owner role for migrations, runtime role for requests)]
+      Backups[(Encrypted WAL archive<br/>object-locked, off the host)]
+    end
+    subgraph TB14[TB14 Monitoring, internal network only]
+      Prom[Prometheus, blackbox exporter]
+      AM[Alertmanager]
+    end
+  end
+
+  subgraph TB3[TB3 Stellar]
+    RPC[RPC providers]
+    Chain[(Ledger, SAC tokens,<br/>upto contract TB7)]
+  end
+
+  subgraph TB5[TB5 Open internet]
+    Origins[Seller origins and stellar.toml]
+  end
+
+  subgraph OFF[Off the host]
+    Status[TB14 Status page checks<br/>and dead-man's switch]
+    Channels[Alert channels, two on-call roles]
+    CI[TB15 CI, release workflow,<br/>package and image registries]
+  end
+
+  Buyer -- TB1 paid request with a signed authorization --> Seller
+  Seller -- TB2 verify and settle, API key on pubnet --> Edge
+  Edge --> API
+  API --> Engine
+  Engine --> Guard
+  API --> Catalog
+  Catalog -- origin checks through safe-fetch --> Origins
+  Engine -- simulate, submit, confirm --> RPC
+  Keeper --> RPC
+  RPC --> Chain
+  Engine -. reads the sponsor seed .-> Secrets
+  API --> PG
+  PG -- WAL, encrypted --> Backups
+  Prom -- /metrics/private with a token, /ready probes --> API
+  Prom --> AM
+  AM -- pages and tickets --> Channels
+  AM -- heartbeat every minute --> Status
+  Status -- read-only checks --> Edge
+  Operator -- TB15 release gate: signed tag, green CI, image digest --> TB17
+  Operator -- TB10 reviewed top-ups and signer changes --> Cold
+  Cold -- top-up, high-weight signer --> Chain
+  CI -- signed images with provenance --> TB17
+  CI -- npm packages --> Buyer
+```
+
+## What crosses each boundary
+
+| Boundary                              | Flows                                                 | Controls (see the threat model for each)                                   |
+| ------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| TB1 Buyer and seller                  | The paid request and the payer's signed authorization | Signatures bind recipient, asset, amount or cap, and expiry                |
+| TB2 Seller and facilitator            | `/verify`, `/settle`, discovery reads                 | Coded refusals, rate limits, API keys on pubnet                            |
+| TB3 Facilitator and Stellar           | Simulation, submission, confirmation                  | Fee ceilings, recorded envelopes, landing proofs                           |
+| TB4 Facilitator and its state         | Settlement ledger, catalog, secrets                   | File secrets, split database roles, encrypted backups                      |
+| TB5 Facilitator and the open internet | Origin checks, `stellar.toml` fetches                 | safe-fetch: public addresses only, pinned DNS, size and time limits        |
+| TB9 One service, two networks         | Shared process, database, limiter, metrics            | Per-network budgets and readiness, private metrics                         |
+| TB10 Operator key custody             | Seed generation, top-ups, signer changes              | Offline generation, cold high-weight signer, reviewed transactions         |
+| TB14 Monitoring and status            | Scrapes, probes, alerts, heartbeat, external checks   | Internal network only, fixed probe targets, off-host dead-man's switch     |
+| TB15 Source, release and deploy       | Tags, CI, images, packages, deploys                   | CI-gated release with provenance and SBOM, signed tags, deploy gate        |
+| TB17 The host and co-located services | Other tenants, the edge proxy, the host administrator | Per-app networks, no published ports, file secrets, accepted residual risk |

@@ -21,27 +21,38 @@ and refreshes it in the background, while `/settle` waits for a reading no older
 simulation. Rail402 only adds a diagnosis of why a simulation failed (stage 7) and makes settlement
 idempotent and crash-safe (stage 8).
 
+Configuration problems are not rejections: the service stops at startup with the codes in
+[Startup checks](/configuration#startup-checks), and an in-process facilitator throws
+`FacilitatorSetupError` with the codes in [In-process facilitator](/facilitator/in-process#startup-checks)
+(for example `config_pubnet_assets_missing` when pubnet has no explicit accepted assets).
+
 Test files, relative to the repository root:
 
-| Short name     | File                                                                                                                                     |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| app            | `apps/rail402/test/app.test.ts`                                                                                                          |
-| service        | `apps/rail402/test/service.integration.test.ts`                                                                                          |
-| bazaar         | `apps/rail402/test/bazaar.integration.test.ts`                                                                                           |
-| payload        | `packages/stellar/test/payload.test.ts`                                                                                                  |
-| diagnostics    | `packages/stellar/test/diagnostics.test.ts`                                                                                              |
-| preflight      | `packages/facilitator/test/preflight.test.ts`                                                                                            |
-| explain        | `packages/facilitator/test/explain.test.ts`                                                                                              |
-| settlement     | `packages/facilitator/test/settlement.integration.test.ts`                                                                               |
-| idempotency    | `apps/rail402/test/idempotency.integration.test.ts` (in-memory and Postgres ledgers) and `packages/facilitator/test/idempotency.test.ts` |
-| expiration     | `packages/facilitator/test/expiration.integration.test.ts`                                                                               |
-| catalog        | `packages/bazaar/src/testing.ts` (run by `packages/bazaar/test/memory-catalog.test.ts` and the Postgres store tests)                     |
-| security       | `packages/bazaar/test/security.test.ts`                                                                                                  |
-| mcp-origin     | `packages/bazaar/test/mcp-origin.test.ts`                                                                                                |
-| assets         | `tools/conformance/test/assets.integration.test.ts`, payments in tokens of 6, 7 and 18 decimals through the service                      |
-| crash recovery | `apps/rail402/test/crash-recovery.integration.test.ts`, which kills the service process at each step of a settlement                     |
-| upstream e2e   | `tools/conformance/src/upstream-e2e.ts`, the x402 e2e suite run against Rail402                                                          |
-| live matrix    | `tools/conformance/src/live-matrix.ts`, run over HTTP against a deployed Rail402 on the public testnet                                   |
+| Short name        | File                                                                                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| app               | `apps/rail402/test/app.test.ts`                                                                                                          |
+| service           | `apps/rail402/test/service.integration.test.ts`                                                                                          |
+| bazaar            | `apps/rail402/test/bazaar.integration.test.ts`                                                                                           |
+| payload           | `packages/stellar/test/payload.test.ts`                                                                                                  |
+| diagnostics       | `packages/stellar/test/diagnostics.test.ts`                                                                                              |
+| preflight         | `packages/facilitator/test/preflight.test.ts`                                                                                            |
+| explain           | `packages/facilitator/test/explain.test.ts`                                                                                              |
+| settlement        | `packages/facilitator/test/settlement.integration.test.ts`                                                                               |
+| first-submission  | `packages/facilitator/test/first-submission.test.ts`                                                                                     |
+| sequence-conflict | `packages/facilitator/test/sequence-conflict.integration.test.ts`, a channel's sequence number taken from outside mid-settlement         |
+| idempotency       | `apps/rail402/test/idempotency.integration.test.ts` (in-memory and Postgres ledgers) and `packages/facilitator/test/idempotency.test.ts` |
+| expiration        | `packages/facilitator/test/expiration.integration.test.ts`                                                                               |
+| fee-exposure      | `packages/facilitator/test/fee-exposure.integration.test.ts`                                                                             |
+| caller-budget     | `packages/facilitator/test/caller-budget.test.ts`                                                                                        |
+| limits            | `packages/facilitator/test/limits.test.ts`                                                                                               |
+| ledger-limits     | `packages/facilitator/src/testing.ts` (run for the in-memory and Postgres ledgers)                                                       |
+| catalog           | `packages/bazaar/src/testing.ts` (run by `packages/bazaar/test/memory-catalog.test.ts` and the Postgres store tests)                     |
+| security          | `packages/bazaar/test/security.test.ts`                                                                                                  |
+| mcp-origin        | `packages/bazaar/test/mcp-origin.test.ts`                                                                                                |
+| assets            | `tools/conformance/test/assets.integration.test.ts`, payments in tokens of 6, 7 and 18 decimals through the service                      |
+| crash recovery    | `apps/rail402/test/crash-recovery.integration.test.ts`, which kills the service process at each step of a settlement                     |
+| upstream e2e      | `tools/conformance/src/upstream-e2e.ts`, the x402 e2e suite run against Rail402                                                          |
+| live matrix       | `tools/conformance/src/live-matrix.ts`, run over HTTP against a deployed Rail402 on the public testnet                                   |
 
 Integration tests run against a private Stellar network (`docker compose --profile stellar up`)
 with real accounts, a real token contract and real balance changes.
@@ -110,15 +121,16 @@ verbatim; nothing in it is rewritten.
 
 `preflight()`. The facilitator's accounts are the sponsor and every channel account.
 
-| Check                                                                     | Code                                                      | Tested by              |
-| ------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------- |
-| Neither the transaction nor the operation source is a facilitator account | `invalid_exact_stellar_payload_unsafe_tx_or_op_source`    | preflight              |
-| The payer (`from`) is not a facilitator account                           | `invalid_exact_stellar_payload_facilitator_is_payer`      | preflight              |
-| The invoked contract is the required asset                                | `invalid_exact_stellar_payload_wrong_asset`               | preflight              |
-| `to` is the required `payTo`                                              | `invalid_exact_stellar_payload_wrong_recipient`           | preflight              |
-| The payer is not paying its own account (`to` differs from `from`)        | `invalid_exact_stellar_payload_self_payment`              | preflight, live matrix |
-| `amount` is exactly the required amount (SEP-41 base units, no rounding)  | `invalid_exact_stellar_payload_wrong_amount`              | preflight, service     |
-| No ledger bounds, sequence conditions or extra signers                    | `invalid_exact_stellar_payload_unsupported_preconditions` | preflight              |
+| Check                                                                                                                                        | Code                                                      | Tested by                                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------- |
+| Neither the transaction nor the operation source is a facilitator account                                                                    | `invalid_exact_stellar_payload_unsafe_tx_or_op_source`    | preflight                                         |
+| The operation sets no source account of its own: the payer's authorization does not cover it, and settlement keeps it but cannot sign for it | `invalid_exact_stellar_payload_operation_source_set`      | preflight, `operation-source.integration.test.ts` |
+| The payer (`from`) is not a facilitator account                                                                                              | `invalid_exact_stellar_payload_facilitator_is_payer`      | preflight                                         |
+| The invoked contract is the required asset                                                                                                   | `invalid_exact_stellar_payload_wrong_asset`               | preflight                                         |
+| `to` is the required `payTo`                                                                                                                 | `invalid_exact_stellar_payload_wrong_recipient`           | preflight                                         |
+| The payer is not paying its own account (`to` differs from `from`)                                                                           | `invalid_exact_stellar_payload_self_payment`              | preflight, live matrix                            |
+| `amount` is exactly the required amount (SEP-41 base units, no rounding)                                                                     | `invalid_exact_stellar_payload_wrong_amount`              | preflight, service                                |
+| No ledger bounds, sequence conditions or extra signers                                                                                       | `invalid_exact_stellar_payload_unsupported_preconditions` | preflight                                         |
 
 ## 5. Authorization and expiry
 
@@ -138,7 +150,7 @@ verbatim; nothing in it is rewritten.
 
 ## 6. Upstream verifier
 
-`ExactStellarScheme.verify` from `@x402/stellar` 2.27.0, unmodified, called by
+`ExactStellarScheme.verify` from `@x402/stellar` 2.28.0, unmodified, called by
 `packages/facilitator/src/scheme.ts`. It simulates the transaction against the current ledger in
 enforcing mode, which verifies the payer's signature and runs a smart account's `__check_auth`, and
 then checks the simulated result. Its fee ceiling is checked at the inclusion-fee bid settlement
@@ -209,6 +221,18 @@ not exist fails authentication on reading its own account entry and is
 
 Anything unrecognised keeps upstream's `invalid_exact_stellar_payload_simulation_failed`.
 
+A failure that names no fault of the payment is not a refusal of it: when the RPC fails the simulation
+without running the host (its error carries no diagnostic event and no host error such as
+`Error(Contract, #10)`, for example an RPC whose ledger snapshot is incomplete under load), when the
+re-simulation passes, or when the RPC cannot be asked again, `/verify` answers `unexpected_verify_error`
+and `/settle` `unexpected_settle_error`, both retryable, with a reason saying the payment was not judged.
+The upstream `exact` verifier builds its own RPC client, which has no call timeout, so `/verify` stops
+waiting for it after the RPC timeout (10 seconds) and answers `unexpected_verify_error` too (tested by
+verify-timeout).
+Nothing was signed or submitted, so the same payment may be sent again. `upto` follows the same rule
+(`simulationRanOnHost()` in `packages/facilitator/src/explain.ts`; tested by explain, settlement and
+upto-facilitator).
+
 ## 8. Settlement
 
 `StellarExactScheme.settle()` in `packages/facilitator/src/scheme.ts` first decodes the payload and
@@ -231,30 +255,40 @@ the signed transaction alone. Rejections decided before anything is signed (stag
 guard, `settle_exact_stellar_channel_unavailable`) leave no record, so the same payment can be retried
 once the cause is fixed, for example after `payTo` adds a trustline.
 
-| Step and check                                                                                                                                                | Code                                                 | Tested by                         |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------- |
-| The sponsor guard admits the settlement: balance above `SPONSOR_RESERVE_XLM`, hourly fee budget not spent                                                     | `settle_exact_stellar_sponsor_unavailable`           | settlement, `fees.test.ts`        |
-| A repeat of a submitted settlement returns the recorded response and moves funds once; it is marked in `EXTENSION-RESPONSES` (below)                          | (the recorded response)                              | settlement, idempotency           |
-| The authorization is not already held by a different request: another envelope, `payTo`, asset, network or amount; the reason names the recorded transaction  | `settle_exact_stellar_idempotency_conflict`          | settlement, idempotency           |
-| A duplicate of a settlement in progress waits for it; if it outlasts the wait before signing                                                                  | `settle_exact_stellar_settlement_in_progress`        | settlement, idempotency           |
-| A channel account is free within the wait                                                                                                                     | `settle_exact_stellar_channel_unavailable`           | settlement                        |
-| The signed envelope is recorded before broadcast; if it cannot be, nothing is broadcast                                                                       | `settle_exact_stellar_fee_bump_signing_failed`       | settlement                        |
-| The transaction lands in a ledger and succeeds                                                                                                                | success                                              | settlement, service, upstream e2e |
-| It lands and fails                                                                                                                                            | stage 7 code, or `invalid_transaction_state`         | explain                           |
-| A ledger closes after its time bound without it, and nothing carried the authorization (hash, inner hash, payer's nonce or retained history): no funds moved  | `settle_exact_stellar_transaction_expired`           | settlement, crash recovery        |
-| The network refuses bytes that can never apply (bad signature, missing account); a fee or balance shortfall keeps rebroadcasting until the time bound decides | `settle_exact_stellar_transaction_submission_failed` | settlement                        |
-| Not final within `confirmTimeoutMs` of recording the envelope, however long upstream would poll; the reconciler finishes it later                             | `settlement_pending` (with the transaction hash)     | settlement                        |
-| An unexpected internal error                                                                                                                                  | `unexpected_verify_error`, `unexpected_settle_error` | app (`unexpected_verify_error`)   |
+| Step and check                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Code                                                 | Tested by                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------ |
+| The sponsor guard admits the settlement: balance above `SPONSOR_RESERVE_XLM`, the network's hourly fee budget has room for its fee ceiling                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `settle_exact_stellar_sponsor_unavailable`           | settlement, `fees.test.ts`                 |
+| The caller's hourly fee budget (its key's, or the keyless one) has room for the settlement's fee ceiling                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `settle_exact_stellar_caller_budget_exhausted`       | `caller-budget.test.ts`                    |
+| Pubnet only: the sponsor's balance has been read since startup                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `settle_exact_stellar_sponsor_unavailable`           | `fees.test.ts`                             |
+| The payer's settlements did not fail on-chain `PAYER_FAILURES_PER_HOUR` times in the last hour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `settle_exact_stellar_payer_cooldown`                | limits, caller-budget                      |
+| A repeat of a submitted settlement returns the recorded response and moves funds once; it is marked in `EXTENSION-RESPONSES` (below)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | (the recorded response)                              | settlement, idempotency                    |
+| The authorization is not already held by a different request: another envelope, `payTo`, asset, network or amount; the reason names the recorded transaction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `settle_exact_stellar_idempotency_conflict`          | settlement, idempotency                    |
+| A duplicate of a settlement in progress waits for it; if it outlasts the wait before signing                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `settle_exact_stellar_settlement_in_progress`        | settlement, idempotency                    |
+| A channel account is free within the wait                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `settle_exact_stellar_channel_unavailable`           | settlement                                 |
+| Once the payment proved its signature (verification and simulation passed, before the sponsor signs): the payer started at most `MAX_SETTLEMENTS_PER_PAYER_PER_MINUTE` settlements this minute                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `settle_exact_stellar_payer_rate_limited`            | limits, caller-budget                      |
+| Likewise, the `payTo` received at most `MAX_SETTLEMENTS_PER_PAYTO_PER_MINUTE` this minute from this caller (each access key has its own count per `payTo`, keyless callers share one); a payload with a forged signature never counts toward either limit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `settle_exact_stellar_payto_rate_limited`            | limits, `party-limits.integration.test.ts` |
+| The signed envelope is recorded before broadcast; if it cannot be, nothing is broadcast                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `settle_exact_stellar_fee_bump_signing_failed`       | settlement                                 |
+| The transaction lands in a ledger and succeeds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | success                                              | settlement, service, upstream e2e          |
+| It lands and fails. The failure rolls back, the payer's nonce included: unless its cause shows the authorization consumed, or expired with the transaction failing past the payer's own expiration ledger, anyone who holds the payment can still land it until it expires, so the settlement answers `settlement_pending`, gives its channel back at once and is searched as for a front-run (below); it is answered with its cause, the sponsor's fee counted as wasted, once the authorization expired unused                                                                                                                                                                                                                                                                                                                                                                                                                                 | stage 7 code, or `invalid_transaction_state`         | explain, first-submission, fee-exposure    |
+| A ledger closes after its time bound without it, and nothing carried the authorization (hash, inner hash, payer's nonce or retained history): no funds moved                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `settle_exact_stellar_transaction_expired`           | settlement, crash recovery                 |
+| The network refuses the settlement's first submission for good (bad signature, missing account): the engine sends the recorded bytes once more, and a refusal that is neither a sequence, time-bound, fee nor balance result proves they never applied. Anyone who holds the payment (its payer, the seller, anyone it passed through) can still carry the payer's authorization in a transaction of their own until it expires, so the payer's nonce decides: a copy that landed answers success with its hash (as for a front-run, below); otherwise the settlement waits, keeping its channel, and finishes once the authorization expired unused, with nothing charged, its channel and fee budget freed                                                                                                                                                                                                                                     | `settle_exact_stellar_transaction_submission_failed` | first-submission                           |
+| A later rebroadcast is refused for good: it finishes the same way once nothing carried the authorization (hash, inner hash, payer's nonce or retained history); a fee or balance shortfall keeps rebroadcasting until the time bound decides                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `settle_exact_stellar_transaction_submission_failed` | settlement                                 |
+| Another transaction took the channel account's sequence number (`txBadSeq`): once the account's sequence number on the network has reached the transaction's and neither its hash nor its inner hash is found by an RPC that has ingested that ledger and retains every ledger since the claim, it can never apply, so the settlement gives its channel back at once: the channel is quarantined for `SETTLE_CHANNEL_QUARANTINE_MS`, doubled per further conflict in a row, and finishing the settlement later releases nothing. Its outcome still waits for the payer's authorization, which anyone holding the payment can carry until it expires: a copy that landed answers success with its hash, and once the authorization expired unused the settlement finishes with nothing charged. Whether any send of the recorded bytes was accepted (recorded on the settlement, so every replica decides alike) does not change this for `exact` | `settle_exact_stellar_transaction_submission_failed` | first-submission, sequence-conflict        |
+| Nothing was signed within the claim window (30 s, for example a provider that stopped answering): nothing is signed afterwards, the claim is dropped and the channel freed; retry the payment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `unexpected_settle_error`                            | first-submission                           |
+| Not final within `confirmTimeoutMs` of recording the envelope, however long upstream would poll; the reconciler finishes it later                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `settlement_pending` (with the transaction hash)     | settlement                                 |
+| An unexpected internal error                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `unexpected_verify_error`, `unexpected_settle_error` | app (`unexpected_verify_error`)            |
 
 Only the recorded bytes are ever resubmitted, so a lost response or a restart can never produce a
 second transaction for the same authorization (settlement, "recovers after a lost submission
 response"; crash recovery, which kills the service process at each step). After the time bound,
 "not found" for the transaction's own hash proves nothing by itself: its inner hash is looked up too (in
-case someone wrapped it in their own fee bump), and the payer's authorization nonce is read. A consumed
-nonce finishes the settlement only once the transaction that consumed it is identified on chain. When
-neither landing nor absence can be proven (the RPC no longer retains the ledgers since the claim, or
-the nonce was consumed by a transaction that cannot be identified), the settlement stays unfinished and
-is reported as unresolvable instead of expired (see [State, backups and
+case someone wrapped it in their own fee bump), and the payer's authorization nonce is read. Both reads
+count as proof of absence only from an RPC at or past the ledger at which the bounds were seen to pass;
+one from an RPC behind it (lagging, or another provider after a failover) leaves the settlement waiting
+for a later read. A consumed nonce finishes the settlement only once the transaction that consumed it
+is identified on chain. When neither landing nor absence can be proven (the RPC no longer retains the
+ledgers since the claim, or the nonce was consumed by a transaction that cannot be identified), the
+settlement stays unfinished and is reported as unresolvable instead of expired (see [State, backups and
 recovery](/operations#state-backups-and-recovery)).
 
 **Repeats are marked.** A settle response answered from an earlier settlement carries
@@ -277,19 +311,40 @@ other transaction's hash, only when the chain proves it (`packages/facilitator/s
    the payer with the same nonce and expiration ledger and a byte-equal root invocation;
 3. that transaction emitted the matching `transfer` event from the asset contract.
 
-The search runs only after Rail402's own transaction was included and failed on the consumed nonce
-(or with a cause the RPC's diagnostics do not name). Anything short of all three, or any read
-error, keeps the failure. The settlement is recorded with `settled_by = third_party`; the response
+The search runs only after Rail402's own transaction was included and failed: on the consumed nonce,
+on an authorization that had expired by then (the host checks the expiration before the nonce, so a
+copy that landed before the expiration makes a later transaction fail as expired), with a cause the
+RPC's diagnostics do not name, or, for `exact`, with any other cause, which leaves the authorization
+usable until it expires (the failure rolls back, nonce included). Anything short of all three keeps the
+failure, except that such a failure waits while the nonce reads unused at a ledger up to the
+authorization's expiration.
+The settlement is recorded with `settled_by = third_party`; the response
 is `success` with the other transaction's hash, repeats return it with
 `"settledBy":"third_party"` in the repeat marker, and the fee of Rail402's failed transaction is
 counted as wasted. Set `RECONCILE_THIRD_PARTY_SETTLEMENTS=false` to answer the failure instead.
 
-| Behaviour                                                                                                         | Tested by |
-| ----------------------------------------------------------------------------------------------------------------- | --------- |
-| An attacker lands a copy of the payer's authorization first: success with the attacker's hash, funds moved once   | front-run |
-| The fee of Rail402's failed transaction is counted once as wasted; a repeat returns the same response             | front-run |
-| An authorization consumed before the request was claimed stays `invalid_exact_stellar_payload_nonce_already_used` | front-run |
-| With the reconciliation off, the failure is answered                                                              | front-run |
+A failure is kept only on reads from an RPC that has reached the ledger Rail402's transaction failed
+in (the nonce was consumed by then, if at all) and, for the scan, holds the ledger that consumed the
+nonce. A read from an RPC behind those ledgers (lagging, or another provider after a failover), an RPC
+whose history starts after the consuming ledger, or a read error, finishes nothing: the settlement
+stays `submitted`, and the next look reads the failure again and searches with fresh reads. One that
+stays undecided for a minute is reported as unresolvable (see [State, backups and
+recovery](/operations#state-backups-and-recovery)). Soroban keeps a consumed nonce's entry until the
+later of the authorization's expiration and the consuming ledger plus the network's minimum temporary
+entry lifetime (currently 17,280 ledgers, about a day, on pubnet; 720, about an hour, on testnet). A
+failure on the used nonce whose nonce then reads unused at or past the ledger it failed in can only
+mean that the entry lapsed: the settlement is left unresolved and reported, never kept as failed. A
+failure without diagnostics, or on an expired authorization, searched only after the entry lapsed finds
+no consumption and is kept.
+
+| Behaviour                                                                                                           | Tested by   |
+| ------------------------------------------------------------------------------------------------------------------- | ----------- |
+| An attacker lands a copy of the payer's authorization first: success with the attacker's hash, funds moved once     | front-run   |
+| The fee of Rail402's failed transaction is counted once as wasted; a repeat returns the same response               | front-run   |
+| An authorization consumed before the request was claimed stays `invalid_exact_stellar_payload_nonce_already_used`   | front-run   |
+| With the reconciliation off, the failure is answered                                                                | front-run   |
+| A search read from an RPC behind the failed ledger, or a failed read, leaves it open; caught-up reads find the copy | upto-engine |
+| Rail402's transaction fails as expired after a copy landed before the expiration: success with the copy's hash      | upto-engine |
 
 **Verify reads the ledger.** After stages 1–5, `/verify` looks the authorization up, read-only, so an
 authorization that is being settled, or was, is never reported as valid:
@@ -328,6 +383,7 @@ again for the amount being settled. The static rules are `checkUptoPayment()` in
 | The accepted block's network equals the requirements' network                                                                                                                                           | `network_mismatch`                                       | upto-preflight            |
 | `maxTimeoutSeconds` is an integer within `TIMEOUT_MIN_SECONDS`–`TIMEOUT_MAX_SECONDS`, and at least one ledger more than `EXPIRATION_MARGIN_LEDGERS` (5 s per ledger); one range, named in every refusal | `invalid_upto_stellar_requirements_timeout_out_of_range` | upto-preflight, mechanism |
 | The cap is within the asset's configured minimum and maximum                                                                                                                                            | `invalid_upto_stellar_requirements_amount_out_of_range`  | upto-preflight            |
+| Pubnet, at settle: a non-zero settlement amount is at least the asset's minimum, as an `exact` amount is (a zero settles off-chain and stays allowed)                                                   | `invalid_upto_stellar_requirements_amount_out_of_range`  | upto-preflight            |
 
 ### U2. Requirements (rule 2)
 
@@ -383,11 +439,12 @@ them again on a fresh reading before refusing (upto-scheme).
 
 ### U6. Readiness and the settlement ledger
 
-| Check                                                                                     | Code                                              | Tested by                 |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------- |
-| The settlement authority's account exists (an off-chain zero settlement does not need it) | `settle_upto_stellar_authority_unavailable`       | upto-scheme, upto-service |
-| `/verify`: the authorization is not being settled                                         | `settle_upto_stellar_settlement_in_progress`      | upto-scheme, idempotency  |
-| `/verify`: the authorization was not settled already                                      | `invalid_upto_stellar_payload_nonce_already_used` | upto-scheme, idempotency  |
+| Check                                                                                                                                       | Code                                              | Tested by                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------- |
+| The settlement authority's account exists (an off-chain zero settlement does not need it)                                                   | `settle_upto_stellar_authority_unavailable`       | upto-scheme, upto-service |
+| No restore of the settlement ledger within the longest window rule 7 can accept, in ledgers (`/verify`, and a settlement of more than zero) | `settle_upto_stellar_authority_unavailable`       | upto-scheme, restores     |
+| `/verify`: the authorization is not being settled                                                                                           | `settle_upto_stellar_settlement_in_progress`      | upto-scheme, idempotency  |
+| `/verify`: the authorization was not settled already                                                                                        | `invalid_upto_stellar_payload_nonce_already_used` | upto-scheme, idempotency  |
 
 ### U7. Simulation (rules 10–12)
 
@@ -415,7 +472,8 @@ numbers.
 | Settlement contract #6 (the recipient is the contract)                                                                                                                                                                                                                                                                                                                                        | `invalid_upto_stellar_requirements_invalid_pay_to`                                                                  | mechanism, contract                     |
 | The simulation would restore the settlement contract's archived instance or code                                                                                                                                                                                                                                                                                                              | `invalid_upto_stellar_settlement_contract_archived`                                                                 | mechanism, upto-scheme, upto-archival   |
 | The simulation would restore other archived state                                                                                                                                                                                                                                                                                                                                             | `invalid_upto_stellar_payload_archived_state`                                                                       | mechanism                               |
-| Any other simulation failure                                                                                                                                                                                                                                                                                                                                                                  | `invalid_upto_stellar_payload_simulation_failed`                                                                    | mechanism                               |
+| Any other simulation failure the host ran                                                                                                                                                                                                                                                                                                                                                     | `invalid_upto_stellar_payload_simulation_failed`                                                                    | mechanism                               |
+| A simulation the RPC failed without running the host (no diagnostic event, no host error): the payment was not judged and may be retried                                                                                                                                                                                                                                                      | `unexpected_verify_error`, `unexpected_settle_error`                                                                | upto-facilitator                        |
 | The fee (resource fee plus the inclusion bid of the transaction and of its fee bump) is within `UPTO_MAX_TX_FEE_STROOPS`                                                                                                                                                                                                                                                                      | `invalid_upto_stellar_payload_fee_exceeds_maximum`                                                                  | mechanism, upto-settlement              |
 | Exactly one balance event: a `transfer` of the phase amount from the payer to `payTo` by the asset (none for zero), and no balance event involves a facilitator account; a payer or `payTo` that is the asset's issuer emits `mint` or `burn` and is refused here                                                                                                                             | `invalid_upto_stellar_payload_unexpected_balance_change`                                                            | mechanism                               |
 | Exactly one `upto_settled` event from the settlement contract, naming the payer, `payTo`, token, amount, cap and authority                                                                                                                                                                                                                                                                    | `invalid_upto_stellar_payload_settlement_event_mismatch`                                                            | mechanism                               |
@@ -431,21 +489,32 @@ the settlement authority, and the sponsor pays through a fee bump; its ledger bo
 `payTo`, the authorization, any signer entries and the settle amount
 (`packages/facilitator/src/fingerprint.ts`).
 
-| Step and check                                                                                          | Code                                                 | Tested by                                   |
-| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------- |
-| A repeat (same authorization, same amount) returns the recorded response and moves funds once           | (the recorded response)                              | upto-scheme, upto-settlement, upto-replicas |
-| The same authorization for a different amount; the reason names the recorded amount and transaction     | `settle_upto_stellar_idempotency_conflict`           | upto-scheme, upto-settlement, upto-replicas |
-| A duplicate of a settlement in progress outlasts the wait                                               | `settle_upto_stellar_settlement_in_progress`         | upto-scheme                                 |
-| The sponsor guard refuses (not for an off-chain zero, which costs nothing)                              | `settle_upto_stellar_sponsor_unavailable`            | upto-scheme                                 |
-| No channel account is free within the wait                                                              | `settle_upto_stellar_channel_unavailable`            | upto-scheme                                 |
-| The signed envelope cannot be recorded before broadcast; nothing is broadcast                           | `settle_upto_stellar_fee_bump_signing_failed`        | mechanism                                   |
-| The network refuses the bytes for good; neither the inner hash nor the payer's nonce shows they landed  | `settle_upto_stellar_transaction_submission_failed`  | upto-engine                                 |
-| It lands and fails; the cause is named as in U7 where the diagnostics allow                             | U7 code, or `settle_upto_stellar_transaction_failed` | mechanism, upto-engine                      |
-| It can no longer land (a time or ledger bound passed) and provably did not (inner hash, nonce, history) | `settle_upto_stellar_transaction_expired`            | mechanism, upto-engine, expiration          |
-| Not final within `SETTLE_CONFIRM_TIMEOUT_MS`; the reconciler finishes it                                | `settlement_pending` (with the hash)                 | mechanism, upto-engine                      |
-| Another holder of the authority landed the same authorization first for the same amount                 | success, `settledBy: third_party`                    | upto-engine, front-run                      |
-| … for a different amount                                                                                | `settle_upto_stellar_settled_elsewhere`              | upto-engine, front-run                      |
-| A zero amount with `UPTO_ZERO_SETTLEMENT=offchain`: recorded as used, no transaction, `transaction: ""` | success                                              | upto-scheme, upto-service                   |
+| Step and check                                                                                                                                                                                           | Code                                                                                                                     | Tested by                                   |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| A repeat (same authorization, same amount) returns the recorded response and moves funds once                                                                                                            | (the recorded response)                                                                                                  | upto-scheme, upto-settlement, upto-replicas |
+| The same authorization for a different amount; the reason names the recorded amount and transaction                                                                                                      | `settle_upto_stellar_idempotency_conflict`                                                                               | upto-scheme, upto-settlement, upto-replicas |
+| A duplicate of a settlement in progress outlasts the wait                                                                                                                                                | `settle_upto_stellar_settlement_in_progress`                                                                             | upto-scheme                                 |
+| The sponsor guard refuses (not for an off-chain zero, which costs nothing)                                                                                                                               | `settle_upto_stellar_sponsor_unavailable`                                                                                | upto-scheme                                 |
+| The caller's hourly fee budget is spent (not for an off-chain zero)                                                                                                                                      | `settle_upto_stellar_caller_budget_exhausted`                                                                            | caller-budget                               |
+| A per-party limit refuses: payer or `payTo` rate, or the payer's failure cooldown (as for `exact`)                                                                                                       | `settle_upto_stellar_payer_rate_limited`, `settle_upto_stellar_payto_rate_limited`, `settle_upto_stellar_payer_cooldown` | limits                                      |
+| No channel account is free within the wait                                                                                                                                                               | `settle_upto_stellar_channel_unavailable`                                                                                | upto-scheme                                 |
+| The signed envelope cannot be recorded before broadcast; nothing is broadcast                                                                                                                            | `settle_upto_stellar_fee_bump_signing_failed`                                                                            | mechanism                                   |
+| The network refuses the bytes for good, neither the inner hash nor the payer's nonce shows they landed, and no send was accepted or no later ledger can include them                                     | `settle_upto_stellar_transaction_submission_failed`                                                                      | upto-engine                                 |
+| Another transaction took the channel's sequence number (`txBadSeq`), proven as for `exact`; the payer's nonce is unused, so it finishes at once, first submission or not, and the channel is quarantined | `settle_upto_stellar_transaction_submission_failed`                                                                      | upto-engine                                 |
+| It lands and fails; the cause is named as in U7 where the diagnostics allow                                                                                                                              | U7 code, or `settle_upto_stellar_transaction_failed`                                                                     | mechanism, upto-engine                      |
+| It can no longer land (a time or ledger bound passed) and provably did not (inner hash, nonce, history)                                                                                                  | `settle_upto_stellar_transaction_expired`                                                                                | mechanism, upto-engine, expiration          |
+| Not final within `SETTLE_CONFIRM_TIMEOUT_MS`; the reconciler finishes it                                                                                                                                 | `settlement_pending` (with the hash)                                                                                     | mechanism, upto-engine                      |
+| Another holder of the authority landed the same authorization first for the same amount                                                                                                                  | success, `settledBy: third_party`                                                                                        | upto-engine, front-run                      |
+| … for a different amount                                                                                                                                                                                 | `settle_upto_stellar_settled_elsewhere`                                                                                  | upto-engine, front-run                      |
+| A zero amount with `UPTO_ZERO_SETTLEMENT=offchain`: recorded as used, no transaction, `transaction: ""`                                                                                                  | success                                                                                                                  | upto-scheme, upto-service                   |
+
+A refusal of Rail402's own fee bump (for example once the sponsor key is frozen) does not stop anyone
+else from wrapping the inner transaction in a fee bump of their own once a send the network may have
+accepted exposed it. Such a settlement keeps waiting until no later ledger can include that transaction
+(the ledger read is the last one its ledger bound admits, or one closed after its time bound). Then
+the same reads decide: settled through the other fee bump if it landed there, otherwise refused or, once
+the bounds have passed, `settle_upto_stellar_transaction_expired`, with no funds moved. A settlement
+whose sends were all refused finishes at once.
 
 On-chain, independently of these checks: only the settlement authority can settle (a different
 submitter fails in the host's authorization check), the contract refuses an amount over the cap with
@@ -454,21 +523,23 @@ upto-replicas).
 
 Test files of the `upto` rules:
 
-| Short name      | File                                                                   |
-| --------------- | ---------------------------------------------------------------------- |
-| upto-preflight  | `packages/facilitator/test/upto-preflight.test.ts` (one case per code) |
-| mechanism       | `packages/upto/test/facilitator.test.ts`                               |
-| codec           | `packages/upto/test/codec.test.ts`                                     |
-| upto-scheme     | `packages/facilitator/test/upto-scheme.test.ts`                        |
-| upto-engine     | `packages/facilitator/test/upto-engine.test.ts`                        |
-| front-run       | `packages/facilitator/test/front-run.integration.test.ts`              |
-| upto-tamper     | `apps/rail402/test/upto-tamper.integration.test.ts`                    |
-| upto-settlement | `apps/rail402/test/upto-settlement.integration.test.ts`                |
-| upto-payers     | `apps/rail402/test/upto-payers.integration.test.ts`                    |
-| upto-replicas   | `apps/rail402/test/upto-replicas.integration.test.ts`                  |
-| upto-archival   | `apps/rail402/test/upto-archival.integration.test.ts`                  |
-| upto-service    | `apps/rail402/test/upto.integration.test.ts`                           |
-| contract        | `contracts/stellar/upto/src/test/` (Rust, `cargo test`)                |
+| Short name       | File                                                                                                             |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------- |
+| upto-preflight   | `packages/facilitator/test/upto-preflight.test.ts` (one case per code)                                           |
+| mechanism        | `packages/upto/test/facilitator.test.ts`                                                                         |
+| codec            | `packages/upto/test/codec.test.ts`                                                                               |
+| upto-scheme      | `packages/facilitator/test/upto-scheme.test.ts`                                                                  |
+| upto-engine      | `packages/facilitator/test/upto-engine.test.ts`                                                                  |
+| front-run        | `packages/facilitator/test/front-run.integration.test.ts`                                                        |
+| upto-tamper      | `apps/rail402/test/upto-tamper.integration.test.ts`                                                              |
+| upto-settlement  | `apps/rail402/test/upto-settlement.integration.test.ts`                                                          |
+| upto-payers      | `apps/rail402/test/upto-payers.integration.test.ts`                                                              |
+| upto-replicas    | `apps/rail402/test/upto-replicas.integration.test.ts`                                                            |
+| upto-archival    | `apps/rail402/test/upto-archival.integration.test.ts`                                                            |
+| upto-service     | `apps/rail402/test/upto.integration.test.ts`                                                                     |
+| upto-facilitator | `packages/facilitator/test/upto.integration.test.ts`                                                             |
+| restores         | `packages/store-postgres/test/stores.integration.test.ts` and `tools/conformance/test/roles.integration.test.ts` |
+| contract         | `contracts/stellar/upto/src/test/` (Rust, `cargo test`)                                                          |
 
 ## Expiration
 
@@ -511,11 +582,15 @@ A margin of 0 is refused at startup.
 
 **After submission.** The settlement transaction's time bound is `maxTimeoutSeconds` from when it is
 built, and it can outlive the authorization. If the authorization expires after the transaction is
-submitted but before it is included, the transaction fails on-chain: the response is
-`invalid_exact_stellar_signature_expired` with the transaction hash, the settlement is recorded as
-failed, no funds move, and the fee the sponsor paid is counted in
-`rail402_sponsor_fees_stroops_total{outcome="wasted"}`. A later repeat of a payment that did settle
-returns the original success, however long after its expiration it arrives (stage 8).
+submitted but before it is included, the transaction fails on-chain with
+`invalid_exact_stellar_signature_expired`, and the fee the sponsor paid is counted in
+`rail402_sponsor_fees_stroops_total{outcome="wasted"}`. The host checks the expiration before the nonce,
+so a copy of the authorization that someone else landed before the expiration fails Rail402's
+transaction the same way: the failure is searched like a front-run (see "Front-running" above), and a
+payment that settled through the copy is answered as settled, with the copy's hash. Otherwise the
+response is the expiry with the transaction hash, the settlement is recorded as failed, and no funds
+move. A later repeat of a payment that did settle returns the original success, however long after its
+expiration it arrives (stage 8).
 
 | Behaviour                                                                                                 | Tested by   |
 | --------------------------------------------------------------------------------------------------------- | ----------- |
@@ -541,9 +616,9 @@ formula, from its own ledger-time estimate. Rail402 checks the window itself, wi
 | `> latest + ceil(maxTimeoutSeconds / min(est, 5)) + 2` | `invalid_upto_stellar_signature_expiration_too_far`  |
 | otherwise                                              | passes this check                                    |
 
-`est` is the network's seconds per ledger: `UPTO_LEDGER_SECONDS` when set, otherwise the average close
-time over the ledgers the network's own RPC retains, read at most once a minute (5 s while the RPC
-cannot tell). The in-process facilitator uses the same default for `upto.ledgerSeconds`; no other
+`est` is the network's seconds per ledger: `UPTO_LEDGER_SECONDS` when set (at least 1), otherwise the
+average close time over the ledgers the network's own RPC retains, read at most once a minute (5 s while
+the RPC cannot tell), and never less than 1 second. The in-process facilitator uses the same default for `upto.ledgerSeconds`; no other
 service is asked. Capping `est` at the nominal 5 seconds means a client that assumed 5-second ledgers
 on a slower network is never refused as too far.
 
@@ -590,42 +665,69 @@ Cataloging runs after a successful settlement (and is previewed at `/verify`, wh
 an outcome too large for the budget is reduced to its status and code. Codes are in
 `packages/bazaar/src/codes.ts`.
 
-| Check                                                                                                                                        | Code                               | Tested by           |
-| -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ------------------- |
-| The payment is x402 version 2                                                                                                                | `bazaar_unsupported_version`       | catalog             |
-| The extension has `info` and `schema` objects                                                                                                | `bazaar_extension_malformed`       | catalog             |
-| `schema` compiles as JSON Schema 2020-12                                                                                                     | `bazaar_schema_invalid`            | security            |
-| `schema` has no external `$ref` or `$id`                                                                                                     | `bazaar_schema_external_reference` | catalog             |
-| `schema` and `info` are within size and depth budgets                                                                                        | `bazaar_schema_too_large`          | security            |
-| Validation finishes within its time budget (isolated worker, 250 ms)                                                                         | `bazaar_schema_timeout`            | security            |
-| At most 16 validations wait for the worker; more are refused at once                                                                         | `bazaar_schema_timeout`            | security            |
-| `info` satisfies `schema`                                                                                                                    | `bazaar_info_invalid`              | catalog, security   |
-| `info.input` is a valid HTTP or MCP description                                                                                              | `bazaar_info_unsupported`          | catalog             |
-| The resource URL is an absolute http(s) URL without credentials                                                                              | `bazaar_resource_invalid`          | catalog, security   |
-| The resource host is public (no private, loopback or link-local addresses)                                                                   | `bazaar_resource_unsafe`           | catalog, security   |
-| The payer is not paying itself (defence in depth: stage 4 already refuses a self-payment)                                                    | `bazaar_self_payment`              | catalog             |
-| Only the listing's owner, the settled `payTo`, can change it                                                                                 | `bazaar_owner_conflict`            | catalog, bazaar     |
-| An MCP tool is scoped to its owner, so no seller can claim another seller's tool                                                             | (separate listing)                 | catalog             |
-| One settlement catalogs at most one resource (a replayed settlement is refused)                                                              | `bazaar_settlement_reused`         | catalog             |
-| The payment settled in a transaction (an off-chain zero `upto` settlement has none to bind a listing to)                                     | `bazaar_settlement_offchain`       | catalog             |
-| The payment moved value: an `upto` settlement of zero, on chain or off, needs no balance or trustline and proves nothing about `payTo`       | `bazaar_settlement_zero`           | catalog             |
-| An `upto` listing is priced at the cap the buyer signed (`accepted.amount`), never the amount settled                                        | (listed price)                     | catalog             |
-| The owner, the payer and the whole catalog are within their hourly limits of new listings                                                    | `bazaar_rate_limited`              | catalog             |
-| The catalog store is reachable                                                                                                               | `bazaar_catalog_unavailable`       | catalog             |
-| Invalid optional metadata (service name, tags, icon) is dropped, not fatal                                                                   | (listed in `dropped`)              | catalog             |
-| A `routeTemplate` is used only if, percent-decoded, it is safe (no `..`, `://`, NUL, CR, LF, backslash or `//`) and matches the paid path    | (template ignored)                 | catalog, security   |
-| Equivalent spellings of one URL (percent-encoding, dot segments, case) are one listing                                                       | (same listing)                     | catalog, security   |
-| A new HTTP listing, and any change to one, is published only once the resource's own 402 confirms it                                         | `awaiting_origin_verification`     | catalog, bazaar     |
-| An MCP tool at an http(s) endpoint is published, or changed, only once its unpaid `tools/call` answers with a 402 naming the owner           | `awaiting_origin_verification`     | catalog, mcp-origin |
-| An MCP tool its origin never confirmed is published only if the tool offers the settled scheme, network, asset, `payTo` and price (cap)      | (listing quarantined)              | catalog             |
-| An MCP tool under an `mcp://` URL has no origin: it is listed on settlement at trust `settled` and keeps its first-seen content              | `cataloged`                        | catalog             |
-| Only well-formed Stellar options of that 402 are published (C… asset, G/C/M `payTo`, integer amount)                                         | (option ignored)                   | catalog             |
-| A resource that answers anything but a usable 402, or stays unreachable through every retry, is withdrawn, with a coded reason               | (listing quarantined)              | catalog             |
-| Only listings the owner's origin confirmed count toward the owner's hourly quota                                                             | `bazaar_rate_limited`              | catalog             |
-| `domain_verified` needs origin-verified content and the two-way SEP-1 binding (`ACCOUNTS` lists the owner, its `home_domain` names the host) | (trust)                            | catalog             |
+| Check                                                                                                                                           | Code                               | Tested by           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ------------------- |
+| The payment is x402 version 2                                                                                                                   | `bazaar_unsupported_version`       | catalog             |
+| The extension has `info` and `schema` objects                                                                                                   | `bazaar_extension_malformed`       | catalog             |
+| `schema` compiles as JSON Schema 2020-12                                                                                                        | `bazaar_schema_invalid`            | security            |
+| `schema` has no external `$ref` or `$id`                                                                                                        | `bazaar_schema_external_reference` | catalog             |
+| `schema` and `info` are within size and depth budgets                                                                                           | `bazaar_schema_too_large`          | security            |
+| Validation finishes within its time budget (isolated worker, 250 ms)                                                                            | `bazaar_schema_timeout`            | security            |
+| At most 16 validations wait for a network's worker (4 for previews); more are refused at once, and a refused settlement is retried              | `bazaar_schema_timeout`            | security, catalog   |
+| Each network's settlements and its `/verify` previews validate in their own sandboxes, so no flood delays another lane                          | (separate worker)                  | security            |
+| `info` satisfies `schema`                                                                                                                       | `bazaar_info_invalid`              | catalog, security   |
+| `info.input` is a valid HTTP or MCP description                                                                                                 | `bazaar_info_unsupported`          | catalog             |
+| The resource URL is an absolute http(s) URL without credentials                                                                                 | `bazaar_resource_invalid`          | catalog, security   |
+| The resource host is public (no private, loopback or link-local addresses)                                                                      | `bazaar_resource_unsafe`           | catalog, security   |
+| On pubnet the resource URL uses `https`                                                                                                         | `bazaar_resource_invalid`          | catalog             |
+| A network that refuses originless tools (always pubnet) refuses an MCP tool under an `mcp://` URL before any write                              | `bazaar_resource_unverifiable`     | catalog             |
+| The settled amount meets the network's optional minimum for its asset (at `/verify`, the offered amount)                                        | `bazaar_settlement_below_minimum`  | catalog             |
+| The listing's published content is within `BAZAAR_MAX_LISTING_BYTES` (36 KiB by default)                                                        | `bazaar_listing_too_large`         | catalog             |
+| An origin whose `402` describes a larger listing has it withdrawn; at most 8 of its options are published                                       | (listing quarantined)              | catalog             |
+| The payer is not paying itself (defence in depth: stage 4 already refuses a self-payment)                                                       | `bazaar_self_payment`              | catalog             |
+| Only the listing's owner, the settled `payTo`, can change it                                                                                    | `bazaar_owner_conflict`            | catalog, bazaar     |
+| An MCP tool is scoped to its owner, so no seller can claim another seller's tool                                                                | (separate listing)                 | catalog             |
+| One settlement catalogs at most one resource (a replayed settlement is refused)                                                                 | `bazaar_settlement_reused`         | catalog             |
+| The payment settled in a transaction (an off-chain zero `upto` settlement has none to bind a listing to)                                        | `bazaar_settlement_offchain`       | catalog             |
+| The payment moved value: an `upto` settlement of zero, on chain or off, needs no balance or trustline and proves nothing about `payTo`          | `bazaar_settlement_zero`           | catalog             |
+| An `upto` listing is priced at the cap the buyer signed (`accepted.amount`), never the amount settled                                           | (listed price)                     | catalog             |
+| The owner, the payer and the whole catalog are within their hourly limits of new listings, each counted on the listing's own network            | `bazaar_rate_limited`              | catalog             |
+| The network-wide hourly limit counts listings first published in the hour: never-published ones count toward their payer's limit only           | `bazaar_rate_limited`              | catalog             |
+| A listing confirmed while its network's or owner's hourly limit is spent stays unpublished, checked again until the hour has room               | (listing waits)                    | catalog             |
+| The network holds fewer published listings than `<NET>_BAZAAR_MAX_PUBLISHED_LISTINGS`; a confirmed pending listing is withdrawn when it is full | `bazaar_catalog_full`              | catalog             |
+| `mcp://` tools, which no origin confirms, count apart from other listings, within half of the hourly limit and half of the room                 | (counted apart)                    | catalog             |
+| A listing past its network's retention (unverified, or idle) is withdrawn; its owner's next settlement lists it again                           | (listing quarantined)              | catalog             |
+| Every payTo that claims a listing is kept until a check ran with it; a check only claims asked for never withdraws a published listing          | `bazaar_owner_conflict`            | catalog             |
+| A route-template listing moves only to a payTo its example path, paid when it was created or confirmed when it was listed, names too            | (ownership kept)                   | catalog             |
+| A published listing is decided at its resource or route-template example path alone, a tool by its listed call; no other path changes it        | (listing kept)                     | catalog             |
+| An unlisted listing is checked, within its host's budget, at up to 8 paths its owner's payers paid (4 per asset); full price first decides      | (check kept)                       | catalog             |
+| Later settlements never reset a check's retries; an example kept unconfirmed never withdraws or rewrites its listing                            | (listing kept)                     | catalog             |
+| The catalog store is reachable                                                                                                                  | `bazaar_catalog_unavailable`       | catalog             |
+| Invalid optional metadata (service name, tags, icon) is dropped, not fatal                                                                      | (listed in `dropped`)              | catalog             |
+| A `routeTemplate` is used only if, percent-decoded, it is safe (no `..`, `://`, NUL, CR, LF, backslash or `//`) and matches the paid path       | (template ignored)                 | catalog, security   |
+| Equivalent spellings of one URL (percent-encoding, dot segments, case) are one listing                                                          | (same listing)                     | catalog, security   |
+| A new HTTP listing, and any change to one, is published only once the resource's own 402 confirms it                                            | `awaiting_origin_verification`     | catalog, bazaar     |
+| An MCP tool at an http(s) endpoint is published, or changed, only once its unpaid `tools/call` answers with a 402 naming the owner              | `awaiting_origin_verification`     | catalog, mcp-origin |
+| An MCP tool its origin never confirmed is published only if it offers the option of a settlement its listing or check kept                      | (listing quarantined)              | catalog             |
+| A tool is decided by its listed call (retried while it fails for now); once that is refused, only a payer's call whose 402 lists it counts      | (listing republished)              | catalog             |
+| On testnet an MCP tool under an `mcp://` URL has no origin: it is listed on settlement at trust `settled` and keeps its first-seen content      | `cataloged`                        | catalog             |
+| Only well-formed Stellar options of that 402 are published (C… asset, G/C/M `payTo`, integer amount)                                            | (option ignored)                   | catalog             |
+| A resource that answers anything but a usable 402, or stays unreachable through every retry, is withdrawn, with a coded reason                  | (listing quarantined)              | catalog             |
+| The owner's hourly quota is kept per origin; only listings that origin confirmed for a full-price settlement count, never transferred ones      | `bazaar_rate_limited`              | catalog             |
+| `domain_verified` needs origin-verified content and the two-way SEP-1 binding (`ACCOUNTS` lists the owner, its `home_domain` names the host)    | (trust)                            | catalog             |
 
 Discovery requests: a malformed or unknown query parameter returns `discovery_invalid_parameter`
-and an unknown listing `discovery_listing_not_found` (bazaar).
+an unknown listing `discovery_listing_not_found`, and the usage of a listing whose seller keeps it
+private, or whose content no origin confirmed (trust `settled`, such as an `mcp://` tool),
+`discovery_usage_private` (bazaar). A settlement whose payload declares `rail402-private-usage` makes the
+listing's usage private at once; only the listing's origin can remove the declaration. A client over its discovery cost budget
+(`SEARCH_RATE_LIMIT_PER_MINUTE`; uncached searches, deep offsets and long version-history pages cost more) receives `429`
+`rate_limited` with `Retry-After` (discovery). Discovery beyond what the service admits at once
+(`DISCOVERY_MAX_IN_FLIGHT` requests served, `DISCOVERY_QUEUE_LENGTH` waiting, each for at most
+`DISCOVERY_QUEUE_TIMEOUT_MS`), or a catalog read that gets no connection of the discovery pool within
+`DISCOVERY_DATABASE_ACQUIRE_TIMEOUT_MS` or runs past its statement timeout, receives `503`
+`discovery_overloaded` with `Retry-After: 1`; a catalog database that cannot be reached receives `503`
+`discovery_catalog_unavailable` with `Retry-After: 1` (discovery). Neither is ever a `500`.
 
 ## Response shapes
 
@@ -671,18 +773,19 @@ only the `error` object:
 
 Defined in `packages/errors/src/index.ts`, shared by every endpoint.
 
-| Code                     | HTTP | When                                                                                                                 |
-| ------------------------ | ---- | -------------------------------------------------------------------------------------------------------------------- |
-| `bad_request`            | 400  | The body is not JSON or lacks `x402Version`, `paymentPayload` or `paymentRequirements` (wire code `invalid_payload`) |
-| `unauthorized`           | 401  | An API key is required and missing or unknown (`/verify`, `/settle` where required; `/usage` always)                 |
-| `not_found`              | 404  | No route matches the path                                                                                            |
-| `payload_too_large`      | 413  | The body exceeds `BODY_LIMIT_BYTES`                                                                                  |
-| `unsupported_media_type` | 415  | `/verify` or `/settle` without `Content-Type: application/json`                                                      |
-| `rate_limited`           | 429  | The client exceeded `RATE_LIMIT_PER_MINUTE`; `Retry-After` says when to retry                                        |
-| `internal_error`         | 500  | An unexpected error outside the payment logic                                                                        |
+| Code                     | HTTP | When                                                                                                                                                                                                                                          |
+| ------------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bad_request`            | 400  | The body is not JSON or lacks `x402Version`, `paymentPayload` or `paymentRequirements` (wire code `invalid_payload`)                                                                                                                          |
+| `unauthorized`           | 401  | An API key is required and missing, unknown, expired or revoked, or two different keys were sent (`/verify`, `/settle` where required; `/usage` always)                                                                                       |
+| `forbidden`              | 403  | The API key is valid but not for the request's network, where the network requires keys                                                                                                                                                       |
+| `not_found`              | 404  | No route matches the path                                                                                                                                                                                                                     |
+| `payload_too_large`      | 413  | The body exceeds `BODY_LIMIT_BYTES`                                                                                                                                                                                                           |
+| `unsupported_media_type` | 415  | `/verify` or `/settle` without `Content-Type: application/json`                                                                                                                                                                               |
+| `rate_limited`           | 429  | The client exceeded `RATE_LIMIT_PER_MINUTE`, or its key's or the network's limit; `Retry-After` says when to retry                                                                                                                            |
+| `internal_error`         | 500  | An unexpected error outside the payment logic                                                                                                                                                                                                 |
+| `service_unavailable`    | 503  | `/verify` or `/settle` for a network that is starting or held, or a pubnet request while the rate limiter cannot answer; the reason names the network and why, `Retry-After: 30` (see [Serving per network](/operations#serving-per-network)) |
 
-`forbidden` (403), `method_not_allowed` (405) and `service_unavailable` (503) are defined but not
-currently returned.
+`method_not_allowed` (405) is defined but not currently returned.
 
 ## Search codes
 
@@ -694,3 +797,50 @@ Defined in `packages/search/src/service.ts`, returned by `GET /discovery/search`
 | `search_query_too_long` | `query` is longer than 500 characters after trimming, up to 2,000 (beyond that: `discovery_invalid_parameter`) |
 | `search_invalid_cursor` | The cursor is malformed, altered, signed with another key or belongs to another search                         |
 | `search_cursor_expired` | The cursor expired or its index snapshot is gone; repeat the search without a cursor                           |
+
+## Buyer safety on pubnet (client side)
+
+Raised by the SDK, the rail402 command line and rail402-mcp before anything is signed; never returned by the
+service. Each carries `paid: "none"`. Defined in `packages/sdk/src/codes.ts`.
+
+| Code                               | When                                                                                                                                                                                                                                                                                                                                                                                                                          | Tested by                                                                                                              |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `key_network_mismatch`             | The key file is tagged for another network than the configured one                                                                                                                                                                                                                                                                                                                                                            | `packages/sdk/test/pubnet-safety.test.ts`, `packages/mcp/test/pubnet.test.ts`, `packages/cli/test/pay-confirm.test.ts` |
+| `key_network_untagged`             | Pubnet with an untagged key file (without `RAIL402_ALLOW_UNTAGGED_KEY=true`), or with a seed in `RAIL402_SECRET_KEY`                                                                                                                                                                                                                                                                                                          | `packages/sdk/test/pubnet-safety.test.ts`, `packages/mcp/test/pubnet.test.ts`                                          |
+| `payment_cap_invalid`              | A pubnet USDC cap above 1 per call or 10 per window, or a cap on any other pubnet asset, without `allowLargeCaps` / `RAIL402_ALLOW_LARGE_CAPS=true`                                                                                                                                                                                                                                                                           | `packages/sdk/test/pubnet-safety.test.ts`                                                                              |
+| `payment_policy_invalid`           | A pubnet buyer with a signer but no confirmation choice (`confirm`, or `confirmPolicy: "never"`), also through `openBuyer` and `openConfiguredBuyer`; a pubnet Bazaar or facilitator URL that is not https on a public host name; a signing pubnet upto buyer with no pinned settlement authority (`uptoFacilitators`, or none advertised by its facilitator's `/supported`); `RAIL402_BUDGET_STORE=memory` with a pubnet key | `packages/sdk/test/pubnet-safety.test.ts`, `packages/cli/test/pay-confirm.test.ts`, `packages/mcp/test/pubnet.test.ts` |
+| `payment_confirmation_declined`    | The confirmation was answered with anything but yes; nothing was reserved or signed                                                                                                                                                                                                                                                                                                                                           | `packages/sdk/test/pubnet-safety.test.ts`, `packages/cli/test/pay-confirm.test.ts`, `packages/mcp/test/pubnet.test.ts` |
+| `payment_confirmation_unavailable` | The confirmation cannot be asked: no terminal and no `--yes` (CLI), or an MCP client without form elicitation and `RAIL402_MCP_CONFIRM` not `never`                                                                                                                                                                                                                                                                           | `packages/cli/test/pay-confirm.test.ts`, `packages/mcp/test/pubnet.test.ts`                                            |
+
+An MCP endpoint whose raw text carries control, line-break or bidirectional characters is refused with
+`egress_url_invalid` before anything is signed (tested in `packages/sdk/test/mcp-flow.test.ts`), so the
+resource a confirmation shows is the address that is called.
+
+`payment_session_expired` (existing) is what a pubnet agent meets once its default window ends, since that
+window does not renew unless `RAIL402_SESSION_AUTO_RENEW=true` or `autoRenew: true`.
+
+A confirm function that throws a PaymentError is reported as a `refused` payment event with that code; any
+other error it throws (rail402-mcp's signal to ask the user first) reaches the caller without one.
+
+## MCP server refusals
+
+Returned by rail402-mcp as a JSON-RPC error whose `data` carries `{ code, reason, retryable, paid }`, for a
+request that never reaches a tool; nothing is paid (`paid: "none"`). Defined in `rpcCodes` (`packages/mcp/src/codes.ts`).
+
+| Code                        | JSON-RPC / HTTP | When                                                                                                                                      | Tested by                          |
+| --------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `rpc_confirmation_used`     | -32602          | A retried call carries a payment confirmation's request state that was already answered once; each confirmation signs at most one payment | `packages/mcp/test/pubnet.test.ts` |
+| `rpc_confirmation_mismatch` | -32602          | The request state was given for a different tool call (another tool name or other arguments) than the one it is sent with                 | `packages/mcp/test/pubnet.test.ts` |
+| `rpc_rate_limited`          | 429             | Hosted endpoint: the client (IPv4 address or IPv6 /64) exceeded `RAIL402_MCP_RATE_PER_MINUTE`                                             | `packages/mcp/test/hosted.test.ts` |
+| `rpc_overloaded`            | 503             | Hosted endpoint: 8 requests are already running                                                                                           | `packages/mcp/test/hosted.test.ts` |
+| `rpc_batch_unsupported`     | -32600 / 400    | Hosted endpoint: the body is a JSON-RPC batch (an array); one request carries one message, so the limits above bound tool calls           | `packages/mcp/test/hosted.test.ts` |
+| `rpc_upstream_budget`       | 503             | Hosted endpoint: all clients together used `RAIL402_MCP_UPSTREAM_PER_MINUTE` tool calls (each at most one Bazaar request) this minute     | `packages/mcp/test/hosted.test.ts` |
+
+## Explorer codes
+
+Defined in `apps/explorer/src/api/codes.ts` (`explorerCodes`), returned by the Explorer's read API as
+`{ error: { code, reason, retryable } }` and shown on its error pages. The Explorer only reads public
+ledgers; none of these concern a payment. The full table, with each code's status and reason, is on the
+[Explorer read API](/explorer/api#errors) page and the error-code reference. Tested in
+`apps/explorer/test/api.test.ts`, `apps/explorer/test/pages.test.ts` and
+`apps/explorer/test/live-lookup.test.ts`.

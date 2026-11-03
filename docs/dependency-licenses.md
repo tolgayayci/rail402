@@ -19,10 +19,11 @@ exceptions flagged below. The policy is enforced on every CI run by `pnpm licens
 | --------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | Service (the container image)                                                                                                                 | 93       |
 | Outside the service: the published agent packages (SDK, MCP server, CLI, upto, safe-fetch) and workspace tools (conformance runs, evaluation) | 106      |
-| Development only (build, lint, test)                                                                                                          | 175      |
+| Development only (build, lint, test)                                                                                                          | 173      |
 | Contract contracts/stellar/upto (Rust)                                                                                                        | 216      |
 | Contract contracts/testing/approve-spending-limit (Rust)                                                                                      | 218      |
 | Contract contracts/testing/composition (Rust)                                                                                                 | 216      |
+| Contract contracts/testing/ed25519-account (Rust)                                                                                             | 216      |
 | Contract contracts/testing/test-token (Rust)                                                                                                  | 219      |
 | Contract contracts/testing/upto-adversarial (Rust)                                                                                            | 215      |
 
@@ -55,7 +56,6 @@ Dual or compound licences (a permissive branch is always available):
 | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | sentence-transformers/all-MiniLM-L6-v2 (ONNX weights and tokenizer)                     | Apache-2.0                                                   | service image; pinned revision and hashes in packages/search/models/all-minilm-l6-v2.json                         |
 | node:24 trixie-slim base image                                                          | MIT (Node.js); Debian packages under their own free licences | service image                                                                                                     |
-| rs-soroban-env simple_account.wasm                                                      | Apache-2.0                                                   | tests only; packages/testkit/fixtures/README.md                                                                   |
 | OpenZeppelin stellar-contracts smart account and ed25519 verifier wasm                  | MIT                                                          | tests only; pinned commit in scripts/contracts/fixtures.sh                                                        |
 | stellar/stellar-cli build image                                                         | Apache-2.0                                                   | contract builds only; pinned digest in scripts/contracts/common.sh                                                |
 | Space Grotesk, Archivo and JetBrains Mono fonts (Latin woff2 subsets, Fontsource 5.3.0) | OFL-1.1                                                      | Playground page; files and licence texts in apps/playground/web/src/ui/fonts and apps/playground/web/public/fonts |
@@ -83,15 +83,15 @@ Dual or compound licences (a permissive branch is always available):
 | @signinwithethereum/siwe        | 4.2.1   | Apache-2.0   |
 | @stellar/js-xdr                 | 4.0.0   | Apache-2.0   |
 | @stellar/stellar-sdk            | 16.3.0  | Apache-2.0   |
-| @x402/core                      | 2.27.0  | Apache-2.0   |
-| @x402/extensions                | 2.27.0  | Apache-2.0   |
+| @x402/core                      | 2.28.0  | Apache-2.0   |
+| @x402/extensions                | 2.28.0  | Apache-2.0   |
 | abitype                         | 1.2.3   | MIT          |
 | agent-base                      | 6.0.2   | MIT          |
 | ajv                             | 8.20.0  | MIT          |
 | apg-js                          | 4.4.0   | BSD-2-Clause |
 | asynckit                        | 0.4.0   | MIT          |
 | atomic-sleep                    | 1.0.0   | MIT          |
-| axios                           | 1.18.0  | MIT          |
+| axios                           | 1.20.0  | MIT          |
 | base32.js                       | 0.1.0   | MIT          |
 | base64-js                       | 1.5.1   | MIT          |
 | bignumber.js                    | 11.1.5  | MIT          |
@@ -113,7 +113,7 @@ Dual or compound licences (a permissive branch is always available):
 | fast-deep-equal                 | 3.1.3   | MIT          |
 | fast-uri                        | 3.1.8   | BSD-3-Clause |
 | feaxios                         | 0.0.23  | MIT          |
-| follow-redirects                | 1.16.0  | MIT          |
+| follow-redirects                | 1.16.1  | MIT          |
 | form-data                       | 4.0.6   | MIT          |
 | function-bind                   | 1.1.2   | MIT          |
 | get-intrinsic                   | 1.3.0   | MIT          |
@@ -122,7 +122,7 @@ Dual or compound licences (a permissive branch is always available):
 | has-symbols                     | 1.1.0   | MIT          |
 | has-tostringtag                 | 1.0.2   | MIT          |
 | hasown                          | 2.0.4   | MIT          |
-| hono                            | 4.13.8  | MIT          |
+| hono                            | 4.13.13 | MIT          |
 | https-proxy-agent               | 5.0.1   | MIT          |
 | ieee754                         | 1.2.1   | BSD-3-Clause |
 | is-retry-allowed                | 3.0.0   | MIT          |
@@ -164,9 +164,9 @@ Dual or compound licences (a permissive branch is always available):
 
 | Licence          | Packages |
 | ---------------- | -------- |
-| MIT              | 87       |
+| MIT              | 84       |
+| Apache-2.0       | 9        |
 | ISC              | 9        |
-| Apache-2.0       | 6        |
 | BSD-3-Clause     | 2        |
 | (MIT OR CC0-1.0) | 1        |
 | BSD-2-Clause     | 1        |
@@ -175,10 +175,10 @@ Dual or compound licences (a permissive branch is always available):
 
 | Licence       | Packages |
 | ------------- | -------- |
-| MIT           | 141      |
+| MIT           | 140      |
 | Apache-2.0    | 18       |
 | BSD-2-Clause  | 7        |
-| ISC           | 4        |
+| ISC           | 3        |
 | BSD-3-Clause  | 2        |
 | MPL-2.0       | 2        |
 | BlueOak-1.0.0 | 1        |
@@ -233,6 +233,24 @@ into the deployed contract.
 | MIT OR Apache-2.0                                   | 124      |
 | Apache-2.0 OR MIT                                   | 31       |
 | Apache-2.0                                          | 20       |
+| MIT                                                 | 19       |
+| Unlicense OR MIT                                    | 7        |
+| BSD-3-Clause                                        | 4        |
+| Apache-2.0 WITH LLVM-exception                      | 2        |
+| BSD-2-Clause OR Apache-2.0 OR MIT                   | 2        |
+| MIT OR Apache-2.0 OR BSD-1-Clause                   | 2        |
+| Zlib OR MIT OR Apache-2.0                           | 2        |
+| (MIT OR Apache-2.0) AND Unicode-3.0                 | 1        |
+| Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | 1        |
+| Zlib OR Apache-2.0 OR MIT                           | 1        |
+
+### contracts/testing/ed25519-account
+
+| Licence                                             | Packages |
+| --------------------------------------------------- | -------- |
+| MIT OR Apache-2.0                                   | 125      |
+| Apache-2.0 OR MIT                                   | 31       |
+| Apache-2.0                                          | 19       |
 | MIT                                                 | 19       |
 | Unlicense OR MIT                                    | 7        |
 | BSD-3-Clause                                        | 4        |

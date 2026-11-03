@@ -16,10 +16,12 @@ are credited unless they ask not to be.
 
 | Version | Supported |
 | ------- | --------- |
-| 0.2.x   | Yes       |
-| < 0.2   | No        |
+| 0.5.x   | Yes       |
+| < 0.5   | No        |
 
-The npm packages under `@rail402.dev` before 0.2.0 come from an earlier prototype and are not maintained.
+Security fixes are released for the newest minor version only; upgrade to the latest 0.5 release to receive
+them. The npm packages under `@rail402.dev` before 0.2.0 come from an earlier prototype and are not
+maintained.
 
 ## Scope
 
@@ -39,5 +41,6 @@ Please do not load-test it or attack its infrastructure; run your own instance f
 
 How keys are held and rotated is described in [Operations](https://docs.rail402.dev/operations).
 The [threat model](https://docs.rail402.dev/security/threat-model) lists the threats Rail402 is built against,
-with the code and tests that answer each, and the [operational tests](https://docs.rail402.dev/security/operational-tests)
-show the exercises that run them.
+with the code and tests that answer each, the [operational tests](https://docs.rail402.dev/security/operational-tests)
+show the exercises that run them, and the [security report](https://docs.rail402.dev/security/report) lists every
+review finding with its fix or written acceptance.

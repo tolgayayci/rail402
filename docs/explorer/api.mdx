@@ -1,0 +1,145 @@
+---
+title: Explorer read API
+sidebarTitle: Read API
+description: Read-only JSON endpoints for x402 settlements on Stellar, accounts, facilitators and the Ecosystem Report, with keyset paging, stable error codes and an OpenAPI document.
+---
+
+The Explorer's read API is public, unauthenticated and read-only. Every answer is an audit aid: verify
+the transaction on chain. The OpenAPI 3.1 document is served at `/api/v1/openapi.json`.
+
+`{network}` is `pubnet` or `testnet`. Only `GET` and `HEAD` are accepted.
+
+| Endpoint                                           | Returns                                                                                                                                                                                                                                  |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/v1/{network}/transactions/{hash}`            | One transaction by its outer or inner hash, as the rules classify it.                                                                                                                                                                    |
+| `/api/v1/{network}/accounts/{address}`             | An account's totals per asset, as payer and as seller (at most 100 assets per side, verified Stellar assets first, then by payments; `moreTotals` counts the rest), and its registry entries.                                            |
+| `/api/v1/{network}/accounts/{address}/settlements` | The account's settlements, newest first (`role=any\|payer\|payTo`; `muxed=<id>` lists payments received by that id, and is refused with `role=payer`).                                                                                   |
+| `/api/v1/{network}/facilitators`                   | The facilitator registry with each facilitator's report totals.                                                                                                                                                                          |
+| `/api/v1/{network}/facilitators/{id}`              | One facilitator: registry entry, accounts with ledger ranges and evidence, totals.                                                                                                                                                       |
+| `/api/v1/{network}/facilitators/{id}/settlements`  | The facilitator's settlements, newest first.                                                                                                                                                                                             |
+| `/api/v1/{network}/settlements`                    | Payments newest first: attributed by default, `facilitator=<id>` for one facilitator, `facilitator=shaped` for unattributed x402-shaped ones; `scheme=exact\|upto`, `asset=<C…>`, `time=24h\|7d\|30d`. A cursor is bound to its filters. |
+| `/api/v1/{network}/report`                         | The Ecosystem Report's numbers for the indexed range.                                                                                                                                                                                    |
+| `/api/v1/{network}/manifest`                       | The report's `manifest.json`, byte for byte as the rebuild command writes it.                                                                                                                                                            |
+| `/api/v1/{network}/network-window/manifest`        | The network-wide window's `manifest.json`, byte for byte as its `rebuildCommand` writes it; `explorer_not_found` while no window is published.                                                                                           |
+
+Lists cover the network's current epoch (testnet resets start a new one).
+
+## Transactions
+
+```sh
+curl -s https://<explorer>/api/v1/testnet/transactions/2cc59d87d51856cd6a9493a21576ed08bad7a9cb62a8cdea7769a85ecb2e39fc
+```
+
+```json
+{
+  "network": "stellar:testnet",
+  "hash": "2cc59d87…39fc",
+  "source": "index",
+  "kind": "settlement",
+  "settlement": {
+    "scheme": "exact",
+    "ruleId": "R-EXACT",
+    "asset": { "contract": "CBIELTK6…DAMA", "code": "USDC", "issuer": "GBBD47IF…FLA5", "verified": true },
+    "payer": "GANVCYEU…IHFR",
+    "payTo": "GBSVTVRQ…ELYP",
+    "amount": "10000",
+    "fee": { "bump": true, "payer": "GDKMZDQW…GH62", "chargedStroops": "11781", "sponsored": true },
+    "attribution": {
+      "tier": "rail402",
+      "facilitatorId": "rail402",
+      "evidenceUrl": "https://testnet.rail402.dev/supported"
+    },
+    "checks": ["E1", "E2", "E3", "E4", "E5", "E6", "E7"]
+  },
+  "versions": { "rules": "2", "registry": "2026-10-23.1" },
+  "links": { "page": "…/testnet/tx/2cc59d87…", "stellarExpert": "…", "rpcCommand": "curl -s -X POST …" }
+}
+```
+
+(Shortened; `settlement` carries every field of a settlement row, listed in the
+[indexing rules](/reference/indexing-rules) and the OpenAPI document.)
+
+- `source` is `index` for an indexed row and `live` for a hash read from the network's RPC because the
+  indexer has not reached it yet.
+- `kind` is `settlement`, `failed_attempt` (a failed transaction with the shape of a settlement, never
+  counted) or `not_x402` (with `notX402.exclusion`, the check it missed, or `null`).
+- Amounts are atomic units as decimal strings. Only `asset.verified: true` names a Stellar asset.
+
+## Paging
+
+Lists return `{ items, nextCursor, limit }`, newest first. Pass `nextCursor` back as `cursor` until it is
+`null`.
+
+- `limit` is 1 to 100 (default 25); anything else is `explorer_invalid_limit`.
+- `offset` and `page` are refused with `explorer_offset_unsupported`; paging is keyset only.
+- A cursor is bound to its list: one taken from another account, role or facilitator is
+  `explorer_invalid_cursor`.
+- Any other query parameter is `explorer_invalid_parameter`.
+
+## Caching
+
+| Answer                                              | Cache-Control                        | ETag                                        |
+| --------------------------------------------------- | ------------------------------------ | ------------------------------------------- |
+| Indexed transaction under the current versions      | `public, max-age=3600, no-transform` | Names the row's rules and registry versions |
+| Indexed transaction from an older registry or rules | `public, max-age=15, no-transform`   | Names the row's rules and registry versions |
+| Lists, accounts, facilitators                       | `public, max-age=15, no-transform`   | Yes                                         |
+| Report and manifest                                 | `public, max-age=60, no-transform`   | Yes                                         |
+| Live lookups and errors                             | `no-store, no-transform`             | None                                        |
+
+`If-None-Match` with a current ETag answers 304.
+
+## Errors
+
+Every error is `{ "error": { "code", "reason", "retryable" } }` with a non-empty reason; 429 answers carry
+`Retry-After`.
+
+| Code                          | HTTP | When                                                                                                            |
+| ----------------------------- | ---- | --------------------------------------------------------------------------------------------------------------- |
+| `explorer_not_found`          | 404  | Unknown path, invalid or unknown hash, invalid address, unknown facilitator or network                          |
+| `explorer_invalid_parameter`  | 400  | An unknown query parameter, or an invalid `role` or `muxed`                                                     |
+| `explorer_invalid_limit`      | 400  | `limit` outside 1 to 100                                                                                        |
+| `explorer_offset_unsupported` | 400  | `offset` or `page` given                                                                                        |
+| `explorer_invalid_cursor`     | 400  | A malformed cursor, or one from another list                                                                    |
+| `explorer_rate_limited`       | 429  | The client exceeded its requests per minute                                                                     |
+| `explorer_lookup_busy`        | 429  | A hash not indexed yet, with the live lookup budget used up                                                     |
+| `explorer_lookup_unavailable` | 503  | A hash not indexed yet, and the network's RPC could not be read                                                 |
+| `explorer_report_unavailable` | 503  | No ledgers of the network are indexed, or the first report is still being computed                              |
+| `explorer_unavailable`        | 503  | The database did not answer in time, or the Explorer is serving as many requests as it can (with `Retry-After`) |
+| `explorer_method_not_allowed` | 405  | A method other than `GET` or `HEAD`                                                                             |
+| `explorer_internal_error`     | 500  | An unexpected error                                                                                             |
+
+The same codes appear on the [error code reference](/reference/error-codes).
+
+## Limits
+
+Each client (an IPv4 address or an IPv6 /64) may make 120 requests a minute (pages and API together,
+configurable by the operator), and 6 live lookups a minute per network. `/health` answers
+`{ status, database, reports }`, is not rate-limited, and shares one database check (given one second) among all requests in any two seconds.
+
+The report (`/api/v1/{network}/report`) is computed by the indexer and re-read every 30 seconds. Its
+`scope` is `registry`: it covers the ledgers that hold transactions of the registry's facilitator accounts
+and upto contracts, from the first ledger of the index to the last ledger every discovery route has
+walked, cut before the first candidate ledger not read yet or failed; `detachedFrom` and `coverageStop`
+(`pending` or `failed`) say where and why it stops, and `failedLedgers` lists failed ledgers. `discovery`
+says how the ledgers were selected (source, routes, the source's index generations and decoders), how
+many of them held no row a registry facilitator settled (`ledgersWithoutAttributedRow`; their own rows
+count only in the unattributed and failed totals), and where their bytes came from (`bytes.lake`,
+`bytes.rpc`). Until the indexer has published a registry-scope report, the endpoint answers
+`explorer_report_unavailable`. Its `reproducible` field is `true` when every
+covered row carries the current rules and registry versions and no ledger failed, so a rebuild of the
+manifest's ledger list (`rebuildCommand`) gives the same totals and files; the manifest's `ledgers` lists
+every ledger read with its hash, `rowVersions` the versions the rows carry, and `anchors` the independent
+ledger hashes the indexer checked. `headlineScope` is `registered-facilitators`: `aggregates.headline` counts the facilitators in the
+public registry, Rail402 included, never every x402 payment on the network. `auditCommand` is the full
+scan of the range, which also measures the unattributed look-alikes in every ledger of the range that
+this report does not (see
+[checking a published number](/reference/explorer-rebuild#checking-a-published-number)).
+
+`networkWide` is the network-wide block, or `null` while the network window job is off or has not run:
+`label` (`network-wide (sampled window)`), `scope` (`full`), `window` (`hours`, `from`, `to`, `ledgers`,
+`firstClosedAt`, `lastClosedAt`), `tiers` (`rail402`, `otherRegistered`, `unattributed`, each with
+payments, volume per asset, payers and sellers, self-payments excluded), `rail402Beta`, `selfPayments`,
+`sharedRelayerPayments`, `failedAttempts`, `excluded`, `assets`, the rules and registry versions,
+`manifestSha256`, `totalsSha256`, `anchorHorizon`, `rebuildCommand` and `run` (`seconds`,
+`downloadedBytes`). It counts every facilitator, registered or not, but only in its window; it is not
+part of the report's own manifest.

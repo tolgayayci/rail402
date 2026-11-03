@@ -10,17 +10,25 @@ environment variables. It needs a testnet account with a USDC trustline and some
 `rail402` CLI sets up:
 
 ```sh
-npm install -g @rail402.dev/cli@0.4.2
+npm install -g @rail402.dev/cli@0.5.1
 rail402 keys new                       # prints the address and the key file
 rail402 account setup --usdc 1         # Friendbot, USDC trustline, 1 USDC bought on the testnet exchange
 export RAIL402_SECRET_KEY_FILE="$(rail402 keys path)"
 ```
 
-The example itself runs from a clone of this repository, whose `@rail402.dev/sdk` it uses. After
-`pnpm install && pnpm build` at the repository root, from this directory:
+The example installs from npm alone, with `@rail402.dev/sdk` pinned to a published version. Download it
+and run it from its directory:
 
 ```sh
-node src/index.ts                                           # defaults below
+curl -fsSL https://codeload.github.com/tolgayayci/rail402/tar.gz/main | tar -xz --strip-components=2 rail402-main/examples/sdk-buyer
+cd sdk-buyer
+```
+
+Then:
+
+```sh
+npm install
+npm start                                                   # defaults below
 node src/index.ts "https://demo.rail402.dev/weather?city=Ankara" "current weather for a city"
 MAX_AMOUNT="0.005 USDC" node src/index.ts                   # a tighter per-call cap
 ```
@@ -28,5 +36,4 @@ MAX_AMOUNT="0.005 USDC" node src/index.ts                   # a tighter per-call
 Each step prints one JSON line: the payment receipt (with its `transaction` hash and `explorerUrl`), the
 seller's answer, and at the end the budget window.
 
-Inside this repository, run it against the workspace sources with `pnpm --filter
-@rail402.dev/example-sdk-buyer start`.
+It pays on `stellar:testnet`. The repository's tests run it against the current sources.

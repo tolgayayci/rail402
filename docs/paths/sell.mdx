@@ -1,0 +1,104 @@
+---
+title: "Sell: charge for an API or MCP tool"
+sidebarTitle: "Sell"
+description: "The seller's path: protect an endpoint with stock x402 packages, choose the network and asset, receive payments, get listed in the Bazaar."
+---
+
+A seller runs a stock x402 resource server and names a facilitator by URL. The buyer signs the payment, the
+facilitator verifies it, submits it and pays the network fee; the seller only receives. This page walks the
+whole path; each step links to the page with the details.
+
+## 1. Run the testnet example
+
+The [seller quickstart](/quickstart/sellers) is a complete, working seller: a receiving account with a USDC
+trustline, `@x402/express` with the Stellar `exact` scheme, the hosted testnet facilitator, and Bazaar
+metadata. Pay it with the [buyer quickstart](/quickstart/buyers) or `rail402 pay <url> --max 0.01`. The
+[seller helpers](/sellers/helpers) build the same route configuration with discovery metadata the catalog
+accepts as is, for HTTP routes and paid MCP tools.
+
+`examples/seller-http` is the same kind of seller as a standalone project: `npm install`, `PAY_TO=G... npm
+start`, or its Dockerfile; its dependencies are pinned to published versions. The public demo seller
+(`apps/demo-seller`, at `https://demo.rail402.dev`) is a larger example of the same packages: HTTP routes, a
+metered `upto` route and paid MCP tools.
+
+## 2. Choose the network
+
+Every payment option names its network by its CAIP-2 id, and the resource server registers its scheme for
+that network:
+
+```ts
+const NETWORK = "stellar:testnet"; // or "stellar:pubnet"
+resourceServer.register(NETWORK, new ExactStellarScheme());
+```
+
+- The facilitator must serve that network: its `/supported` lists an `exact` kind for it. The hosted
+  facilitator at `{{facilitatorUrl}}` serves `stellar:testnet`; a resource server whose facilitator does not
+  serve the network cannot start its middleware.
+- On `stellar:pubnet` payments move real funds. Use a facilitator that serves pubnet (see
+  [Operate a facilitator](/paths/operate)) and a `payTo` you control on pubnet.
+- The demo seller selects the network with `NETWORK=stellar:pubnet`, needs `FACILITATOR_URL` (https) there,
+  and lists its `payTo` under the pubnet passphrase in its `stellar.toml`.
+
+## 3. Choose the asset
+
+`price: "$0.01"` is Circle's USDC on the option's network, 7 decimals: contract
+`CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` on testnet and
+`CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75` on pubnet. x402 amounts are always base units of
+the asset (`"$0.01"` is `amount: "100000"`). Any other SEP-41 token works when the facilitator accepts it:
+`{ amount, asset: "C…", decimals }` with the [seller helpers](/sellers/helpers#prices), and see
+[Accepted assets](/facilitator/assets) for what the facilitator checks.
+
+## 4. Make sure `payTo` can receive
+
+A `G…` account needs a trustline for a Stellar Asset Contract such as USDC; a `C…` contract account does not.
+Without one, payments are refused with `invalid_exact_stellar_payload_recipient_trustline_missing` and nothing
+moves. The seller needs no XLM for fees and never signs anything during a payment. A muxed `M…` `payTo` is
+refused for `exact` (`invalid_exact_stellar_requirements_invalid_pay_to`).
+
+## 5. What the buyer signs
+
+- **`exact`**: the buyer signs one Soroban authorization entry for the asset contract's
+  `transfer(buyer, payTo, amount)`. The signature fixes the asset, the recipient and the amount; changing any
+  of them fails signature verification. The entry's `signatureExpirationLedger` is the latest ledger plus
+  `ceil(maxTimeoutSeconds / ledger time)`: with 5-second ledgers, `maxTimeoutSeconds: 60` gives 12 ledgers.
+  After that ledger the authorization can no longer be used ([Expiration](/verification-rules#expiration)).
+- **`upto`**: the buyer signs terms for the `upto` settlement contract: recipient, token, a **cap**,
+  the facilitator's settlement authority and an expiration ledger, with one nested `token.approve` for the
+  cap. After serving, the seller settles any amount from zero to the cap, and the contract enforces the cap
+  ([upto payments](/facilitator/upto), [seller helpers](/sellers/helpers#charge-what-a-call-used-upto)).
+
+Each authorization is single use: its nonce is consumed when the payment settles, so a replay is refused.
+
+## 6. Fees are sponsored
+
+The facilitator's `/supported` advertises `extra.areFeesSponsored: true`, which the stock resource server
+copies into every payment option. The facilitator builds the transaction around the buyer's signed entry,
+wraps it in a fee bump and pays the fee from its sponsor account; it is never the source of the funds. Buyers
+refuse options without `areFeesSponsored` (`payment_fees_not_sponsored` in the Rail402 buyer tools).
+
+## 7. Get listed
+
+Declare the Bazaar extension (`declareDiscoveryExtension`, or the seller helpers) and register
+`bazaarResourceServerExtension`. The first settled payment catalogs the resource, bound to the `payTo` that
+received it; Rail402 then requests the resource without payment and publishes the listing once your `402`
+confirms it. Only public https hosts are listed. The outcome comes back in `EXTENSION-RESPONSES`; see
+[Get listed](/quickstart/sellers#4-get-listed) and [Cataloging](/bazaar/cataloging). For `domain_verified`
+trust, bind your host and `payTo` both ways with SEP-1 (`stellar.toml` `ACCOUNTS` plus the account's
+`home_domain`).
+
+## 8. Check it before the first sale
+
+`rail402 seller check <url>` requests a running resource the way the catalog will and reports what it would
+refuse; `validateListing` does the same in code ([Check a running seller](/sellers/helpers#check-a-running-seller)).
+It exits 0 when the resource would be listed and 3 when not.
+
+The verdict is the hosted catalog's, which lists public hosts only. A seller on your machine is reached with
+`--allow-http --allow-private-network`, but those flags only let the check connect; the result still says
+`catalog: would not be listed: bazaar_resource_unsafe: Host "localhost" is not a public host.`, as the catalog
+would answer after a settlement. To judge against your own testnet instance run with
+`DISCOVERY_ALLOW_LOOPBACK=true` ([Try the Bazaar locally](/facilitator/docker#try-the-bazaar-locally)), add
+`--discovery-allow-loopback`. Private addresses such as `10.0.0.5` are never listed.
+
+```sh
+rail402 seller check "http://localhost:4021/quote?topic=craft" --allow-http --allow-private-network
+```

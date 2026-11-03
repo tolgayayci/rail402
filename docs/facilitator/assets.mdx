@@ -81,7 +81,9 @@ payee that already held TEST6.
 
 The facilitator compares the fee the simulation asks for with `MAX_TX_FEE_STROOPS` and refuses a payment
 above it with `invalid_exact_stellar_payload_fee_exceeds_maximum`, before anything is submitted. The default
-is 1,000,000 stroops on testnet, which covers every TEST6 payment above, and 300,000 on pubnet. When you accept
+is 2,000,000 stroops on testnet, which covers every TEST6 payment above as testnet's rent price rises (a
+smart-account payer's TEST6 payment to a payee that already held TEST6 was simulated at 1,083,927 stroops in
+October 2026), and 300,000 on pubnet. When you accept
 a custom token on pubnet, set the ceiling for that token's costliest payments. `upto` settlements have their
 own ceiling, `UPTO_MAX_TX_FEE_STROOPS` (default 5,000,000 on testnet, 500,000 on pubnet): a smart-account
 payer's `upto` payment in TEST6 to a payee that already held TEST6 was refused under a 500,000 ceiling and

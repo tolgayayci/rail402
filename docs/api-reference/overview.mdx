@@ -87,5 +87,7 @@ Every code, the check that produces it and the test that proves it are listed in
 
 ## Rate limits
 
-Every endpoint except `/health`, `/ready` and `/metrics` is limited per client address. A limited request
-gets HTTP 429, a `Retry-After` header in seconds and the code `rate_limited`.
+Every endpoint except `/health`, `/ready` and `/metrics` is limited per client address; a `/verify` or
+`/settle` with an API key is limited per key instead, so other clients behind the same address never use up
+its requests. A limited request gets HTTP 429, a `Retry-After` header in seconds and the code
+`rate_limited`.

@@ -22,7 +22,35 @@ source is [`contracts/stellar/upto`](https://github.com/tolgayayci/rail402/tree/
 {/* generated:end */}
 
 There is no pubnet deployment. A facilitator serving `upto` on pubnet configures its own contract and WASM
-hash (`PUBNET_UPTO_CONTRACT`, `PUBNET_UPTO_WASM_HASH`), and refuses to start if the live contract runs other code.
+hash (`PUBNET_UPTO_CONTRACT`, `PUBNET_UPTO_WASM_HASH`), and refuses to start (or, serving several networks,
+holds pubnet) if the live contract is absent or runs other code. `@rail402.dev/upto` reserves
+`UPTO_PUBNET_DEPLOYMENT` for the pubnet deployment; it is `undefined` until one is recorded.
+
+### Deploying to pubnet
+
+`scripts/contracts/deploy.sh --network pubnet` deploys only the bytes of the contract's GitHub release, the
+ones stellar.expert's release workflow built, attested and can validate:
+
+```sh
+gh release download <release> --repo tolgayayci/rail402 --pattern '*.wasm' --dir release
+scripts/contracts/deploy.sh --network pubnet --rpc-url https://<provider> \
+  --release-wasm release/<file>.wasm --deployer-secret-file <file>
+```
+
+Before anything is sent it requires the release wasm to equal the committed fixture byte for byte and to
+carry a valid attestation from stellar.expert's workflow (`gh attestation verify`), prints the contract
+address (known in advance from the deployer and the salt), simulates the upload and prints its fee, and
+asks the operator to type the address (`--confirm <address>` without a terminal). It never funds the
+deployer and deploys `upto` only. The record goes to `contracts/stellar/deployments/pubnet.json` with
+`caip2: "stellar:pubnet"` and a keyless public RPC (`--public-rpc-url`, default
+`https://mainnet.sorobanrpc.com`), never the deploy-time `--rpc-url`, which may embed a provider key.
+`scripts/contracts/verify.sh --network pubnet [--rpc-url <url>]` then rebuilds the recorded commit and
+compares the rebuilt, recorded and deployed bytes, and the contract-release workflow checks every record
+in `contracts/stellar/deployments/` and reports stellar.expert's validation on each record's network.
+
+Use a fresh deployer that holds only what the deployment costs. The contract has no admin and cannot be
+upgraded, so the deployer keeps no power over it; once the record is verified, merge the deployer account
+into the treasury so the key is retired.
 
 The testnet deployment record is
 [`contracts/stellar/deployments/testnet.json`](https://github.com/tolgayayci/rail402/blob/main/contracts/stellar/deployments/testnet.json):
@@ -138,7 +166,7 @@ with `build.sh` and requires it to be the WASM the testnet deployment runs, then
 for `contracts/stellar/upto`. That workflow builds the contract with the command above, publishes the WASM as a
 GitHub release, attests it with GitHub build provenance and asks stellar.expert to validate it. The last job requires the released
 WASM to be the deployed one and its attestation to come from stellar.expert's workflow
-(`gh attestation verify <wasm> --repo tolgayayci/rail402 --signer-repo stellar-expert/soroban-build-workflow`).
+(`gh attestation verify <wasm> --repo tolgayayci/rail402 --signer-repo stellar-expert/soroban-build-workflow --signer-digest 6b16426dd3a61715ddddf83a2df322a6371fe071`).
 The release `upto-contract-v1.0.0` ran on 2026-10-15, and stellar.expert
 [shows the testnet contract as verified](https://stellar.expert/explorer/testnet/contract/CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U),
 built from commit `77a4ddb` of this repository. `contracts/stellar/upto` is the same there as at `b63695c`, the
