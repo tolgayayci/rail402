@@ -1,0 +1,63 @@
+{
+  "manifestSha256": "f012987cffa25b092831b2cab56c69ff0331d32610ca63925616378586914217",
+  "manifest": {
+    "manifestVersion": 3,
+    "scope": "full",
+    "network": "stellar:testnet",
+    "epoch": "2025-12-17",
+    "rulesVersion": "2",
+    "registryVersion": "2026-10-23.1",
+    "rowVersions": {
+      "rules": ["2"],
+      "registry": ["2026-10-23.1"]
+    },
+    "registrySha256": "54060e7de74b748b73afacdb8b8158b2ecf1971018ef30aaee53ee931775b026",
+    "source": {
+      "kind": "directory",
+      "uri": null,
+      "dataLakeFolder": "testnet/2025-12-18"
+    },
+    "range": {
+      "from": 5330305,
+      "to": 5330320
+    },
+    "firstLedger": {
+      "ledger": 5330305,
+      "previousHash": "90486591c4239045fa506bb49abac035531809e50cb429c680e897924087da9b"
+    },
+    "lastLedger": {
+      "ledger": 5330320,
+      "hash": "0e51912b143e58971f953972b31f8bc4a25038936e4d3f1252eaf8148030b192"
+    },
+    "anchors": [],
+    "partitions": [
+      {
+        "start": 5312000,
+        "from": 5330305,
+        "to": 5330320,
+        "rows": 6,
+        "failed": 0,
+        "rowsSha256": "4105cc77cd7de3b414101472b6c46944c333eb52239b1124de8e6508df08da5f",
+        "lastLedgerHash": "0e51912b143e58971f953972b31f8bc4a25038936e4d3f1252eaf8148030b192"
+      }
+    ],
+    "files": {
+      "settlements.ndjson": {
+        "sha256": "4105cc77cd7de3b414101472b6c46944c333eb52239b1124de8e6508df08da5f",
+        "bytes": 7101,
+        "lines": 6
+      },
+      "failed_attempts.ndjson": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "lines": 0
+      },
+      "aggregates.json": {
+        "sha256": "b27f41a7782c016c088bd4598f6fb3c78b53c7ef9a7ddbfafa19bfe297e754c2",
+        "bytes": 1390,
+        "lines": 1
+      }
+    },
+    "totalsSha256": "b27f41a7782c016c088bd4598f6fb3c78b53c7ef9a7ddbfafa19bfe297e754c2"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "@rail402.dev/explorer",
+  "version": "0.5.1",
+  "private": true,
+  "description": "The Rail402 Explorer: indexes x402 settlements on Stellar from public ledgers under published rules, and serves them as public pages, a read API and an Ecosystem Report.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    "./codes": {
+      "@rail402/source": "./src/api/codes.ts",
+      "default": "./src/api/codes.ts"
+    }
+  },
+  "files": [
+    "src",
+    "migrations",
+    "sql",
+    "fonts",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node --conditions=@rail402/source src/main.ts",
+    "web": "node --conditions=@rail402/source src/main.ts web",
+    "indexer": "node --conditions=@rail402/source src/indexer/main.ts",
+    "network-window": "node --conditions=@rail402/source src/window/main.ts",
+    "rebuild": "node --conditions=@rail402/source src/rebuild/main.ts",
+    "registry-check": "node --conditions=@rail402/source src/registry-check.ts",
+    "snapshot": "node --conditions=@rail402/source src/snapshot/main.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "catalog:",
+    "@rail402.dev/errors": "workspace:*",
+    "@rail402.dev/ledger-source": "workspace:*",
+    "@rail402.dev/store-postgres": "workspace:*",
+    "@rail402.dev/x402-index": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:",
+    "hono": "catalog:",
+    "kysely": "catalog:",
+    "pg": "catalog:",
+    "pino": "catalog:",
+    "prom-client": "catalog:"
+  },
+  "devDependencies": {
+    "@types/pg": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.11"
+  }
+}

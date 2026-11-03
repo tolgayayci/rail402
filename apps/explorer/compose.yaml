@@ -1,0 +1,91 @@
+# The Explorer for local development, on top of the repository's docker-compose.yml (run from the
+# repository root; paths resolve from there):
+#
+#   EXPLORER_LUMEUS_TESTNET_KEY_FILE=./lumeus-testnet.key \
+#     docker compose -f docker-compose.yml -f apps/explorer/compose.yaml --profile explorer up -d --build
+#
+# It indexes testnet into a database of its own and serves it at http://localhost:8090. Discovery and
+# recent ledger bytes come from Lumeus: set EXPLORER_LUMEUS_TESTNET_KEY_FILE to a file on this machine that
+# holds a Lumeus testnet key (lum_test_…); it is mounted as a secret, never passed as a variable. For brevity both
+# roles connect as the local superuser, which only EXPLORER_ALLOW_UNSAFE_ROLE (testnet only) permits; a
+# real deployment creates the owner, writer and reader roles with sql/roles.sql and sql/grants.sql.
+services:
+  explorer-init:
+    profiles: [explorer]
+    image: postgres:18.6-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: rail402
+      PGPASSWORD: rail402
+    command:
+      - sh
+      - -c
+      - psql -d rail402 -tAc "SELECT 1 FROM pg_database WHERE datname = 'rail402_explorer'" | grep -q 1 || createdb rail402_explorer
+    restart: "no"
+
+  explorer-indexer:
+    profiles: [explorer]
+    build:
+      context: .
+      dockerfile: apps/explorer/Dockerfile
+    image: rail402-explorer:dev
+    depends_on:
+      explorer-init:
+        condition: service_completed_successfully
+    environment:
+      EXPLORER_ROLE: indexer
+      EXPLORER_NETWORK: testnet
+      EXPLORER_DATABASE_URL: postgres://rail402:rail402@postgres:5432/rail402_explorer
+      EXPLORER_MIGRATION_DATABASE_URL: postgres://rail402:rail402@postgres:5432/rail402_explorer
+      EXPLORER_ALLOW_UNSAFE_ROLE: "true"
+      EXPLORER_LUMEUS_KEY_FILE: /run/secrets/lumeus-testnet
+      # Index from a recent ledger instead of the epoch's start; unset to index the whole epoch.
+      EXPLORER_FROM_LEDGER: ${EXPLORER_FROM_LEDGER:-}
+    secrets:
+      - lumeus-testnet
+    ports:
+      - "127.0.0.1:9464:9464"
+
+  # The report's network-wide block: a full scan of the last 24 hours of testnet from the public data lake,
+  # once a day. Off unless its profile is started too: add `--profile explorer-window`.
+  explorer-network-window:
+    profiles: [explorer-window]
+    image: rail402-explorer:dev
+    depends_on:
+      explorer-indexer:
+        condition: service_started
+    environment:
+      EXPLORER_ROLE: network-window
+      EXPLORER_NETWORK: testnet
+      EXPLORER_NETWORK_WINDOW_HOURS: ${EXPLORER_NETWORK_WINDOW_HOURS:-24}
+      EXPLORER_DATABASE_URL: postgres://rail402:rail402@postgres:5432/rail402_explorer
+      EXPLORER_ALLOW_UNSAFE_ROLE: "true"
+    healthcheck:
+      disable: true
+
+  explorer-web:
+    profiles: [explorer]
+    image: rail402-explorer:dev
+    depends_on:
+      explorer-indexer:
+        condition: service_started
+    environment:
+      EXPLORER_ROLE: web
+      EXPLORER_NETWORKS: testnet
+      EXPLORER_DATABASE_URL: postgres://rail402:rail402@postgres:5432/rail402_explorer
+      EXPLORER_ALLOW_UNSAFE_ROLE: "true"
+      EXPLORER_METRICS_HOST: 0.0.0.0
+      # Live lookups of hashes not indexed yet through Lumeus RPC.
+      EXPLORER_TESTNET_LUMEUS_KEY_FILE: /run/secrets/lumeus-testnet
+    secrets:
+      - lumeus-testnet
+    ports:
+      - "127.0.0.1:8090:8080"
+      - "127.0.0.1:9465:9465"
+
+secrets:
+  lumeus-testnet:
+    file: ${EXPLORER_LUMEUS_TESTNET_KEY_FILE:?set EXPLORER_LUMEUS_TESTNET_KEY_FILE to a file holding a Lumeus testnet key}
