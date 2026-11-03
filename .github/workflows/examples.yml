@@ -1,0 +1,76 @@
+name: examples
+
+# Installs each example from the npm registry alone, outside the repository's workspace, the way a
+# developer who copies the example directory does, and runs what can run without a funded key.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "examples/**"
+      - ".github/workflows/examples.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: examples-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install-from-registry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [seller-http, sdk-buyer, mcp-agent]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Copy the example out of the repository
+        run: |
+          mkdir -p "$RUNNER_TEMP/example"
+          cp -r "examples/${{ matrix.example }}/." "$RUNNER_TEMP/example/"
+      - name: Install from https://registry.npmjs.org
+        working-directory: ${{ runner.temp }}/example
+        run: |
+          npm install --no-audit --no-fund --registry https://registry.npmjs.org
+          # Every @rail402.dev package resolved from the registry, never from a link.
+          node -e '
+            const lock = require("./package-lock.json");
+            for (const [path, entry] of Object.entries(lock.packages)) {
+              if (!path.includes("@rail402.dev/")) continue;
+              if (entry.link || !String(entry.resolved).startsWith("https://registry.npmjs.org/")) {
+                console.error(`${path} did not come from the registry`); process.exit(1);
+              }
+            }'
+      - name: seller-http answers 402 through the hosted testnet facilitator
+        if: matrix.example == 'seller-http'
+        working-directory: ${{ runner.temp }}/example
+        env:
+          PAY_TO: GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A
+          PORT: "4021"
+        run: |
+          node src/main.ts &
+          for attempt in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:4021/quote?topic=craft' || true)
+            [ "$status" = "402" ] && break
+            sleep 1
+          done
+          test "$status" = "402"
+          curl -sD - -o /dev/null 'http://127.0.0.1:4021/quote?topic=craft' | grep -qi '^payment-required:'
+      - name: seller-http builds its container from the registry
+        if: matrix.example == 'seller-http'
+        run: docker build -t rail402-seller-http "examples/seller-http"
+      - name: sdk-buyer loads the SDK
+        if: matrix.example == 'sdk-buyer'
+        working-directory: ${{ runner.temp }}/example
+        run: node -e 'import("@rail402.dev/sdk").then((sdk) => { if (typeof sdk.createBuyer !== "function") process.exit(1); })'
+      - name: mcp-agent finds the installed rail402-mcp
+        if: matrix.example == 'mcp-agent'
+        working-directory: ${{ runner.temp }}/example
+        run: npx --no-install rail402-mcp --version

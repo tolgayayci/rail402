@@ -1,0 +1,7 @@
+# osv-scanner configuration for CI (`osv-scanner --config=osv-scanner.toml`). Every ignored advisory
+# names why it does not apply and when it must be looked at again.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0436"
+ignoreUntil = 2027-04-30
+reason = "paste is unmaintained, with no known vulnerability; soroban-sdk uses it as a build-time proc macro in the contract crates, and no maintained replacement is available through soroban-sdk yet."

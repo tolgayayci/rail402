@@ -1,0 +1,51 @@
+name: upstream-watch
+
+# Compares tools/upstream-watch/watch.json with upstream x402 and keeps the `upstream-drift` issue up
+# to date. It reads the GitHub API and the npm registry only: it never checks out, installs or runs
+# upstream code, and its token can read the repository and write issues, nothing else.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Print the issue it would write instead of writing it
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    # Forks never write issues.
+    if: github.repository == 'tolgayayci/rail402'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The commit that last changed the watch list is named in the issue.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Install the watcher's dependencies only
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter @rail402.dev/upstream-watch
+      - name: Compare with upstream and report the drift
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          watch_commit="$(git log -1 --format=%H -- tools/upstream-watch/watch.json)"
+          dry_run=()
+          if [ "$DRY_RUN" = "true" ]; then dry_run=(--dry-run); fi
+          node tools/upstream-watch/src/main.ts --report-issue --tracker "$GITHUB_REPOSITORY" \
+            --watch-commit "$watch_commit" "${dry_run[@]}"

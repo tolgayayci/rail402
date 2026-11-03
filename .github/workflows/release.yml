@@ -1,19 +1,61 @@
-name: release
-
-# A version tag (v0.1.0, …) publishes the service image to the GitHub Container Registry:
-# ghcr.io/<owner>/<repo>:<version> and :latest, with RAIL402_VERSION set to the version.
+# A version tag (v0.1.0, …) publishes three images to the GitHub Container Registry, each tagged with the
+# version: the service as ghcr.io/<owner>/<repo>:<version> (RAIL402_VERSION set to the version), the
+# Explorer as ghcr.io/<owner>/<repo>-explorer and the hosted MCP endpoint as ghcr.io/<owner>/<repo>-mcp.
+# There is no moving :latest tag: deployments name each image by digest. The images are built only after
+# the tagged commit is on main, passes `pnpm verify` (format, lint, types, unit tests, licence gate) and
+# the findings register allows the tag; the integration, scan and contract jobs of CI are not repeated
+# here, and the deploy gate (deploy/check-deployable.ts) refuses a commit unless every CI check run for
+# it finished green. Each image carries its own build provenance attestation and SBOM, and the job
+# summary names its digest.
 on:
   push:
     tags: ["v*.*.*"]
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - name: The tagged commit is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify
+      - name: The findings register allows this tag
+        run: node tools/conformance/src/findings.ts --release "$GITHUB_REF_NAME"
+
   image:
+    needs: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: true
+      matrix:
+        image:
+          - name: facilitator
+            dockerfile: Dockerfile
+            suffix: ""
+          - name: explorer
+            dockerfile: apps/explorer/Dockerfile
+            suffix: -explorer
+          - name: mcp
+            dockerfile: packages/mcp/Dockerfile
+            suffix: -mcp
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -25,14 +67,30 @@ jobs:
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository }}${{ matrix.image.suffix }}
+          flavor: latest=false
           tags: |
             type=semver,pattern={{version}}
-            type=raw,value=latest
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
+          file: ${{ matrix.image.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: RAIL402_VERSION=${{ steps.meta.outputs.version }}
+          build-args: |
+            RAIL402_VERSION=${{ steps.meta.outputs.version }}
+            RAIL402_COMMIT=${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}${{ matrix.image.suffix }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+      - name: Name the digest to deploy
+        run: >-
+          echo "Deploy ${{ matrix.image.name }}=ghcr.io/${GITHUB_REPOSITORY}${{ matrix.image.suffix }}@${{ steps.build.outputs.digest }}"
+          >> "$GITHUB_STEP_SUMMARY"

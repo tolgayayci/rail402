@@ -46,7 +46,7 @@ jobs:
 
   integration:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,7 +69,12 @@ jobs:
         run: pnpm eval:check
       - name: Start Postgres and a private Stellar network
         run: docker compose --profile stellar up -d --wait --wait-timeout 300
+      # The self-host test runs this image with no internet access (apps/rail402/test/image.integration.test.ts).
+      - name: Build the service image for the self-host test
+        run: docker build -t rail402:selfhost .
       - run: pnpm test:integration
+        env:
+          RAIL402_IMAGE: rail402:selfhost
       - name: Service logs on failure
         if: failure()
         run: docker compose --profile stellar logs --tail 200
@@ -115,6 +120,7 @@ jobs:
           - contracts/stellar/upto
           - contracts/testing/test-token
           - contracts/testing/approve-spending-limit
+          - contracts/testing/ed25519-account
           - contracts/testing/composition
           - contracts/testing/upto-adversarial
     defaults:
@@ -157,3 +163,73 @@ jobs:
         run: >-
           docker build -f apps/playground/Dockerfile --build-arg RAIL402_COMMIT=${{ github.sha }}
           -t rail402-playground:ci .
+      - name: Build the Explorer image
+        run: >-
+          docker build -f apps/explorer/Dockerfile --build-arg RAIL402_COMMIT=${{ github.sha }}
+          -t rail402-explorer:ci .
+      - name: Build the hosted MCP image
+        run: docker build -f packages/mcp/Dockerfile -t rail402-mcp:ci .
+
+  # Known vulnerabilities in every lockfile: the pnpm workspace and each contract crate. Ignored
+  # advisories live in osv-scanner.toml, each with its reason and an expiry.
+  dependency-scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Scan the lockfiles with osv-scanner
+        uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+        with:
+          scan-args: |-
+            --config=osv-scanner.toml
+            --lockfile=pnpm-lock.yaml
+            --lockfile=contracts/stellar/upto/Cargo.lock
+            --lockfile=contracts/testing/test-token/Cargo.lock
+            --lockfile=contracts/testing/approve-spending-limit/Cargo.lock
+            --lockfile=contracts/testing/ed25519-account/Cargo.lock
+            --lockfile=contracts/testing/composition/Cargo.lock
+            --lockfile=contracts/testing/upto-adversarial/Cargo.lock
+
+  # RustSec advisories for the contract crates, with cargo-audit pinned to a released version.
+  cargo-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --version 0.22.1 --locked
+      - name: Audit every contract crate
+        run: |
+          for lock in contracts/*/*/Cargo.lock; do
+            echo "::group::${lock}"
+            cargo audit --file "$lock" --ignore RUSTSEC-2024-0436
+            echo "::endgroup::"
+          done
+
+  # The monitoring example: rules, rule unit tests and every config, checked with the tools of the
+  # pinned images the example runs.
+  monitoring:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PROMETHEUS: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+      ALERTMANAGER: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
+      BLACKBOX: prom/blackbox-exporter:v0.29.0@sha256:9613f2884689b6fad9f1939f6a3b0388c93a022cfaededb19545b329b5c83dea
+      CADDY: caddy:2.11.6-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check and unit-test the alert rules
+        run: |
+          docker run --rm -v "$PWD/deploy/monitoring:/m:ro" --entrypoint promtool "$PROMETHEUS" check rules /m/alerts.yml
+          docker run --rm --tmpfs /tmp -v "$PWD/deploy/monitoring:/m:ro" --entrypoint promtool "$PROMETHEUS" test rules /m/alerts.test.yml
+      - name: Check the Prometheus, Alertmanager and blackbox configs
+        run: |
+          mkdir -p "$RUNNER_TEMP/secrets" && echo placeholder > "$RUNNER_TEMP/secrets/metrics_private_token"
+          docker run --rm -v "$PWD/deploy/monitoring:/etc/prometheus:ro" -v "$RUNNER_TEMP/secrets:/run/secrets:ro" \
+            --entrypoint promtool "$PROMETHEUS" check config /etc/prometheus/prometheus.yml
+          docker run --rm -v "$PWD/deploy/monitoring:/m:ro" --entrypoint amtool "$ALERTMANAGER" check-config /m/alertmanager.yml
+          docker run --rm -v "$PWD/deploy/monitoring:/m:ro" "$BLACKBOX" --config.file=/m/blackbox.yml --config.check
+      - name: Check the proxy example
+        run: >-
+          docker run --rm -v "$PWD/deploy/proxy:/etc/caddy:ro" "$CADDY"
+          caddy validate --config /etc/caddy/Caddyfile.example --adapter caddyfile

@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# Lumeus keys for the local Explorer (apps/explorer/compose.yaml)
+lumeus-*.key
 # node
 node_modules/
 .pnpm-store/
@@ -47,3 +49,12 @@ contracts/**/test_snapshots/
 apps/playground/test-results/
 apps/playground/playwright-report/
 apps/playground/web/.vite/
+
+# load test runs (tools/loadtest): raw requests, summaries and configuration
+tools/loadtest/results/
+
+# Lockfiles of the standalone examples, created by `npm install` inside them
+examples/*/package-lock.json
+
+# The local list of words the findings register refuses (tools/conformance/src/findings.ts)
+/.forbidden-words

@@ -30,11 +30,6 @@ const ARTIFACTS: readonly { name: string; license: string; where: string }[] = [
     where: "service image",
   },
   {
-    name: "rs-soroban-env simple_account.wasm",
-    license: "Apache-2.0",
-    where: "tests only; packages/testkit/fixtures/README.md",
-  },
-  {
     name: "OpenZeppelin stellar-contracts smart account and ed25519 verifier wasm",
     license: "MIT",
     where: "tests only; pinned commit in scripts/contracts/fixtures.sh",

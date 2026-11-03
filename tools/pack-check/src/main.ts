@@ -9,9 +9,12 @@
  *      points (exports, bins with a node shebang);
  *   4. `npm install` every tarball into an empty project under the system temp directory, third-party
  *      dependencies from the registry, and check that each Rail402 package came from its tarball;
+ *      npm runs with the toolchain environment only and with lifecycle scripts off, so no dependency
+ *      runs code while it installs;
  *   5. smoke the install: import every entry point, `rail402 --version` and `--help`,
  *      `rail402-mcp --help`, an MCP `tools/list` over stdio with the installed server, and a
- *      TypeScript consumer compiled against the installed type declarations;
+ *      TypeScript consumer compiled against the installed type declarations; the installed code runs
+ *      in child processes that get a path and a home of their own, never this process's environment;
  *   6. run the licence policy over every installed package;
  *   7. write the evidence: names, versions, sha512 integrity, sizes, file lists, node and npm
  *      versions and the install summary.
@@ -40,6 +43,7 @@ import { parseArgs } from "node:util";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { judge } from "@rail402.dev/license-gate";
+import { NPM_INSTALL_FLAGS, toolchainEnvironment } from "../../conformance/src/upstream-e2e-env.ts";
 import {
   binsOf,
   entryPointProblems,
@@ -191,7 +195,11 @@ function pack(target: Publishable, version: string): PackedPackage {
 }
 
 /** Imports every entry point from the consumer project; an optional peer that is absent is reported. */
-function importEntryPoints(project: string, packed: readonly PackedPackage[]) {
+function importEntryPoints(
+  project: string,
+  packed: readonly PackedPackage[],
+  consumerEnv: NodeJS.ProcessEnv,
+) {
   const results: { specifier: string; status: "loaded" | "needs-optional-peer"; peer?: string }[] = [];
   for (const entry of packed) {
     for (const subpath of entry.subpaths) {
@@ -199,9 +207,7 @@ function importEntryPoints(project: string, packed: readonly PackedPackage[]) {
       const loaded = run(
         process.execPath,
         ["--input-type=module", "-e", `await import(${JSON.stringify(specifier)});`],
-        {
-          cwd: project,
-        },
+        { cwd: project, env: consumerEnv },
       );
       if (loaded.status === 0) {
         results.push({ specifier, status: "loaded" });
@@ -254,7 +260,7 @@ export const fetcher = createSafeFetch();
 export const scheme: string = UptoStellarScheme.name;
 `;
 
-function compileConsumer(project: string) {
+function compileConsumer(project: string, consumerEnv: NodeJS.ProcessEnv) {
   writeFileSync(join(project, "consumer.ts"), CONSUMER);
   writeFileSync(
     join(project, "tsconfig.json"),
@@ -276,7 +282,7 @@ function compileConsumer(project: string) {
     )}\n`,
   );
   const tsc = join(ROOT, "node_modules/typescript/bin/tsc");
-  const compiled = run(process.execPath, [tsc, "-p", "tsconfig.json"], { cwd: project });
+  const compiled = run(process.execPath, [tsc, "-p", "tsconfig.json"], { cwd: project, env: consumerEnv });
   if (compiled.status !== 0) fail("consumer.ts", [`tsc failed:\n${compiled.stdout}${compiled.stderr}`]);
   return {
     typescript: readJson<{ version: string }>(join(ROOT, "node_modules/typescript/package.json")).version,
@@ -374,6 +380,8 @@ async function main() {
   const project = mkdtempSync(join(tmpdir(), "rail402-pack-check-"));
   const home = join(project, ".home");
   mkdirSync(home);
+  /** The installed code, and the compiler reading its declarations, get a path and a home only. */
+  const consumerEnv = { PATH: process.env["PATH"] ?? "", HOME: home };
   let install: Record<string, unknown>;
   let smoke: Record<string, unknown>;
   let licences: ReturnType<typeof licenceCheck> | undefined;
@@ -386,8 +394,10 @@ async function main() {
       join(ROOT, "node_modules/@types/node/package.json"),
     ).version;
     log(`installing the tarballs into ${project}`);
+    // npm resolves the dependencies from the registry: it never sees a secret of this process, and
+    // runs no dependency's install script.
     const npmEnv = {
-      ...process.env,
+      ...toolchainEnvironment(process.env),
       npm_config_update_notifier: "false",
       npm_config_fund: "false",
       npm_config_audit: "false",
@@ -396,8 +406,7 @@ async function main() {
       "npm",
       [
         "install",
-        "--no-audit",
-        "--no-fund",
+        ...NPM_INSTALL_FLAGS,
         ...packed.map((entry) => join(ROOT, entry.tarball)),
         `@types/node@${typesNode}`,
       ],
@@ -423,12 +432,9 @@ async function main() {
     };
 
     log("importing every entry point");
-    const imports = importEntryPoints(project, packed);
+    const imports = importEntryPoints(project, packed, consumerEnv);
     const bin = (name: string, binArgs: string[]) =>
-      run(join(project, "node_modules/.bin", name), binArgs, {
-        cwd: project,
-        env: { PATH: process.env["PATH"] ?? "", HOME: home },
-      });
+      run(join(project, "node_modules/.bin", name), binArgs, { cwd: project, env: consumerEnv });
     const cliVersion = bin("rail402", ["--version"]);
     if (cliVersion.status !== 0 || !cliVersion.stdout.includes(version))
       fail("rail402 --version", [
@@ -450,7 +456,7 @@ async function main() {
       if (!tools.includes(expected)) fail("rail402-mcp tools/list", [`${expected} is missing`]);
     }
     log("compiling a TypeScript consumer against the installed declarations");
-    const consumer = compileConsumer(project);
+    const consumer = compileConsumer(project, consumerEnv);
     log("checking every installed package's licence");
     licences = licenceCheck(project, lock);
     smoke = {

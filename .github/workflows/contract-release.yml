@@ -8,9 +8,11 @@ name: contract-release
 # request only from its own workflow, so the build itself is not done here.
 #
 # Before the release, `check` rebuilds the contract with scripts/contracts/build.sh, which reproduces
-# the workflow's bytes, and requires them to be the committed wasm that the testnet deployment record
-# names. Afterwards, `confirm` requires the released wasm to be that same wasm and its attestation to
-# come from stellar.expert's workflow in this repository.
+# the workflow's bytes, and requires them to be the committed wasm that every deployment record
+# (contracts/stellar/deployments/*.json: testnet, and pubnet once deployed) names. Afterwards,
+# `confirm` requires the released wasm to be that same wasm and its attestation to come from
+# stellar.expert's workflow in this repository, and reports stellar.expert's validation of each
+# deployed contract on its network.
 
 on:
   push:
@@ -19,17 +21,24 @@ on:
 permissions:
   contents: read
 
+env:
+  # The reviewed revision of stellar.expert's release workflow. It runs actions/checkout@v6,
+  # stellar/stellar-cli@v28.1.0, actions/setup-node@v4 and actions/attest-build-provenance@v1 by tag.
+  REVIEWED: 6b16426dd3a61715ddddf83a2df322a6371fe071
+
 jobs:
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # A person approves every release before stellar.expert's workflow runs with this repository's token:
+    # the contract-release environment requires a reviewer.
+    environment: contract-release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: The release workflow is the reviewed revision
         # stellar.expert accepts builds only from its workflow's main branch, so the call below cannot
-        # be pinned to a commit; this refuses a release when main has moved since it was reviewed.
-        env:
-          REVIEWED: 6b16426dd3a61715ddddf83a2df322a6371fe071
+        # be pinned to a commit; this refuses a release when main has moved since it was reviewed. It
+        # reads a mutable name, so `confirm` also checks the revision that actually ran.
         run: |
           main="$(git ls-remote https://github.com/stellar-expert/soroban-build-workflow.git refs/heads/main | cut -f1)"
           if [ "$main" != "$REVIEWED" ]; then
@@ -55,12 +64,14 @@ jobs:
       - name: The pinned build reproduces the deployed wasm
         run: |
           scripts/contracts/build.sh --contract upto --check
-          deployed="$(jq -r .wasm_sha256 contracts/stellar/deployments/testnet.json)"
           built="$(sha256sum target/contracts/upto/x402_upto_stellar.wasm | cut -d' ' -f1)"
-          if [ "$built" != "$deployed" ]; then
-            echo "::error::the build gives $built, the testnet deployment runs $deployed"
-            exit 1
-          fi
+          for record in contracts/stellar/deployments/*.json; do
+            deployed="$(jq -er .wasm_sha256 "$record")"
+            if [ "$built" != "$deployed" ]; then
+              echo "::error::the build gives $built, $record runs $deployed"
+              exit 1
+            fi
+          done
 
   release:
     needs: check
@@ -100,20 +111,35 @@ jobs:
           gh release download "$release" --repo "$GITHUB_REPOSITORY" --pattern '*.wasm' --dir release
           wasm="$(ls release/*.wasm)"
           released="$(sha256sum "$wasm" | cut -d' ' -f1)"
-          deployed="$(jq -r .wasm_sha256 contracts/stellar/deployments/testnet.json)"
           echo "release $release: $wasm $released"
-          if [ "$released" != "$deployed" ]; then
-            echo "::error::the released wasm is $released, the testnet deployment runs $deployed"
-            exit 1
-          fi
+          for record in contracts/stellar/deployments/*.json; do
+            deployed="$(jq -er .wasm_sha256 "$record")"
+            if [ "$released" != "$deployed" ]; then
+              echo "::error::the released wasm is $released, $record runs $deployed"
+              exit 1
+            fi
+          done
+          # The attestation names the workflow revision that ran and the commit it built: both must be
+          # the reviewed revision and this tag's commit.
           gh attestation verify "$wasm" --repo "$GITHUB_REPOSITORY" \
-            --signer-repo stellar-expert/soroban-build-workflow
+            --signer-repo stellar-expert/soroban-build-workflow \
+            --signer-digest "$REVIEWED" --source-digest "$GITHUB_SHA"
       - name: stellar.expert validation status
         run: |
-          contract="$(jq -r .contract_id contracts/stellar/deployments/testnet.json)"
-          validation="$(curl -fsS "https://api.stellar.expert/explorer/testnet/contract/$contract" | jq -c .validation || true)"
-          echo "stellar.expert validation of $contract: ${validation:-unavailable}"
-          case "$validation" in
-            *'"verified"'*) ;;
-            *) echo "::notice::stellar.expert has not validated $contract yet; it validates after its queue picks up the request" ;;
-          esac
+          for record in contracts/stellar/deployments/*.json; do
+            contract="$(jq -er .contract_id "$record")"
+            case "$(jq -er .caip2 "$record")" in
+              stellar:pubnet) explorer=public ;;
+              stellar:testnet) explorer=testnet ;;
+              *)
+                echo "::error::$record names an unknown network"
+                exit 1
+                ;;
+            esac
+            validation="$(curl -fsS "https://api.stellar.expert/explorer/$explorer/contract/$contract" | jq -c .validation || true)"
+            echo "stellar.expert validation of $contract ($explorer): ${validation:-unavailable}"
+            case "$validation" in
+              *'"verified"'*) ;;
+              *) echo "::notice::stellar.expert has not validated $contract on $explorer yet; it validates after its queue picks up the request" ;;
+            esac
+          done

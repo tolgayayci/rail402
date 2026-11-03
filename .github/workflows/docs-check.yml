@@ -1,0 +1,36 @@
+name: docs-check
+
+# Follows the published quickstarts in a fresh container with no checkout of the code under test: only
+# tools/docs-check, which reads the docs site, installs from npm and pays on the Stellar testnet.
+on:
+  workflow_dispatch:
+    inputs:
+      public_url:
+        description: "https origin that forwards to port 4021 of the runner (empty: payment only)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  docs-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: tools/docs-check
+      - run: docker build -t rail402-docs-check tools/docs-check
+      - name: Follow the published quickstarts
+        env:
+          PUBLIC_URL: ${{ inputs.public_url }}
+        run: |
+          args=()
+          if [ -n "$PUBLIC_URL" ]; then args+=(--public-url "$PUBLIC_URL"); fi
+          docker run --rm --network host rail402-docs-check "${args[@]}" | tee docs-check.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: docs-check
+          path: docs-check.json
