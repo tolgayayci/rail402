@@ -138,7 +138,7 @@ export function accountSigner(keypair: Keypair): EntrySigner {
 }
 
 /**
- * Signs for the `simple_account.wasm` fixture (a custom account whose `__check_auth` verifies one
+ * Signs for the `ed25519_account.wasm` fixture (a custom account whose `__check_auth` verifies one
  * ed25519 signature by its owner over the payload): the signature is the 64 raw bytes.
  */
 export function simpleAccountSigner(owner: Keypair): EntrySigner {

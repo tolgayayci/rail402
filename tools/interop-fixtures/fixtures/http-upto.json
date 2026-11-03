@@ -1,0 +1,108 @@
+{
+  "expected": {
+    "method": "GET",
+    "resource": "https://history.example/history",
+    "type": "http"
+  },
+  "id": "http-upto",
+  "paidUrl": "https://history.example/history",
+  "payer": "GAV3OF2LF36RTEY2VMX2B7RFHO3M5OPRPHFSPN54LH3I2MXJZ7ZGFTPI",
+  "paymentRequired": {
+    "accepts": [
+      {
+        "amount": "100000",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "extra": {
+          "areFeesSponsored": true
+        },
+        "maxTimeoutSeconds": 60,
+        "network": "stellar:testnet",
+        "payTo": "GCGI5ZWNN72JSN3H4O6V5J76EDYMKZX2PVIIIU5FOEGLR6P4KKNPI6SQ",
+        "scheme": "upto"
+      }
+    ],
+    "error": "Payment required",
+    "extensions": {
+      "bazaar": {
+        "info": {
+          "input": {
+            "method": "GET",
+            "queryParams": {
+              "days": "2"
+            },
+            "type": "http"
+          },
+          "output": {
+            "example": {
+              "days": []
+            },
+            "type": "json"
+          }
+        },
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "input": {
+              "additionalProperties": false,
+              "properties": {
+                "method": {
+                  "enum": [
+                    "GET"
+                  ],
+                  "type": "string"
+                },
+                "queryParams": {
+                  "properties": {
+                    "days": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "days"
+                  ],
+                  "type": "object"
+                },
+                "type": {
+                  "const": "http",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "method"
+              ],
+              "type": "object"
+            },
+            "output": {
+              "properties": {
+                "example": {
+                  "type": "object"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "input"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    "resource": {
+      "description": "Weather history",
+      "mimeType": "application/json",
+      "url": "https://history.example/history"
+    },
+    "x402Version": 2
+  },
+  "settledAmount": "6000",
+  "source": "specs/extensions/bazaar.md, Example: GET Endpoint (with an upto payment option)",
+  "title": "upto offer settled below its cap"
+}

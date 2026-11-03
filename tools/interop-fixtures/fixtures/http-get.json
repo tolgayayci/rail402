@@ -1,0 +1,116 @@
+{
+  "expected": {
+    "method": "GET",
+    "resource": "https://weather.example/weather",
+    "type": "http"
+  },
+  "id": "http-get",
+  "paidUrl": "https://weather.example/weather",
+  "payer": "GDJN7KVK5AOUDKMHKEZUXVYZG477BQ7KUVHRZDJEZN45VN4RHLY6M4F3",
+  "paymentRequired": {
+    "accepts": [
+      {
+        "amount": "10000",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "extra": {
+          "areFeesSponsored": true
+        },
+        "maxTimeoutSeconds": 60,
+        "network": "stellar:testnet",
+        "payTo": "GB4CRR7KBZXXNBR6RSSNSDNTU5PGPQ2VJVCWEEISQR5PTNMYNVFSDWFS",
+        "scheme": "exact"
+      }
+    ],
+    "error": "Payment required",
+    "extensions": {
+      "bazaar": {
+        "info": {
+          "input": {
+            "method": "GET",
+            "queryParams": {
+              "city": "San Francisco"
+            },
+            "type": "http"
+          },
+          "output": {
+            "example": {
+              "city": "San Francisco",
+              "temperature": 60,
+              "weather": "foggy"
+            },
+            "type": "json"
+          }
+        },
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "input": {
+              "additionalProperties": false,
+              "properties": {
+                "method": {
+                  "enum": [
+                    "GET"
+                  ],
+                  "type": "string"
+                },
+                "queryParams": {
+                  "properties": {
+                    "city": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "city"
+                  ],
+                  "type": "object"
+                },
+                "type": {
+                  "const": "http",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "method"
+              ],
+              "type": "object"
+            },
+            "output": {
+              "properties": {
+                "example": {
+                  "type": "object"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "input"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    "resource": {
+      "description": "Weather data endpoint",
+      "iconUrl": "https://weather.example/icon.png",
+      "mimeType": "application/json",
+      "serviceName": "Example Weather",
+      "tags": [
+        "weather",
+        "forecast"
+      ],
+      "url": "https://weather.example/weather"
+    },
+    "x402Version": 2
+  },
+  "settledAmount": "10000",
+  "source": "specs/extensions/bazaar.md, Example: GET Endpoint",
+  "title": "GET endpoint with service metadata"
+}

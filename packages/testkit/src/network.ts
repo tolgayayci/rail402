@@ -29,8 +29,76 @@ export const LOCAL_FRIENDBOT_URL =
 
 /** How often `submit` sends a transaction the network answered with TRY_AGAIN_LATER. */
 const SUBMIT_ATTEMPTS = 5;
+/** How often `classic` rebuilds a transaction the network refused with txBadSeq. */
+const BAD_SEQUENCE_ATTEMPTS = 3;
+/** How long a read waits for an RPC node behind a ledger this client has already seen. */
+const CATCH_UP_MS = 60_000;
+const CATCH_UP_PAUSE_MS = 500;
+
+/**
+ * An RPC client whose reads never go back in time. A public RPC endpoint can be served by several
+ * nodes a ledger or two apart: right after one confirms a transaction, the next request may reach
+ * another that still answers with the account's previous sequence number (txBadSeq), an old balance,
+ * or NOT_FOUND. Ledger-entry reads, simulations and transaction lookups are therefore sent again,
+ * for a bounded time, until the answering node has reached the latest ledger this client has seen
+ * (in any answer, or as the ledger of a transaction it looked up). Against one node nothing waits.
+ */
+export class MonotonicRpcServer extends rpc.Server {
+  #seen = 0;
+
+  /** The latest ledger any answer has shown this client. */
+  get seenLedger(): number {
+    return this.#seen;
+  }
+
+  /** Records a ledger known to have closed, e.g. that of a transaction confirmed elsewhere. */
+  observe(ledger: number): void {
+    if (ledger > this.#seen) this.#seen = ledger;
+  }
+
+  override _getLedgerEntries(...keys: xdr.LedgerKey[]): Promise<rpc.Api.RawGetLedgerEntriesResponse> {
+    return this.#caughtUp(() => super._getLedgerEntries(...keys));
+  }
+
+  override _simulateTransaction(
+    ...args: Parameters<rpc.Server["_simulateTransaction"]>
+  ): Promise<rpc.Api.RawSimulateTransactionResponse> {
+    return this.#caughtUp(() => super._simulateTransaction(...args));
+  }
+
+  override async _getTransaction(hash: string): Promise<rpc.Api.RawGetTransactionResponse> {
+    const response = await this.#caughtUp(() => super._getTransaction(hash));
+    if (response.status !== rpc.Api.GetTransactionStatus.NOT_FOUND && response.ledger !== undefined) {
+      this.observe(response.ledger);
+    }
+    return response;
+  }
+
+  async #caughtUp<T extends { readonly latestLedger: number }>(read: () => Promise<T>): Promise<T> {
+    const target = this.#seen;
+    const deadline = Date.now() + CATCH_UP_MS;
+    for (;;) {
+      const response = await read();
+      if (response.latestLedger >= target) {
+        this.observe(response.latestLedger);
+        return response;
+      }
+      if (Date.now() >= deadline) {
+        throw new Error(
+          `the RPC stayed at ledger ${String(response.latestLedger)}, behind ledger ${String(target)}, for ${String(CATCH_UP_MS / 1_000)} s`,
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, CATCH_UP_PAUSE_MS));
+    }
+  }
+}
 /** Friendbot answers tried per account before `fund` gives up (5xx and network errors only). */
 const FRIENDBOT_ATTEMPTS = 5;
+
+/** A submission the network refused with txBadSeq: nothing was applied and no fee was charged. */
+export class BadSequenceError extends Error {
+  override readonly name = "BadSequenceError";
+}
 
 export interface PaymentRequirementsLike {
   readonly scheme: "exact";
@@ -51,14 +119,14 @@ export interface IssuedAsset {
 
 export class LocalNetwork {
   readonly passphrase: string = Networks.TESTNET;
-  readonly server: rpc.Server;
+  readonly server: MonotonicRpcServer;
   readonly rpcUrl: string;
   readonly friendbotUrl: string;
 
   constructor(rpcUrl = LOCAL_RPC_URL, friendbotUrl = LOCAL_FRIENDBOT_URL) {
     this.rpcUrl = rpcUrl;
     this.friendbotUrl = friendbotUrl;
-    this.server = new rpc.Server(rpcUrl, { allowHttp: true });
+    this.server = new MonotonicRpcServer(rpcUrl, { allowHttp: true });
   }
 
   async available(): Promise<boolean> {
@@ -139,7 +207,9 @@ export class LocalNetwork {
       sent = await this.server.sendTransaction(transaction);
     }
     if (sent.status !== "PENDING") {
-      throw new Error(`sendTransaction ${sent.status}: ${sent.errorResult?.result().switch().name ?? ""}`);
+      const code = sent.errorResult?.result().switch().name ?? "";
+      const message = `sendTransaction ${sent.status}: ${code}`;
+      throw code === "txBadSeq" ? new BadSequenceError(message) : new Error(message);
     }
     const result = await this.server.pollTransaction(sent.hash, { attempts: 60 });
     if (result.status !== rpc.Api.GetTransactionStatus.SUCCESS)
@@ -147,17 +217,38 @@ export class LocalNetwork {
     return result;
   }
 
+  /**
+   * Builds and submits a transaction from a sequence number read when `build` runs. A refusal with
+   * txBadSeq means the transaction was not applied (the read came from a node behind the ledger that
+   * used the number), so it is built again from a fresh read, a few times at most. For transactions
+   * of accounts the caller owns: anything that uses the same account elsewhere races it.
+   */
+  async submitBuilt(
+    build: () => Promise<Transaction | FeeBumpTransaction>,
+  ): Promise<rpc.Api.GetSuccessfulTransactionResponse> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.submit(await build());
+      } catch (error) {
+        if (!(error instanceof BadSequenceError) || attempt >= BAD_SEQUENCE_ATTEMPTS) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 1_000 * attempt));
+      }
+    }
+  }
+
   /** Builds, signs and submits a classic transaction. */
   async classic(source: Keypair, operations: xdr.Operation[], cosigners: Keypair[] = []) {
-    const account = await this.server.getAccount(source.publicKey());
-    const builder = new TransactionBuilder(account, {
-      fee: String(Number(BASE_FEE) * Math.max(operations.length, 1)),
-      networkPassphrase: this.passphrase,
-    }).setTimeout(60);
-    for (const operation of operations) builder.addOperation(operation);
-    const transaction = builder.build();
-    transaction.sign(source, ...cosigners);
-    return this.submit(transaction);
+    return this.submitBuilt(async () => {
+      const account = await this.server.getAccount(source.publicKey());
+      const builder = new TransactionBuilder(account, {
+        fee: String(Number(BASE_FEE) * Math.max(operations.length, 1)),
+        networkPassphrase: this.passphrase,
+      }).setTimeout(60);
+      for (const operation of operations) builder.addOperation(operation);
+      const transaction = builder.build();
+      transaction.sign(source, ...cosigners);
+      return transaction;
+    });
   }
 
   /** Issues a classic asset, deploys its Stellar Asset Contract and returns both. */

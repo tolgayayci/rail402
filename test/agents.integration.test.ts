@@ -4,7 +4,7 @@
  * settles through Rail402 running in this process. Its first settlements catalog an HTTP API and an
  * MCP tool; both are then discovered by search and paid through their listings from the SDK, the
  * example SDK buyer, the example MCP agent (which starts rail402-mcp over stdio and knows no endpoint)
- * and the rail402 CLI. Every payment names its transaction and its stellar.expert link, the seller
+ * and the rail402 CLI. Every payment names its transaction and its Rail402 Explorer link, the seller
  * receives exactly what was paid, and the fee sponsor's token balance never moves.
  *
  * The Stellar RPC is fronted by a TLS proxy (the upstream x402 client only reaches an https RPC),
@@ -70,7 +70,7 @@ describe.skipIf(!available)("agents pay the demo seller on the local network", (
 
   const balance = (holder: string) => net.tokenBalance(tusd.sac, holder).catch(() => 0n);
 
-  /** Records a settled payment and checks that its transaction opens on stellar.expert. */
+  /** Records a settled payment and checks that its link opens the transaction in the Rail402 Explorer. */
   const settled = (surface: string, payment: Receipt | null | undefined): Paid => {
     expect(payment, surface).toMatchObject({
       status: "settled",
@@ -82,7 +82,7 @@ describe.skipIf(!available)("agents pay the demo seller on the local network", (
     });
     const transaction = payment?.transaction ?? "";
     expect(transaction, surface).toMatch(HASH);
-    expect(payment?.explorerUrl, surface).toBe(`https://stellar.expert/explorer/testnet/tx/${transaction}`);
+    expect(payment?.explorerUrl, surface).toBe(`https://explorer.rail402.dev/testnet/tx/${transaction}`);
     const paid = { surface, transaction, explorerUrl: payment?.explorerUrl ?? "" };
     payments.push(paid);
     return paid;

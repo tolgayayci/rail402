@@ -29,13 +29,25 @@ export interface OnChainSettlement {
   readonly transfers: readonly TransferEvent[];
 }
 
+/** How often a settled transaction is looked up (once a second) before NOT_FOUND is taken as the answer. */
+export const SETTLED_LOOKUP_ATTEMPTS = 30;
+
+/**
+ * Looks up a transaction that was reported as settled. The RPC node that answers may not have reached
+ * its ledger yet, so NOT_FOUND is asked again, a bounded number of times, before it is returned;
+ * SUCCESS and FAILED are returned at once.
+ */
+export function settledLookup(server: rpc.Server, hash: string): Promise<rpc.Api.GetTransactionResponse> {
+  return server.pollTransaction(hash, { attempts: SETTLED_LOOKUP_ATTEMPTS });
+}
+
 /** Reads a successful settlement transaction: who paid the fee, its inner source and sequence, its transfers. */
 export async function onChainSettlement(
   server: rpc.Server,
   passphrase: string,
   hash: string,
 ): Promise<OnChainSettlement> {
-  const response = await server.getTransaction(hash);
+  const response = await settledLookup(server, hash);
   if (response.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
     throw new Error(`transaction ${hash} is ${response.status}`);
   }

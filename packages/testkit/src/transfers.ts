@@ -33,6 +33,8 @@ export interface TransferOptions {
   readonly ledgerBounds?: { minLedger: number; maxLedger: number };
   /** Transaction source account; the payer by default. */
   readonly source?: string;
+  /** The operation's own source account; unset by default, as stock clients leave it. */
+  readonly operationSource?: string;
   /** Omits every authorization entry. */
   readonly noAuthorization?: boolean;
   /** Appends an address-credential entry for another account over the same invocation. */
@@ -116,6 +118,7 @@ export async function buildTransfer(options: TransferOptions = {}) {
       Operation.invokeHostFunction({
         func: xdr.HostFunction.hostFunctionTypeInvokeContract(call),
         auth: entries,
+        ...(options.operationSource === undefined ? {} : { source: options.operationSource }),
       }),
     );
   if (options.extraOperation) builder.addOperation(Operation.bumpSequence({ bumpTo: "200" }));

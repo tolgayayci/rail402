@@ -1,0 +1,122 @@
+{
+  "expected": {
+    "method": "GET",
+    "resource": "https://quotes.example/price",
+    "type": "http"
+  },
+  "id": "http-other-extension",
+  "paidUrl": "https://quotes.example/price",
+  "payer": "GCTNJCOOLRJMY43EZK4UTA2WJVHJN4XR76FYZQYVHVQEX2GDMT4K33NS",
+  "paymentRequired": {
+    "accepts": [
+      {
+        "amount": "5000",
+        "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+        "extra": {
+          "areFeesSponsored": true
+        },
+        "maxTimeoutSeconds": 60,
+        "network": "stellar:pubnet",
+        "payTo": "GCB7JXCP7OII4GXBAUWLSIOUAR6VEYCLUSF4PDYSQBLNJTDDGT5CXZOR",
+        "scheme": "exact"
+      }
+    ],
+    "error": "Payment required",
+    "extensions": {
+      "bazaar": {
+        "info": {
+          "input": {
+            "method": "GET",
+            "queryParams": {
+              "symbol": "XLM"
+            },
+            "type": "http"
+          },
+          "output": {
+            "example": {
+              "price": "0.12",
+              "symbol": "XLM"
+            },
+            "type": "json"
+          }
+        },
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "input": {
+              "additionalProperties": false,
+              "properties": {
+                "method": {
+                  "enum": [
+                    "GET"
+                  ],
+                  "type": "string"
+                },
+                "queryParams": {
+                  "properties": {
+                    "symbol": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "symbol"
+                  ],
+                  "type": "object"
+                },
+                "type": {
+                  "const": "http",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "method"
+              ],
+              "type": "object"
+            },
+            "output": {
+              "properties": {
+                "example": {
+                  "type": "object"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "input"
+          ],
+          "type": "object"
+        }
+      },
+      "payment-identifier": {
+        "info": {
+          "required": false
+        },
+        "schema": {
+          "type": "object"
+        }
+      }
+    },
+    "resource": {
+      "description": "Asset price quotes",
+      "mimeType": "application/json",
+      "serviceName": "Example Quotes",
+      "tags": [
+        "prices",
+        "markets"
+      ],
+      "url": "https://quotes.example/price"
+    },
+    "x402Version": 2
+  },
+  "settledAmount": "5000",
+  "source": "specs/extensions/bazaar.md, Service Metadata on resource",
+  "title": "Service metadata and another declared extension"
+}

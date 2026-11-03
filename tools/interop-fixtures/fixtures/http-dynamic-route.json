@@ -1,0 +1,115 @@
+{
+  "expected": {
+    "method": "GET",
+    "resource": "https://users.example/users/:userId",
+    "type": "http"
+  },
+  "id": "http-dynamic-route",
+  "paidUrl": "https://users.example/users/42",
+  "payer": "GASFEMPNXKFN5KEOA6KWHES2ZG233NCG66XOFJE6HYI4Q5TQXBSXBQTV",
+  "paymentRequired": {
+    "accepts": [
+      {
+        "amount": "1000",
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "extra": {
+          "areFeesSponsored": true
+        },
+        "maxTimeoutSeconds": 60,
+        "network": "stellar:testnet",
+        "payTo": "GBNTXK6BP33D3ITNMH2PI5DALOUZNQH2RTW2DJ42YZT2Y7QJ5K35XA6H",
+        "scheme": "exact"
+      }
+    ],
+    "error": "Payment required",
+    "extensions": {
+      "bazaar": {
+        "info": {
+          "input": {
+            "method": "GET",
+            "pathParams": {
+              "userId": "42"
+            },
+            "queryParams": {},
+            "type": "http"
+          },
+          "output": {
+            "example": {
+              "id": "42",
+              "name": "Ada"
+            },
+            "type": "json"
+          }
+        },
+        "routeTemplate": "/users/:userId",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "input": {
+              "additionalProperties": false,
+              "properties": {
+                "method": {
+                  "enum": [
+                    "GET"
+                  ],
+                  "type": "string"
+                },
+                "pathParams": {
+                  "properties": {
+                    "userId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "userId"
+                  ],
+                  "type": "object"
+                },
+                "queryParams": {
+                  "properties": {},
+                  "type": "object"
+                },
+                "type": {
+                  "const": "http",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "method"
+              ],
+              "type": "object"
+            },
+            "output": {
+              "properties": {
+                "example": {
+                  "type": "object"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "input"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    "resource": {
+      "description": "User profile",
+      "mimeType": "application/json",
+      "url": "https://users.example/users/42"
+    },
+    "x402Version": 2
+  },
+  "settledAmount": "1000",
+  "source": "specs/extensions/bazaar.md, Dynamic Routes and routeTemplate",
+  "title": "Dynamic route"
+}

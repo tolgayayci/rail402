@@ -1,0 +1,229 @@
+{
+  "$comment": "What Rail402 is pinned to upstream. pnpm upstream:watch compares it with upstream; tools/upstream-watch/test/watch-list.test.ts keeps the packages in step with the pnpm catalog and checks every component path. Re-pin a file by setting pinnedCommit to the last upstream commit that touched it and pinnedBlob to its git blob SHA at that commit.",
+  "schemaVersion": 1,
+  "upstream": {
+    "repository": "x402-foundation/x402",
+    "branch": "main",
+    "baselineRef": "npm-@x402/stellar@v2.28.0",
+    "baselineCommit": "6b6ee91fee027b540faabcb25774e73851006c3b"
+  },
+  "files": [
+    {
+      "path": "specs/x402-specification-v2.md",
+      "pinnedCommit": "51a0664c2b7826e3cb02595481eb6848a1b11815",
+      "pinnedBlob": "7f324a6d9af1a2403387dc64e65ad9555d2dd1fc",
+      "affects": ["facilitator", "buyers-and-sellers", "conformance"],
+      "note": "The x402 v2 protocol: payload, requirements, /verify, /settle and /supported."
+    },
+    {
+      "path": "specs/schemes/exact/scheme_exact.md",
+      "pinnedCommit": "8228bd6d837f58b77037603e45825dc2520f31c9",
+      "pinnedBlob": "139c2fceeec2fcddf7bae6d544fca96132c6dd19",
+      "affects": ["facilitator"],
+      "note": "The exact scheme for every network; only its Stellar parts bind Rail402."
+    },
+    {
+      "path": "specs/schemes/exact/scheme_exact_stellar.md",
+      "pinnedCommit": "7488a46fb7fa411e4b1e34c4b0f670cd357eb05e",
+      "pinnedBlob": "702624ad929411553c8635e60dad855e55fc9b82",
+      "affects": ["facilitator"],
+      "note": "exact on Stellar: the transaction, auth entries, fee sponsorship and the checks a facilitator runs."
+    },
+    {
+      "path": "specs/schemes/upto/scheme_upto.md",
+      "pinnedCommit": "bb46ffc6eeed63e60e336294fc8d33f5ee51992b",
+      "pinnedBlob": "202dae031d453db9cf46cd52de92c1800aee33f5",
+      "affects": ["upto"],
+      "note": "The upto scheme for every network."
+    },
+    {
+      "path": "specs/extensions/bazaar.md",
+      "pinnedCommit": "e187dda1ef0c69c85416625342e5bb7c4b857dac",
+      "pinnedBlob": "442708e76d5a129e0c1393471d8ed71e3604c94e",
+      "affects": ["bazaar"],
+      "note": "The Bazaar discovery extension: resource metadata and /discovery/resources."
+    },
+    {
+      "path": "specs/transports-v2/http.md",
+      "pinnedCommit": "58a5d7d32158ba7c982d2f62d6fcb845d33c1abe",
+      "pinnedBlob": "fc720582dc2e7697997e8129680260081ba494fe",
+      "affects": ["buyers-and-sellers", "facilitator"],
+      "note": "The HTTP transport: 402 responses and the payment headers."
+    },
+    {
+      "path": "specs/transports-v2/mcp.md",
+      "pinnedCommit": "b74dd052155464ef8e1182646071bce47ba465ed",
+      "pinnedBlob": "0dbd9e76eef52a30617012d50f868f9a5aff8dbb",
+      "affects": ["mcp"],
+      "note": "The MCP transport: paid tool calls."
+    },
+    {
+      "path": "e2e/config/mechanisms_stellar.json",
+      "pinnedCommit": "bb46ffc6eeed63e60e336294fc8d33f5ee51992b",
+      "pinnedBlob": "e476810ac1dc334da6a1fcb8529def0340f9eee7",
+      "affects": ["conformance"],
+      "note": "How the upstream end-to-end suite runs Stellar on testnet and pubnet."
+    },
+    {
+      "path": "e2e/README.md",
+      "pinnedCommit": "28376d643a6d9492e4a6cbfa5199376b90eb89dc",
+      "pinnedBlob": "9a62bae5b8aad187fd0809763abfb48ec138f9a7",
+      "affects": ["conformance"],
+      "note": "The upstream end-to-end suite's contract for an external facilitator."
+    }
+  ],
+  "pending": [
+    {
+      "path": "specs/schemes/upto/scheme_upto_stellar.md",
+      "affects": ["upto"],
+      "note": "The upto scheme on Stellar, not on upstream main yet. Reported as soon as it lands; pin it then."
+    }
+  ],
+  "paths": [
+    {
+      "path": "typescript/packages/mechanisms/stellar/src",
+      "affects": ["facilitator", "upto"],
+      "note": "Ships in a later @x402/stellar release."
+    },
+    {
+      "path": "typescript/packages/core/src",
+      "affects": ["facilitator", "buyers-and-sellers"],
+      "note": "Ships in a later @x402/core release."
+    },
+    {
+      "path": "typescript/packages/extensions/src/bazaar",
+      "affects": ["bazaar"],
+      "note": "Ships in a later @x402/extensions release."
+    },
+    {
+      "path": "typescript/packages/mcp/src",
+      "affects": ["mcp"],
+      "note": "Ships in a later @x402/mcp release."
+    },
+    {
+      "path": "e2e/clients/typescript",
+      "affects": ["conformance"],
+      "note": "The end-to-end suite's TypeScript client."
+    }
+  ],
+  "packages": [
+    {
+      "name": "@x402/core",
+      "pinned": "2.28.0",
+      "follow": "latest",
+      "releaseTag": "npm-@x402/core@v{version}",
+      "affects": ["facilitator", "buyers-and-sellers"]
+    },
+    {
+      "name": "@x402/stellar",
+      "pinned": "2.28.0",
+      "follow": "latest",
+      "releaseTag": "npm-@x402/stellar@v{version}",
+      "affects": ["facilitator", "upto"]
+    },
+    {
+      "name": "@x402/extensions",
+      "pinned": "2.28.0",
+      "follow": "latest",
+      "releaseTag": "npm-@x402/extensions@v{version}",
+      "affects": ["bazaar"]
+    },
+    {
+      "name": "@x402/fetch",
+      "pinned": "2.28.0",
+      "follow": "latest",
+      "releaseTag": "npm-@x402/fetch@v{version}",
+      "affects": ["buyers-and-sellers", "conformance"]
+    },
+    {
+      "name": "@x402/express",
+      "pinned": "2.28.0",
+      "follow": "latest",
+      "releaseTag": "npm-@x402/express@v{version}",
+      "affects": ["buyers-and-sellers"]
+    },
+    {
+      "name": "@x402/paywall",
+      "pinned": "2.28.0",
+      "follow": "latest",
+      "releaseTag": "npm-@x402/paywall@v{version}",
+      "affects": ["buyers-and-sellers"]
+    },
+    {
+      "name": "@x402/mcp",
+      "pinned": "2.28.0",
+      "follow": "latest",
+      "releaseTag": "npm-@x402/mcp@v{version}",
+      "affects": ["mcp"]
+    },
+    {
+      "name": "@x402/hono",
+      "pinned": "2.28.0",
+      "follow": "latest",
+      "releaseTag": "npm-@x402/hono@v{version}",
+      "affects": ["buyers-and-sellers"]
+    },
+    {
+      "name": "@stellar/stellar-sdk",
+      "pinned": "16.3.0",
+      "follow": "same-major",
+      "affects": ["facilitator", "buyers-and-sellers"],
+      "note": "@x402/stellar depends on ^16.3.0, so only 16.x releases count; a second major would load a second, incompatible copy of the XDR classes."
+    }
+  ],
+  "urls": [
+    {
+      "url": "https://x402.org/facilitator/supported",
+      "normalize": "x402-supported-stellar",
+      "sha256": "7f3f3c48a700bb2c5195f96844527015dc81b436b006ce2b2d1bef128726f810",
+      "affects": ["facilitator", "conformance"],
+      "note": "The reference facilitator's Stellar kinds, the baseline /supported shape."
+    }
+  ],
+  "components": {
+    "facilitator": {
+      "title": "Facilitator (/verify, /settle, /supported)",
+      "paths": [
+        "packages/facilitator/src/**",
+        "packages/stellar/src/**",
+        "apps/rail402/src/{app,runtime,codes}.ts"
+      ],
+      "tests": [
+        "packages/stellar/test/upstream-codes.test.ts",
+        "packages/facilitator/test/settlement.integration.test.ts",
+        "apps/rail402/test/service.integration.test.ts"
+      ],
+      "docs": ["docs/facilitator/**", "docs/verification-rules.md", "docs/reference/error-codes.mdx"]
+    },
+    "upto": {
+      "title": "upto scheme and settlement contract",
+      "paths": ["packages/upto/src/**", "contracts/stellar/upto/**", "apps/rail402/src/upto.ts"],
+      "tests": ["packages/upto/test/**", "apps/rail402/test/upto.integration.test.ts"],
+      "docs": ["docs/facilitator/upto.mdx", "docs/reference/upto-contract.mdx"]
+    },
+    "bazaar": {
+      "title": "Bazaar catalog and search",
+      "paths": ["packages/bazaar/src/**", "packages/search/src/**", "apps/rail402/src/discovery.ts"],
+      "tests": ["packages/bazaar/test/**", "apps/rail402/test/bazaar.integration.test.ts"],
+      "docs": ["docs/bazaar/**"]
+    },
+    "buyers-and-sellers": {
+      "title": "Buyer SDK, CLI and seller helpers",
+      "paths": ["packages/sdk/src/**", "packages/cli/src/**", "apps/demo-seller/src/**"],
+      "tests": ["packages/sdk/test/http-flow.test.ts", "packages/sdk/test/seller.test.ts"],
+      "docs": ["docs/agents/sdk.mdx", "docs/agents/cli.mdx", "docs/sellers/**", "docs/quickstart/**"]
+    },
+    "mcp": {
+      "title": "MCP server and paid tools",
+      "paths": ["packages/mcp/src/**", "apps/demo-seller/src/mcp.ts"],
+      "tests": ["packages/mcp/test/**"],
+      "docs": ["docs/agents/mcp-server.mdx"]
+    },
+    "conformance": {
+      "title": "Conformance runs",
+      "paths": ["tools/conformance/src/**", "tools/conformance/run-evidence.sh"],
+      "tests": ["tools/conformance/test/**"],
+      "docs": ["docs/reference/conformance.mdx"]
+    }
+  }
+}

@@ -58,6 +58,20 @@ export interface RpcProxy {
    * without forwarding it, as an overloaded RPC or gateway would; `undefined` forwards again.
    */
   failRequests(status: number | undefined, method?: string): void;
+  /**
+   * Answers every request (or every request of `method`) with HTTP 200 and a JSON-RPC body whose
+   * `error` member is `error` as given, without forwarding it. The Stellar SDK throws that member
+   * as it is, so a string or `null` here reaches the caller as a thrown string or `null`, as a
+   * misbehaving RPC or gateway would cause. `undefined` forwards again.
+   */
+  answerError(error: unknown, method?: string): void;
+  /**
+   * Answers requests of `method` with HTTP 200 and `result(params)` as the JSON-RPC result, without
+   * forwarding them, until `undefined` is set again; a function returning `undefined` forwards that
+   * request. Models an RPC whose answers are well formed but wrong, such as a simulation failing
+   * inside the RPC itself.
+   */
+  answerResult(method: string, result: ((params: unknown) => unknown) | undefined): void;
   /** Runs `fn` with the request's params before each request of `method` is forwarded. */
   injectBefore(method: string, fn: ((params: unknown) => Promise<void>) | undefined): void;
   /** Completes everything held: held requests are forwarded, held responses delivered. */
@@ -83,6 +97,7 @@ export async function startRpcProxy(target: string): Promise<RpcProxy> {
   const held: Held[] = [];
   const heldMethods = new Set<string>();
   const injections = new Map<string, (params: unknown) => Promise<void>>();
+  const results = new Map<string, (params: unknown) => unknown>();
   const state: {
     loseSendResponses: boolean;
     hideTransactions: boolean;
@@ -90,6 +105,7 @@ export async function startRpcProxy(target: string): Promise<RpcProxy> {
     onSendTransaction: ((transaction: string) => SendAction) | undefined;
     pinnedLedger: number | undefined;
     failing: { status: number; method: string | undefined } | undefined;
+    erring: { error: unknown; method: string | undefined } | undefined;
   } = {
     loseSendResponses: false,
     hideTransactions: false,
@@ -97,6 +113,7 @@ export async function startRpcProxy(target: string): Promise<RpcProxy> {
     onSendTransaction: undefined,
     pinnedLedger: undefined,
     failing: undefined,
+    erring: undefined,
   };
 
   const count = (method: string, status: string) => {
@@ -184,6 +201,24 @@ export async function startRpcProxy(target: string): Promise<RpcProxy> {
       response.writeHead(failing.status, { "content-type": "text/plain" }).end("unavailable");
       return;
     }
+    const erring = state.erring;
+    if (erring !== undefined && (erring.method === undefined || erring.method === method)) {
+      if (method !== undefined) count(method, "RPC_ERROR_INJECTED");
+      response
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify({ jsonrpc: "2.0", id: 1, error: erring.error }));
+      return;
+    }
+
+    const answering = method === undefined ? undefined : results.get(method);
+    const result = answering?.(params);
+    if (method !== undefined && result !== undefined) {
+      count(method, "RESULT_INJECTED");
+      response
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify({ jsonrpc: "2.0", id: 1, result }));
+      return;
+    }
 
     const { transaction } = transactionOf(method, params);
     if (transaction !== undefined) sent.push(transaction);
@@ -255,6 +290,13 @@ export async function startRpcProxy(target: string): Promise<RpcProxy> {
     failRequests(status, method) {
       state.failing = status === undefined ? undefined : { status, method };
     },
+    answerResult(method, result) {
+      if (result === undefined) results.delete(method);
+      else results.set(method, result);
+    },
+    answerError(error, method) {
+      state.erring = error === undefined ? undefined : { error, method };
+    },
     injectBefore(method, fn) {
       if (fn === undefined) injections.delete(method);
       else injections.set(method, fn);
@@ -270,12 +312,14 @@ export async function startRpcProxy(target: string): Promise<RpcProxy> {
     reset() {
       heldMethods.clear();
       injections.clear();
+      results.clear();
       state.loseSendResponses = false;
       state.hideTransactions = false;
       state.hideUntil = undefined;
       state.onSendTransaction = undefined;
       state.pinnedLedger = undefined;
       state.failing = undefined;
+      state.erring = undefined;
       sent.length = 0;
       statuses.clear();
       answers.length = 0;

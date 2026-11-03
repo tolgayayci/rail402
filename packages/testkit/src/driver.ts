@@ -7,7 +7,7 @@ import type { TestAsset } from "./tokens.ts";
 
 /**
  * Who pays: a G… account signing with its own key, or a C… smart account whose owner key signs the
- * authorization entry (`fixtures/simple_account.wasm`).
+ * authorization entry (`fixtures/ed25519_account.wasm`).
  */
 export type Payer =
   | { readonly kind: "G"; readonly address: string; readonly keypair: Keypair }
@@ -199,7 +199,7 @@ export interface UptoDriverOptions {
 /**
  * The `upto` scheme in `asset`: the payer signs one authorization for the cap, and the seller settles
  * any amount up to it. Payments are built by the scheme's own client; a C… payer's entry is signed
- * the way `fixtures/simple_account.wasm` checks it, an ed25519 signature by its owner over the
+ * the way `fixtures/ed25519_account.wasm` checks it, an ed25519 signature by its owner over the
  * authorization preimage hash. An `expirationLedger` option sets the client's view of the latest
  * ledger so the terms and the credential expire exactly there.
  */
@@ -269,7 +269,7 @@ export function uptoDriver(net: LocalNetwork, asset: TestAsset, options: UptoDri
 }
 
 /**
- * Signs a smart account's address credential the way `fixtures/simple_account.wasm`'s `__check_auth`
+ * Signs a smart account's address credential the way `fixtures/ed25519_account.wasm`'s `__check_auth`
  * expects: the owner's ed25519 signature over the authorization preimage hash, as a bytes value.
  */
 export function signContractAccountEntry(

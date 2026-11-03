@@ -1,0 +1,118 @@
+{
+  "expected": {
+    "method": "POST",
+    "resource": "https://search.example/search",
+    "type": "http"
+  },
+  "id": "http-post",
+  "paidUrl": "https://search.example/search",
+  "payer": "GC3MT6SHG5WTB6WMM7CWBMFVO67XNJH3TJ7F3NL7OJKMZWBLGN3ZNAKL",
+  "paymentRequired": {
+    "accepts": [
+      {
+        "amount": "20000",
+        "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+        "extra": {
+          "areFeesSponsored": true
+        },
+        "maxTimeoutSeconds": 60,
+        "network": "stellar:pubnet",
+        "payTo": "GCMVW5J6SHWRYJT3IXXQQZWZ6PMQ3TTJIADARYVNID6W3AHGUBCOOSOD",
+        "scheme": "exact"
+      }
+    ],
+    "error": "Payment required",
+    "extensions": {
+      "bazaar": {
+        "info": {
+          "input": {
+            "body": {
+              "query": "example"
+            },
+            "bodyType": "json",
+            "method": "POST",
+            "type": "http"
+          },
+          "output": {
+            "example": {
+              "results": []
+            },
+            "type": "json"
+          }
+        },
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "input": {
+              "additionalProperties": false,
+              "properties": {
+                "body": {
+                  "properties": {
+                    "query": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ]
+                },
+                "bodyType": {
+                  "enum": [
+                    "json",
+                    "form-data",
+                    "text"
+                  ],
+                  "type": "string"
+                },
+                "method": {
+                  "enum": [
+                    "POST"
+                  ],
+                  "type": "string"
+                },
+                "type": {
+                  "const": "http",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "method",
+                "bodyType",
+                "body"
+              ],
+              "type": "object"
+            },
+            "output": {
+              "properties": {
+                "example": {
+                  "type": "object"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "input"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    "resource": {
+      "description": "Search endpoint",
+      "mimeType": "application/json",
+      "url": "https://search.example/search"
+    },
+    "x402Version": 2
+  },
+  "settledAmount": "20000",
+  "source": "specs/extensions/bazaar.md, Example: POST Endpoint",
+  "title": "POST endpoint on pubnet"
+}

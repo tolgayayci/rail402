@@ -14,3 +14,4 @@ export * from "./upto.ts";
 export * from "./oz-smart-account.ts";
 export * from "./archival.ts";
 export * from "./ops.ts";
+export * from "./egress-guard.ts";

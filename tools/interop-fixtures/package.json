@@ -1,0 +1,25 @@
+{
+  "name": "@rail402.dev/interop-fixtures",
+  "version": "0.5.1",
+  "private": true,
+  "description": "Bazaar interoperability fixtures generated with upstream @x402/extensions, and their round trip through Rail402 discovery.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@rail402.dev/bazaar": "workspace:*",
+    "@rail402.dev/search": "workspace:*",
+    "@rail402.dev/service": "workspace:*",
+    "@rail402.dev/store-postgres": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:",
+    "@x402/core": "catalog:",
+    "@x402/extensions": "catalog:",
+    "hono": "catalog:",
+    "kysely": "catalog:"
+  }
+}
