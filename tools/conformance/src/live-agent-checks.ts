@@ -1,6 +1,7 @@
 /**
  * Checks shared by the live agent run and its tests: whether stellar.expert has indexed a
- * transaction, and what a live-agent evidence document must contain beyond the common schema.
+ * transaction (an on-chain cross-check independent of Rail402), whether the Rail402 Explorer page a
+ * receipt links resolves, and what a live-agent evidence document must contain beyond the common schema.
  */
 import type { Evidence } from "./evidence.ts";
 
@@ -59,6 +60,87 @@ export async function checkStellarExpert(
   }
 }
 
+/** The Rail402 Explorer's public address, where the SDK, CLI, MCP server and Playground link by default. */
+export const RAIL402_EXPLORER_URL = "https://explorer.rail402.dev";
+
+/**
+ * The Rail402 Explorer page of a transaction, as the SDK builds it by default: pubnet pages have no
+ * prefix, testnet pages live under `/testnet`.
+ */
+export function rail402ExplorerTx(network: string, hash: string): string {
+  return `${RAIL402_EXPLORER_URL}${network === "stellar:pubnet" ? "" : "/testnet"}/tx/${hash}`;
+}
+
+/** Whether a linked explorer page resolved: its HTTP status, and whether the page names the hash. */
+export interface ExplorerPageCheck {
+  readonly hash: string;
+  readonly link: string;
+  /** The HTTP status of the page (200 once the explorer knows the transaction). */
+  readonly status: number;
+  /** The page names the same (outer) hash it was asked for. */
+  readonly namesHash: boolean;
+  readonly attempts: number;
+}
+
+/**
+ * Opens the page a link names until it answers 200 and names the transaction's hash, or `timeoutMs`
+ * passes: an explorer that indexes from the ledgers can be a little behind the network.
+ */
+export async function checkExplorerPage(
+  link: string,
+  hash: string,
+  options: { readonly timeoutMs?: number; readonly intervalMs?: number; readonly fetch?: typeof fetch } = {},
+): Promise<ExplorerPageCheck> {
+  const get = options.fetch ?? fetch;
+  const deadline = Date.now() + (options.timeoutMs ?? 180_000);
+  let attempts = 0;
+  for (;;) {
+    attempts++;
+    let status = 0;
+    let namesHash = false;
+    try {
+      const response = await get(link, {
+        headers: { accept: "text/html" },
+        redirect: "follow",
+        signal: AbortSignal.timeout(15_000),
+      });
+      status = response.status;
+      namesHash = (await response.text()).toLowerCase().includes(hash.toLowerCase());
+    } catch {
+      // No answer: retried until the deadline, then reported with status 0.
+    }
+    if ((status === 200 && namesHash) || Date.now() >= deadline) {
+      return { hash, link, status, namesHash, attempts };
+    }
+    await new Promise((resolve) => setTimeout(resolve, options.intervalMs ?? 5_000));
+  }
+}
+
+/**
+ * What is wrong with the pages a run's links opened: a settled transaction whose link was not opened,
+ * that is not the Rail402 Explorer page of its hash, or that did not answer 200 naming the hash.
+ */
+export function explorerPageProblems(
+  network: string,
+  hashes: readonly string[],
+  pages: readonly Partial<ExplorerPageCheck>[],
+): string[] {
+  const byHash = new Map(pages.flatMap((page) => (typeof page.hash === "string" ? [[page.hash, page]] : [])));
+  return [...new Set(hashes)].flatMap((hash) => {
+    const page = byHash.get(hash);
+    if (page === undefined) return [`the link of ${hash} was not opened`];
+    if (page.link !== rail402ExplorerTx(network, hash)) {
+      return [`${hash} links ${String(page.link)}, not the Rail402 Explorer`];
+    }
+    if (page.status !== 200 || page.namesHash !== true) {
+      return [
+        `the Rail402 Explorer answered ${String(page.status)} for ${hash}${page.namesHash === true ? "" : " without naming it"}`,
+      ];
+    }
+    return [];
+  });
+}
+
 /** A client surface a live agent case pays or is refused through. */
 export const AGENT_SURFACES = ["sdk", "mcp-server", "cli"] as const;
 export type AgentSurface = (typeof AGENT_SURFACES)[number];
@@ -76,6 +158,13 @@ export const SURFACE_REFUSALS = [
   "payment_session_cap_exceeded",
 ] as const;
 
+/** Refusals of offers only the run's impostor seller makes, which no agent reaches on pubnet. */
+export const PUBNET_UNREACHABLE_REFUSALS = [
+  "payment_network_not_permitted",
+  "payment_asset_not_permitted",
+  "payment_amount_not_permitted",
+] as const;
+
 /**
  * What a live-agent document must show beyond the common rules: every transaction has an explorer
  * link and a stellar.expert API status of 200, an HTTP API and an MCP tool were each cataloged (the
@@ -88,12 +177,24 @@ export function liveAgentProblems(evidence: Evidence): string[] {
   const problems: string[] = [];
   if (evidence.kind !== "live-agent") problems.push(`kind is ${evidence.kind}, not live-agent`);
   const explorer = new Map<string, number>();
-  const checked = evidence.cases.find((entry) => entry.id === "explorer")?.observations?.["transactions"];
+  const explorerCase = evidence.cases.find((entry) => entry.id === "explorer");
+  const checked = explorerCase?.observations?.["transactions"];
   for (const item of Array.isArray(checked) ? (checked as { hash?: unknown; apiStatus?: unknown }[]) : []) {
     if (typeof item.hash === "string" && typeof item.apiStatus === "number") {
       explorer.set(item.hash, item.apiStatus);
     }
   }
+  // Every settlement's receipt links its Rail402 Explorer page, which answered 200 naming the hash.
+  const pages = explorerCase?.observations?.["receiptLinks"];
+  problems.push(
+    ...explorerPageProblems(
+      evidence.network,
+      evidence.cases
+        .filter((entry) => entry.status === "passed")
+        .flatMap((entry) => (entry.transactions ?? []).map((transaction) => transaction.hash)),
+      Array.isArray(pages) ? (pages as Partial<ExplorerPageCheck>[]) : [],
+    ).map((problem) => `receipt: ${problem}`),
+  );
   const surfaces = new Set<string>();
   const kinds = new Set<string>();
   const cataloged = new Set<string>();
@@ -163,9 +264,15 @@ export function liveAgentProblems(evidence: Evidence): string[] {
   for (const surface of AGENT_SURFACES) {
     if (!surfaces.has(surface)) problems.push(`no passed payment through the ${surface}`);
   }
+  // On pubnet no agent reaches the run's impostor seller (plain http on loopback), so the refusals of
+  // its offers rest on the testnet run; every other refusal is required on both networks.
+  const required =
+    evidence.network === "stellar:pubnet"
+      ? SURFACE_REFUSALS.filter((code) => !(PUBNET_UNREACHABLE_REFUSALS as readonly string[]).includes(code))
+      : SURFACE_REFUSALS;
   for (const surface of AGENT_SURFACES) {
-    // Each refusal of SURFACE_REFUSALS, with events proving nothing was signed.
-    const missing = SURFACE_REFUSALS.filter((code) => !unsigned.has(`${surface} ${code}`));
+    // Each required refusal, with events proving nothing was signed.
+    const missing = required.filter((code) => !unsigned.has(`${surface} ${code}`));
     if (missing.length > 0) {
       problems.push(`the ${surface} has no refusal shown before signing for ${missing.join(", ")}`);
     }

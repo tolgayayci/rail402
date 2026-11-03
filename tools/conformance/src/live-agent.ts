@@ -5,8 +5,10 @@
  * buyer SDK, the MCP server (`rail402-mcp`) and the CLI (`rail402`), for `exact` and `upto`; then the
  * refusals an agent relies on (a cap below the price, SSRF literals, a tiny session budget, a
  * network, asset, recipient or amount outside the policy) move nothing on every surface, and each
- * surface's payment events show the refusal and no signature; every transaction opens in
- * stellar.expert; and a canary scan finds no secret in anything the agent tools produced.
+ * surface's payment events show the refusal and no signature; every receipt links the Rail402 Explorer
+ * page of its transaction, which answers naming the same hash, and every transaction also opens in
+ * stellar.expert, independently of Rail402; and a canary scan finds no secret in anything the agent
+ * tools produced.
  *
  *   node --conditions=@rail402/source tools/conformance/src/live-agent.ts [--skip-build] [--only id,id] \
  *     [--keep] [--bazaar https://… --seller https://… [--impostor-listing <id>]] \
@@ -33,29 +35,45 @@
  * resolved from it with a sha512 integrity (the evidence records both). The payer is onboarded by `rail402 account
  * setup` (Friendbot, a USDC trustline and USDC from the testnet exchange); a loopback impostor seller
  * offers options on another network, in another asset or of zero (so plain http and loopback are
- * allowed for it); and every transaction is proven to open in stellar.expert.
+ * allowed for it); and every receipt's Rail402 Explorer link and stellar.expert page are opened.
  *
  * Fresh accounts are created for every run, so the script needs no secrets. Without --write the
  * evidence document is printed; with --write it is recorded, from a clean commit on main, as
  * tools/conformance/evidence/live-agent-local-stellar-testnet.json (local) or
  * tools/conformance/evidence/live-agent-stellar-testnet.json (hosted).
+ *
+ * The packages under test, and every dependency npm resolves for them, are third-party code to this
+ * run. They are installed with npm's lifecycle scripts off, and they never run in the process the
+ * operator starts: that process starts this script again as its agent process (`--agent-process`,
+ * set by the run itself), with the toolchain environment only (never the treasury file, the API key
+ * file, the run's ledger or its confirmation) and an IPC channel back. On a host that allows it the
+ * agent process is launched in its own user, mount and PID namespaces (`unshare`), so it cannot see
+ * the run's process in /proc (no reading its environment or memory) and the treasury secret file, the
+ * API key file and the runs directory are masked by an unreadable tmpfs; the agent keeps the network,
+ * for npm and the RPC. On pubnet, where the run holds a mainnet treasury, this isolation is required:
+ * the run refuses to start without it unless the operator opts out and states the agent runs under a
+ * different OS user. On testnet it is used when available and its absence is logged. The agent process
+ * installs the packages and runs every case; on pubnet it asks the run's process for its payer, which
+ * the treasury funds for this run only, and to count each payment against the run's caps, and it
+ * writes the evidence once the run's process has returned the run's funds. Its standard output goes to
+ * standard error; a printed evidence document comes back over the channel, and the run prints it.
  */
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { ok, strictEqual } from "node:assert/strict";
-import { Keypair } from "@stellar/stellar-sdk";
+import { Asset, Keypair } from "@stellar/stellar-sdk";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { decodePaymentRequiredHeader, encodePaymentRequiredHeader } from "@x402/core/http";
 import { HTTPFacilitatorClient, type FacilitatorClient } from "@x402/core/server";
 import type { PaymentRequirements } from "@x402/core/types";
-import { USDC_PUBNET_ADDRESS } from "@x402/stellar";
+import { USDC_PUBNET_ADDRESS, USDC_TESTNET_ADDRESS } from "@x402/stellar";
 import { createSeller, METERED_PRICES, PRICES, TOOL_PRICES } from "@rail402.dev/demo-seller";
 import { LocalNetwork, SecretScanner, ServiceProcess } from "@rail402.dev/testkit";
 import type * as Sdk from "@rail402.dev/sdk";
@@ -73,29 +91,43 @@ import {
   buildEvidence,
   explorerUrl,
   readTarget,
+  runToStderr,
   settledTransaction,
   type CaseContext,
   type CaseSpec,
 } from "./harness.ts";
 import {
+  checkExplorerPage,
   checkStellarExpert,
+  explorerPageProblems,
   liveAgentProblems,
+  PUBNET_UNREACHABLE_REFUSALS,
+  rail402ExplorerTx,
   registryBase,
   registryInstallProblems,
   registryPackages,
   type AgentSurface,
   type RegistryLock,
   type ExplorerCheck,
+  type ExplorerPageCheck,
 } from "./live-agent-checks.ts";
+import { TESTNET_FRIENDBOT_URL, TESTNET_RPC_URL, Treasury, gitCommit, log } from "./testnet.ts";
 import {
-  NETWORK,
-  TESTNET_FRIENDBOT_URL,
-  TESTNET_RPC_URL,
-  Treasury,
-  USDC_TESTNET_ADDRESS,
-  gitCommit,
-  log,
-} from "./testnet.ts";
+  NETWORK_OPTION,
+  ProfileError,
+  ProfileNetwork,
+  assertSwept,
+  feeCeilingStroops,
+  parseNetworkId,
+  profileEvidence,
+  resolveProfile,
+  startRun,
+  sweepObservation,
+  unfundedProfile,
+  withRun,
+  type SweepResult,
+} from "./network.ts";
+import { NPM_INSTALL_FLAGS, toolchainEnvironment } from "./upstream-e2e-env.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -108,8 +140,28 @@ const { values: args } = parseArgs({
     seller: { type: "string" },
     "impostor-listing": { type: "string" },
     registry: { type: "string" },
+    // Set by the run for the agent process it starts; never by an operator.
+    "agent-process": { type: "boolean", default: false },
+    ...NETWORK_OPTION,
   },
 });
+
+/** Whether this is the agent process, which installs and runs the packages under test. */
+const AGENT_PROCESS = args["agent-process"];
+if (AGENT_PROCESS && process.send === undefined) {
+  throw new Error("--agent-process is set by the live agent run for the process it starts, not by hand");
+}
+/**
+ * The run's process resolves the full profile (on pubnet the treasury file, the caps and the API key
+ * file); the agent process only the network's public settings, so it can neither fund nor sign.
+ */
+const PROFILE = AGENT_PROCESS
+  ? unfundedProfile(parseNetworkId(args.network))
+  : resolveProfile(parseNetworkId(args.network));
+const NETWORK = PROFILE.caip2;
+const PUBNET = PROFILE.id === "pubnet";
+const USDC_ADDRESS = PROFILE.usdc.contract;
+const RPC_URL = PROFILE.rpcUrls[0] ?? TESTNET_RPC_URL;
 if (
   args.registry !== undefined &&
   (!URL.canParse(args.registry) || new URL(args.registry).protocol !== "https:")
@@ -132,6 +184,13 @@ if (hosted !== undefined) {
     }
   }
 }
+if (PUBNET && hosted === undefined) {
+  // A pubnet run never starts a Rail402 of its own: it pays a deployed seller through a deployed Rail402.
+  throw new ProfileError(
+    "pubnet_target_missing",
+    "a pubnet run needs --bazaar and --seller as the https URLs of public deployments",
+  );
+}
 if (args["impostor-listing"] !== undefined && hosted === undefined) {
   throw new Error("--impostor-listing names a listing in a hosted Bazaar: use it with --bazaar and --seller");
 }
@@ -145,9 +204,20 @@ console.log = (...values: unknown[]) => {
 };
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
-const PASSPHRASE = "Test SDF Network ; September 2015";
-/** The 6-decimal test token deployed on testnet: a real token the buyer's policy does not allow. */
-const TEST6 = "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK";
+const PASSPHRASE = PROFILE.passphrase;
+/**
+ * A real token the buyer's policy does not allow: the 6-decimal test token on testnet, the XLM
+ * contract on pubnet.
+ */
+const OTHER_ASSET = PUBNET
+  ? Asset.native().contractId(PASSPHRASE)
+  : "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK";
+/** What a pubnet payer is funded with: the most the run's agent can spend, and its session budget. */
+const PUBNET_PAYER_USDC = "0.25";
+/** The most payments a pubnet run makes, counted against the run's settlement cap. */
+const PUBNET_MAX_PAYMENTS = 30;
+/** The agent's session budget: on pubnet, all the payer holds. */
+const SESSION_TOTAL = PUBNET ? PUBNET_PAYER_USDC : "1";
 const USDC_DECIMALS = 7;
 /** How far this machine's clock may be ahead of the catalog's when a settlement's time is compared. */
 const CLOCK_SLACK_MS = 5_000;
@@ -202,15 +272,28 @@ function freshProject(): string {
   return project;
 }
 
+/**
+ * `npm install` into `project`. npm resolves the dependencies from the registry, so it runs with the
+ * toolchain environment only and with lifecycle scripts off: no dependency runs code while it installs.
+ */
+function npmInstall(project: string, specs: readonly string[]) {
+  return spawnSync("npm", ["install", ...NPM_INSTALL_FLAGS, ...specs], {
+    cwd: project,
+    encoding: "utf8",
+    env: toolchainEnvironment(process.env),
+  });
+}
+
 /** Builds and checks the tarballs with pack-check, then installs them into a fresh project. */
 function installTarballs(): Placed {
   log("packing and checking the publishable packages (pnpm pack:check)");
-  const packCheck = spawnSync(
+  const packCheck = runToStderr(
     process.execPath,
     [join(ROOT, "tools/pack-check/src/main.ts"), ...(args["skip-build"] ? ["--skip-build"] : [])],
-    { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"] },
+    ROOT,
+    toolchainEnvironment(process.env),
   );
-  if (packCheck.status !== 0) throw new Error("pack-check failed; see its output above");
+  if (packCheck !== 0) throw new Error("pack-check failed; see its output above");
   const packed = JSON.parse(
     readFileSync(join(ROOT, "tools/pack-check/.work/pack-evidence.json"), "utf8"),
   ) as {
@@ -219,10 +302,9 @@ function installTarballs(): Placed {
   const tarballs = join(ROOT, "tools/pack-check/.work/tarballs");
   const project = freshProject();
   log(`installing the tarballs into ${project}`);
-  const npm = spawnSync(
-    "npm",
-    ["install", "--no-audit", "--no-fund", ...readdirSync(tarballs).map((file) => join(tarballs, file))],
-    { cwd: project, encoding: "utf8" },
+  const npm = npmInstall(
+    project,
+    readdirSync(tarballs).map((file) => join(tarballs, file)),
   );
   if (npm.status !== 0) throw new Error(`npm install failed: ${npm.stderr.slice(-2000)}`);
   return {
@@ -245,18 +327,11 @@ function installFromRegistry(registry: string): Placed {
   const names = publishableNames();
   const project = freshProject();
   log(`installing ${String(names.length)} packages at ${version} from ${registry} into ${project}`);
-  const npm = spawnSync(
-    "npm",
-    [
-      "install",
-      "--no-audit",
-      "--no-fund",
-      "--prefer-online",
-      `--registry=${registry}`,
-      ...names.map((name) => `${name}@${version}`),
-    ],
-    { cwd: project, encoding: "utf8" },
-  );
+  const npm = npmInstall(project, [
+    "--prefer-online",
+    `--registry=${registry}`,
+    ...names.map((name) => `${name}@${version}`),
+  ]);
   if (npm.status !== 0) throw new Error(`npm install failed: ${npm.stderr.slice(-2000)}`);
   const lock = JSON.parse(readFileSync(join(project, "package-lock.json"), "utf8")) as RegistryLock;
   const problems = registryInstallProblems(lock, { names, version, registry });
@@ -276,9 +351,12 @@ function installFromRegistry(registry: string): Placed {
 
 /**
  * Installs the packages under test into a fresh project: the published ones from `--registry`, or
- * else the tarballs pack-check builds and checks.
+ * else the tarballs pack-check builds and checks. Their code is imported here, so this runs in the
+ * agent process only.
  */
 async function install(): Promise<Installed> {
+  if (!AGENT_PROCESS)
+    throw new Error("the packages under test are installed and run in the agent process only");
   const { project, source, integrity } =
     args.registry === undefined ? installTarballs() : installFromRegistry(args.registry);
   const modules = join(project, "node_modules");
@@ -323,9 +401,12 @@ function runProcess(
   command: string,
   commandArgs: readonly string[],
   env: Record<string, string>,
+  input?: string,
 ): Promise<Run> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, commandArgs, { env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, commandArgs, { env, stdio: "pipe" });
+    // A seed given on stdin, as `rail402 keys import` reads it; otherwise stdin is closed at once.
+    child.stdin.end(input ?? "");
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf8")));
@@ -387,14 +468,451 @@ type McpServer = Awaited<ReturnType<typeof startMcp>>;
 
 // --- the run ------------------------------------------------------------------------------------------
 
+/** The network client every transaction of the run goes through; capped on pubnet. */
+const net: LocalNetwork = PUBNET
+  ? new ProfileNetwork(PROFILE)
+  : new LocalNetwork(TESTNET_RPC_URL, TESTNET_FRIENDBOT_URL);
+
+// --- the agent process ------------------------------------------------------------------------------
+
+/**
+ * What the agent process asks of the run's process on pubnet: the payer, funded by the treasury for
+ * this run only (its seed reaches the installed packages), and each payment counted against the run's
+ * caps.
+ */
+interface RunBroker {
+  payer(): Promise<Keypair>;
+  settlement(scheme: "exact" | "upto", what: string): Promise<void>;
+}
+
+/** What the run's process sends the agent process on pubnet once the run's funds are back. */
+interface RunEnd {
+  readonly sweep: SweepResult;
+  readonly profile: ReturnType<typeof profileEvidence>;
+  readonly treasury: string;
+  readonly apiKey: "none" | "bearer, from a file";
+}
+
+type AgentRequest =
+  | { readonly type: "payer"; readonly id: number }
+  | { readonly type: "settlement"; readonly id: number; readonly scheme: unknown; readonly what: unknown };
+type AgentMessage =
+  AgentRequest | { readonly type: "cases-run" } | { readonly type: "evidence"; readonly document: unknown };
+type RunMessage =
+  | { readonly type: "reply"; readonly id: number; readonly secret?: string; readonly error?: string }
+  | { readonly type: "end"; readonly end: RunEnd | undefined };
+
+/**
+ * The agent process's environment: this process's toolchain variables only (the allow-list the
+ * upstream suite runs with: never a secret, a secret file, the run's ledger or its confirmation),
+ * the primary RPC URL on pubnet (the installed CLI and MCP server are handed it too) and the upstream
+ * drift the evidence records.
+ */
+function agentEnvironment(): Record<string, string> {
+  const drift = process.env["RAIL402_UPSTREAM_DRIFT"];
+  return {
+    ...toolchainEnvironment(process.env),
+    ...(PUBNET ? { RAIL402_PUBNET_RPC_URLS: RPC_URL } : {}),
+    ...(drift === undefined ? {} : { RAIL402_UPSTREAM_DRIFT: drift }),
+  };
+}
+
+/** How the run's process answers its agent process; on testnet nothing is funded or counted here. */
+interface Answers {
+  /** The payer's seed. */
+  payer(): Promise<string>;
+  settlement(scheme: "exact" | "upto", what: string): void;
+}
+
+/** The `unshare` binary; an operator or a test may point it elsewhere (or at nothing). */
+const UNSHARE = process.env["RAIL402_AGENT_UNSHARE"] ?? "unshare";
+
+/**
+ * The opt-out that lets a pubnet run start without namespace isolation. The operator sets it to assert
+ * that the agent process runs under a different OS user, which contains it instead.
+ */
+const ISOLATION_OPT_OUT = "RAIL402_PUBNET_UNISOLATED_AGENT";
+const ISOLATION_OPT_OUT_VALUE = "agent-runs-as-a-separate-os-user";
+
+/** Whether this host can give the agent process its own user, mount and PID namespaces. */
+function isolationAvailable(): { ok: true } | { ok: false; reason: string } {
+  const probe = spawnSync(
+    UNSHARE,
+    [
+      "--user",
+      "--map-root-user",
+      "--mount",
+      "--propagation",
+      "private",
+      "--pid",
+      "--fork",
+      "--mount-proc",
+      "--",
+      "true",
+    ],
+    { stdio: "ignore" },
+  );
+  if (probe.error !== undefined)
+    return { ok: false, reason: `${UNSHARE} is not available (${probe.error.message})` };
+  if (probe.status !== 0)
+    return { ok: false, reason: "this host does not allow unprivileged user, mount and PID namespaces" };
+  return { ok: true };
+}
+
+/**
+ * Paths the agent process must not see on pubnet, where the run holds a treasury: the directory
+ * holding the treasury secret file (and so the API key file and the ledger, when they share it), and
+ * the API key file and runs directory when they lie outside the worktree (the agent needs the
+ * worktree itself). Each is masked in the agent's mount namespace by an empty, unreadable tmpfs (a
+ * directory) or a bind over /dev/null (a file). A path already covered by a masked directory, or one
+ * that does not exist (nothing to hide), is dropped, so no mask fails or targets a path a tmpfs
+ * before it has already made disappear. Testnet has no treasury, so it masks nothing.
+ */
+function maskPaths(): string[] {
+  if (!PUBNET) return [];
+  const worktree = `${resolve(ROOT).replace(/\/+$/, "")}/`;
+  const outside = (path: string) => !resolve(path).startsWith(worktree);
+  const dirs: string[] = [];
+  if (PROFILE.funding.kind === "treasury" && PROFILE.funding.secretFile !== "") {
+    dirs.push(dirname(resolve(PROFILE.funding.secretFile)));
+  }
+  const runsDir = process.env["RAIL402_PUBNET_RUNS_DIR"];
+  if (runsDir !== undefined && runsDir !== "" && outside(runsDir)) dirs.push(resolve(runsDir));
+  const files: string[] = [];
+  const apiKeyFile = PROFILE.facilitator.apiKeyFile;
+  if (apiKeyFile !== undefined && apiKeyFile !== "" && outside(apiKeyFile)) files.push(resolve(apiKeyFile));
+  const underDir = (path: string, from: readonly string[]) =>
+    from.some((dir) => dir !== path && path.startsWith(`${dir}/`));
+  const keptDirs = dirs.filter((dir) => existsSync(dir) && !underDir(dir, dirs));
+  const keptFiles = files.filter((file) => existsSync(file) && !underDir(file, keptDirs));
+  return [...keptDirs.map((dir) => `dir:${dir}`), ...keptFiles.map((file) => `file:${file}`)];
+}
+
+/**
+ * How to launch the agent process. Without isolation it is this `node` with the same flags. With it,
+ * `unshare` gives it fresh user, mount and PID namespaces: as the mapped root it masks each path with
+ * a tmpfs or a /dev/null bind, then drops back to this user in a nested user namespace (so the agent
+ * can neither unmount the masks nor override their permissions) before exec'ing the agent. The PID
+ * namespace hides the run's process, so /proc holds only the agent's own processes. No network
+ * namespace, so npm and the RPC still work.
+ */
+function agentCommand(isolate: boolean): { command: string; args: string[] } {
+  const nodeArgs = [
+    ...process.execArgv,
+    fileURLToPath(import.meta.url),
+    ...process.argv.slice(2),
+    "--agent-process",
+  ];
+  if (!isolate) return { command: process.execPath, args: nodeArgs };
+  const uid = String(process.getuid?.() ?? 0);
+  const gid = String(process.getgid?.() ?? 0);
+  const wrapper = [
+    "set -eu",
+    "uid=$1; gid=$2; shift 2",
+    'while [ "$1" != "--" ]; do',
+    '  case "$1" in',
+    '    dir:*) mount -t tmpfs -o size=4k,mode=000,nosuid,nodev,noexec rail402-agent-mask "${1#dir:}" ;;',
+    '    file:*) mount --bind /dev/null "${1#file:}" ;;',
+    "  esac",
+    "  shift",
+    "done",
+    "shift",
+    'exec unshare --user --map-user="$uid" --map-group="$gid" -- "$@"',
+  ].join("\n");
+  return {
+    command: UNSHARE,
+    args: [
+      "--user",
+      "--map-root-user",
+      "--mount",
+      "--propagation",
+      "private",
+      "--pid",
+      "--fork",
+      "--kill-child",
+      "--mount-proc",
+      "--",
+      "/bin/sh",
+      "-c",
+      wrapper,
+      "rail402-agent",
+      uid,
+      gid,
+      ...maskPaths(),
+      "--",
+      process.execPath,
+      ...nodeArgs,
+    ],
+  };
+}
+
+/**
+ * Starts this script again as the agent process and answers its requests with `answers`. With
+ * `isolate`, it runs in its own user, mount and PID namespaces (`agentCommand`). Its standard output
+ * goes to standard error, as every child's does: only the evidence document it sends back is printed.
+ * A signal to this process ends the agent process first, before a pubnet run's sweep starts.
+ */
+function startAgentProcess(answers: Answers | undefined, isolate: boolean) {
+  const { command, args } = agentCommand(isolate);
+  const child = spawn(command, args, {
+    env: agentEnvironment(),
+    stdio: ["ignore", 2, 2, "ipc"],
+    serialization: "advanced",
+  });
+  const stop = () => {
+    child.kill("SIGTERM");
+  };
+  process.prependListener("SIGINT", stop);
+  process.prependListener("SIGTERM", stop);
+  const exited = new Promise<number>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("exit", (code) => {
+      process.off("SIGINT", stop);
+      process.off("SIGTERM", stop);
+      resolve(code ?? 1);
+    });
+  });
+  let casesDone = false;
+  let payers = 0;
+  const answer = async (request: AgentRequest): Promise<RunMessage> => {
+    try {
+      if (answers === undefined || casesDone) throw new Error(`${request.type}: not asked for here`);
+      if (request.type === "payer") {
+        // One payer per run: the caps bound it too, but the agent has no reason to ask twice.
+        if (++payers > 1) throw new Error("the run funds one payer");
+        return { type: "reply", id: request.id, secret: await answers.payer() };
+      }
+      if ((request.scheme !== "exact" && request.scheme !== "upto") || typeof request.what !== "string") {
+        throw new Error("a settlement names its scheme and what it paid");
+      }
+      answers.settlement(request.scheme, request.what.slice(0, 200));
+      return { type: "reply", id: request.id };
+    } catch (error) {
+      return { type: "reply", id: request.id, error: error instanceof Error ? error.message : String(error) };
+    }
+  };
+  const casesRun = new Promise<void>((resolve, reject) => {
+    child.on("message", (message: AgentMessage) => {
+      if (message.type === "cases-run") {
+        casesDone = true;
+        resolve();
+        return;
+      }
+      if (message.type === "evidence") {
+        if (typeof message.document === "string") process.stdout.write(message.document);
+        return;
+      }
+      void answer(message).then((reply) => {
+        if (child.connected) child.send(reply);
+      });
+    });
+    void exited.then((status) => {
+      reject(new Error(`the agent process ended (exit ${String(status)}) before its cases ran`));
+    }, reject);
+  });
+  return {
+    /** Resolves once the agent process ran every case; rejects when it ends before that. */
+    casesRun,
+    /** Lets the agent process write the evidence, with the run's end on pubnet. */
+    end: (end: RunEnd | undefined) => {
+      if (child.connected) child.send({ type: "end", end } satisfies RunMessage);
+    },
+    /** The agent process's exit status. */
+    exited,
+  };
+}
+
+/** The agent process's side of the channel: its requests to the run's process, and the run's end. */
+function runChannel() {
+  const send = (message: AgentMessage) => {
+    if (process.send === undefined) throw new Error("the agent process has no channel to its run");
+    process.send(message);
+  };
+  const pending = new Map<number, (reply: RunMessage & { type: "reply" }) => void>();
+  let next = 0;
+  let resolveEnd: (end: RunEnd | undefined) => void = () => undefined;
+  const ended = new Promise<RunEnd | undefined>((resolve) => {
+    resolveEnd = resolve;
+  });
+  let closing = false;
+  process.on("message", (message: RunMessage) => {
+    if (message.type === "end") resolveEnd(message.end);
+    else {
+      pending.get(message.id)?.(message);
+      pending.delete(message.id);
+    }
+  });
+  // The run's process is gone: nothing is funded or counted any more, so the run stops here.
+  process.on("disconnect", () => {
+    if (closing) return;
+    log("the run's process ended; stopping the agent process");
+    process.exit(1);
+  });
+  const request = (body: { type: "payer" } | { type: "settlement"; scheme: string; what: string }) =>
+    new Promise<RunMessage & { type: "reply" }>((resolve, reject) => {
+      const id = next++;
+      pending.set(id, (reply) => {
+        if (reply.error === undefined) resolve(reply);
+        else reject(new Error(reply.error));
+      });
+      send({ ...body, id });
+    });
+  const broker: RunBroker = {
+    payer: async () => Keypair.fromSecret((await request({ type: "payer" })).secret ?? ""),
+    settlement: async (scheme, what) => {
+      await request({ type: "settlement", scheme, what });
+    },
+  };
+  return {
+    broker,
+    /** Hands an evidence document to the run's process, which prints it on its standard output. */
+    print: (document: string) =>
+      new Promise<void>((resolve, reject) => {
+        if (process.send === undefined) throw new Error("the agent process has no channel to its run");
+        process.send({ type: "evidence", document } satisfies AgentMessage, undefined, {}, (error) => {
+          if (error === null) resolve();
+          else reject(error);
+        });
+      }),
+    /** Tells the run's process every case ran, and waits for the run's end. */
+    casesRun: () => {
+      send({ type: "cases-run" });
+      return ended;
+    },
+    close: () => {
+      closing = true;
+      process.disconnect();
+    },
+  };
+}
+
+/** The agent process: installs the packages, runs every case, then writes the evidence. */
+async function agentMain() {
+  const channel = runChannel();
+  const finish = await runAgent(PUBNET ? channel.broker : undefined, channel.print);
+  await finish(await channel.casesRun());
+  channel.close();
+}
+
+// --- the run's process ----------------------------------------------------------------------------
+
+/**
+ * Starts the agent process, which runs every case. On testnet that is the whole run. On pubnet the
+ * run's ledger is claimed first (nothing is spent without RAIL402_PUBNET_RUN_CONFIRM, and the caps are
+ * checked before anything is sent); this process then holds the treasury, funds the agent's payer and
+ * counts its payments, and returns the run's funds to the treasury at the end, also when the agent
+ * fails or the run is interrupted.
+ */
 async function main() {
+  if (AGENT_PROCESS) {
+    await agentMain();
+    return;
+  }
+  // Whether the agent process can be sealed off from the run's process. On pubnet it is required,
+  // since the run holds a mainnet treasury; a host that cannot provide it fails closed unless the
+  // operator opts out and states the agent runs under a different OS user.
+  const isolation = isolationAvailable();
+  if (PUBNET && !isolation.ok) {
+    if (process.env[ISOLATION_OPT_OUT] === ISOLATION_OPT_OUT_VALUE) {
+      log(
+        `the agent process cannot be isolated (${isolation.reason}); proceeding because ${ISOLATION_OPT_OUT} ` +
+          "asserts it runs under a separate OS user",
+      );
+    } else {
+      throw new ProfileError(
+        "pubnet_agent_unisolated",
+        `the agent process cannot be isolated from the treasury (${isolation.reason}); run on a host that ` +
+          `allows unprivileged namespaces, or set ${ISOLATION_OPT_OUT}=${ISOLATION_OPT_OUT_VALUE} only when the ` +
+          "agent process runs under a separate OS user that cannot read the treasury",
+      );
+    }
+  } else if (!isolation.ok) {
+    log(
+      `the agent process is not isolated (${isolation.reason}); testnet uses no treasury, so this is allowed`,
+    );
+  }
+  const isolate = isolation.ok;
+  if (!PUBNET || hosted === undefined) {
+    const agent = startAgentProcess(undefined, isolate);
+    agent.casesRun.then(
+      () => {
+        agent.end(undefined);
+      },
+      () => undefined,
+    );
+    process.exitCode = await agent.exited;
+    return;
+  }
+  const funder = await startRun("live-agent", PROFILE, net, { facilitators: [hosted.bazaar] });
+  // The treasury and API key files have been read; the run no longer needs their paths in its own
+  // environment. Dropping them is belt and braces (namespace isolation is the real control: a
+  // process's /proc environment reflects its exec-time environment, which this does not rewrite).
+  delete process.env["RAIL402_TREASURY_SECRET_FILE"];
+  delete process.env["RAIL402_FACILITATOR_API_KEY_FILE"];
+  try {
+    funder.meter.ensure(
+      {
+        newAccounts: 1,
+        usdcBaseUnits: atomic(PUBNET_PAYER_USDC),
+        settlements: PUBNET_MAX_PAYMENTS,
+        xlmStroops: feeCeilingStroops(PROFILE, "upto") * BigInt(PUBNET_MAX_PAYMENTS),
+      },
+      `a payer of ${PUBNET_PAYER_USDC} USDC and up to ${String(PUBNET_MAX_PAYMENTS)} payments`,
+    );
+  } catch (error) {
+    // Nothing was sent: the claimed run ends here, and its ledger refuses any later debit.
+    funder.finish();
+    throw error;
+  }
+  let agent: ReturnType<typeof startAgentProcess> | undefined;
+  const sweep = await withRun(funder, async () => {
+    agent = startAgentProcess(
+      {
+        payer: async () => {
+          // The payer's seed reaches the installed packages: it is derived for this run only, so it
+          // never controls a later run's payer, and the sweep reports it if it is merged away.
+          const [account] = await funder.accounts(1, PUBNET_PAYER_USDC, true, {
+            role: "payer",
+            perRun: true,
+          });
+          if (account === undefined) throw new Error("no payer account");
+          return account.secret();
+        },
+        // The seller's facilitator settles each payment, so the run counts it here, against its caps.
+        settlement: (scheme, what) => {
+          funder.meter.settlement(feeCeilingStroops(PROFILE, scheme), what);
+        },
+      },
+      isolate,
+    );
+    await agent.casesRun;
+  });
+  agent?.end({
+    sweep,
+    profile: profileEvidence(PROFILE, funder, sweep),
+    treasury: funder.keypair.publicKey(),
+    apiKey: PROFILE.facilitator.apiKeyFile === undefined ? "none" : "bearer, from a file",
+  });
+  process.exitCode = (await agent?.exited) ?? 1;
+}
+
+/**
+ * Runs every case and returns what writes the evidence, given the run's end on pubnet. On pubnet,
+ * `run` is the run's process: it funds the payer from the treasury and counts each payment against the
+ * run's caps. `print` puts a printed evidence document on the run's standard output.
+ */
+async function runAgent(
+  run: RunBroker | undefined,
+  print: (document: string) => Promise<void>,
+): Promise<(end: RunEnd | undefined) => Promise<void>> {
   const installed = await install();
   const { sdk } = installed;
-  const net = new LocalNetwork(TESTNET_RPC_URL, TESTNET_FRIENDBOT_URL);
   const recorder = new CaseRecorder(args.only?.split(",").map((id) => id.trim()));
   const directory = mkdtempSync(join(tmpdir(), "rail402-live-agent-home-"));
   const cleanups: (() => Promise<void> | void)[] = [];
   const explorerHashes = new Set<string>();
+  /** Settlement hash → the Rail402 Explorer link its receipt gave. */
+  const receiptLinks = new Map<string, string>();
 
   try {
     const models = join(ROOT, ".models");
@@ -486,8 +1004,8 @@ async function main() {
       (target.supported as { kinds?: { scheme: string; extra?: { facilitatorAddress?: string } }[] }).kinds ??
       [];
     const authority = kinds.find((kind) => kind.scheme === "upto")?.extra?.facilitatorAddress;
-    ok(authority !== undefined, "Rail402 serves upto on the testnet");
-    const sellerStart = await net.tokenBalance(USDC_TESTNET_ADDRESS, payTo);
+    ok(authority !== undefined, `Rail402 serves upto on ${NETWORK}`);
+    const sellerStart = await net.tokenBalance(USDC_ADDRESS, payTo);
 
     // Sellers whose single option names another network or an asset outside the policy.
     const impostor = await startImpostor(payTo);
@@ -501,17 +1019,26 @@ async function main() {
       XDG_CONFIG_HOME: join(directory, "config"),
       XDG_STATE_HOME: join(directory, "state"),
       RAIL402_NETWORK: NETWORK,
-      RAIL402_RPC_URL: TESTNET_RPC_URL,
+      RAIL402_RPC_URL: RPC_URL,
       RAIL402_BAZAAR_URL: bazaarUrl,
       RAIL402_SECRET_KEY_FILE: keyFile,
       RAIL402_MAX_PER_CALL: "0.05 USDC",
-      RAIL402_MAX_TOTAL: "1 USDC",
-      RAIL402_ALLOW_HTTP: "true",
-      RAIL402_ALLOW_PRIVATE_NETWORK: "loopback",
-      RAIL402_ALLOWED_PORTS: `${String(sellerPort)},${String(impostor.port)}`,
-      // The hosted seller is https on 443; plain http and loopback stay allowed for the impostor.
+      RAIL402_MAX_TOTAL: `${SESSION_TOTAL} USDC`,
       // Debug: rail402-mcp logs every payment event, so a refusal shows that nothing was signed.
       RAIL402_LOG_LEVEL: "debug",
+      ...(PUBNET
+        ? {
+            // Pubnet pins the upto settlement authorities; the run, not a person, confirms payments.
+            RAIL402_UPTO_FACILITATORS: authority,
+            RAIL402_MCP_CONFIRM: "never",
+          }
+        : {
+            // The hosted seller is https on 443; plain http and loopback stay allowed for the impostor.
+            // Pubnet never allows them, so there the impostor's offers are out of reach.
+            RAIL402_ALLOW_HTTP: "true",
+            RAIL402_ALLOW_PRIVATE_NETWORK: "loopback",
+            RAIL402_ALLOWED_PORTS: `${String(sellerPort)},${String(impostor.port)}`,
+          }),
     };
     /** The default egress policy: https on 443 to public addresses only. */
     const strictEnv: Record<string, string> = Object.fromEntries(
@@ -526,11 +1053,16 @@ async function main() {
       cliArgs: readonly string[],
       extra: Record<string, string> = {},
       base: Record<string, string> = env,
+      input?: string,
     ): Promise<CliDocument> => {
-      const output = await runProcess(installed.bin("rail402"), [...cliArgs, "--json"], {
-        ...base,
-        ...extra,
-      });
+      // On pubnet the CLI asks before its first payment; --yes is the run's answer.
+      const confirm = PUBNET && ["pay", "purchase"].includes(cliArgs[0] ?? "") ? ["--yes"] : [];
+      const output = await runProcess(
+        installed.bin("rail402"),
+        [...cliArgs, ...confirm, "--json"],
+        { ...base, ...extra },
+        input,
+      );
       cliCaptures.push({ label: `rail402 ${cliArgs[0] ?? ""}`, run: output });
       const lines = output.stdout.trim().split("\n");
       strictEqual(
@@ -554,39 +1086,86 @@ async function main() {
 
     // Onboarding: a key made by the CLI, funded by Friendbot, with a USDC trustline and testnet USDC.
     let payer: Keypair | undefined;
-    await recorder.run(
-      spec(
-        "onboarding",
-        "The CLI creates a key and onboards it: Friendbot, a USDC trustline, USDC from the testnet exchange",
-        ["agent-payments"],
-      ),
-      async (context) => {
-        const created = await cli(["keys", "new", "--key-file", keyFile]);
-        ok(created.ok, JSON.stringify(created.error));
-        const setup = await cli(["account", "setup", "--usdc", "1"]);
-        ok(setup.ok, JSON.stringify(setup.error));
-        const result = setup.result as {
-          address: string;
-          funded: unknown;
-          trustline: unknown;
-          transactions: string[];
-        };
-        payer = Keypair.fromSecret(readFileSync(keyFile, "utf8").trim());
-        strictEqual(result.address, payer.publicKey());
-        ok(result.transactions.length >= 2, "a trustline and a swap were submitted");
-        for (const hash of result.transactions) explorerHashes.add(hash);
-        ok(
-          (await net.tokenBalance(USDC_TESTNET_ADDRESS, payer.publicKey())) >= atomic("1"),
-          "the payer holds 1 USDC",
-        );
-        context.observe("surface", "cli");
-        context.observe("payer", payer.publicKey());
-        context.observe(
-          "classicTransactions",
-          result.transactions.map((hash) => ({ hash, explorerUrl: explorerUrl(hash) })),
-        );
-      },
-    );
+    if (run === undefined) {
+      await recorder.run(
+        spec(
+          "onboarding",
+          "The CLI creates a key and onboards it: Friendbot, a USDC trustline, USDC from the testnet exchange",
+          ["agent-payments"],
+        ),
+        async (context) => {
+          const created = await cli(["keys", "new", "--key-file", keyFile]);
+          ok(created.ok, JSON.stringify(created.error));
+          const setup = await cli(["account", "setup", "--usdc", "1"]);
+          ok(setup.ok, JSON.stringify(setup.error));
+          const result = setup.result as {
+            address: string;
+            funded: unknown;
+            trustline: unknown;
+            transactions: string[];
+          };
+          // The CLI writes a network-tagged key file; the installed SDK's parser reads it as any buyer would.
+          const keyContent = sdk.parseKeyFile(readFileSync(keyFile, "utf8"));
+          strictEqual(keyContent.network, "stellar:testnet", "the CLI tags the key file for testnet");
+          payer = Keypair.fromSecret(keyContent.secret);
+          strictEqual(result.address, payer.publicKey());
+          ok(result.transactions.length >= 2, "a trustline and a swap were submitted");
+          for (const hash of result.transactions) explorerHashes.add(hash);
+          ok(
+            (await net.tokenBalance(USDC_ADDRESS, payer.publicKey())) >= atomic("1"),
+            "the payer holds 1 USDC",
+          );
+          context.observe("surface", "cli");
+          context.observe("payer", payer.publicKey());
+          context.observe(
+            "classicTransactions",
+            result.transactions.map((hash) => ({ hash, explorerUrl: explorerUrl(hash) })),
+          );
+        },
+      );
+    } else {
+      // Pubnet: the payer is a treasury account (derived, so the run can return its funds), funded with
+      // all the session may spend, and the CLI imports its seed from stdin into a key file tagged for
+      // pubnet, as an operator moving a funded key to an agent does.
+      await recorder.run(
+        spec(
+          "onboarding",
+          `The CLI imports a funded key into a key file tagged for pubnet and reads its ${PUBNET_PAYER_USDC} USDC from the chain`,
+          ["agent-payments"],
+        ),
+        async (context) => {
+          const account = await run.payer();
+          const imported = await cli(
+            ["keys", "import", "--key-file", keyFile, "--network", NETWORK],
+            {},
+            env,
+            `${account.secret()}\n`,
+          );
+          ok(imported.ok, JSON.stringify(imported.error));
+          const keyContent = sdk.parseKeyFile(readFileSync(keyFile, "utf8"));
+          strictEqual(keyContent.network, NETWORK, "the CLI tags the key file for pubnet");
+          strictEqual(Keypair.fromSecret(keyContent.secret).publicKey(), account.publicKey());
+          const status = await cli(["account", "status"]);
+          ok(status.ok, JSON.stringify(status.error));
+          const report = status.result as {
+            address: string;
+            exists: boolean;
+            assets: { asset: string; trustline: boolean | null; balance?: string | null }[];
+          };
+          strictEqual(report.address, account.publicKey());
+          strictEqual(report.exists, true);
+          strictEqual(
+            await net.tokenBalance(USDC_ADDRESS, account.publicKey()),
+            atomic(PUBNET_PAYER_USDC),
+            `the payer holds ${PUBNET_PAYER_USDC} USDC`,
+          );
+          payer = account;
+          context.observe("surface", "cli");
+          context.observe("payer", account.publicKey());
+          context.observe("assets", report.assets);
+        },
+      );
+    }
     if (payer === undefined) throw new Error("the payer could not be onboarded; nothing else can run");
     const payerKey = payer;
     const scan = new SecretScanner(payerKey.secret());
@@ -599,25 +1178,28 @@ async function main() {
     const buyerOptions = (overrides: Partial<Sdk.BuyerOptions> = {}): Sdk.BuyerOptions => ({
       network: NETWORK,
       signer,
-      rpcUrl: TESTNET_RPC_URL,
+      rpcUrl: RPC_URL,
       bazaarUrl,
       facilitatorUrl: bazaarUrl,
       policy: {
         assets: [
           {
-            asset: USDC_TESTNET_ADDRESS,
+            asset: USDC_ADDRESS,
             symbol: "USDC",
             decimals: USDC_DECIMALS,
             perCall: "0.05",
-            sessionTotal: "1",
+            sessionTotal: SESSION_TOTAL,
           },
         ],
       },
-      egress: {
-        schemes: hosted === undefined ? ["http:"] : ["https:", "http:"],
-        ports: [sellerPort, impostor.port],
-        allowPrivateNetwork: "loopback",
-      },
+      // On pubnet only the default egress policy: https on 443 to public addresses.
+      egress: PUBNET
+        ? {}
+        : {
+            schemes: hosted === undefined ? ["http:"] : ["https:", "http:"],
+            ports: [sellerPort, impostor.port],
+            allowPrivateNetwork: "loopback",
+          },
       onEvent: (event) => events.push(event),
       ...overrides,
     });
@@ -626,8 +1208,8 @@ async function main() {
     const maxAmount = { amount: "0.01", asset: "USDC" };
 
     const balances = async () => ({
-      payer: await net.tokenBalance(USDC_TESTNET_ADDRESS, payerKey.publicKey()),
-      seller: await net.tokenBalance(USDC_TESTNET_ADDRESS, payTo),
+      payer: await net.tokenBalance(USDC_ADDRESS, payerKey.publicKey()),
+      seller: await net.tokenBalance(USDC_ADDRESS, payTo),
     });
     const settledTotal = { value: 0n };
 
@@ -645,10 +1227,16 @@ async function main() {
       strictEqual(receipt.payer, payerKey.publicKey());
       const hash = receipt.transaction ?? "";
       ok(/^[0-9a-f]{64}$/.test(hash), `${surface}: a transaction hash`);
-      strictEqual(receipt.explorerUrl, explorerUrl(hash));
+      // The installed packages link the Rail402 Explorer by default; the link is opened at the end.
+      strictEqual(
+        receipt.explorerUrl,
+        rail402ExplorerTx(NETWORK, hash),
+        `${surface}: the receipt links the Rail402 Explorer`,
+      );
+      receiptLinks.set(hash, receipt.explorerUrl);
       const transaction = await settledTransaction(net, hash, {
         scheme: expected.scheme,
-        asset: USDC_TESTNET_ADDRESS,
+        asset: USDC_ADDRESS,
         decimals: USDC_DECIMALS,
         amount: expected.amount,
         payerType: "G",
@@ -663,6 +1251,8 @@ async function main() {
         `${surface}: the chain shows ${expected.amount.toString()} from the payer to the seller`,
       );
       ok(transaction.feeSource !== payerKey.publicKey(), "the fee was sponsored");
+      // The seller's facilitator sent this settlement, so the run counts it, against its caps.
+      await run?.settlement(expected.scheme, `${surface}: a payment`);
       context.transaction(transaction);
       context.observe("surface", surface);
       context.observe("receipt", receipt);
@@ -1471,7 +2061,27 @@ async function main() {
           ["asset", "/asset", "payment_asset_not_permitted"],
           ["amount", "/amount", "payment_amount_not_permitted"],
         ] as const;
-        for (const [what, path, code] of offers) {
+        // On pubnet no agent reaches a seller on plain http or loopback, where the impostor listens:
+        // the configuration that would let it is itself refused, before any key is read.
+        if (PUBNET) {
+          const opened = await cli(["pay", `${impostor.url}/network`, "--max", "0.01 USDC"], {
+            RAIL402_ALLOW_HTTP: "true",
+            RAIL402_ALLOW_PRIVATE_NETWORK: "loopback",
+          });
+          strictEqual(opened.ok, false);
+          const error = opened.error;
+          ok(error !== undefined, "a coded error");
+          strictEqual(error.code, "payment_policy_invalid", JSON.stringify(error));
+          ok(error.reason.trim() !== "", "a reason");
+          context.rejection({
+            surface: "http",
+            operation: "cli: plain http and loopback on pubnet",
+            code: error.code,
+            reason: error.reason,
+          });
+          context.observe("offersOutOfReach", PUBNET_UNREACHABLE_REFUSALS);
+        }
+        for (const [what, path, code] of PUBNET ? [] : offers) {
           await refused(
             context,
             "sdk",
@@ -1509,7 +2119,7 @@ async function main() {
             policy: {
               assets: [
                 {
-                  asset: USDC_TESTNET_ADDRESS,
+                  asset: USDC_ADDRESS,
                   symbol: "USDC",
                   decimals: USDC_DECIMALS,
                   perCall: "0.05",
@@ -1589,6 +2199,7 @@ async function main() {
         hosted === undefined
           ? "a local run has no impostor listing; the hosted run names one with --impostor-listing"
           : "no --impostor-listing was given",
+        hosted === undefined ? "not-applicable" : "environment",
       );
     } else {
       await recorder.run(impostorSpec, async (context) => {
@@ -1636,10 +2247,11 @@ async function main() {
       recorder.skip(
         custodySpec,
         "a hosted seller may be paid by others during the run; each settlement's transfer from the payer is checked instead",
+        "not-applicable",
       );
     } else {
       await recorder.run(custodySpec, async (context) => {
-        const received = (await net.tokenBalance(USDC_TESTNET_ADDRESS, payTo)) - sellerStart;
+        const received = (await net.tokenBalance(USDC_ADDRESS, payTo)) - sellerStart;
         strictEqual(received, settledTotal.value, "the seller received the sum of the settlements");
         context.observe("settledTotal", settledTotal.value.toString());
       });
@@ -1651,13 +2263,22 @@ async function main() {
     await recorder.run(
       spec(
         "explorer",
-        "Every transaction of the run opens in stellar.expert (its API answers 200 with the hash and ledger)",
+        "Every receipt's Rail402 Explorer link answers 200 naming the same hash; every transaction of the run also opens in stellar.expert (its API answers 200 with the hash and ledger), an on-chain cross-check independent of Rail402",
         agentChecks(),
       ),
       async (context) => {
+        // Each link is polled on its own: an explorer that indexes from the ledgers may lag a little.
+        const pages: ExplorerPageCheck[] = await Promise.all(
+          [...receiptLinks].map(([hash, link]) => checkExplorerPage(link, hash)),
+        );
+        context.observe("receiptLinks", pages);
         const checks: ExplorerCheck[] = [];
-        for (const hash of explorerHashes) checks.push(await checkStellarExpert(hash));
+        for (const hash of explorerHashes) {
+          checks.push(await checkStellarExpert(hash, { network: PUBNET ? "public" : "testnet" }));
+        }
         context.observe("transactions", checks);
+        const unresolved = explorerPageProblems(NETWORK, [...receiptLinks.keys()], pages);
+        strictEqual(unresolved.length, 0, unresolved.join("; "));
         const missing = checks.filter((check) => check.apiStatus !== 200);
         strictEqual(missing.length, 0, `not indexed: ${missing.map((check) => check.hash).join(", ")}`);
       },
@@ -1691,68 +2312,94 @@ async function main() {
       },
     );
 
-    const evidence = buildEvidence(
-      {
-        kind: "live-agent",
-        // Without --write the document is printed only; its commit may then describe a dirty tree.
-        provenance: provenance ?? { commit: gitCommit().replace(/-dirty$/, ""), dirty: false },
-        network: NETWORK,
-        target,
-        packages: installed.versions,
-        command: `${
-          hosted === undefined
-            ? "node --conditions=@rail402/source tools/conformance/src/live-agent.ts"
-            : `node --conditions=@rail402/source tools/conformance/src/live-agent.ts --bazaar ${hosted.bazaar} --seller ${hosted.seller}${impostorListing === undefined ? "" : ` --impostor-listing ${impostorListing}`}`
-        }${args.registry === undefined ? "" : ` --registry ${registryBase(args.registry)}`}`,
-        config: {
-          mode: hosted === undefined ? "local rehearsal" : "hosted",
-          rail402: hosted === undefined ? "local process, public testnet RPC" : hosted.bazaar,
-          bazaar: hosted === undefined ? "the same Rail402 (memory store)" : hosted.bazaar,
-          seller: hosted === undefined ? "apps/demo-seller on loopback" : hosted.seller,
-          explorer: "stellar.expert",
-          packagesFrom: installed.source,
-          searchEmbeddings: embeddings,
-          maxTxFeeStroops: 1_000_000,
-          buyerMaxPerCall: "0.05 USDC",
-          buyerMaxTotal: "1 USDC",
-          asset: USDC_TESTNET_ADDRESS,
-          ...installed.integrity,
+    return async (end) => {
+      if (end !== undefined) {
+        await recorder.run(
+          {
+            id: "sweep-back",
+            title: "the run's USDC is back in the operator treasury and its accounts are merged",
+            checks: ["pubnet-config"],
+          },
+          (context) => {
+            context.observe("sweep", sweepObservation(end.sweep));
+            assertSwept(end.sweep);
+            return Promise.resolve();
+          },
+        );
+      }
+      const evidence = buildEvidence(
+        {
+          kind: "live-agent",
+          // Without --write the document is printed only; its commit may then describe a dirty tree.
+          provenance: provenance ?? { commit: gitCommit().replace(/-dirty$/, ""), dirty: false },
+          network: NETWORK,
+          target,
+          packages: installed.versions,
+          command: `${
+            hosted === undefined
+              ? "node --conditions=@rail402/source tools/conformance/src/live-agent.ts"
+              : `node --conditions=@rail402/source tools/conformance/src/live-agent.ts --bazaar ${hosted.bazaar} --seller ${hosted.seller}${impostorListing === undefined ? "" : ` --impostor-listing ${impostorListing}`}`
+          }${args.registry === undefined ? "" : ` --registry ${registryBase(args.registry)}`}${PUBNET ? " --network pubnet" : ""}`,
+          config: {
+            mode: hosted === undefined ? "local rehearsal" : "hosted",
+            rail402: hosted === undefined ? "local process, public testnet RPC" : hosted.bazaar,
+            ...(PUBNET
+              ? {
+                  apiKey: end?.apiKey ?? "none",
+                  payerFunding: `${PUBNET_PAYER_USDC} USDC from the operator treasury, returned at the end`,
+                  confirmations: "rail402 --yes; RAIL402_MCP_CONFIRM=never (the run confirms)",
+                }
+              : {}),
+            bazaar: hosted === undefined ? "the same Rail402 (memory store)" : hosted.bazaar,
+            seller: hosted === undefined ? "apps/demo-seller on loopback" : hosted.seller,
+            explorer:
+              "the Rail402 Explorer (receipt links, the packages' default); stellar.expert as an on-chain cross-check",
+            packagesFrom: installed.source,
+            searchEmbeddings: embeddings,
+            maxTxFeeStroops: 1_000_000,
+            buyerMaxPerCall: "0.05 USDC",
+            buyerMaxTotal: `${SESSION_TOTAL} USDC`,
+            asset: USDC_ADDRESS,
+            ...installed.integrity,
+          },
+          accounts: {
+            payer: payerKey.publicKey(),
+            payTo,
+            uptoAuthority: authority,
+            ...(sponsor === undefined ? {} : { sponsor: sponsor.publicKey() }),
+            ...(treasury === undefined ? {} : { treasury: treasury.keypair.publicKey() }),
+            ...(end === undefined ? {} : { treasury: end.treasury }),
+          },
+          ...(end === undefined ? {} : { profile: end.profile }),
+          startedAt: recorder.startedAt,
         },
-        accounts: {
-          payer: payerKey.publicKey(),
-          payTo,
-          uptoAuthority: authority,
-          ...(sponsor === undefined ? {} : { sponsor: sponsor.publicKey() }),
-          ...(treasury === undefined ? {} : { treasury: treasury.keypair.publicKey() }),
-        },
-        startedAt: recorder.startedAt,
-      },
-      [...recorder.cases].map((entry) =>
-        entry.id === "onboarding"
-          ? { ...entry, observations: { ...entry.observations, cli: cliRuns } }
-          : entry,
-      ),
-    );
-    // The document itself is a channel too.
-    scan.capture("evidence", evidence);
-    const leaks = scan.findings();
-    if (leaks.length > 0) throw new Error(`the evidence document would leak: ${JSON.stringify(leaks)}`);
-    const problems = liveAgentProblems(evidence);
-    for (const problem of problems) log(`PROBLEM ${problem}`);
+        [...recorder.cases].map((entry) =>
+          entry.id === "onboarding"
+            ? { ...entry, observations: { ...entry.observations, cli: cliRuns } }
+            : entry,
+        ),
+      );
+      // The document itself is a channel too.
+      scan.capture("evidence", evidence);
+      const leaks = scan.findings();
+      if (leaks.length > 0) throw new Error(`the evidence document would leak: ${JSON.stringify(leaks)}`);
+      const problems = liveAgentProblems(evidence);
+      for (const problem of problems) log(`PROBLEM ${problem}`);
 
-    if (provenance === undefined) {
-      process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
-    } else if (problems.length === 0 && recorder.failed === 0) {
-      recheckProvenance(provenance, { allowBranch: args["allow-branch"] });
-      const file = evidenceFileName("live-agent", NETWORK, hosted === undefined ? "local" : undefined);
-      log(`evidence written to ${writeEvidence(evidence, { allowBranch: args["allow-branch"], file })}`);
-    } else {
-      log(`nothing written to ${EVIDENCE_DIR}: the run has failures`);
-    }
-    log(
-      `${String(evidence.summary.passed)} passed, ${String(evidence.summary.failed)} failed, ${String(evidence.summary.skipped)} skipped`,
-    );
-    if (recorder.failed > 0 || problems.length > 0) process.exitCode = 1;
+      if (provenance === undefined) {
+        await print(`${JSON.stringify(evidence, null, 2)}\n`);
+      } else if (problems.length === 0 && recorder.failed === 0) {
+        recheckProvenance(provenance, { allowBranch: args["allow-branch"] });
+        const file = evidenceFileName("live-agent", NETWORK, hosted === undefined ? "local" : undefined);
+        log(`evidence written to ${writeEvidence(evidence, { allowBranch: args["allow-branch"], file })}`);
+      } else {
+        log(`nothing written to ${EVIDENCE_DIR}: the run has failures`);
+      }
+      log(
+        `${String(evidence.summary.passed)} passed, ${String(evidence.summary.failed)} failed, ${String(evidence.summary.skipped)} skipped`,
+      );
+      if (recorder.failed > 0 || problems.length > 0) process.exitCode = 1;
+    };
   } finally {
     for (const cleanup of cleanups.reverse()) {
       try {
@@ -1839,7 +2486,7 @@ async function livePayTo(url: string): Promise<string> {
 
 /**
  * A seller whose 402 offers one option the buyer's policy must refuse: `/network` asks for payment on
- * stellar:pubnet, `/asset` in the 6-decimal testnet test token, `/amount` for zero USDC. It counts
+ * the other network, `/asset` in a token outside the policy, `/amount` for zero USDC. It counts
  * requests that carry a payment.
  */
 async function startImpostor(payTo: string) {
@@ -1847,8 +2494,15 @@ async function startImpostor(payTo: string) {
   let url = "";
   const option = (path: string): PaymentRequirements => ({
     scheme: "exact",
-    network: path === "/network" ? "stellar:pubnet" : NETWORK,
-    asset: path === "/network" ? USDC_PUBNET_ADDRESS : path === "/amount" ? USDC_TESTNET_ADDRESS : TEST6,
+    network: path === "/network" ? (PUBNET ? "stellar:testnet" : "stellar:pubnet") : NETWORK,
+    asset:
+      path === "/network"
+        ? PUBNET
+          ? USDC_TESTNET_ADDRESS
+          : USDC_PUBNET_ADDRESS
+        : path === "/amount"
+          ? USDC_ADDRESS
+          : OTHER_ASSET,
     amount: path === "/amount" ? "0" : "10000",
     payTo,
     maxTimeoutSeconds: 60,

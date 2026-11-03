@@ -3,6 +3,7 @@
  * and its tests.
  */
 import type { Evidence, EvidenceCase } from "./evidence.ts";
+import { explorerPageProblems, type ExplorerPageCheck } from "./live-agent-checks.ts";
 
 /** Cases every run has; each must pass, or be skipped with a reason. */
 export const PLAYGROUND_CASES = [
@@ -58,8 +59,8 @@ const SETUP_TRANSACTIONS = 2;
 /**
  * Problems with a live-playground document: a required case missing, failed or skipped without being
  * allowed to; a paying case without its transaction; a refusal without its code or with a balance
- * that moved; onboarding without its setup transactions; a transaction the explorer did not answer
- * 200 for; or a secret scan that found anything, or did not prove itself on a planted leak.
+ * that moved; onboarding without its setup transactions; a transaction stellar.expert did not answer
+ * 200 for, or whose page link is not the Rail402 Explorer page that answered 200 naming it; or a secret scan that found anything, or did not prove itself on a planted leak.
  */
 export function livePlaygroundProblems(evidence: Evidence): string[] {
   const problems: string[] = [];
@@ -124,6 +125,14 @@ export function livePlaygroundProblems(evidence: Evidence): string[] {
       if (status === undefined) problems.push(`transaction ${hash} was not checked in the explorer`);
       else if (status !== 200) problems.push(`transaction ${hash}: the explorer answered ${String(status)}`);
     }
+    const pages = explorer.observations?.["pageLinks"];
+    problems.push(
+      ...explorerPageProblems(
+        evidence.network,
+        hashes,
+        Array.isArray(pages) ? (pages as Partial<ExplorerPageCheck>[]) : [],
+      ).map((problem) => `page link: ${problem}`),
+    );
   }
 
   const scan = ran("secret-scan")?.observations?.["secretScan"] as

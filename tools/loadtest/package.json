@@ -1,0 +1,22 @@
+{
+  "name": "@rail402.dev/loadtest",
+  "version": "0.5.1",
+  "private": true,
+  "description": "Open-loop load test of Rail402: discovery driver, settle probe, synthetic datasets with hashes, and a staging service.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "@hono/node-server": "catalog:",
+    "@rail402.dev/bazaar": "workspace:*",
+    "@rail402.dev/search": "workspace:*",
+    "@rail402.dev/search-eval": "workspace:*",
+    "@rail402.dev/service": "workspace:*",
+    "@rail402.dev/store-postgres": "workspace:*",
+    "@rail402.dev/testkit": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:",
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "@rail402.dev/facilitator": "workspace:*"
+  }
+}

@@ -22,24 +22,26 @@
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { isRail402Code } from "@rail402.dev/service/codes";
-import { LocalNetwork } from "@rail402.dev/testkit";
 import { harnessProvenance, recheckProvenance, writeEvidence } from "./evidence.ts";
-import { buildEvidence, readTarget } from "./harness.ts";
+import { buildEvidence, readTarget, type CaseRecorder } from "./harness.ts";
 import { allClientCodes } from "./client-codes.ts";
 import { runMcpAudit } from "./rejection-audit-mcp.ts";
-import { runRejectionAudit } from "./rejection-audit-run.ts";
+import { runRejectionAudit, type AuditAccounts } from "./rejection-audit-run.ts";
 import { runUptoAudit } from "./rejection-audit-upto.ts";
 import { test6Asset } from "./test-token.ts";
 import {
-  NETWORK,
-  TESTNET_FRIENDBOT_URL,
-  TESTNET_RPC_URL,
-  Treasury,
-  USDC_TESTNET_ADDRESS,
-  gitCommit,
-  log,
-  versions,
-} from "./testnet.ts";
+  NETWORK_OPTION,
+  ProfileNetwork,
+  assertSwept,
+  feeCeilingStroops,
+  parseNetworkId,
+  profileEvidence,
+  resolveProfile,
+  startRun,
+  sweepObservation,
+  withRun,
+} from "./network.ts";
+import { gitCommit, log, versions } from "./testnet.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -47,98 +49,157 @@ const { values: args } = parseArgs({
     keyed: { type: "string" },
     limited: { type: "string" },
     mcp: { type: "boolean", default: false },
-    "other-asset": { type: "string", default: "test6" },
+    "other-asset": { type: "string" },
     only: { type: "string" },
     "no-smart-account": { type: "boolean", default: false },
     write: { type: "boolean", default: false },
     "allow-branch": { type: "string" },
+    ...NETWORK_OPTION,
   },
 });
+
+const PROFILE = resolveProfile(parseNetworkId(args.network));
+const NETWORK = PROFILE.caip2;
+const USDC_ADDRESS = PROFILE.usdc.contract;
+// TEST6 is deployed on testnet only; on pubnet the wrong-asset cases use a contract nobody accepts.
+const OTHER_ASSET = args["other-asset"] ?? (PROFILE.id === "testnet" ? "test6" : "none");
+if (PROFILE.id !== "testnet" && OTHER_ASSET !== "none") {
+  throw new Error("--other-asset test6 applies to testnet; the TEST6 token is not deployed on pubnet");
+}
+/**
+ * `/settle` requests the audit sends at most (each settle-side refusal sends one; a few cases settle
+ * before refusing a repeat): checked against the caps before anything is funded. Each request is
+ * debited when it is sent.
+ */
+const MAX_SETTLE_REQUESTS = 120;
 
 // Evidence is recorded only from a clean commit on main, checked before any testnet funds are spent.
 const provenance = args.write ? harnessProvenance({ allowBranch: args["allow-branch"] }) : undefined;
 
 async function main() {
-  const net = new LocalNetwork(TESTNET_RPC_URL, TESTNET_FRIENDBOT_URL);
+  const net = new ProfileNetwork(PROFILE);
   const target = await readTarget(args.facilitator);
   log(`facilitator ${target.facilitatorUrl} (version ${target.healthVersion})`);
+  const uptoKind = (
+    target.supported as { kinds?: { scheme?: string; network?: string; extra?: Record<string, unknown> }[] }
+  ).kinds?.find((kind) => kind.scheme === "upto" && kind.network === NETWORK);
+  const authority = uptoKind?.extra?.["facilitatorAddress"];
+  // The upto rows run when the facilitator advertises upto; on pubnet they need the upto contract
+  // and the upto fee ceiling, refused here before anything is funded.
+  const profile =
+    PROFILE.id !== "testnet" && typeof authority === "string"
+      ? resolveProfile(PROFILE.id, { needsUpto: true })
+      : PROFILE;
+  const otherAsset = OTHER_ASSET === "none" ? undefined : test6Asset().contract;
 
-  log("opening a treasury: Friendbot XLM, then USDC from the testnet XLM/USDC pool");
-  const treasury = await new Treasury(net).open("2");
-  const payers = await treasury.accounts(3, "0.1");
-  const [payTo] = await treasury.accounts(1, "0");
-  const [untrusted] = await treasury.accounts(1, "0", false);
-  const [poor] = await treasury.accounts(1, "0.0000001");
-  if (payTo === undefined || untrusted === undefined || poor === undefined) throw new Error("accounts");
-
-  const recorder = await runRejectionAudit({
-    facilitator: target.facilitatorUrl,
-    supported: target.supported,
-    net,
-    asset: USDC_TESTNET_ADDRESS,
-    isRegistered: isRail402Code,
-    accounts: {
+  const treasury = await startRun("rejection-audit", profile, net, {
+    usdc: "2",
+    facilitators: [target.facilitatorUrl],
+  });
+  treasury.meter.ensure(
+    {
+      settlements: MAX_SETTLE_REQUESTS,
+      xlmStroops:
+        feeCeilingStroops(profile, typeof authority === "string" ? "upto" : "exact") *
+        BigInt(MAX_SETTLE_REQUESTS),
+      usdcBaseUnits: 4_000_000n,
+    },
+    `up to ${String(MAX_SETTLE_REQUESTS)} settle requests`,
+  );
+  let recorder: CaseRecorder | undefined;
+  const fixtures: Record<string, string> = {};
+  const sweep = await withRun(treasury, async () => {
+    const payers = await treasury.accounts(3, "0.1", true, { role: "payer" });
+    const [payTo] = await treasury.accounts(1, "0", true, { role: "payto" });
+    const [untrusted] = await treasury.accounts(1, "0", false, { role: "untrusted" });
+    const [poor] = await treasury.accounts(1, "0.0000001", true, { role: "poor" });
+    if (payTo === undefined || untrusted === undefined || poor === undefined) throw new Error("accounts");
+    Object.assign(fixtures, {
+      payTo: payTo.publicKey(),
+      untrusted: untrusted.publicKey(),
+      poor: poor.publicKey(),
+      ...Object.fromEntries(payers.map((payer, index) => [`payer${String(index + 1)}`, payer.publicKey()])),
+    });
+    const accounts: AuditAccounts = {
       payers,
       payTo: payTo.publicKey(),
       untrusted,
       poor,
       deployer: treasury.keypair,
       fund: (to, amount) => treasury.transfer(to, amount),
-    },
-    ...(args.keyed === undefined ? {} : { keyedFacilitator: args.keyed }),
-    ...(args.limited === undefined ? {} : { limitedFacilitator: args.limited }),
-    smartAccount: !args["no-smart-account"],
-    ...(args.only === undefined ? {} : { only: args.only.split(",").map((id) => id.trim()) }),
-    log,
-  });
-
-  const uptoKind = (
-    target.supported as { kinds?: { scheme?: string; network?: string; extra?: Record<string, unknown> }[] }
-  ).kinds?.find((kind) => kind.scheme === "upto" && kind.network === NETWORK);
-  const authority = uptoKind?.extra?.["facilitatorAddress"];
-  const otherAsset = args["other-asset"] === "none" ? undefined : test6Asset().contract;
-  if (typeof authority === "string") {
-    await runUptoAudit(recorder, {
+      smartAccount: () => treasury.smartAccount("wrong-key"),
+    };
+    recorder = await runRejectionAudit({
       facilitator: target.facilitatorUrl,
+      supported: target.supported,
       net,
-      asset: USDC_TESTNET_ADDRESS,
-      ...(otherAsset === undefined ? {} : { otherAsset }),
-      authority,
-      isRegistered: isRail402Code,
-      accounts: {
-        payers,
-        payTo: payTo.publicKey(),
-        untrusted,
-        poor,
-        deployer: treasury.keypair,
-        fund: (to, amount) => treasury.transfer(to, amount),
-      },
-      smartAccount: !args["no-smart-account"],
-    });
-  } else {
-    recorder.skip(
-      { id: "upto", title: "upto refusals", checks: ["rejection-codes", "scheme-upto"], scheme: "upto" },
-      "the facilitator does not advertise upto on stellar:testnet",
-    );
-  }
-
-  if (args.mcp) {
-    await runMcpAudit(recorder, {
-      command: [
-        process.execPath,
-        "--conditions=@rail402/source",
-        fileURLToPath(new URL("../../../packages/mcp/src/bin.ts", import.meta.url)),
-      ],
-      facilitator: target.facilitatorUrl,
       network: NETWORK,
-      rpcUrl: TESTNET_RPC_URL,
-      asset: { contract: USDC_TESTNET_ADDRESS, symbol: "USDC", decimals: 7, builtIn: true },
-      payTo: payTo.publicKey(),
-      isRegistered: (code) => Object.hasOwn(allClientCodes, code),
+      asset: USDC_ADDRESS,
+      isRegistered: isRail402Code,
+      accounts,
+      ...(args.keyed === undefined ? {} : { keyedFacilitator: args.keyed }),
+      ...(args.limited === undefined ? {} : { limitedFacilitator: args.limited }),
+      smartAccount: !args["no-smart-account"],
+      ...(args.only === undefined ? {} : { only: args.only.split(",").map((id) => id.trim()) }),
       log,
     });
-  }
 
+    if (typeof authority === "string") {
+      await runUptoAudit(recorder, {
+        facilitator: target.facilitatorUrl,
+        net,
+        network: NETWORK,
+        asset: USDC_ADDRESS,
+        ...(otherAsset === undefined ? {} : { otherAsset }),
+        authority,
+        // The configured contract on pubnet; the network's canonical deployment on testnet.
+        ...(profile.id === "testnet" || profile.upto === undefined
+          ? {}
+          : { contract: profile.upto.contract }),
+        isRegistered: isRail402Code,
+        accounts,
+        smartAccount: !args["no-smart-account"],
+      });
+    } else {
+      recorder.skip(
+        { id: "upto", title: "upto refusals", checks: ["rejection-codes", "scheme-upto"], scheme: "upto" },
+        `the facilitator does not advertise upto on ${NETWORK}`,
+        "pending-dependency",
+      );
+    }
+
+    if (args.mcp) {
+      await runMcpAudit(recorder, {
+        command: [
+          process.execPath,
+          "--conditions=@rail402/source",
+          fileURLToPath(new URL("../../../packages/mcp/src/bin.ts", import.meta.url)),
+        ],
+        facilitator: target.facilitatorUrl,
+        network: NETWORK,
+        rpcUrl: net.rpcUrl,
+        asset: { contract: USDC_ADDRESS, symbol: "USDC", decimals: 7, builtIn: true },
+        payTo: payTo.publicKey(),
+        isRegistered: (code) => Object.hasOwn(allClientCodes, code),
+        log,
+      });
+    }
+  });
+  if (recorder === undefined) throw new Error("the audit did not run");
+  if (PROFILE.id !== "testnet") {
+    await recorder.run(
+      {
+        id: "sweep-back",
+        title: "the run's USDC is back in the operator treasury and its accounts are merged",
+        checks: ["pubnet-config"],
+      },
+      (context) => {
+        context.observe("sweep", sweepObservation(sweep));
+        assertSwept(sweep);
+        return Promise.resolve();
+      },
+    );
+  }
   const evidence = buildEvidence(
     {
       kind: "rejection-audit",
@@ -157,21 +218,23 @@ async function main() {
         (args.keyed === undefined ? "" : ` --keyed ${args.keyed}`) +
         (args.limited === undefined ? "" : ` --limited ${args.limited}`) +
         (args.mcp ? " --mcp" : "") +
-        (args["other-asset"] === "none" ? " --other-asset none" : ""),
+        (args["other-asset"] === "none" ? " --other-asset none" : "") +
+        (PROFILE.id === "testnet" ? "" : ` --network ${PROFILE.id}`),
       config: {
-        asset: USDC_TESTNET_ADDRESS,
+        asset: USDC_ADDRESS,
         ...(otherAsset === undefined ? {} : { otherAsset }),
         upto: typeof authority === "string",
         smartAccount: !args["no-smart-account"],
         mcp: args.mcp,
       },
       accounts: {
-        payTo: payTo.publicKey(),
-        untrusted: untrusted.publicKey(),
-        poor: poor.publicKey(),
+        payTo: fixtures["payTo"] ?? "",
+        untrusted: fixtures["untrusted"] ?? "",
+        poor: fixtures["poor"] ?? "",
         treasury: treasury.keypair.publicKey(),
-        ...Object.fromEntries(payers.map((payer, index) => [`payer${String(index + 1)}`, payer.publicKey()])),
+        ...Object.fromEntries(Object.entries(fixtures).filter(([key]) => key.startsWith("payer"))),
       },
+      ...(PROFILE.id === "testnet" ? {} : { profile: profileEvidence(profile, treasury, sweep) }),
       startedAt: recorder.startedAt,
     },
     recorder.cases,

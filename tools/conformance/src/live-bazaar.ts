@@ -1,31 +1,47 @@
 /**
  * Live Bazaar run: every cataloging and integrity rule exercised against a Rail402 on the public
- * Stellar testnet. Each case settles a real payment over HTTP, built from a seller's own 402 response
+ * Stellar network. Each case settles a real payment over HTTP, built from a seller's own 402 response
  * exactly as a stock client builds it, and records the facilitator's EXTENSION-RESPONSES outcome and
- * the listing it produced. No API key is sent.
+ * the listing it produced.
  *
  *   node --conditions=@rail402/source tools/conformance/src/live-bazaar.ts \
- *     --facilitator https://… [--seller https://…|local] [--only id,id] [--write [--allow-branch <branch>]]
+ *     --facilitator https://… [--seller https://…|local] [--network testnet|pubnet] [--only id,id] \
+ *     [--write [--allow-branch <branch>]]
  *
  * Sellers:
  * - `--seller <url>`: a deployed demo seller (apps/demo-seller) whose payTo holds a USDC trustline and
  *   sets the seller's host as its home_domain, and whose stellar.toml lists it. Listings persist
  *   between runs: a resource that is already listed
  *   reports `recorded` instead of `awaiting_origin_verification`, and the checks accept either.
- * - `--seller local` (the default): the same demo seller, started by the run on 127.0.0.1 with a
- *   fresh payTo that holds a USDC trustline and names 127.0.0.1 as its home_domain.
- * - A second seller always runs locally for the second-asset and upto cases: a route priced in the
- *   TEST6 test token (6 decimals) and an upto route priced at its cap in USDC, declared with the
+ * - `--seller local` (the default on testnet): the same demo seller, started by the run on 127.0.0.1
+ *   with a fresh payTo that holds a USDC trustline and names 127.0.0.1 as its home_domain.
+ * - A second seller always runs locally on testnet for the second-asset and upto cases: a route priced
+ *   in the TEST6 test token (6 decimals) and an upto route priced at its cap in USDC, declared with the
  *   Rail402 seller helpers on the stock express middleware.
  * Resources on 127.0.0.1 are cataloged only by a facilitator started with
  * `DISCOVERY_ALLOW_LOOPBACK=true` (a local conformance run); against any other facilitator the second
- * seller's cases are skipped with that reason.
+ * seller's cases, and the redirect case whose seller listens there, are skipped with that reason.
  *
- * Fresh buyer accounts are created for each run. The second seller that claims the demo seller's MCP
- * tool is one fixed testnet account derived from the operator's sponsor seed (the file
- * RAIL402_SPONSOR_SECRET_FILE names), so reruns reuse its one listing instead of adding another to the
- * catalog each time; without that file it is a fresh account. With --write the run is recorded as
- * schemaVersion 2 evidence.
+ * The catalog's URL and pricing defences are exercised black-box: a payment the seller's 402 asked for
+ * that echoes a resource URL on a private, loopback, link-local or metadata address, with credentials,
+ * in another scheme, on a public name that resolves to a private address, or spelled with encoded dot
+ * segments and separators (also in the route template), and payments whose amount or asset is not the
+ * one the seller's 402 asks for. Each refusal must carry its documented code and a non-empty reason; a
+ * listing it reaches must never be published with the forged URL or price.
+ *
+ * Testnet: fresh buyer accounts are created for each run from Friendbot and the testnet pool. The
+ * second seller that claims the demo seller's MCP tool is one fixed testnet account derived from the
+ * operator's sponsor seed (the file RAIL402_SPONSOR_SECRET_FILE names), so reruns reuse its one
+ * listing instead of adding another to the catalog each time; without that file it is a fresh account.
+ *
+ * Pubnet (`--network pubnet`): a deployed Rail402 and a public seller, both https. The run funds from
+ * the operator treasury through the whole-run ledger and caps (`network.ts`): it refuses to start
+ * without the pubnet settings and RAIL402_PUBNET_RUN_CONFIRM, sends the API key from
+ * RAIL402_FACILITATOR_API_KEY_FILE as a Bearer token, counts every /settle against the caps before it is
+ * sent, pays in pubnet USDC only, and returns every account's funds to the treasury at the end. Its
+ * extra cases assert the pubnet catalog policy: plain http and `mcp://` tools are refused.
+ *
+ * With --write the run is recorded as schemaVersion 2 evidence.
  */
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -40,6 +56,9 @@ import { paymentMiddleware } from "@x402/express";
 import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme as ExactStellarServer } from "@x402/stellar/exact/server";
+import { lookup } from "node:dns/promises";
+import { createServer } from "node:http";
+import { isPublicAddress } from "@rail402.dev/safe-fetch";
 import { createSeller } from "@rail402.dev/demo-seller";
 import {
   UptoStellarServerScheme,
@@ -53,22 +72,36 @@ import {
 import { UptoStellarScheme as UptoStellarClient } from "@rail402.dev/upto/client";
 import { LocalNetwork, type PaymentRequirementsLike } from "@rail402.dev/testkit";
 import {
-  NETWORK,
   TESTNET_FRIENDBOT_URL,
   TESTNET_RPC_URL,
   Treasury,
-  USDC_TESTNET_ADDRESS,
   gitCommit,
   log,
   operatorAccount,
   versions,
 } from "./testnet.ts";
 import {
+  NETWORK_OPTION,
+  ProfileError,
+  ProfileNetwork,
+  assertSwept,
+  feeCeilingStroops,
+  parseNetworkId,
+  profileEvidence,
+  resolveProfile,
+  startRun,
+  sweepObservation,
+  withRun,
+  type Funder,
+  type SweepResult,
+} from "./network.ts";
+import {
   harnessProvenance,
   recheckProvenance,
   runFileName,
   writeEvidence,
   type CheckId,
+  type SkipCategory,
 } from "./evidence.ts";
 import {
   CaseRecorder,
@@ -77,6 +110,7 @@ import {
   settledTransaction,
   type CaseContext,
   type CaseSpec,
+  type Target,
 } from "./harness.ts";
 import { checkTest6OnChain, test6Asset, test6Faucet } from "./test-token.ts";
 
@@ -87,14 +121,39 @@ const { values: args } = parseArgs({
     only: { type: "string" },
     write: { type: "boolean", default: false },
     "allow-branch": { type: "string" },
+    ...NETWORK_OPTION,
   },
 });
+
+const PROFILE = resolveProfile(parseNetworkId(args.network));
+const NETWORK = PROFILE.caip2;
+const PUBNET = PROFILE.id === "pubnet";
+const USDC_ADDRESS = PROFILE.usdc.contract;
+/** The other network: a filter on it matches none of this run's listings. */
+const OTHER_NETWORK = PUBNET ? "stellar:testnet" : "stellar:pubnet";
+if (PUBNET) {
+  // A pubnet catalog never reaches loopback, and its listings are https only: both ends are public.
+  for (const [flag, value] of [
+    ["--facilitator", args.facilitator],
+    ["--seller", args.seller],
+  ] as const) {
+    if (!URL.canParse(value) || new URL(value).protocol !== "https:") {
+      throw new ProfileError(
+        "pubnet_target_missing",
+        `a pubnet run needs ${flag} as the https URL of a public deployment`,
+      );
+    }
+  }
+}
 
 // Evidence is recorded only from a clean commit on main, checked before any testnet funds are spent.
 const provenance = args.write ? harnessProvenance({ allowBranch: args["allow-branch"] }) : undefined;
 
 const FACILITATOR = args.facilitator.replace(/\/+$/, "");
-const net = new LocalNetwork(TESTNET_RPC_URL, TESTNET_FRIENDBOT_URL);
+const net: LocalNetwork = PUBNET
+  ? new ProfileNetwork(PROFILE)
+  : new LocalNetwork(TESTNET_RPC_URL, TESTNET_FRIENDBOT_URL);
+const RPC_URL = PROFILE.rpcUrls[0] ?? TESTNET_RPC_URL;
 /** How long to wait for the facilitator's background origin check. */
 const ORIGIN_CHECK_WAIT_MS = 90_000;
 /** How long to wait for a published listing to reach the search index. */
@@ -103,8 +162,7 @@ const SEARCH_INDEX_WAIT_MS = 120_000;
  * The second seller: derived from the operator's sponsor seed (`operatorAccount`), so reruns reuse its
  * listing and nobody else can sign for it; a fresh account without the seed file.
  */
-const SECOND_SELLER_ACCOUNT = operatorAccount("live-bazaar second seller");
-const SECOND_SELLER = SECOND_SELLER_ACCOUNT.keypair;
+const SECOND_SELLER_ACCOUNT = PUBNET ? undefined : operatorAccount("live-bazaar second seller");
 const TEST6 = test6Asset();
 /** The TEST6 route's price in whole tokens: 10000 base units at 6 decimals. */
 const TEST6_PRICE = "0.01";
@@ -113,6 +171,19 @@ const UPTO_CAP = "$0.01";
 const UPTO_CHARGE = 40_000n;
 /** What both of the second seller's routes are about, for search. */
 const TIDES_QUERY = "tide tables for a harbour";
+/** Buyer accounts; each pays a handful of the run's settlements. */
+const BUYERS = 10;
+/** Payments one pubnet buyer is funded for, at the seller's highest price. */
+const PAYMENTS_PER_BUYER = 8;
+/** The most settlements a pubnet run sends: its cases need fewer, a retry or two included. */
+const PUBNET_MAX_SETTLEMENTS = 70;
+
+/** Base units of a 7-decimal asset as a decimal amount. */
+function units(baseUnits: bigint): string {
+  const whole = baseUnits / 10_000_000n;
+  const fraction = (baseUnits % 10_000_000n).toString().padStart(7, "0").replace(/0+$/, "");
+  return fraction === "" ? whole.toString() : `${whole.toString()}.${fraction}`;
+}
 
 // ---------------------------------------------------------------------------------------------
 
@@ -202,6 +273,13 @@ type Payload = Record<string, unknown> & { payload: Record<string, unknown> };
 /** A signed exact payment for a 402, as a stock client builds it, echoing resource and extensions. */
 async function payFor(payer: Keypair, required: PaymentRequired, requirements = required.accepts[0]) {
   if (requirements === undefined) throw new Error("the 402 offers no payment option");
+  // A pubnet run pays in USDC only: an option in any other asset is never signed.
+  if (PUBNET && requirements.asset !== USDC_ADDRESS) {
+    throw new ProfileError(
+      "pubnet_asset_not_allowed",
+      `a pubnet run pays in USDC (${USDC_ADDRESS}) only, not ${requirements.asset}`,
+    );
+  }
   const signed = await net.payment(payer, requirements as unknown as PaymentRequirementsLike);
   return { payload: payloadOf(required, requirements, signed.payload), requirements };
 }
@@ -211,7 +289,7 @@ async function payUpto(payer: Keypair, required: PaymentRequired) {
   const requirements = required.accepts.find((option) => option.scheme === "upto");
   if (requirements === undefined) throw new Error("the 402 offers no upto option");
   const client = new UptoStellarClient(createEd25519Signer(payer.secret(), NETWORK), {
-    rpcConfig: { url: TESTNET_RPC_URL },
+    rpcConfig: { url: RPC_URL },
   });
   const created = await client.createPaymentPayload(2, requirements);
   return { payload: payloadOf(required, requirements, created.payload), requirements };
@@ -299,6 +377,22 @@ async function settled(id: string, want: string): Promise<Listing> {
     const found = await listing(id);
     if (found.state === want || Date.now() > deadline) {
       strictEqual(found.state, want, `listing ${id} state`);
+      return found;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+}
+
+/**
+ * The published listing once the catalog read its Stellar facts: a background round after it was
+ * published, so a listing just published carries no token facts yet.
+ */
+async function withFacts(id: string): Promise<Listing> {
+  const deadline = Date.now() + ORIGIN_CHECK_WAIT_MS;
+  for (;;) {
+    const found = await settled(id, "published");
+    if (only(found).stellar !== undefined || Date.now() > deadline) {
+      ok(only(found).stellar !== undefined, `listing ${id} facts were read`);
       return found;
     }
     await new Promise((resolve) => setTimeout(resolve, 2_000));
@@ -439,13 +533,21 @@ function secondSeller(payTo: string): express.Express {
 
 async function main() {
   const target = await readTarget(FACILITATOR);
-  log(`facilitator ${FACILITATOR} (version ${target.healthVersion})`);
+  log(`facilitator ${FACILITATOR} (version ${target.healthVersion}) on ${NETWORK}`);
+  if (PUBNET) await pubnetRun(target);
+  else await testnetRun(target);
+}
+
+/** The testnet run: Friendbot-funded accounts, a local or deployed demo seller, and a second seller. */
+async function testnetRun(target: Target) {
   await checkTest6OnChain(net.server);
+  const claimant = SECOND_SELLER_ACCOUNT;
+  if (claimant === undefined) throw new Error("the testnet run needs its second seller's account");
 
   log("opening a treasury: Friendbot XLM, then 5 USDC from the testnet XLM/USDC pool");
   const treasury = await new Treasury(net).open("5");
-  const buyers = await treasury.accounts(8, "0.2");
-  const attacker = await treasury.adopt(SECOND_SELLER);
+  const buyers = await treasury.accounts(BUYERS, "0.2");
+  const attacker = await treasury.adopt(claimant.keypair);
   const buyer = (i: number) => buyers[i % buyers.length] as Keypair;
   const [demoPayTo, secondPayTo] = await treasury.accounts(2, "0");
   if (demoPayTo === undefined || secondPayTo === undefined) throw new Error("no seller accounts");
@@ -468,16 +570,140 @@ async function main() {
     );
   }
   const second = await listen(secondSeller(secondPayTo.publicKey()));
-  log(`demo seller ${demo.url}, second seller ${second.url}`);
+  const redirecting = await redirectingSeller();
+  log(`demo seller ${demo.url}, second seller ${second.url}, redirecting seller ${redirecting.url}`);
 
   try {
-    await demoSellerCases(demo.url, buyer, attacker);
-    await secondSellerCases(second.url, secondPayTo.publicKey(), treasury);
+    const weatherId = await demoSellerCases(demo.url, buyer, attacker);
+    // Whether this facilitator catalogs resources on 127.0.0.1, where the run's own sellers listen.
+    const loopback = await acceptsLoopback(demo.url, buyer(0), redirecting.url);
+    await securityCases(demo.url, buyer, weatherId, {
+      loopback,
+      redirecting,
+      test6Payer: async () => {
+        const [payer] = await treasury.accounts(1, "0", false);
+        if (payer === undefined) throw new Error("no payer");
+        await test6Faucet(net, treasury.keypair, payer.publicKey());
+        return payer;
+      },
+    });
+    await secondSellerCases(second.url, secondPayTo.publicKey(), treasury, loopback);
   } finally {
+    await redirecting.close();
     await second.close();
     await demo.close();
   }
 
+  writeRun(target, {
+    config: {
+      seller: args.seller === "local" ? "demo seller started by the run on 127.0.0.1" : demo.url,
+      secondSeller: "started by the run on 127.0.0.1",
+      redirectingSeller: "started by the run on 127.0.0.1",
+      "test6.price": `${TEST6_PRICE} TEST6 (${String(TEST6.decimals)} decimals) at GET ${TEST6_PATH}`,
+      "upto.cap": `${UPTO_CAP.slice(1)} USDC at GET ${UPTO_PATH}`,
+      "upto.charge": `${UPTO_CHARGE.toString()} base units`,
+      apiKey: "none",
+      mcpClaimantAccount: claimant.origin,
+    },
+    accounts: {
+      treasury: treasury.keypair.publicKey(),
+      ...(args.seller === "local" ? { sellerPayTo: demoPayTo.publicKey() } : {}),
+      secondSellerPayTo: secondPayTo.publicKey(),
+      mcpClaimant: claimant.keypair.publicKey(),
+      test6: TEST6.contract,
+    },
+  });
+}
+
+/**
+ * The pubnet run: a deployed Rail402 and a public demo seller. Every account is derived from the
+ * operator treasury and funded through the run's ledger; at the end its USDC goes back and the accounts
+ * are merged into the treasury.
+ */
+async function pubnetRun(target: Target) {
+  const seller = args.seller.replace(/\/+$/, "");
+  // The seller's prices bound what the buyers are funded with: reading them spends nothing.
+  const prices = await Promise.all(
+    [`${seller}/weather?city=Ankara`, `${seller}/users/42`].map(async (url) =>
+      BigInt((await paymentRequired(url)).accepts[0]?.amount ?? "0"),
+    ),
+  );
+  const price = prices.reduce((most, amount) => (amount > most ? amount : most), 0n);
+  if (price <= 0n) throw new Error(`${seller} answers no priced 402`);
+  const perBuyer = price * BigInt(PAYMENTS_PER_BUYER);
+  const funder = await startRun("live-bazaar", PROFILE, net, {
+    usdc: units(perBuyer * BigInt(BUYERS)),
+    facilitators: [FACILITATOR],
+  });
+  // What the run needs at most, checked against the caps before anything is sent; each settlement is
+  // debited again when its /settle is sent.
+  try {
+    funder.meter.ensure(
+      {
+        newAccounts: BUYERS + 1,
+        settlements: PUBNET_MAX_SETTLEMENTS,
+        usdcBaseUnits: perBuyer * BigInt(BUYERS),
+        xlmStroops: feeCeilingStroops(PROFILE, "exact") * BigInt(PUBNET_MAX_SETTLEMENTS),
+      },
+      `up to ${String(PUBNET_MAX_SETTLEMENTS)} settlements`,
+    );
+  } catch (error) {
+    // Nothing was sent: the claimed run ends here, and its ledger refuses any later debit.
+    funder.finish();
+    throw error;
+  }
+  const accounts: { buyers: Keypair[]; claimant?: Keypair } = { buyers: [] };
+  const sweep: SweepResult = await withRun(funder, async () => {
+    accounts.buyers = await funder.accounts(BUYERS, units(perBuyer), true, { role: "buyer" });
+    // The claimant is paid to (it holds a USDC trustline) but spends nothing.
+    [accounts.claimant] = await funder.accounts(1, "0", true, { role: "claimant" });
+    if (accounts.claimant === undefined) throw new Error("no claimant account");
+    const buyer = (i: number) => accounts.buyers[i % accounts.buyers.length] as Keypair;
+    const weatherId = await demoSellerCases(seller, buyer, accounts.claimant);
+    await securityCases(seller, buyer, weatherId, { loopback: false });
+    skipSecondSeller(
+      "the second seller listens on 127.0.0.1, which a pubnet catalog never reaches, and its TEST6 route has no pubnet deployment",
+      "environment",
+    );
+  });
+  await recorder.run(
+    {
+      id: "sweep-back",
+      title: "the run's USDC is back in the operator treasury and its accounts are merged",
+      checks: ["pubnet-config"],
+    },
+    (context) => {
+      context.observe("sweep", sweepObservation(sweep));
+      assertSwept(sweep);
+      return Promise.resolve();
+    },
+  );
+  writeRun(target, {
+    config: {
+      seller,
+      secondSeller: "none: a pubnet catalog never reaches a seller on 127.0.0.1",
+      apiKey: PROFILE.facilitator.apiKeyFile === undefined ? "none" : "bearer, from a file",
+      asset: `${USDC_ADDRESS} (USDC only)`,
+      buyers: `${String(BUYERS)} accounts of ${units(perBuyer)} USDC, derived from the treasury`,
+      mcpClaimantAccount: "derived from the treasury (live-bazaar/claimant)",
+    },
+    accounts: {
+      treasury: funder.keypair.publicKey(),
+      ...(accounts.claimant === undefined ? {} : { mcpClaimant: accounts.claimant.publicKey() }),
+    },
+    profile: { funder, sweep },
+  });
+}
+
+/** Builds the run's evidence; prints it, or with --write records it. */
+function writeRun(
+  target: Target,
+  run: {
+    readonly config: Record<string, string>;
+    readonly accounts: Record<string, string>;
+    readonly profile?: { readonly funder: Funder; readonly sweep: SweepResult };
+  },
+) {
   const evidence = buildEvidence(
     {
       kind: "live-bazaar",
@@ -496,23 +722,12 @@ async function main() {
       ]),
       command:
         `node --conditions=@rail402/source tools/conformance/src/live-bazaar.ts ` +
-        `--facilitator ${FACILITATOR} --seller ${args.seller}`,
-      config: {
-        seller: args.seller === "local" ? "demo seller started by the run on 127.0.0.1" : demo.url,
-        secondSeller: "started by the run on 127.0.0.1",
-        "test6.price": `${TEST6_PRICE} TEST6 (${String(TEST6.decimals)} decimals) at GET ${TEST6_PATH}`,
-        "upto.cap": `${UPTO_CAP.slice(1)} USDC at GET ${UPTO_PATH}`,
-        "upto.charge": `${UPTO_CHARGE.toString()} base units`,
-        apiKey: "none",
-        mcpClaimantAccount: SECOND_SELLER_ACCOUNT.origin,
-      },
-      accounts: {
-        treasury: treasury.keypair.publicKey(),
-        ...(args.seller === "local" ? { sellerPayTo: demoPayTo.publicKey() } : {}),
-        secondSellerPayTo: secondPayTo.publicKey(),
-        mcpClaimant: SECOND_SELLER.publicKey(),
-        test6: TEST6.contract,
-      },
+        `--facilitator ${FACILITATOR} --seller ${args.seller}${PUBNET ? " --network pubnet" : ""}`,
+      config: run.config,
+      accounts: run.accounts,
+      ...(run.profile === undefined
+        ? {}
+        : { profile: profileEvidence(PROFILE, run.profile.funder, run.profile.sweep) }),
       startedAt: recorder.startedAt,
     },
     recorder.cases,
@@ -524,12 +739,20 @@ async function main() {
     const file = runFileName(evidence);
     log(`evidence written to ${writeEvidence(evidence, { allowBranch: args["allow-branch"], file })}`);
   }
+  log(
+    `${String(evidence.summary.passed)} passed, ${String(evidence.summary.failed)} failed, ${String(evidence.summary.skipped)} skipped`,
+  );
   if (recorder.failed > 0) process.exitCode = 1;
 }
 
 // --- the demo seller ------------------------------------------------------------------------------
 
-async function demoSellerCases(seller: string, buyer: (i: number) => Keypair, attacker: Keypair) {
+/** The demo seller's cases; returns the id of its `GET /weather` listing. */
+async function demoSellerCases(
+  seller: string,
+  buyer: (i: number) => Keypair,
+  attacker: Keypair,
+): Promise<string> {
   const weather = await paymentRequired(`${seller}/weather?city=Ankara`);
   const sellerPayTo = weather.accepts[0]?.payTo ?? "";
 
@@ -834,7 +1057,7 @@ async function demoSellerCases(seller: string, buyer: (i: number) => Keypair, at
         (await get(`payTo=${sellerPayTo}&network=${NETWORK}&limit=100`)).pagination.total,
         mine.pagination.total,
       );
-      strictEqual((await get(`payTo=${sellerPayTo}&network=stellar:pubnet&limit=100`)).pagination.total, 0);
+      strictEqual((await get(`payTo=${sellerPayTo}&network=${OTHER_NETWORK}&limit=100`)).pagination.total, 0);
       strictEqual(
         (await get(`payTo=${sellerPayTo}&extensions=bazaar&limit=100`)).pagination.total,
         mine.pagination.total,
@@ -880,48 +1103,495 @@ async function demoSellerCases(seller: string, buyer: (i: number) => Keypair, at
       );
     },
   );
+  return weatherId;
+}
+
+// --- URL and pricing defences ---------------------------------------------------------------------
+
+/**
+ * A seller on 127.0.0.1 that answers every request with a 302 to the run's canary server, which counts
+ * what reaches it: a catalog that followed the redirect would show there.
+ */
+async function redirectingSeller(): Promise<RunningSeller & { canaryHits: () => number }> {
+  let hits = 0;
+  const canary = createServer((_request, response) => {
+    hits++;
+    response.writeHead(200, { "content-type": "text/plain" }).end("canary");
+  });
+  await new Promise<void>((resolve) => canary.listen(0, "127.0.0.1", resolve));
+  const canaryUrl = `http://127.0.0.1:${String((canary.address() as AddressInfo).port)}/latest/meta-data/`;
+  const app = express();
+  app.use((_request, response) => {
+    response.redirect(302, canaryUrl);
+  });
+  const seller = await listen(app);
+  return {
+    url: seller.url,
+    canaryHits: () => hits,
+    close: async () => {
+      canary.closeAllConnections();
+      await new Promise((resolve) => canary.close(resolve));
+      await seller.close();
+    },
+  };
+}
+
+/**
+ * Pays the 402 a seller answered `required` with, as a stock client does, but echoes `url` as the
+ * resource (and `extensions`, when given): the payment settles, and the catalog alone judges the URL.
+ */
+async function claim(
+  payer: Keypair,
+  required: PaymentRequired,
+  url: string,
+  options: {
+    readonly extensions?: Record<string, unknown>;
+    readonly requirements?: PaymentRequirements;
+    readonly decimals?: number;
+  } = {},
+): Promise<Settled> {
+  const { payload, requirements } = await payFor(payer, required, options.requirements);
+  return settle(
+    {
+      ...payload,
+      resource: { ...required.resource, url },
+      ...(options.extensions === undefined ? {} : { extensions: options.extensions }),
+    },
+    requirements,
+    options.decimals,
+  );
+}
+
+/** The outcome is the documented refusal `code`, with a non-empty reason, recorded as a rejection. */
+function expectRefused(outcome: Outcome | undefined, code: string, operation: string) {
+  strictEqual(outcomeCode(outcome), code, `${operation}: ${JSON.stringify(outcome)}`);
+  const reason = outcome?.rejectedReason ?? "";
+  ok(reason.trim() !== "", `${operation}: the outcome carries a reason`);
+  current?.rejection({ surface: "bazaar", operation, code, reason });
+}
+
+/**
+ * Whether the facilitator catalogs resources on 127.0.0.1: a payment that names the run's redirecting
+ * seller is refused as unsafe by a facilitator that does not. Recorded in no case.
+ */
+async function acceptsLoopback(seller: string, payer: Keypair, redirecting: string): Promise<boolean> {
+  const weather = await paymentRequired(`${seller}/weather?city=Ankara`);
+  const { outcome } = await claim(payer, weather, `${redirecting}/probe`);
+  const accepted = outcomeCode(outcome) !== "bazaar_resource_unsafe";
+  log(`the facilitator ${accepted ? "catalogs" : "refuses"} resources on 127.0.0.1`);
+  return accepted;
+}
+
+interface SecurityOptions {
+  /** The facilitator catalogs resources on 127.0.0.1 (a local conformance run). */
+  readonly loopback: boolean;
+  /** The run's redirecting seller (testnet runs; it listens on 127.0.0.1). */
+  readonly redirecting?: RunningSeller & { canaryHits: () => number };
+  /** A fresh payer holding TEST6 (testnet runs). */
+  readonly test6Payer?: () => Promise<Keypair>;
+}
+
+/** Private, link-local, metadata, IPv6 and encoded-IP hosts, each refused as `bazaar_resource_unsafe`. */
+const PRIVATE_URLS = [
+  "https://10.0.0.1/weather",
+  "https://172.16.0.1/weather",
+  "https://192.168.1.10/weather",
+  "https://100.64.0.1/weather",
+  "https://169.254.169.254/latest/meta-data/",
+  "https://[fd00:ec2::254]/latest/meta-data/",
+  "https://[fe80::1]/weather",
+  "https://[::ffff:10.0.0.1]/weather",
+  // 10.0.0.1 and 169.254.169.254 spelled as one decimal and one hex number.
+  "https://167772161/weather",
+  "https://0xa9fea9fe/latest/meta-data/",
+  "https://metadata.google.internal/computeMetadata/v1/",
+  "https://intranet/weather",
+] as const;
+
+/** Loopback hosts: refused as unsafe by every catalog that does not run a local conformance run. */
+const LOOPBACK_URLS = [
+  "https://127.0.0.1/weather",
+  "https://127.1/weather",
+  "https://localhost/weather",
+  "https://[::1]/weather",
+] as const;
+
+/** A public DNS name whose answer is the link-local metadata address. */
+const PRIVATE_NAME = "169.254.169.254.nip.io";
+
+async function securityCases(
+  seller: string,
+  buyer: (i: number) => Keypair,
+  weatherId: string,
+  options: SecurityOptions,
+) {
+  const host = new URL(seller).host;
+  const weather = await paymentRequired(`${seller}/weather?city=Ankara`);
+  let next = 0;
+  const payer = () => buyer(next++);
+
+  await check(
+    spec(
+      "unsafe-private-address",
+      "a resource on a private, carrier-grade NAT, link-local, metadata, IPv6 unique-local or local-only host, also spelled as a decimal, hex or IPv4-mapped address, is refused",
+      ["discovery", "rejection-codes"],
+    ),
+    async () => {
+      for (const url of PRIVATE_URLS) {
+        const { outcome } = await claim(payer(), weather, url);
+        expectRefused(outcome, "bazaar_resource_unsafe", `catalog ${url}`);
+      }
+      current?.observe("urls", PRIVATE_URLS);
+    },
+  );
+
+  const loopbackSpec = spec("unsafe-loopback", "a resource on a loopback host is refused", [
+    "discovery",
+    "rejection-codes",
+  ]);
+  if (options.loopback) {
+    recorder.skip(
+      loopbackSpec,
+      "this facilitator catalogs 127.0.0.1 on purpose (DISCOVERY_ALLOW_LOOPBACK, a local conformance run); the run against a deployed Rail402 proves the refusal",
+      "not-applicable",
+    );
+  } else {
+    await check(loopbackSpec, async () => {
+      for (const url of LOOPBACK_URLS) {
+        const { outcome } = await claim(payer(), weather, url);
+        expectRefused(outcome, "bazaar_resource_unsafe", `catalog ${url}`);
+      }
+    });
+  }
+
+  await check(
+    spec("unsafe-credentials", "a resource URL carrying credentials is refused", [
+      "discovery",
+      "rejection-codes",
+    ]),
+    async () => {
+      for (const url of [`https://user:secret@${host}/weather`, `https://token@${host}/weather`]) {
+        const { outcome } = await claim(payer(), weather, url);
+        expectRefused(
+          outcome,
+          "bazaar_resource_invalid",
+          `catalog ${url.replace(/\/\/[^@]*@/, "//<credentials>@")}`,
+        );
+        ok(/credentials/i.test(outcome?.rejectedReason ?? ""), "the reason names the credentials");
+      }
+    },
+  );
+
+  await check(
+    spec("unsafe-scheme", "a resource URL in a scheme other than http(s) is refused", [
+      "discovery",
+      "rejection-codes",
+    ]),
+    async () => {
+      for (const url of ["file:///etc/passwd", `gopher://${host}/weather`, `ftp://${host}/weather`]) {
+        const { outcome } = await claim(payer(), weather, url);
+        expectRefused(outcome, "bazaar_resource_invalid", `catalog ${url}`);
+      }
+    },
+  );
+
+  const httpsSpec = spec("pubnet-https-only", "on pubnet a resource served over plain http is refused", [
+    "discovery",
+    "rejection-codes",
+  ]);
+  if (!PUBNET) {
+    recorder.skip(
+      httpsSpec,
+      "the https-only rule applies on stellar:pubnet; testnet lists http resources",
+      "not-applicable",
+    );
+  } else {
+    await check(httpsSpec, async () => {
+      const url = `http://${host}/weather`;
+      const { outcome } = await claim(payer(), weather, url);
+      expectRefused(outcome, "bazaar_resource_invalid", `catalog ${url}`);
+    });
+  }
+
+  const originlessSpec = spec(
+    "pubnet-mcp-originless",
+    "on pubnet an MCP tool under an mcp:// URL, which has no origin to check, is refused",
+    ["discovery", "mcp", "rejection-codes"],
+  );
+  if (!PUBNET) {
+    recorder.skip(
+      originlessSpec,
+      "testnet lists an mcp:// tool on settlement at trust settled, as documented; pubnet refuses it",
+      "not-applicable",
+    );
+  } else {
+    await check(originlessSpec, async () => {
+      const probed = await checkSellerOrigin(`${seller}/mcp`, {
+        toolName: "forecast",
+        arguments: { city: "Istanbul" },
+        network: NETWORK,
+        allowLoopback: false,
+      });
+      const tool = probed.paymentRequired;
+      ok(tool !== undefined, `the tool asks for payment: ${JSON.stringify(probed.findings)}`);
+      const url = `mcp://${host}/forecast`;
+      const { outcome } = await claim(payer(), tool, url);
+      expectRefused(outcome, "bazaar_resource_unverifiable", `catalog ${url}`);
+    });
+  }
+
+  const dnsSpec = spec(
+    "ssrf-private-name",
+    "a resource on a public DNS name that resolves to a private address is never fetched into a listing: it is held, never published",
+    ["discovery"],
+  );
+  const resolved = await lookup(PRIVATE_NAME, { all: true }).catch(() => []);
+  if (resolved.length === 0 || resolved.some((entry) => isPublicAddress(entry.address))) {
+    recorder.skip(dnsSpec, `${PRIVATE_NAME} does not resolve to a private address from here`, "environment");
+  } else {
+    await check(dnsSpec, async () => {
+      const url = `https://${PRIVATE_NAME}/latest/meta-data/`;
+      const { outcome } = await claim(payer(), weather, url);
+      // The name is public, so the payment proposes a listing; the origin check resolves it, refuses
+      // the address and keeps retrying, so the listing is never published.
+      expectCataloged(outcome);
+      const id = outcome?.listingId ?? "";
+      await new Promise((resolve) => setTimeout(resolve, 20_000));
+      const found = await listing(id);
+      ok(found.state !== "published", `listing ${id} is ${found.state}`);
+      const listed = await listedResources(weather.accepts[0]?.payTo ?? "");
+      ok(!listed.includes(found.resource), "not in discovery");
+      current?.observe(
+        "resolved",
+        resolved.map((entry) => entry.address),
+      );
+      await record(found);
+    });
+  }
+
+  const redirectSpec = spec(
+    "ssrf-redirect",
+    "a resource whose server redirects is never followed: the redirect target is never requested and the listing is withdrawn",
+    ["discovery"],
+  );
+  const redirecting = options.redirecting;
+  if (!options.loopback || redirecting === undefined) {
+    recorder.skip(
+      redirectSpec,
+      "needs a seller that redirects, which this run serves on 127.0.0.1, and this catalog does not reach 127.0.0.1; the local run proves it",
+      "environment",
+    );
+  } else {
+    await check(redirectSpec, async () => {
+      const url = `${redirecting.url}/latest`;
+      const { outcome } = await claim(payer(), weather, url);
+      expectCataloged(outcome);
+      const found = await settled(outcome?.listingId ?? "", "quarantined");
+      const history = await record(found);
+      const last = history.at(-1) as { reason?: string } | undefined;
+      strictEqual(last?.reason, "origin_not_payment_required", "withdrawn: the origin did not answer 402");
+      strictEqual(redirecting.canaryHits(), 0, "the redirect target was never requested");
+    });
+  }
+
+  await check(
+    spec(
+      "traversal-dot-segments",
+      "percent-encoded dot segments in a resource path are resolved before the catalog keys it: the spelling joins the listing it names",
+      ["discovery"],
+    ),
+    async () => {
+      ok(weatherId !== "", "needs the http-listed listing");
+      for (const path of ["/x/%2e%2e/weather", "/x/%2E%2E/weather", "/x/.%2e/weather", "/x/./../weather"]) {
+        const { outcome } = await claim(payer(), weather, `${seller}${path}`);
+        ok(
+          ["awaiting_origin_verification", "recorded"].includes(outcomeCode(outcome)),
+          `${path}: ${JSON.stringify(outcome)}`,
+        );
+        strictEqual(outcome?.listingId, weatherId, `${path} is the GET /weather listing`);
+      }
+    },
+  );
+
+  await check(
+    spec(
+      "traversal-encoded-separators",
+      "double-encoded dot segments, an encoded slash, backslash or NUL stay literal: the path never climbs and the listing is withdrawn",
+      ["discovery"],
+    ),
+    async () => {
+      const paths = ["/x/%252e%252e/weather", "/weather%2f..%2fadmin", "/x/%5c..%5cweather", "/weather%00"];
+      const ids: string[] = [];
+      for (const path of paths) {
+        const { outcome } = await claim(payer(), weather, `${seller}${path}`);
+        expectCataloged(outcome);
+        const id = outcome?.listingId ?? "";
+        ok(id !== weatherId, `${path} is not the GET /weather listing`);
+        ids.push(id);
+      }
+      const resources = [];
+      for (const id of ids) {
+        // The seller has no such route: its 404 withdraws the listing, which is never published.
+        const found = await settled(id, "quarantined");
+        ok(!/\/\.\.?(?:\/|$)/.test(new URL(found.resource).pathname), `${found.resource} has no dot segment`);
+        ok(/%[0-9A-F]{2}/.test(found.resource), `${found.resource} keeps its escapes`);
+        resources.push(found.resource);
+      }
+      current?.observe("resources", resources);
+    },
+  );
+
+  await check(
+    spec(
+      "traversal-route-template",
+      "a route template that is unsafe once percent-decoded is dropped: the payment lists the concrete path it paid",
+      ["discovery"],
+    ),
+    async () => {
+      const users = await paymentRequired(`${seller}/users/42`);
+      const bazaar = users.extensions?.["bazaar"] as Record<string, unknown> | undefined;
+      ok(bazaar !== undefined, "the route declares the bazaar extension");
+      const resources: string[] = [];
+      for (const routeTemplate of [
+        "/%2e%2e/:id",
+        "/users%2f..%2f:id",
+        "/users/%252e%252e%252f:id",
+        "/users/%5c:id",
+      ]) {
+        const { outcome } = await claim(payer(), users, users.resource.url, {
+          extensions: { ...users.extensions, bazaar: { ...bazaar, routeTemplate } },
+        });
+        ok(
+          outcome?.dropped?.includes("routeTemplate") === true,
+          `${routeTemplate}: ${JSON.stringify(outcome)}`,
+        );
+        const found = await listing(outcome.listingId ?? "");
+        strictEqual(found.resource, `${seller}/users/42`, `${routeTemplate}: the concrete path`);
+        resources.push(found.resource);
+      }
+      current?.observe("resources", resources);
+    },
+  );
+
+  await check(
+    spec(
+      "forged-price",
+      "a payment for less than the seller's price never lists that price: the listing keeps the price of the seller's own 402",
+      ["discovery"],
+    ),
+    async () => {
+      ok(weatherId !== "", "needs the http-listed listing");
+      const asked = weather.accepts[0];
+      if (asked === undefined) throw new Error("the 402 offers no payment option");
+      const forged: PaymentRequirements = { ...asked, amount: "1" };
+      const { outcome } = await claim(payer(), weather, weather.resource.url, { requirements: forged });
+      if (outcomeCode(outcome) === "bazaar_settlement_below_minimum") {
+        expectRefused(outcome, "bazaar_settlement_below_minimum", "catalog a payment of 1 base unit");
+      } else {
+        ok(
+          ["awaiting_origin_verification", "recorded"].includes(outcomeCode(outcome)),
+          JSON.stringify(outcome),
+        );
+        strictEqual(outcome?.listingId, weatherId);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20_000));
+      const found = await listing(weatherId);
+      strictEqual(found.state, "published");
+      ok(
+        found.accepts.every((option) => option.amount !== "1"),
+        `the forged price is not listed: ${JSON.stringify(found.accepts)}`,
+      );
+      ok(
+        found.accepts.some((option) => option.amount === asked.amount && option.asset === asked.asset),
+        "the seller's own price is listed",
+      );
+      current?.observe("accepts", found.accepts);
+    },
+  );
+
+  const assetSpec = spec(
+    "forged-asset",
+    "a payment in an asset the seller's 402 does not ask for never lists that asset",
+    ["discovery", "second-asset"],
+  );
+  const test6Payer = options.test6Payer;
+  if (test6Payer === undefined) {
+    recorder.skip(assetSpec, "a pubnet run pays in USDC only, its one allowed asset", "not-applicable");
+  } else {
+    await check(assetSpec, async () => {
+      ok(weatherId !== "", "needs the http-listed listing");
+      const asked = weather.accepts[0];
+      if (asked === undefined) throw new Error("the 402 offers no payment option");
+      const forged: PaymentRequirements = { ...asked, asset: TEST6.contract, amount: "1000" };
+      const { outcome } = await claim(await test6Payer(), weather, weather.resource.url, {
+        requirements: forged,
+        decimals: TEST6.decimals,
+      });
+      ok(
+        ["awaiting_origin_verification", "recorded", "bazaar_settlement_below_minimum"].includes(
+          outcomeCode(outcome),
+        ),
+        JSON.stringify(outcome),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 20_000));
+      const found = await listing(weatherId);
+      strictEqual(found.state, "published");
+      ok(
+        found.accepts.every((option) => option.asset !== TEST6.contract),
+        `TEST6 is not listed: ${JSON.stringify(found.accepts)}`,
+      );
+      current?.observe("accepts", found.accepts);
+    });
+  }
+}
+
+/** The resources discovery lists for a payTo. */
+async function listedResources(payTo: string): Promise<string[]> {
+  const response = await fetch(`${FACILITATOR}/discovery/resources?payTo=${payTo}&limit=100`);
+  strictEqual(response.status, 200);
+  return ((await response.json()) as { items: { resource: string }[] }).items.map((item) => item.resource);
 }
 
 // --- the second seller: another asset and upto ----------------------------------------------------
 
-async function secondSellerCases(url: string, payTo: string, treasury: Treasury) {
+const SECOND_SELLER_SPECS = {
+  secondAsset: spec(
+    "second-asset",
+    "a resource priced in a 6-decimal SEP-41 token is listed with the token's on-chain facts and found by its asset and price",
+    ["discovery", "second-asset"],
+  ),
+  upto: spec(
+    "upto-listing",
+    "an upto resource is listed under the upto scheme, priced at its cap, whatever the settlement charged",
+    ["discovery", "scheme-upto"],
+  ),
+  zero: spec(
+    "upto-offchain-zero",
+    "an upto payment settled for zero without a transaction catalogs nothing",
+    ["discovery", "scheme-upto"],
+  ),
+  usd: spec(
+    "usd-filter",
+    "a price ceiling in US dollars matches USD-pegged assets only, never the TEST6 test token",
+    ["discovery", "second-asset"],
+  ),
+};
+
+function skipSecondSeller(reason: string, category: SkipCategory) {
+  for (const entry of Object.values(SECOND_SELLER_SPECS)) recorder.skip(entry, reason, category);
+}
+
+async function secondSellerCases(url: string, payTo: string, treasury: Treasury, loopback: boolean) {
   const test6Url = `${url}${TEST6_PATH}`;
   const uptoUrl = `${url}${UPTO_PATH}`;
-  const specs = {
-    secondAsset: spec(
-      "second-asset",
-      "a resource priced in a 6-decimal SEP-41 token is listed with the token's on-chain facts and found by its asset and price",
-      ["discovery", "second-asset"],
-    ),
-    upto: spec(
-      "upto-listing",
-      "an upto resource is listed under the upto scheme, priced at its cap, whatever the settlement charged",
-      ["discovery", "scheme-upto"],
-    ),
-    zero: spec(
-      "upto-offchain-zero",
-      "an upto payment settled for zero without a transaction catalogs nothing",
-      ["discovery", "scheme-upto"],
-    ),
-    usd: spec(
-      "usd-filter",
-      "a price ceiling in US dollars matches USD-pegged assets only, never the TEST6 test token",
-      ["discovery", "second-asset"],
-    ),
-  };
+  const specs = SECOND_SELLER_SPECS;
 
   // The facilitator catalogs this seller's resources only when it accepts loopback origins.
-  const loopback = await (async () => {
-    const [probe] = await treasury.accounts(1, "0.1");
-    if (probe === undefined) throw new Error("no probe account");
-    const { payload, requirements } = await payUpto(probe, await paymentRequired(`${uptoUrl}?harbour=Izmir`));
-    const result = await settle(payload, { ...requirements, amount: "1" });
-    return outcomeCode(result.outcome) !== "bazaar_resource_unsafe";
-  })();
   if (!loopback) {
-    const reason =
-      "the facilitator does not catalog resources on 127.0.0.1 (DISCOVERY_ALLOW_LOOPBACK is off), where the run's second seller listens";
-    for (const entry of Object.values(specs)) recorder.skip(entry, reason);
+    skipSecondSeller(
+      "the facilitator does not catalog resources on 127.0.0.1 (DISCOVERY_ALLOW_LOOPBACK is off), where the run's second seller listens",
+      "environment",
+    );
     return;
   }
 
@@ -936,7 +1606,7 @@ async function secondSellerCases(url: string, payTo: string, treasury: Treasury)
     strictEqual(requirements.amount, "10000", "0.01 TEST6 is 10000 base units at 6 decimals");
     const { outcome } = await settle(payload, requirements, TEST6.decimals);
     expectCataloged(outcome);
-    const found = await settled(outcome?.listingId ?? "", "published");
+    const found = await withFacts(outcome?.listingId ?? "");
     strictEqual(only(found).owner, payTo, "bound to the settled payTo");
     strictEqual(found.accepts[0]?.asset, TEST6.contract);
     strictEqual(found.accepts[0].amount, "10000");
@@ -976,7 +1646,7 @@ async function secondSellerCases(url: string, payTo: string, treasury: Treasury)
     strictEqual(found.resource, uptoUrl);
     strictEqual(found.accepts[0]?.scheme, "upto", "listed under the upto scheme");
     strictEqual(found.accepts[0].amount, cap.toString(), "priced at the cap, not the amount charged");
-    strictEqual(found.accepts[0].asset, USDC_TESTNET_ADDRESS);
+    strictEqual(found.accepts[0].asset, USDC_ADDRESS);
     strictEqual(only(found).owner, payTo);
     await record(found);
     uptoListing = found;

@@ -16,7 +16,8 @@
 import type { Keypair } from "@stellar/stellar-sdk";
 import { createEd25519Signer } from "@x402/stellar";
 import { UptoStellarScheme as UptoStellarClient } from "@rail402.dev/upto/client";
-import { onChainSettlement, requirementsFor, type LocalNetwork } from "@rail402.dev/testkit";
+import { onChainSettlement, type LocalNetwork } from "@rail402.dev/testkit";
+import { requirementsOn, type Caip2 } from "./network.ts";
 import type { Evidence, EvidenceCase, EvidenceTransaction, Provenance } from "./evidence.ts";
 import { buildEvidence, modeOf } from "./harness.ts";
 
@@ -45,6 +46,8 @@ export interface ConcurrencyOptions {
   /** One replica, or two: with two, every duplicate goes to the replica its original did not. */
   readonly facilitators: readonly string[];
   readonly net: LocalNetwork;
+  /** The CAIP-2 network the payments name; testnet by default. */
+  readonly network?: Caip2;
   readonly asset: ConcurrencyAsset;
   readonly payTo: string;
   /** Per payment, in base units. */
@@ -101,13 +104,26 @@ export async function runConcurrency(options: ConcurrencyOptions): Promise<Concu
         payers.map(async (payer, index) => {
           const scheme = schemeOf(index);
           if (scheme === "exact") {
-            const requirements = requirementsFor(asset.contract, payTo, amount);
+            const requirements = requirementsOn(
+              options.network ?? "stellar:testnet",
+              asset.contract,
+              payTo,
+              amount,
+            );
             return { scheme, payer, requirements, payload: await net.payment(payer, requirements) };
           }
           return {
             scheme,
             payer,
-            ...(await uptoPayment(net, options.upto, payer, asset.contract, payTo, amount)),
+            ...(await uptoPayment(
+              net,
+              options.network ?? "stellar:testnet",
+              options.upto,
+              payer,
+              asset.contract,
+              payTo,
+              amount,
+            )),
           };
         }),
       );
@@ -265,6 +281,7 @@ export async function runConcurrency(options: ConcurrencyOptions): Promise<Concu
  */
 async function uptoPayment(
   net: LocalNetwork,
+  network: Caip2,
   terms: UptoTerms | undefined,
   payer: Keypair,
   asset: string,
@@ -272,14 +289,14 @@ async function uptoPayment(
   amount: bigint,
 ) {
   if (terms === undefined) throw new Error("no upto terms");
-  const client = new UptoStellarClient(createEd25519Signer(payer.secret(), "stellar:testnet"), {
+  const client = new UptoStellarClient(createEd25519Signer(payer.secret(), network), {
     latestLedger: () => net.latestLedger(),
     ...(terms.contract === undefined ? {} : { contracts: terms.contract }),
     ...(terms.ledgerSeconds === undefined ? {} : { ledgerSeconds: terms.ledgerSeconds }),
   });
   const published = {
     scheme: "upto",
-    network: "stellar:testnet" as const,
+    network,
     asset,
     payTo,
     amount: (amount * 2n).toString(),
@@ -308,6 +325,7 @@ export interface EvidenceContext {
   readonly command: string;
   readonly config: Record<string, string | number | boolean>;
   readonly accounts: Record<string, string>;
+  readonly profile?: Evidence["profile"];
 }
 
 /** The run as a schemaVersion 2 `concurrency` evidence document. */
@@ -328,6 +346,7 @@ export function concurrencyEvidence(run: ConcurrencyRun, context: EvidenceContex
       command: context.command,
       config: { replicas: context.facilitators.length, ...context.config },
       accounts: context.accounts,
+      ...(context.profile === undefined ? {} : { profile: context.profile }),
       startedAt: run.startedAt,
       finishedAt: run.finishedAt,
     },

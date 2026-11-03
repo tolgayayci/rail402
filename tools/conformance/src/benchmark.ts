@@ -25,16 +25,15 @@ import {
   type PaymentRequirementsLike,
 } from "@rail402.dev/testkit";
 import {
-  NETWORK,
   TESTNET_FRIENDBOT_URL,
   TESTNET_RPC_URL,
   Treasury,
-  USDC_TESTNET_ADDRESS,
   gitCommit,
   log,
   usdcPayment,
   versions,
 } from "./testnet.ts";
+import { NETWORK_OPTION, refusePubnet, resolveProfile } from "./network.ts";
 import {
   evidenceFileName,
   harnessProvenance,
@@ -55,8 +54,15 @@ const { values: args } = parseArgs({
     friendbot: { type: "string", default: TESTNET_FRIENDBOT_URL },
     write: { type: "boolean", default: false },
     "allow-branch": { type: "string" },
+    ...NETWORK_OPTION,
   },
 });
+
+// Refused before the pubnet profile is read, so the refusal names the real reason.
+refusePubnet(args.network, "the benchmark");
+const PROFILE = resolveProfile("testnet");
+const NETWORK = PROFILE.caip2;
+const USDC_TESTNET_ADDRESS = PROFILE.usdc.contract;
 
 // Evidence is recorded only from a clean commit on main, checked before any testnet funds are spent.
 const provenance = args.write ? harnessProvenance({ allowBranch: args["allow-branch"] }) : undefined;

@@ -19,13 +19,12 @@ import {
 } from "@stellar/stellar-sdk";
 import {
   buildTransfer,
-  deploySimpleAccount,
-  requirementsFor,
   smartAccountPayment,
   type LocalNetwork,
   type PaymentRequirementsLike,
 } from "@rail402.dev/testkit";
 import type { EvidenceRejection } from "./evidence.ts";
+import { requirementsOn, type Caip2 } from "./network.ts";
 import { CaseRecorder, baseUrl, supportedSigners, type CaseContext } from "./harness.ts";
 
 /** Longest reason a refusal may carry. */
@@ -36,6 +35,8 @@ export interface AuditOptions {
   /** `/supported` of the facilitator, verbatim. */
   readonly supported: unknown;
   readonly net: LocalNetwork;
+  /** The CAIP-2 network of the payments; testnet by default. */
+  readonly network?: Caip2;
   /** The asset contract the facilitator accepts. */
   readonly asset: string;
   /** Registered codes; anything else fails the case. */
@@ -62,10 +63,15 @@ export interface AuditAccounts {
   readonly untrusted: Keypair;
   /** A G… account with a trustline and one base unit. */
   readonly poor: Keypair;
-  /** A funded G… account that pays for the smart-account deployment and sources its payments. */
+  /** A funded G… account that sources the smart-account payments (it signs nothing they pay). */
   readonly deployer: Keypair;
   /** Moves `amount` base units of the asset to any address. */
   readonly fund: (to: string, amount: bigint) => Promise<void>;
+  /**
+   * Deploys a smart account (the fixture simple account) for the C… cases. Its owner key stays with
+   * whoever funds the run, so the account's funds can be returned when the run ends.
+   */
+  readonly smartAccount: () => Promise<{ address: string; owner: Keypair }>;
 }
 
 /** One request that must be refused. */
@@ -207,7 +213,7 @@ export async function runRejectionAudit(options: AuditOptions): Promise<CaseReco
     payload: payloadBody ?? { transaction },
   });
   const terms = (amount = 1_000n, payTo = accounts.payTo, maxTimeoutSeconds = 60) =>
-    requirementsFor(asset, payTo, amount, maxTimeoutSeconds);
+    requirementsOn(options.network ?? "stellar:testnet", asset, payTo, amount, maxTimeoutSeconds);
   /** An offline-built transfer signed by the payer (the stock client's shape without simulation). */
   const offline = async (
     payer: Keypair,
@@ -307,6 +313,7 @@ export async function runRejectionAudit(options: AuditOptions): Promise<CaseReco
         checks: ["rejection-codes"],
       },
       "no deployment with REQUIRE_API_KEY=true was given (--keyed); pnpm evidence starts one locally",
+      "environment",
     );
   } else {
     const keyed = baseUrl(options.keyedFacilitator);
@@ -335,6 +342,7 @@ export async function runRejectionAudit(options: AuditOptions): Promise<CaseReco
     recorder.skip(
       { id: "rate-limited", title: "a client over the rate limit is refused", checks: ["rejection-codes"] },
       "no deployment with a small RATE_LIMIT_PER_MINUTE was given (--limited); pnpm evidence starts one locally",
+      "environment",
     );
   } else {
     const limited = baseUrl(options.limitedFacilitator);
@@ -390,7 +398,7 @@ export async function runRejectionAudit(options: AuditOptions): Promise<CaseReco
     async (context) => {
       const other = new Asset("TEST", Keypair.random().publicKey()).contractId(net.passphrase);
       const { payload, requirements } = await offline(payerA, {
-        requirements: requirementsFor(other, accounts.payTo, 1_000n),
+        requirements: requirementsOn(options.network ?? "stellar:testnet", other, accounts.payTo, 1_000n),
       });
       await both(context, payload, requirements, ["invalid_exact_stellar_requirements_asset_not_accepted"]);
     },
@@ -680,6 +688,7 @@ export async function runRejectionAudit(options: AuditOptions): Promise<CaseReco
         payer: "C",
       },
       "smart-account cases were turned off for this run",
+      "by-design",
     );
   } else {
     await recorder.run(
@@ -691,8 +700,7 @@ export async function runRejectionAudit(options: AuditOptions): Promise<CaseReco
         payer: "C",
       },
       async (context) => {
-        const owner = Keypair.random();
-        const account = await deploySimpleAccount(net, accounts.deployer, owner);
+        const { address: account, owner } = await accounts.smartAccount();
         await accounts.fund(account, 10_000n);
         const requirements = terms();
         const payload = await smartAccountPayment(net, {
@@ -796,6 +804,7 @@ export async function runRejectionAudit(options: AuditOptions): Promise<CaseReco
       checks: ["rejection-codes", "discovery"],
     },
     "cataloging codes need sellers with Bazaar metadata; the live Bazaar run records them",
+    "by-design",
   );
   await recorder.run(
     {

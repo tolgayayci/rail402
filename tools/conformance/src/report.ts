@@ -13,7 +13,12 @@
  *                                  commit (evidence, deployment record or error-code coverage record)
  *                                  is not on main, or the coverage record is older than the evidence;
  *                                  the evidence run ends with this, so a published page never links a
- *                                  lost commit or a stale coverage record
+ *                                  lost commit or a stale coverage record, and when a required check
+ *                                  (canonical client, exact, upto, upstream e2e, discovery, MCP) is
+ *                                  skipped waiting on a dependency
+ *   pnpm report --check --final --require-networks stellar:testnet,stellar:pubnet
+ *                                  also exit 1 when a network × scheme cell of the matrix has no
+ *                                  settled transaction, or only runs against a local service back it
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -62,6 +67,20 @@ import {
   renderTopic,
 } from "./render-security.ts";
 import { loadThreats, type ThreatRegistry } from "./threats.ts";
+import { loadFindings } from "./findings.ts";
+import { securityReportPage } from "./render-findings.ts";
+import { renderRunbookAlerts } from "../../../deploy/monitoring/alerts.ts";
+import { renderLocalDrills } from "./drills.ts";
+import {
+  MATRIX_NETWORKS,
+  checkProblems,
+  matrixProblems,
+  renderCheckMatrix,
+  renderNetworkMatrix,
+  renderSkipped,
+  renderTestedAgainst,
+  skipProblems,
+} from "./render-matrix.ts";
 import {
   loadDeploymentRecord,
   renderDeploymentRecord,
@@ -88,6 +107,16 @@ const THREAT_TOPICS = [
   "exact-payments",
   "operations",
   "playground",
+  "spec-watch",
+  "network-isolation",
+  "access-keys",
+  "key-custody",
+  "supply-chain",
+  "discovery-limits",
+  "hosted-mcp",
+  "explorer",
+  "explorer-web",
+  "pubnet-harness",
 ] as const;
 
 export type BlockRenderer = (context: ReportContext) => string;
@@ -178,6 +207,9 @@ export const PAGES: readonly PageSpec[] = [
     path: "docs/reference/conformance.mdx",
     blocks: {
       release: ({ evidence }) => renderRelease(evidence),
+      "tested-against": ({ evidence }) => renderTestedAgainst(evidence),
+      matrix: ({ evidence }) => `${renderNetworkMatrix(evidence)}\n\n${renderCheckMatrix(evidence)}`,
+      skipped: ({ evidence }) => renderSkipped(evidence),
       summary: ({ evidence }) => renderSummary(evidence),
       canonical: targetsBlock("canonical-stellar-testnet.json", {
         render: renderCanonical,
@@ -216,7 +248,7 @@ export const PAGES: readonly PageSpec[] = [
       }),
       "upstream-e2e": runBlock(["upstream-e2e-stellar-testnet.json"]),
       "upstream-e2e-runs": ({ evidence }) => renderUpstreamRuns(evidence),
-      "live-bazaar": targetsBlock("live-bazaar-stellar-testnet.json"),
+      "live-bazaar": targetsBlock("live-bazaar-stellar-testnet.json", { hostedExpected: true }),
       mcp: ({ evidence }) => renderMcp(evidence),
       playground: ({ evidence }) => renderPlayground(evidence),
       "upto-contract": runBlock(["upto-contract-stellar-testnet.json"]),
@@ -245,7 +277,13 @@ export const PAGES: readonly PageSpec[] = [
       run: ({ evidence }) => renderOpsRun(evidence),
       summary: ({ evidence }) => renderExerciseSummary(EXERCISES, evidence),
       exercises: ({ evidence }) => renderExercises(EXERCISES, evidence),
+      drills: () => renderLocalDrills(),
     },
+  },
+  securityReportPage(() => loadFindings()),
+  {
+    path: "docs/runbook.mdx",
+    blocks: { alerts: () => renderRunbookAlerts() },
   },
   {
     path: "docs/reference/upto-contract.mdx",
@@ -348,8 +386,19 @@ function countOf(text: string, needle: string): number {
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
-    options: { check: { type: "boolean", default: false }, final: { type: "boolean", default: false } },
+    options: {
+      check: { type: "boolean", default: false },
+      final: { type: "boolean", default: false },
+      "require-networks": { type: "string" },
+    },
   });
+  const required = (values["require-networks"] ?? "")
+    .split(",")
+    .map((network) => network.trim())
+    .filter((network) => network !== "");
+  const unknown = required.filter((network) => !(MATRIX_NETWORKS as readonly string[]).includes(network));
+  if (unknown.length > 0) throw new Error(`--require-networks: unknown network ${unknown.join(", ")}`);
+  if (required.length > 0 && !values.final) throw new Error("--require-networks applies to --check --final");
   const files = await renderAll();
   const stale = files.filter((file) => file.current !== file.rendered);
   if (values.check) {
@@ -359,8 +408,9 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     if (values.final) {
+      const set = loadEvidenceSet();
       const problems = publicationProblems(
-        loadEvidenceSet(),
+        set,
         (commit) => {
           const ancestry = commitOnRelease(commit);
           return ancestry.status === "unknown" ? undefined : ancestry.status === "reachable";
@@ -368,6 +418,7 @@ async function main(): Promise<void> {
         REPO_ROOT,
         (commit, of) => commitIsAncestor(commit, of),
       );
+      problems.push(...skipProblems(set), ...matrixProblems(set, required), ...checkProblems(set, required));
       for (const problem of problems) console.error(`not publishable: ${problem}`);
       if (problems.length > 0) process.exit(1);
     }

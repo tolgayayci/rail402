@@ -7,7 +7,8 @@
  * "Try a refusal" ends with its code (the policy checks, the session budget, the same payment sent
  * twice, a seller charging over the cap), a listing is paid from the Bazaar, and private addresses and
  * a cross-origin redirect pasted into the Lab are refused. Every transaction the page shows is read
- * back from the chain in Node and proven to open in stellar.expert; every refusal is checked to leave
+ * back from the chain in Node; its link is proven to open on the Rail402 Explorer naming the same hash,
+ * and the transaction in stellar.expert as an independent cross-check; every refusal is checked to leave
  * the payer's balance where it was; and a canary scan finds neither the wallet's key nor any payment
  * in anything the browser sent, stored, logged or showed.
  *
@@ -39,7 +40,6 @@
  * tools/conformance/evidence/live-playground-local-stellar-testnet.json (local) or
  * tools/conformance/evidence/live-playground-stellar-testnet.json (against a deployed Rail402).
  */
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -51,9 +51,23 @@ import { chromium, type Browser, type BrowserContext, type Page } from "@playwri
 import { Keypair, Operation, StrKey, rpc } from "@stellar/stellar-sdk";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { METERED_PRICES, PRICES, TOOL_PRICES, createSeller } from "@rail402.dev/demo-seller";
-import { KeyHolder, createBuyer, exactScheme, inspectTransaction, uptoScheme } from "@rail402.dev/sdk";
+import {
+  KeyHolder,
+  checkExplorerProvider,
+  createBuyer,
+  exactScheme,
+  explorerUrl,
+  inspectTransaction,
+  uptoScheme,
+} from "@rail402.dev/sdk";
 import { TESTNET } from "@rail402.dev/stellar";
-import { LocalNetwork, SecretScanner, ServiceProcess, startDecoyOrigin } from "@rail402.dev/testkit";
+import {
+  LocalNetwork,
+  SecretScanner,
+  ServiceProcess,
+  settledLookup,
+  startDecoyOrigin,
+} from "@rail402.dev/testkit";
 import {
   CONFIG_PATH,
   parsePublicConfig,
@@ -103,12 +117,19 @@ import {
   baseUrl,
   buildEvidence,
   readTarget,
+  runToStderr,
   settledTransaction,
   supportedSigners,
   type CaseContext,
   type CaseSpec,
 } from "./harness.ts";
-import { checkStellarExpert, type ExplorerCheck } from "./live-agent-checks.ts";
+import {
+  checkExplorerPage,
+  checkStellarExpert,
+  explorerPageProblems,
+  type ExplorerCheck,
+  type ExplorerPageCheck,
+} from "./live-agent-checks.ts";
 import { livePlaygroundProblems } from "./live-playground-checks.ts";
 import {
   lastRefusal,
@@ -119,7 +140,6 @@ import {
   type RunReport,
 } from "./live-playground-page.ts";
 import {
-  NETWORK,
   TESTNET_FRIENDBOT_URL,
   TESTNET_RPC_URL,
   Treasury,
@@ -128,6 +148,7 @@ import {
   log,
   versions,
 } from "./testnet.ts";
+import { NETWORK_OPTION, refusePubnet, resolveProfile } from "./network.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -139,8 +160,14 @@ const { values: args } = parseArgs({
     seller: { type: "string" },
     "pay-to": { type: "string" },
     playground: { type: "string" },
+    ...NETWORK_OPTION,
   },
 });
+
+// Refused before the pubnet profile is read, so the refusal names the real reason.
+refusePubnet(args.network, "the Playground run (the Playground serves the testnet)");
+const PROFILE = resolveProfile("testnet");
+const NETWORK = PROFILE.caip2;
 
 type Mode = "local" | "hosted" | "deployed";
 const mode: Mode =
@@ -411,11 +438,9 @@ async function freePort(): Promise<number> {
 /** Builds the page's production bundle, which the Playground server serves. */
 function buildPage(): void {
   log("building the page (vite build)");
-  const build = spawnSync("pnpm", ["--filter", "@rail402.dev/playground", "build"], {
-    cwd: ROOT,
-    stdio: ["ignore", "inherit", "inherit"],
-  });
-  if (build.status !== 0) throw new Error("vite build failed; see its output above");
+  if (runToStderr("pnpm", ["--filter", "@rail402.dev/playground", "build"], ROOT) !== 0) {
+    throw new Error("vite build failed; see its output above");
+  }
 }
 
 // --- the run ------------------------------------------------------------------------------------------
@@ -454,7 +479,7 @@ async function main() {
     const demoPayTo = await livePayTo(`${config.urls.demoSeller}/weather?city=Ankara`);
     const rpcServer = new rpc.Server(config.urls.rpc);
     const explorerLink = (hash: string) =>
-      config.explorerTemplate.replace("{network}", "testnet").replace("{hash}", hash);
+      explorerUrl(config.network, hash, checkExplorerProvider(config.explorer));
 
     browser = await chromium.launch();
     const context: BrowserContext = await browser.newContext({
@@ -583,7 +608,7 @@ async function main() {
         for (const link of setup.links) {
           const hash = hashOfLink(link);
           strictEqual(link, explorerLink(hash));
-          const response = await rpcServer.getTransaction(hash);
+          const response = await settledLookup(rpcServer, hash);
           strictEqual(response.status, rpc.Api.GetTransactionStatus.SUCCESS, `${hash} succeeded`);
           classic.push({ hash, ledger: response.ledger, explorerUrl: link });
           explorerHashes.set(hash, link);
@@ -922,6 +947,7 @@ async function main() {
       recorder.skip(
         literalSpec,
         "a local Playground lets its relay reach loopback sellers; the run against a deployed Rail402 proves it",
+        "not-applicable",
       );
     } else {
       await egressCase(
@@ -946,6 +972,7 @@ async function main() {
       recorder.skip(
         redirectSpec,
         "the redirecting seller listens on this machine, which only a local Playground's relay may reach",
+        "not-applicable",
       );
     } else {
       const redirect = services.redirect;
@@ -964,10 +991,14 @@ async function main() {
     await recorder.run(
       spec(
         "explorer",
-        "Every transaction the page linked opens in stellar.expert (its API answers 200 with the hash and ledger)",
+        "Every transaction the page linked opens on the Rail402 Explorer, which answers 200 naming the same hash; each also opens in stellar.expert (its API answers 200 with the hash and ledger), an on-chain cross-check independent of Rail402",
         [],
       ),
       async (context) => {
+        const pages: ExplorerPageCheck[] = await Promise.all(
+          [...explorerHashes].map(([hash, pageLink]) => checkExplorerPage(pageLink, hash)),
+        );
+        context.observe("pageLinks", pages);
         const checks: (ExplorerCheck & { pageLink: string })[] = await Promise.all(
           [...explorerHashes].map(async ([hash, pageLink]) => ({
             ...(await checkStellarExpert(hash)),
@@ -975,12 +1006,10 @@ async function main() {
           })),
         );
         context.observe("transactions", checks);
+        const unresolved = explorerPageProblems(config.network, [...explorerHashes.keys()], pages);
+        strictEqual(unresolved.length, 0, unresolved.join("; "));
         const missing = checks.filter((check) => check.apiStatus !== 200);
         strictEqual(missing.length, 0, `not indexed: ${missing.map((check) => check.hash).join(", ")}`);
-        ok(
-          checks.every((check) => check.pageLink === check.explorerUrl),
-          "the page links stellar.expert",
-        );
       },
     );
 
@@ -1086,7 +1115,7 @@ async function main() {
           bazaar: mode === "local" ? "the same Rail402 (memory store)" : config.urls.bazaar,
           seller: mode === "local" ? "apps/demo-seller on loopback" : config.urls.demoSeller,
           rpc: config.urls.rpc,
-          explorer: config.explorerTemplate,
+          explorer: typeof config.explorer === "string" ? config.explorer : JSON.stringify(config.explorer),
           asset: config.asset.contract,
           perCallDefault: config.caps.perCallDefault,
           sessionTotal: config.caps.sessionTotal,

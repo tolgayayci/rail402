@@ -36,6 +36,7 @@ import {
   type TestOutcome,
 } from "./ops-exercises.ts";
 import { gitCommit, log, versions } from "./testnet.ts";
+import { NETWORK_OPTION, refusePubnet, resolveProfile } from "./network.ts";
 
 /** The part of Vitest's JSON report this reads. */
 export interface VitestReport {
@@ -112,7 +113,7 @@ export function exerciseCases(
       title: exercise.title,
       checks: [...exercise.checks],
       status,
-      ...(status === "skipped" ? { skipReason: reason } : {}),
+      ...(status === "skipped" ? { skipReason: reason, skipCategory: "environment" as const } : {}),
       elapsedMs: results.reduce((sum, result) => sum + result.durationMs, 0),
       observations: jsonSafe({
         threats: exercise.threats,
@@ -154,8 +155,13 @@ function main(): void {
       "allow-skips": { type: "boolean", default: false },
       write: { type: "boolean", default: false },
       "allow-branch": { type: "string" },
+      ...NETWORK_OPTION,
     },
   });
+  // The exercises run against the private network and a local service; there is no pubnet variant.
+  // Refused before the pubnet profile is read, so the refusal names the real reason.
+  refusePubnet(values.network, "the operational exercises");
+  const profile = resolveProfile("testnet");
   const provenance = values.write ? harnessProvenance({ allowBranch: values["allow-branch"] }) : undefined;
   const only = values.only?.split(",").map((id) => id.trim());
   const unknown = (only ?? []).filter((id) => !EXERCISES.some((exercise) => exercise.id === id));
@@ -212,7 +218,7 @@ function main(): void {
       kind: "ops",
       // Without --write the document is printed only; its commit may then describe a dirty tree.
       provenance: provenance ?? { commit: gitCommit().replace(/-dirty$/, ""), dirty: false },
-      network: "stellar:testnet",
+      network: profile.caip2,
       // Each test starts its own facilitators and service processes on this machine.
       target: {
         mode: "local",

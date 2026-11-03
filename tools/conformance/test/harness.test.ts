@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { checkEvidence } from "../src/evidence.ts";
 import {
@@ -26,7 +28,11 @@ describe("CaseRecorder", () => {
     await recorder.run({ id: "broken", title: "throws", checks: ["scheme-exact"] }, () =>
       Promise.reject(new Error("boom")),
     );
-    recorder.skip({ id: "later", title: "not here", checks: ["mcp"] }, "no MCP server was given");
+    recorder.skip(
+      { id: "later", title: "not here", checks: ["mcp"] },
+      "no MCP server was given",
+      "environment",
+    );
 
     expect(recorder.failed).toBe(1);
     expect(recorder.cases.map((entry) => [entry.id, entry.status])).toEqual([
@@ -40,7 +46,10 @@ describe("CaseRecorder", () => {
       rejections: [{ code: "unsupported_media_type" }],
     });
     expect(recorder.cases[1]?.observations).toEqual({ error: "boom" });
-    expect(recorder.cases[2]?.skipReason).toBe("no MCP server was given");
+    expect(recorder.cases[2]).toMatchObject({
+      skipReason: "no MCP server was given",
+      skipCategory: "environment",
+    });
   });
 
   it("runs only the selected cases", async () => {
@@ -52,7 +61,7 @@ describe("CaseRecorder", () => {
         return Promise.resolve();
       });
     }
-    recorder.skip({ id: "c", title: "c", checks: ["supported"] }, "unselected");
+    recorder.skip({ id: "c", title: "c", checks: ["supported"] }, "unselected", "by-design");
     expect(ran).toBe("b");
     expect(recorder.cases.map((entry) => entry.id)).toEqual(["b"]);
   });
@@ -62,7 +71,7 @@ describe("buildEvidence", () => {
   it("builds a document the writer rules accept, with the summary counted from the cases", async () => {
     const recorder = new CaseRecorder();
     await recorder.run({ id: "one", title: "one", checks: ["rejection-codes"] }, () => Promise.resolve());
-    recorder.skip({ id: "two", title: "two", checks: ["rejection-codes"] }, "why not");
+    recorder.skip({ id: "two", title: "two", checks: ["rejection-codes"] }, "why not", "not-applicable");
     const evidence = buildEvidence(
       {
         kind: "rejection-audit",
@@ -98,5 +107,34 @@ describe("helpers", () => {
     expect(explorerUrl("ab")).toBe("https://stellar.expert/explorer/testnet/tx/ab");
     expect(explorerUrl("ab", "stellar:pubnet")).toBe("https://stellar.expert/explorer/public/tx/ab");
     expect(jsonSafe({ a: 1n, b: undefined, c: [2n] })).toEqual({ a: "1", c: ["2"] });
+  });
+});
+
+describe("runToStderr", () => {
+  it("keeps a build step's output off standard output, which carries only the evidence", () => {
+    const harness = new URL("../src/harness.ts", import.meta.url).href;
+    const step = `console.log("vite building for production..."); console.error("built in 1s");`;
+    const script = `
+      import { runToStderr } from ${JSON.stringify(harness)};
+      const status = runToStderr(process.execPath, ["-e", ${JSON.stringify(step)}], process.cwd());
+      process.stdout.write(JSON.stringify({ status }) + "\\n");`;
+    const run = spawnSync(
+      process.execPath,
+      ["--conditions=@rail402/source", "--input-type=module", "-e", script],
+      { encoding: "utf8" },
+    );
+    expect(run.status, run.stderr).toBe(0);
+    expect(JSON.parse(run.stdout)).toEqual({ status: 0 });
+    expect(run.stderr).toContain("vite building for production...");
+    expect(run.stderr).toContain("built in 1s");
+  });
+
+  it("is how every harness runs a child that would share its standard output", () => {
+    const sources = new URL("../src/", import.meta.url);
+    for (const file of readdirSync(sources).filter((name) => name.endsWith(".ts"))) {
+      expect(readFileSync(new URL(file, sources), "utf8"), file).not.toMatch(
+        /stdio:\s*(?:"inherit"|\[[^\]]*"inherit")/,
+      );
+    }
   });
 });

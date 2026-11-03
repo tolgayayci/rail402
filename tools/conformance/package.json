@@ -1,6 +1,6 @@
 {
   "name": "@rail402.dev/conformance",
-  "version": "0.4.2",
+  "version": "0.5.1",
   "private": true,
   "description": "Wire-level conformance runs against a Rail402 facilitator using unmodified x402 packages.",
   "license": "Apache-2.0",
@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
+    "@rail402.dev/explorer": "workspace:*",
     "@rail402.dev/playground": "workspace:*",
     "@types/express": "5.0.6",
     "prettier": "catalog:"

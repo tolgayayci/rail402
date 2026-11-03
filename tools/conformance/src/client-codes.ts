@@ -18,9 +18,10 @@ import {
   type Paid,
 } from "@rail402.dev/sdk";
 import { sellerCodes } from "@rail402.dev/sdk/seller/codes";
-import { defaultPaidFor, rpcCodes, toolCodes, type McpServerCode } from "@rail402.dev/mcp";
+import { defaultPaidFor, hostedCodes, rpcCodes, toolCodes, type McpServerCode } from "@rail402.dev/mcp";
 import { cliCodes, cliErrorCodes, defaultPaidOf, exitStatusFor, type CliErrorCode } from "@rail402.dev/cli";
 import { playgroundClientCodes, playgroundServerCodes } from "@rail402.dev/playground/codes";
+import { explorerCodes } from "@rail402.dev/explorer/codes";
 import type { CodeGroup } from "@rail402.dev/service/codes";
 
 /** One documented group of client-side codes. */
@@ -30,7 +31,7 @@ export interface ClientCodeGroup extends CodeGroup {
 }
 
 const SDK =
-  "Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`.";
+  "Thrown by `@rail402.dev/sdk` as a `PaymentError` with `code`, `reason`, `retryable`, `paid` and `details`. For these codes, retryable means that making the same call again, which signs a new payment, can succeed; for `payment_rejected`, `retryable` and `paid` follow the facilitator's code, as Refused payments above explains.";
 const MCP =
   "Returned by the rail402-mcp tools as `isError: true` with `structuredContent.error` carrying the same fields.";
 const CLI =
@@ -89,8 +90,18 @@ export const clientCodeGroups: readonly ClientCodeGroup[] = [
     set: "rpcCodes",
     package: "@rail402.dev/mcp",
     where:
-      "Returned by the rail402-mcp server as a JSON-RPC error (`-32601`, `-32602` or `-32603`) whose `data` carries `{ code, reason }`, for a request that never reaches a tool. An unknown tool is the same kind of error, with `tool_unknown`. Nothing is paid.",
+      "Returned by the rail402-mcp server as a JSON-RPC error (`-32601`, `-32602` or `-32603`) whose `data` carries `{ code, reason, retryable, paid }`, for a request that never reaches a tool. An unknown tool is the same kind of error, with `tool_unknown`. Nothing is paid.",
     codes: rpcCodes,
+    paid: () => "none",
+  },
+  {
+    id: "mcp-hosted",
+    title: "Hosted MCP endpoint startup",
+    set: "hostedCodes",
+    package: "@rail402.dev/mcp",
+    where:
+      "Printed by `rail402-mcp --hosted` as one JSON line on stderr when it refuses to start, with exit status 78. Nothing is served.",
+    codes: hostedCodes,
     paid: () => "none",
   },
   {
@@ -123,6 +134,16 @@ export const clientCodeGroups: readonly ClientCodeGroup[] = [
     // A stopped run may have sent a payment; the page keeps proving it in the background.
     paid: (code) => (code === "playground_run_aborted" ? "unknown" : "none"),
   },
+  {
+    id: "explorer",
+    title: "Explorer pages and read API",
+    set: "explorerCodes",
+    package: "@rail402.dev/explorer/codes",
+    where:
+      "Returned by the Explorer's read API as `{ error: { code, reason, retryable } }` with the listed HTTP status, and shown on its error pages. The Explorer only reads public ledgers, so nothing is paid.",
+    codes: explorerCodes,
+    paid: () => "none",
+  },
 ];
 
 /** Every client-side code, merged: importing this module fails if two client sets claim one code. */
@@ -137,9 +158,11 @@ export const allClientCodes = mergeCodes(
   sellerCodes,
   toolCodes,
   rpcCodes,
+  hostedCodes,
   cliCodes,
   playgroundServerCodes,
   playgroundClientCodes,
+  explorerCodes,
 );
 
 /** The exit status rail402 uses for a code, or undefined when the command line never reports it. */

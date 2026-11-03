@@ -67,7 +67,16 @@ function complete(): EvidenceCase[] {
   ];
   const explorer = cases.find((entry) => entry.id === "explorer");
   if (explorer !== undefined) {
-    explorer.observations = { transactions: hashes.map((hash) => ({ hash, apiStatus: 200 })) };
+    explorer.observations = {
+      pageLinks: hashes.map((hash) => ({
+        hash,
+        link: `https://explorer.rail402.dev/testnet/tx/${hash}`,
+        status: 200,
+        namesHash: true,
+        attempts: 1,
+      })),
+      transactions: hashes.map((hash) => ({ hash, apiStatus: 200 })),
+    };
   }
   return cases;
 }
@@ -179,6 +188,7 @@ describe("live-playground evidence", () => {
       return {
         ...entry,
         observations: {
+          ...entry.observations,
           transactions: listed
             .filter((item) => item.hash !== hashOf(1))
             .map((item) => (item.hash === hashOf(10) ? { ...item, apiStatus: 404 } : item)),
@@ -189,6 +199,32 @@ describe("live-playground evidence", () => {
       "onboarding must record its two setup transactions",
       `transaction ${hashOf(10)}: the explorer answered 404`,
       `transaction ${hashOf(1)} was not checked in the explorer`,
+    ]);
+  });
+
+  it("refuses a page link that is not the Rail402 Explorer, or whose page did not name the hash", () => {
+    const cases = replace(complete(), "explorer", (entry) => {
+      const pages = entry.observations?.["pageLinks"] as { hash: string; link: string }[];
+      return {
+        ...entry,
+        observations: {
+          ...entry.observations,
+          pageLinks: pages
+            .filter((item) => item.hash !== hashOf(2))
+            .map((item) =>
+              item.hash === hashOf(1)
+                ? { ...item, link: `https://stellar.expert/explorer/testnet/tx/${item.hash}` }
+                : item.hash === hashOf(10)
+                  ? { ...item, status: 200, namesHash: false }
+                  : item,
+            ),
+        },
+      };
+    });
+    expect(livePlaygroundProblems(document(cases))).toEqual([
+      `page link: the Rail402 Explorer answered 200 for ${hashOf(10)} without naming it`,
+      `page link: ${hashOf(1)} links https://stellar.expert/explorer/testnet/tx/${hashOf(1)}, not the Rail402 Explorer`,
+      `page link: the link of ${hashOf(2)} was not opened`,
     ]);
   });
 

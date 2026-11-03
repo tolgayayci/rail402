@@ -24,16 +24,8 @@ import {
   type FaultScheme,
   type KillPoint,
 } from "./fault-recovery-run.ts";
-import {
-  NETWORK,
-  TESTNET_FRIENDBOT_URL,
-  TESTNET_RPC_URL,
-  Treasury,
-  USDC_TESTNET_ADDRESS,
-  gitCommit,
-  log,
-  versions,
-} from "./testnet.ts";
+import { TESTNET_FRIENDBOT_URL, TESTNET_RPC_URL, Treasury, gitCommit, log, versions } from "./testnet.ts";
+import { NETWORK_OPTION, refusePubnet, resolveProfile } from "./network.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -43,8 +35,15 @@ const { values: args } = parseArgs({
     friendbot: { type: "string", default: TESTNET_FRIENDBOT_URL },
     write: { type: "boolean", default: false },
     "allow-branch": { type: "string" },
+    ...NETWORK_OPTION,
   },
 });
+
+// Refused before the pubnet profile is read, so the refusal names the real reason.
+refusePubnet(args.network, "the fault-recovery run");
+const PROFILE = resolveProfile("testnet");
+const NETWORK = PROFILE.caip2;
+const USDC_TESTNET_ADDRESS = PROFILE.usdc.contract;
 
 const CASES: readonly FaultCase[] =
   args.cases === undefined

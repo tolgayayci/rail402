@@ -3,8 +3,10 @@ import { checkEvidence, type Evidence, type EvidenceCase } from "../src/evidence
 import {
   AGENT_SURFACES,
   SURFACE_REFUSALS,
+  checkExplorerPage,
   checkStellarExpert,
   liveAgentProblems,
+  rail402ExplorerTx,
   registryInstallProblems,
   registryPackages,
   type RegistryLock,
@@ -89,6 +91,16 @@ function document(cases: EvidenceCase[]): Evidence {
   };
 }
 
+/** A receipt's Rail402 Explorer page that answered 200 naming its hash. */
+const page = (hash: string, overrides: Record<string, unknown> = {}) => ({
+  hash,
+  link: rail402ExplorerTx("stellar:testnet", hash),
+  status: 200,
+  namesHash: true,
+  attempts: 1,
+  ...overrides,
+});
+
 /** Every surface's refusals, each with its events: the refusal and no signature. */
 const signing = () =>
   AGENT_SURFACES.flatMap((surface) =>
@@ -123,6 +135,7 @@ const complete = (): EvidenceCase[] => [
     status: "passed",
     elapsedMs: 1,
     observations: {
+      receiptLinks: [HASH, OTHER].map((hash) => page(hash)),
       transactions: [
         { hash: HASH, apiStatus: 200 },
         { hash: OTHER, apiStatus: 200 },
@@ -150,7 +163,10 @@ describe("live-agent evidence", () => {
   it("needs a stellar.expert 200 and a matching explorer link for every transaction", () => {
     const cases = complete().map((entry) =>
       entry.id === "explorer"
-        ? { ...entry, observations: { transactions: [{ hash: HASH, apiStatus: 404 }] } }
+        ? {
+            ...entry,
+            observations: { ...entry.observations, transactions: [{ hash: HASH, apiStatus: 404 }] },
+          }
         : entry.id === "cli-api"
           ? {
               ...entry,
@@ -168,6 +184,35 @@ describe("live-agent evidence", () => {
       "no http listing records how it was cataloged",
       "no mcp listing records how it was cataloged",
     ]);
+  });
+
+  it("needs every receipt to link its Rail402 Explorer page, which answered 200 naming the hash", () => {
+    const withPages = (pages: unknown[]) =>
+      complete().map((entry) =>
+        entry.id === "explorer"
+          ? { ...entry, observations: { ...entry.observations, receiptLinks: pages } }
+          : entry,
+      );
+    expect(liveAgentProblems(document(withPages([page(HASH)])))).toEqual([
+      `receipt: the link of ${OTHER} was not opened`,
+    ]);
+    expect(
+      liveAgentProblems(
+        document(
+          withPages([
+            page(HASH, { link: `https://stellar.expert/explorer/testnet/tx/${HASH}` }),
+            page(OTHER, { status: 404, namesHash: false }),
+          ]),
+        ),
+      ),
+    ).toEqual([
+      `receipt: ${HASH} links https://stellar.expert/explorer/testnet/tx/${HASH}, not the Rail402 Explorer`,
+      `receipt: the Rail402 Explorer answered 404 for ${OTHER} without naming it`,
+    ]);
+    expect(rail402ExplorerTx("stellar:pubnet", HASH)).toBe(`https://explorer.rail402.dev/tx/${HASH}`);
+    expect(rail402ExplorerTx("stellar:testnet", HASH)).toBe(
+      `https://explorer.rail402.dev/testnet/tx/${HASH}`,
+    );
   });
 
   it("needs a payment through every surface, and an HTTP API and an MCP tool paid through listings", () => {
@@ -279,6 +324,41 @@ describe("stellar.expert check", () => {
     expect(check.apiStatus).toBe(404);
     expect(check.ledger).toBeUndefined();
     expect(check.attempts).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("Rail402 Explorer page check", () => {
+  it("opens the link until it answers 200 with a page naming the hash", async () => {
+    const answers = [
+      new Response("<title>Not found</title>", { status: 404 }),
+      new Response(`<title>Transaction ${OTHER}</title>`, { status: 200 }),
+      new Response(`<title>Transaction ${HASH.slice(0, 12)}…</title><code>${HASH}</code>`, { status: 200 }),
+    ];
+    const urls: string[] = [];
+    const fake = ((url: string) => {
+      urls.push(url);
+      return Promise.resolve(answers.shift() ?? new Response(null, { status: 500 }));
+    }) as unknown as typeof fetch;
+    const link = rail402ExplorerTx("stellar:testnet", HASH);
+    expect(await checkExplorerPage(link, HASH, { fetch: fake, intervalMs: 1, timeoutMs: 5_000 })).toEqual({
+      hash: HASH,
+      link,
+      status: 200,
+      namesHash: true,
+      attempts: 3,
+    });
+    expect(new Set(urls)).toEqual(new Set([link]));
+  });
+
+  it("gives up after the timeout with the last status", async () => {
+    const fake = (() => Promise.resolve(new Response("gone", { status: 404 }))) as unknown as typeof fetch;
+    const check = await checkExplorerPage(rail402ExplorerTx("stellar:testnet", HASH), HASH, {
+      fetch: fake,
+      intervalMs: 1,
+      timeoutMs: 20,
+    });
+    expect(check.status).toBe(404);
+    expect(check.namesHash).toBe(false);
   });
 });
 

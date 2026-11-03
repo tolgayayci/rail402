@@ -20,8 +20,8 @@ export RATE_LIMIT_PER_MINUTE=0
 # The suite pays every discoverable route with one buyer to one payTo: 15 new listings today, more as
 # the suite adds Stellar routes. The default hourly quotas (10 per payer, 20 per payTo) would refuse
 # the tail as bazaar_rate_limited, so this run raises them; the service's defaults are unchanged.
-export BAZAAR_MAX_NEW_LISTINGS_PER_PAYER_PER_HOUR="${BAZAAR_MAX_NEW_LISTINGS_PER_PAYER_PER_HOUR:-1000}"
-export BAZAAR_MAX_NEW_LISTINGS_PER_OWNER_PER_HOUR="${BAZAAR_MAX_NEW_LISTINGS_PER_OWNER_PER_HOUR:-1000}"
+export TESTNET_BAZAAR_MAX_NEW_LISTINGS_PER_PAYER_PER_HOUR="${TESTNET_BAZAAR_MAX_NEW_LISTINGS_PER_PAYER_PER_HOUR:-1000}"
+export TESTNET_BAZAAR_MAX_NEW_LISTINGS_PER_OWNER_PER_HOUR="${TESTNET_BAZAAR_MAX_NEW_LISTINGS_PER_OWNER_PER_HOUR:-1000}"
 export LOG_LEVEL="${LOG_LEVEL:-warn}"
 export SEARCH_MODEL_DIR="${SEARCH_MODEL_DIR:-$RAIL402_ROOT/.models}"
 

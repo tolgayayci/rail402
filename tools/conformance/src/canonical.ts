@@ -4,7 +4,8 @@
  * recorded by a transparent forwarder.
  *
  *   node tools/conformance/src/canonical.ts --facilitator http://localhost:8080 \
- *     [--scheme exact,upto] [--asset usdc,test6] [--payer g,c] [--write [--allow-branch <branch>]]
+ *     [--scheme exact,upto] [--asset usdc,test6] [--payer g,c] [--network testnet|pubnet]
+ *     [--write [--allow-branch <branch>]]
  *
  * Comma lists run every combination. For each one:
  * - Buyer: a G… payer uses @x402/fetch with @x402/stellar's stock `ExactStellarScheme` client. A C…
@@ -28,13 +29,16 @@
  * SEP-41 test token from its committed deployment record, checked on chain before any funds are spent.
  * The facilitator must accept each asset run.
  * The `/supported` answer is recorded verbatim and compared with the x402.org facilitator's Stellar kind.
- * Fresh Friendbot-funded accounts are created for every run, so the script needs no secrets.
+ * On testnet (the default) fresh Friendbot-funded accounts are created for every run, so the script
+ * needs no secrets. `--network pubnet` runs USDC only, funded from the operator treasury within the
+ * spend caps (see network.ts), and ends with a `sweep-back` case: the run's USDC, also from its
+ * smart-account payers, is back in the treasury and its accounts are merged.
  */
 import type { AddressInfo } from "node:net";
 import { deepStrictEqual, ok, strictEqual } from "node:assert/strict";
 import { parseArgs } from "node:util";
 import express from "express";
-import { Keypair, rpc, xdr } from "@stellar/stellar-sdk";
+import { type Keypair, rpc, xdr } from "@stellar/stellar-sdk";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { decodePaymentRequiredHeader, encodePaymentSignatureHeader } from "@x402/core/http";
 import { paymentMiddleware, setSettlementOverrides, x402ResourceServer } from "@x402/express";
@@ -45,9 +49,8 @@ import { ExactStellarScheme as ExactStellarServer } from "@x402/stellar/exact/se
 import { UptoStellarScheme as UptoStellarClient } from "@rail402.dev/upto/client";
 import { UptoStellarScheme as UptoStellarServer, uptoSettlementOverrides } from "@rail402.dev/upto/server";
 import {
-  LocalNetwork,
-  deploySimpleAccount,
   requirementsFor,
+  settledLookup,
   signContractAccountEntry,
   smartAccountPayment,
 } from "@rail402.dev/testkit";
@@ -70,15 +73,20 @@ import {
   type CaseContext,
 } from "./harness.ts";
 import {
-  NETWORK,
-  TESTNET_FRIENDBOT_URL,
-  TESTNET_RPC_URL,
-  Treasury,
-  USDC_TESTNET_ADDRESS,
-  gitCommit,
-  log,
-  versions,
-} from "./testnet.ts";
+  NETWORK_OPTION,
+  ProfileError,
+  ProfileNetwork,
+  assertSwept,
+  feeCeilingStroops,
+  parseNetworkId,
+  profileEvidence,
+  resolveProfile,
+  startRun,
+  sweepObservation,
+  withRun,
+  type Funder,
+} from "./network.ts";
+import { gitCommit, log, versions } from "./testnet.ts";
 import { authorizationEntries, checkWire } from "./wire.ts";
 
 const { values: args } = parseArgs({
@@ -91,6 +99,7 @@ const { values: args } = parseArgs({
     reference: { type: "string", default: "https://x402.org/facilitator/supported" },
     write: { type: "boolean", default: false },
     "allow-branch": { type: "string" },
+    ...NETWORK_OPTION,
   },
 });
 
@@ -112,8 +121,19 @@ const PAYERS = list("payer", args.payer, ["g", "c"]).map((payer) => payer.toUppe
 // Evidence is recorded only from a clean commit on main, checked before any testnet funds are spent.
 const provenance = args.write ? harnessProvenance({ allowBranch: args["allow-branch"] }) : undefined;
 
-const net = new LocalNetwork(TESTNET_RPC_URL, TESTNET_FRIENDBOT_URL);
-const USDC: RunAsset = { contract: USDC_TESTNET_ADDRESS, symbol: "USDC", decimals: 7 };
+const PROFILE = resolveProfile(parseNetworkId(args.network), { needsUpto: SCHEMES.includes("upto") });
+const NETWORK = PROFILE.caip2;
+if (PROFILE.id !== "testnet" && ASSETS.includes("test6")) {
+  throw new ProfileError(
+    "pubnet_not_supported",
+    "the TEST6 token is deployed on testnet only; use --asset usdc",
+  );
+}
+const net = new ProfileNetwork(PROFILE);
+/** The upto contract an upto client pays through: the profile's on pubnet, the canonical one on testnet. */
+const UPTO_CONTRACTS =
+  PROFILE.id === "testnet" || PROFILE.upto === undefined ? {} : { contracts: PROFILE.upto.contract };
+const USDC: RunAsset = { contract: PROFILE.usdc.contract, symbol: "USDC", decimals: 7 };
 const RESOURCE = { exact: "/weather", upto: "/metered-weather" } as const;
 /** What an upto seller charges after serving: half of the cap, as a stock settlement override. */
 const UPTO_CHARGE = "50%";
@@ -152,8 +172,7 @@ async function main() {
   await recorder.run(
     {
       id: "supported",
-      title:
-        "/supported advertises exact on stellar:testnet with areFeesSponsored, like x402.org's Stellar kind",
+      title: `/supported advertises exact on ${NETWORK} with areFeesSponsored, like x402.org's Stellar kind`,
       checks: ["supported", "fees-sponsored"],
     },
     async (context) => {
@@ -178,8 +197,7 @@ async function main() {
     await recorder.run(
       {
         id: "supported-upto",
-        title:
-          "/supported advertises upto on stellar:testnet with areFeesSponsored and its settlement authority as a signer",
+        title: `/supported advertises upto on ${NETWORK} with areFeesSponsored and its settlement authority as a signer`,
         checks: ["supported", "fees-sponsored", "scheme-upto"],
         scheme: "upto",
       },
@@ -188,7 +206,7 @@ async function main() {
         const kind = supported.kinds?.find(
           (entry) => entry["network"] === NETWORK && entry["scheme"] === "upto",
         );
-        ok(kind !== undefined, "the facilitator advertises upto on stellar:testnet");
+        ok(kind !== undefined, `the facilitator advertises upto on ${NETWORK}`);
         const extra = kind["extra"] as
           { areFeesSponsored?: unknown; facilitatorAddress?: unknown } | undefined;
         strictEqual(extra?.areFeesSponsored, true, "upto fees are sponsored");
@@ -207,18 +225,38 @@ async function main() {
     log(`TEST6 checked on chain: instance live until ledger ${String(checked.instanceLiveUntil)}`);
   }
 
-  log("opening a treasury: Friendbot XLM, then USDC from the testnet XLM/USDC pool");
-  const treasury = await new Treasury(net).open("5");
-  const [seller] = await treasury.accounts(1, "0");
-  if (seller === undefined) throw new Error("no seller account");
-  const forwarder = await startForwarder({ target: target.facilitatorUrl });
-  const shop = await startSeller(forwarder, seller.publicKey(), offers);
-  const accounts: Record<string, string> = {
-    payTo: seller.publicKey(),
-    treasury: treasury.keypair.publicKey(),
-  };
+  const treasury = await startRun("canonical", PROFILE, net, { facilitators: [target.facilitatorUrl] });
+  const accounts: Record<string, string> = { treasury: treasury.keypair.publicKey() };
+  // What the run needs at most, checked against the caps before anything is sent: a seller, a buyer
+  // and a settlement per case, 1 USDC per buyer.
+  const runs = offers.length * PAYERS.length;
+  treasury.meter.ensure(
+    {
+      settlements: runs,
+      newAccounts: 1 + runs,
+      usdcBaseUnits: 10_000_000n * BigInt(runs),
+      xlmStroops: offers.reduce(
+        (sum, offer) => sum + feeCeilingStroops(PROFILE, offer.scheme) * BigInt(PAYERS.length),
+        0n,
+      ),
+    },
+    "the canonical run",
+  );
+  const sweep = await withRun(treasury, async () => {
+    const [seller] = await treasury.accounts(1, "0", true, { role: "seller" });
+    if (seller === undefined) throw new Error("no seller account");
+    accounts["payTo"] = seller.publicKey();
+    const forwarder = await startForwarder({ target: target.facilitatorUrl });
+    const shop = await startSeller(forwarder, seller.publicKey(), offers);
+    try {
+      await runOffers(seller, forwarder, shop);
+    } finally {
+      await shop.close();
+      await forwarder.close();
+    }
+  });
 
-  try {
+  async function runOffers(seller: Keypair, forwarder: Forwarder, shop: Shop) {
     for (const offer of offers) {
       const { asset, scheme } = offer;
       for (const payer of PAYERS) {
@@ -233,7 +271,8 @@ async function main() {
               asset: asset.symbol,
               payer,
             },
-            "the facilitator does not advertise upto on stellar:testnet",
+            `the facilitator does not advertise upto on ${NETWORK}`,
+            "pending-dependency",
           );
           continue;
         }
@@ -273,9 +312,20 @@ async function main() {
         );
       }
     }
-  } finally {
-    await shop.close();
-    await forwarder.close();
+  }
+  if (PROFILE.id !== "testnet") {
+    await recorder.run(
+      {
+        id: "sweep-back",
+        title: "the run's USDC is back in the operator treasury and its accounts are merged",
+        checks: ["pubnet-config"],
+      },
+      (context) => {
+        context.observe("sweep", sweepObservation(sweep));
+        assertSwept(sweep);
+        return Promise.resolve();
+      },
+    );
   }
 
   const evidence = buildEvidence(
@@ -295,7 +345,8 @@ async function main() {
       ]),
       command:
         `node tools/conformance/src/canonical.ts --facilitator ${target.facilitatorUrl} ` +
-        `--scheme ${SCHEMES.join(",")} --asset ${ASSETS.join(",")} --payer ${PAYERS.join(",").toLowerCase()}`,
+        `--scheme ${SCHEMES.join(",")} --asset ${ASSETS.join(",")} --payer ${PAYERS.join(",").toLowerCase()}` +
+        (PROFILE.id === "testnet" ? "" : ` --network ${PROFILE.id}`),
       config: Object.fromEntries(
         offers.flatMap((offer): [string, string][] => {
           const key = `${offer.scheme === "exact" ? "" : "upto."}${offer.asset.symbol.toLowerCase()}`;
@@ -311,6 +362,7 @@ async function main() {
         }),
       ),
       accounts,
+      ...(PROFILE.id === "testnet" ? {} : { profile: profileEvidence(PROFILE, treasury, sweep) }),
       startedAt: recorder.startedAt,
     },
     recorder.cases,
@@ -404,7 +456,7 @@ interface Buyer {
  * A G… buyer using the unmodified @x402/fetch client and stock Stellar scheme, holding 1 USDC (with a
  * trustline) or 100 TEST6 (no trustline needed).
  */
-async function stockBuyer(treasury: Treasury, offer: Offer): Promise<Buyer> {
+async function stockBuyer(treasury: Funder, offer: Offer): Promise<Buyer> {
   const { asset, price } = offer;
   const usdc = asset.contract === USDC.contract;
   const [buyer] = await treasury.accounts(1, usdc ? "1" : "0", usdc);
@@ -444,12 +496,13 @@ async function stockBuyer(treasury: Treasury, offer: Offer): Promise<Buyer> {
  * answer's requirements are paid with a `PAYMENT-SIGNATURE` header.
  */
 async function smartAccountBuyer(
-  treasury: Treasury,
+  treasury: Funder,
   asset: RunAsset,
   accounts: Record<string, string>,
 ): Promise<Buyer> {
-  const owner = Keypair.random();
-  const account = await deploySimpleAccount(net, treasury.keypair, owner);
+  // The owner key is the funder's (derived from the treasury seed on pubnet), so the account's
+  // USDC goes back to the treasury at the end of the run.
+  const { address: account, owner } = await treasury.smartAccount("exact-payer");
   if (asset.contract === USDC.contract) await treasury.transfer(account, 1_000_000n);
   else await test6Faucet(net, treasury.keypair, account);
   accounts["smartAccountOwner"] = owner.publicKey();
@@ -465,7 +518,7 @@ async function smartAccountBuyer(
       const requirements = required.accepts.find(
         (entry) => entry.network === NETWORK && entry.scheme === "exact",
       );
-      ok(requirements !== undefined, "the seller accepts exact on stellar:testnet");
+      ok(requirements !== undefined, `the seller accepts exact on ${NETWORK}`);
       const signed = await smartAccountPayment(net, {
         account,
         owner,
@@ -495,7 +548,7 @@ async function smartAccountBuyer(
  * the cap as its per-payment limit, as for `exact`.
  */
 async function uptoBuyer(
-  treasury: Treasury,
+  treasury: Funder,
   offer: Offer,
   payer: "G" | "C",
   accounts: Record<string, string>,
@@ -510,11 +563,13 @@ async function uptoBuyer(
     if (!usdc) await test6Faucet(net, treasury.keypair, buyer.publicKey());
     address = buyer.publicKey();
     client = new UptoStellarClient(createEd25519Signer(buyer.secret(), NETWORK), {
-      rpcConfig: { url: TESTNET_RPC_URL },
+      rpcConfig: { url: net.rpcUrl },
+      ...UPTO_CONTRACTS,
     });
   } else {
-    const owner = Keypair.random();
-    address = await deploySimpleAccount(net, treasury.keypair, owner);
+    const smart = await treasury.smartAccount("upto-payer");
+    const owner = smart.owner;
+    address = smart.address;
     if (usdc) await treasury.transfer(address, 1_000_000n);
     else await test6Faucet(net, treasury.keypair, address);
     accounts["uptoSmartAccountOwner"] = owner.publicKey();
@@ -524,7 +579,8 @@ async function uptoBuyer(
         signAuthEntry: () => Promise.reject(new Error("the smart account's owner signs its entry")),
       },
       {
-        rpcConfig: { url: TESTNET_RPC_URL },
+        rpcConfig: { url: net.rpcUrl },
+        ...UPTO_CONTRACTS,
         authorizeEntry: (entry, context) =>
           Promise.resolve(
             signContractAccountEntry(entry, owner, context.expirationLedger, context.networkPassphrase),
@@ -648,7 +704,7 @@ async function payAndProve(
 
   // Chain: the signed authorization, one transfer, the fee paid by the facilitator, non-custody.
   const hash = wire.settlement.transaction;
-  const onChain = await net.server.getTransaction(hash);
+  const onChain = await settledLookup(net.server, hash);
   if (onChain.status !== rpc.Api.GetTransactionStatus.SUCCESS)
     throw new Error(`${hash} is ${onChain.status}`);
   const signedEntries =

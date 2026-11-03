@@ -1,0 +1,923 @@
+{
+  "description": "p50/p95/p99 latency in milliseconds per run and label, from when each request was due (open loop) or sent (closed loop), over every request sent; runs/<run>/summary.json has the full statistics and runs/<run>/requests.ndjson.gz every request.",
+  "runs": {
+    "A-cold-index-open-50": {
+      "state": "cold-index",
+      "mix": "search",
+      "loop": "open",
+      "rate": 50,
+      "durationSeconds": 120,
+      "sent": 6000,
+      "labels": {
+        "cold-index": {
+          "requests": 11,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 49.23,
+          "p95": 64.87,
+          "p99": 64.87,
+          "max": 64.87,
+          "queryEmbeddings": {
+            "cached": 11
+          },
+          "partial": 0
+        },
+        "warm-index": {
+          "requests": 5989,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 3.21,
+          "p95": 4.73,
+          "p99": 5.71,
+          "max": 49.3,
+          "queryEmbeddings": {
+            "cached": 5989
+          },
+          "partial": 0
+        }
+      }
+    },
+    "A-settle-alone": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "open",
+      "rate": 0,
+      "durationSeconds": 120,
+      "sent": 0,
+      "labels": {
+        "settle": {
+          "requests": 108,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 1214.19,
+          "p95": 2222.33,
+          "p99": 2234.34,
+          "max": 2665.94,
+          "queryEmbeddings": {},
+          "partial": 0
+        }
+      }
+    },
+    "A-settle-under-uncached-open-100": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "open",
+      "rate": 100,
+      "durationSeconds": 120,
+      "sent": 12000,
+      "labels": {
+        "settle": {
+          "requests": 108,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 1303.79,
+          "p95": 2325.7,
+          "p99": 2350.01,
+          "max": 2727.26,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "uncached": {
+          "requests": 12000,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 8.17,
+          "p95": 10.71,
+          "p99": 20.37,
+          "max": 186.21,
+          "queryEmbeddings": {
+            "computed": 11995,
+            "saturated": 5
+          },
+          "partial": 5
+        }
+      }
+    },
+    "A-settle-under-uncached-open-300": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "open",
+      "rate": 300,
+      "durationSeconds": 120,
+      "sent": 36000,
+      "labels": {
+        "settle": {
+          "requests": 108,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 1483.5,
+          "p95": 2496.05,
+          "p99": 2528.39,
+          "max": 2751.4,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "uncached": {
+          "requests": 36000,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 14.84,
+          "p95": 37.87,
+          "p99": 46.22,
+          "max": 1000.84,
+          "queryEmbeddings": {
+            "computed": 16620,
+            "saturated": 19380
+          },
+          "partial": 19380
+        }
+      }
+    },
+    "A-uncached-closed-c01": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 1,
+      "durationSeconds": 60,
+      "sent": 6790,
+      "throughputPerSecond": 113.151,
+      "labels": {
+        "uncached": {
+          "requests": 6790,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 8.42,
+          "p95": 10.74,
+          "p99": 13.47,
+          "max": 22.57,
+          "queryEmbeddings": {
+            "computed": 6790
+          },
+          "partial": 0
+        }
+      }
+    },
+    "A-uncached-closed-c04": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 4,
+      "durationSeconds": 60,
+      "sent": 8952,
+      "throughputPerSecond": 149.132,
+      "labels": {
+        "uncached": {
+          "requests": 8952,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 26.76,
+          "p95": 35.14,
+          "p99": 37.85,
+          "max": 107.97,
+          "queryEmbeddings": {
+            "saturated": 1,
+            "computed": 8951
+          },
+          "partial": 1
+        }
+      }
+    },
+    "A-uncached-closed-c16": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 16,
+      "durationSeconds": 60,
+      "sent": 50717,
+      "throughputPerSecond": 844.859,
+      "labels": {
+        "uncached": {
+          "requests": 50717,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 14.1,
+          "p95": 50.03,
+          "p99": 59.49,
+          "max": 94.99,
+          "queryEmbeddings": {
+            "computed": 5531,
+            "saturated": 45186
+          },
+          "partial": 45186
+        }
+      }
+    },
+    "A-uncached-closed-c64": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 64,
+      "durationSeconds": 60,
+      "sent": 42702,
+      "throughputPerSecond": 711.036,
+      "labels": {
+        "uncached": {
+          "requests": 42702,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 101.87,
+          "p95": 143.51,
+          "p99": 162.74,
+          "max": 282.38,
+          "queryEmbeddings": {
+            "saturated": 36988,
+            "computed": 5714
+          },
+          "partial": 36988
+        }
+      }
+    },
+    "A-uncached-open-100": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "open",
+      "rate": 100,
+      "durationSeconds": 120,
+      "sent": 12000,
+      "labels": {
+        "probe": {
+          "requests": 600,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 1.64,
+          "p95": 7.88,
+          "p99": 9.95,
+          "max": 13.84,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "uncached": {
+          "requests": 12000,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 8.14,
+          "p95": 10.34,
+          "p99": 15.04,
+          "max": 33.97,
+          "queryEmbeddings": {
+            "computed": 12000
+          },
+          "partial": 0
+        }
+      }
+    },
+    "A-uncached-open-300": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "open",
+      "rate": 300,
+      "durationSeconds": 120,
+      "sent": 36000,
+      "labels": {
+        "probe": {
+          "requests": 600,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 4.76,
+          "p95": 7.98,
+          "p99": 9.23,
+          "max": 19.93,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "uncached": {
+          "requests": 36000,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 14.7,
+          "p95": 35.34,
+          "p99": 38.11,
+          "max": 197.56,
+          "queryEmbeddings": {
+            "computed": 17470,
+            "saturated": 18530
+          },
+          "partial": 18530
+        }
+      }
+    },
+    "A-warm-closed-c01": {
+      "state": "warm",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 1,
+      "durationSeconds": 60,
+      "sent": 22512,
+      "throughputPerSecond": 375.188,
+      "labels": {
+        "warm": {
+          "requests": 22512,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 2.46,
+          "p95": 3.38,
+          "p99": 5.56,
+          "max": 20.49,
+          "queryEmbeddings": {
+            "cached": 22512
+          },
+          "partial": 0
+        }
+      }
+    },
+    "A-warm-closed-c04": {
+      "state": "warm",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 4,
+      "durationSeconds": 60,
+      "sent": 68326,
+      "throughputPerSecond": 1138.727,
+      "labels": {
+        "warm": {
+          "requests": 68326,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 3.08,
+          "p95": 5.25,
+          "p99": 9.61,
+          "max": 51.65,
+          "queryEmbeddings": {
+            "cached": 68326
+          },
+          "partial": 0
+        }
+      }
+    },
+    "A-warm-closed-c16": {
+      "state": "warm",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 16,
+      "durationSeconds": 60,
+      "sent": 71758,
+      "throughputPerSecond": 1195.732,
+      "labels": {
+        "warm": {
+          "requests": 71758,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 12.83,
+          "p95": 24.09,
+          "p99": 29.24,
+          "max": 72.92,
+          "queryEmbeddings": {
+            "cached": 71758
+          },
+          "partial": 0
+        }
+      }
+    },
+    "A-warm-closed-c64": {
+      "state": "warm",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 64,
+      "durationSeconds": 60,
+      "sent": 60602,
+      "throughputPerSecond": 1009.461,
+      "labels": {
+        "warm": {
+          "requests": 60602,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 65.97,
+          "p95": 119.33,
+          "p99": 149.81,
+          "max": 460.58,
+          "queryEmbeddings": {
+            "cached": 60602
+          },
+          "partial": 0
+        }
+      }
+    },
+    "A-warm-mixed-open-100": {
+      "state": "warm",
+      "mix": "mixed",
+      "loop": "open",
+      "rate": 100,
+      "durationSeconds": 120,
+      "sent": 12000,
+      "labels": {
+        "list": {
+          "requests": 2400,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 5.05,
+          "p95": 6.64,
+          "p99": 10.23,
+          "max": 19.93,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "warm": {
+          "requests": 9600,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 2.85,
+          "p95": 4.25,
+          "p99": 6.17,
+          "max": 25.69,
+          "queryEmbeddings": {
+            "cached": 9600
+          },
+          "partial": 0
+        }
+      }
+    },
+    "A-warm-open-50": {
+      "state": "warm",
+      "mix": "search",
+      "loop": "open",
+      "rate": 50,
+      "durationSeconds": 120,
+      "sent": 6000,
+      "labels": {
+        "probe": {
+          "requests": 600,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 1.85,
+          "p95": 4.93,
+          "p99": 9.11,
+          "max": 25.82,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "warm": {
+          "requests": 6000,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 3.81,
+          "p95": 8.19,
+          "p99": 11.56,
+          "max": 33.2,
+          "queryEmbeddings": {
+            "cached": 6000
+          },
+          "partial": 0
+        }
+      }
+    },
+    "B-cold-index-open-50": {
+      "state": "cold-index",
+      "mix": "search",
+      "loop": "open",
+      "rate": 50,
+      "durationSeconds": 120,
+      "sent": 6000,
+      "labels": {
+        "cold-index": {
+          "requests": 11,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 376.31,
+          "p95": 446.71,
+          "p99": 446.71,
+          "max": 446.71,
+          "queryEmbeddings": {
+            "cached": 11
+          },
+          "partial": 2
+        },
+        "warm-index": {
+          "requests": 5989,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 10.32,
+          "p95": 13.91,
+          "p99": 282.74,
+          "max": 439.36,
+          "queryEmbeddings": {
+            "cached": 5989
+          },
+          "partial": 1957
+        }
+      }
+    },
+    "B-settle-alone": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "open",
+      "rate": 0,
+      "durationSeconds": 120,
+      "sent": 0,
+      "labels": {
+        "settle": {
+          "requests": 108,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 1221.26,
+          "p95": 2224.36,
+          "p99": 2229.12,
+          "max": 2258.72,
+          "queryEmbeddings": {},
+          "partial": 0
+        }
+      }
+    },
+    "B-settle-under-uncached-open-100": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "open",
+      "rate": 100,
+      "durationSeconds": 120,
+      "sent": 12000,
+      "labels": {
+        "settle": {
+          "requests": 108,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 1769.93,
+          "p95": 2811.94,
+          "p99": 2880.08,
+          "max": 3212.08,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "uncached": {
+          "requests": 12000,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 51.44,
+          "p95": 71.25,
+          "p99": 81.98,
+          "max": 238.4,
+          "queryEmbeddings": {
+            "computed": 9215,
+            "saturated": 2785
+          },
+          "partial": 5534
+        }
+      }
+    },
+    "B-settle-under-uncached-open-300": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "open",
+      "rate": 300,
+      "durationSeconds": 120,
+      "sent": 36000,
+      "labels": {
+        "settle": {
+          "requests": 108,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 2919.78,
+          "p95": 4063.34,
+          "p99": 4245.07,
+          "max": 4592.72,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "uncached": {
+          "requests": 36000,
+          "errors": 2044,
+          "errorRate": 0.06,
+          "p50": 244.76,
+          "p95": 615.66,
+          "p99": 808.95,
+          "max": 3607.78,
+          "queryEmbeddings": {
+            "computed": 2834,
+            "saturated": 31122
+          },
+          "partial": 31971
+        }
+      }
+    },
+    "B-uncached-closed-c01": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 1,
+      "durationSeconds": 60,
+      "sent": 4012,
+      "throughputPerSecond": 66.854,
+      "labels": {
+        "uncached": {
+          "requests": 4012,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 14.68,
+          "p95": 16.87,
+          "p99": 18.4,
+          "max": 23.93,
+          "queryEmbeddings": {
+            "computed": 4012
+          },
+          "partial": 1184
+        }
+      }
+    },
+    "B-uncached-closed-c04": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 4,
+      "durationSeconds": 60,
+      "sent": 4884,
+      "throughputPerSecond": 81.357,
+      "labels": {
+        "uncached": {
+          "requests": 4884,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 48.66,
+          "p95": 63.16,
+          "p99": 67.92,
+          "max": 196.68,
+          "queryEmbeddings": {
+            "computed": 4884
+          },
+          "partial": 1364
+        }
+      }
+    },
+    "B-uncached-closed-c16": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 16,
+      "durationSeconds": 60,
+      "sent": 16608,
+      "throughputPerSecond": 276.504,
+      "labels": {
+        "uncached": {
+          "requests": 16608,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 43.42,
+          "p95": 163.5,
+          "p99": 204.03,
+          "max": 286.88,
+          "queryEmbeddings": {
+            "computed": 1709,
+            "saturated": 14899
+          },
+          "partial": 15387
+        }
+      }
+    },
+    "B-uncached-closed-c64": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 64,
+      "durationSeconds": 60,
+      "sent": 17157,
+      "throughputPerSecond": 285.28,
+      "labels": {
+        "uncached": {
+          "requests": 17157,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 155.94,
+          "p95": 496.56,
+          "p99": 653.76,
+          "max": 1081.95,
+          "queryEmbeddings": {
+            "saturated": 15717,
+            "computed": 1440
+          },
+          "partial": 16151
+        }
+      }
+    },
+    "B-uncached-open-100": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "open",
+      "rate": 100,
+      "durationSeconds": 120,
+      "sent": 12000,
+      "labels": {
+        "probe": {
+          "requests": 600,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 10.9,
+          "p95": 17.32,
+          "p99": 24.82,
+          "max": 99.38,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "uncached": {
+          "requests": 12000,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 52.12,
+          "p95": 72.23,
+          "p99": 81.68,
+          "max": 222.11,
+          "queryEmbeddings": {
+            "computed": 8775,
+            "saturated": 3225
+          },
+          "partial": 5785
+        }
+      }
+    },
+    "B-uncached-open-300": {
+      "state": "uncached",
+      "mix": "search",
+      "loop": "open",
+      "rate": 300,
+      "durationSeconds": 120,
+      "sent": 36000,
+      "labels": {
+        "probe": {
+          "requests": 600,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 57.5,
+          "p95": 153.1,
+          "p99": 219.51,
+          "max": 534.68,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "uncached": {
+          "requests": 36000,
+          "errors": 2198,
+          "errorRate": 0.06,
+          "p50": 257.07,
+          "p95": 625.29,
+          "p99": 791.13,
+          "max": 1181.22,
+          "queryEmbeddings": {
+            "computed": 2811,
+            "saturated": 30991
+          },
+          "partial": 31821
+        }
+      }
+    },
+    "B-warm-closed-c01": {
+      "state": "warm",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 1,
+      "durationSeconds": 60,
+      "sent": 6824,
+      "throughputPerSecond": 113.728,
+      "labels": {
+        "warm": {
+          "requests": 6824,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 8.75,
+          "p95": 10.76,
+          "p99": 12.36,
+          "max": 25.54,
+          "queryEmbeddings": {
+            "cached": 6824
+          },
+          "partial": 2229
+        }
+      }
+    },
+    "B-warm-closed-c04": {
+      "state": "warm",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 4,
+      "durationSeconds": 60,
+      "sent": 9258,
+      "throughputPerSecond": 154.247,
+      "labels": {
+        "warm": {
+          "requests": 9258,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 26.26,
+          "p95": 34.59,
+          "p99": 39.19,
+          "max": 94.86,
+          "queryEmbeddings": {
+            "cached": 9258
+          },
+          "partial": 3028
+        }
+      }
+    },
+    "B-warm-closed-c16": {
+      "state": "warm",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 16,
+      "durationSeconds": 60,
+      "sent": 9454,
+      "throughputPerSecond": 157.37,
+      "labels": {
+        "warm": {
+          "requests": 9454,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 105.14,
+          "p95": 137.86,
+          "p99": 159.07,
+          "max": 364.87,
+          "queryEmbeddings": {
+            "cached": 9454
+          },
+          "partial": 3089
+        }
+      }
+    },
+    "B-warm-closed-c64": {
+      "state": "warm",
+      "mix": "search",
+      "loop": "closed",
+      "concurrency": 64,
+      "durationSeconds": 60,
+      "sent": 9230,
+      "throughputPerSecond": 153.294,
+      "labels": {
+        "warm": {
+          "requests": 9230,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 444.66,
+          "p95": 587.87,
+          "p99": 633.01,
+          "max": 913.39,
+          "queryEmbeddings": {
+            "cached": 9230
+          },
+          "partial": 3014
+        }
+      }
+    },
+    "B-warm-mixed-open-100": {
+      "state": "warm",
+      "mix": "mixed",
+      "loop": "open",
+      "rate": 100,
+      "durationSeconds": 120,
+      "sent": 12000,
+      "labels": {
+        "list": {
+          "requests": 2400,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 19.56,
+          "p95": 30.32,
+          "p99": 40.53,
+          "max": 206.42,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "warm": {
+          "requests": 9600,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 9.06,
+          "p95": 12.06,
+          "p99": 22.08,
+          "max": 297.13,
+          "queryEmbeddings": {
+            "cached": 9600
+          },
+          "partial": 3134
+        }
+      }
+    },
+    "B-warm-open-50": {
+      "state": "warm",
+      "mix": "search",
+      "loop": "open",
+      "rate": 50,
+      "durationSeconds": 120,
+      "sent": 6000,
+      "labels": {
+        "probe": {
+          "requests": 600,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 6.73,
+          "p95": 10.44,
+          "p99": 11.5,
+          "max": 20.15,
+          "queryEmbeddings": {},
+          "partial": 0
+        },
+        "warm": {
+          "requests": 6000,
+          "errors": 0,
+          "errorRate": 0,
+          "p50": 9.87,
+          "p95": 12.41,
+          "p99": 14.34,
+          "max": 63.54,
+          "queryEmbeddings": {
+            "cached": 6000
+          },
+          "partial": 1959
+        }
+      }
+    }
+  }
+}

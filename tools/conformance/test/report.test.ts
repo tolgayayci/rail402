@@ -320,13 +320,15 @@ describe("report sections across runs", () => {
 
   it("counts every check across runs, with the reasons for skips", () => {
     const summary = renderSummary(setOf(["canonical-stellar-testnet.json", canonical]));
-    expect(summary).toContain("| `scheme-upto` | 1 | 0 | 0 | `canonical-stellar-testnet.json` |  |");
     expect(summary).toContain(
-      "| `second-asset` | 0 | 0 | 1 | `canonical-stellar-testnet.json` | not accepted |",
+      "| `scheme-upto` | `stellar:testnet` | 1 | 0 | 0 | `canonical-stellar-testnet.json` |  |",
     );
-    expect(summary).toContain("| `front-running` | 0 | 0 | 0 | not recorded yet |  |");
     expect(summary).toContain(
-      "| `agent-payments` | 0 | 0 | 0 | not recorded yet | the live-agent run's explorer check needs stellar.expert's testnet API |",
+      "| `second-asset` | `stellar:testnet` | 0 | 0 | 1 | `canonical-stellar-testnet.json` | not accepted |",
+    );
+    expect(summary).toContain("| `front-running` | — | 0 | 0 | 0 | not recorded yet |  |");
+    expect(summary).toContain(
+      "| `agent-payments` | — | 0 | 0 | 0 | not recorded yet | the live-agent run's explorer check needs stellar.expert's testnet API |",
     );
   });
 
@@ -396,11 +398,13 @@ describe("report sections across runs", () => {
       setOf(["canonical-stellar-testnet.json", canonical], ["ops-local-stellar-testnet.json", ops]),
     );
     expect(summary).toContain(
-      "| `front-running` | 1 | 0 | 0 | `ops-local-stellar-testnet.json` ([operational tests](/security/operational-tests), private network) |  |",
+      "| `front-running` | private network | 1 | 0 | 0 | `ops-local-stellar-testnet.json` ([operational tests](/security/operational-tests), private network) |  |",
     );
     // A check a testnet run carries is counted from the testnet runs only.
-    expect(summary).toContain("| `scheme-upto` | 1 | 0 | 0 | `canonical-stellar-testnet.json` |  |");
-    expect(summary).toContain("| `observability` | 0 | 0 | 0 | not recorded yet |  |");
+    expect(summary).toContain(
+      "| `scheme-upto` | `stellar:testnet` | 1 | 0 | 0 | `canonical-stellar-testnet.json` |  |",
+    );
+    expect(summary).toContain("| `observability` | — | 0 | 0 | 0 | not recorded yet |  |");
   });
 
   it("keeps a run against a deployed service beside the local one", () => {

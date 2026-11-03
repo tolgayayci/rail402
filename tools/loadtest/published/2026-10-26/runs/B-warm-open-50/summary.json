@@ -1,0 +1,87 @@
+{
+  "state": "warm",
+  "mix": "search",
+  "loop": "open",
+  "rate": 50,
+  "durationSeconds": 120,
+  "sent": 6000,
+  "saturated": 0,
+  "labels": {
+    "probe": {
+      "requests": 600,
+      "errors": 0,
+      "errorRate": 0,
+      "unsent": 0,
+      "latencyMs": {
+        "count": 600,
+        "p50": 6.73,
+        "p95": 10.44,
+        "p99": 11.5,
+        "mean": 5.45,
+        "max": 20.15
+      },
+      "successLatencyMs": {
+        "count": 600,
+        "p50": 6.73,
+        "p95": 10.44,
+        "p99": 11.5,
+        "mean": 5.45,
+        "max": 20.15
+      },
+      "errorLatencyMs": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "mean": 0,
+        "max": 0
+      },
+      "methods": {},
+      "queryEmbeddings": {},
+      "partial": 0,
+      "statuses": {
+        "200": 600
+      }
+    },
+    "warm": {
+      "requests": 6000,
+      "errors": 0,
+      "errorRate": 0,
+      "unsent": 0,
+      "latencyMs": {
+        "count": 6000,
+        "p50": 9.87,
+        "p95": 12.41,
+        "p99": 14.34,
+        "mean": 9.79,
+        "max": 63.54
+      },
+      "successLatencyMs": {
+        "count": 6000,
+        "p50": 9.87,
+        "p95": 12.41,
+        "p99": 14.34,
+        "mean": 9.79,
+        "max": 63.54
+      },
+      "errorLatencyMs": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "mean": 0,
+        "max": 0
+      },
+      "methods": {
+        "hybrid": 6000
+      },
+      "queryEmbeddings": {
+        "cached": 6000
+      },
+      "partial": 1959,
+      "statuses": {
+        "200": 6000
+      }
+    }
+  }
+}

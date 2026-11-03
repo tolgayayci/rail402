@@ -1,0 +1,51 @@
+{
+  "state": "uncached",
+  "mix": "search",
+  "loop": "closed",
+  "concurrency": 1,
+  "durationSeconds": 60,
+  "sent": 4012,
+  "throughputPerSecond": 66.854,
+  "labels": {
+    "uncached": {
+      "requests": 4012,
+      "errors": 0,
+      "errorRate": 0,
+      "unsent": 0,
+      "latencyMs": {
+        "count": 4012,
+        "p50": 14.68,
+        "p95": 16.87,
+        "p99": 18.4,
+        "mean": 14.8,
+        "max": 23.93
+      },
+      "successLatencyMs": {
+        "count": 4012,
+        "p50": 14.68,
+        "p95": 16.87,
+        "p99": 18.4,
+        "mean": 14.8,
+        "max": 23.93
+      },
+      "errorLatencyMs": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "mean": 0,
+        "max": 0
+      },
+      "methods": {
+        "hybrid": 4012
+      },
+      "queryEmbeddings": {
+        "computed": 4012
+      },
+      "partial": 1184,
+      "statuses": {
+        "200": 4012
+      }
+    }
+  }
+}

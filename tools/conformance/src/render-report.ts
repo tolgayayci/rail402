@@ -121,8 +121,14 @@ export function renderSummary(set: EvidenceSet): string {
       ...new Set(matching.flatMap(({ entry }) => (entry.skipReason === undefined ? [] : [entry.skipReason]))),
     ];
     const runs = [...new Set(matching.map(({ run }) => code(run.file)))];
+    const networks = privateNetwork
+      ? matching.length === 0
+        ? "—"
+        : "private network"
+      : [...new Set(matching.map(({ run }) => code(run.evidence.network)))].sort().join(", ");
     return [
       code(check),
+      networks,
       String(count("passed")),
       count("failed") === 0 ? "0" : `**${String(count("failed"))}**`,
       String(count("skipped")),
@@ -135,7 +141,7 @@ export function renderSummary(set: EvidenceSet): string {
     ];
   });
   return [
-    table(["Check", "Passed", "Failed", "Skipped", "Recorded in", "Why skipped"], rows),
+    table(["Check", "Network", "Passed", "Failed", "Skipped", "Recorded in", "Why skipped"], rows),
     ...(legacy.length === 0
       ? []
       : [
@@ -500,8 +506,8 @@ export function renderMcp(set: EvidenceSet): string {
   for (const run of agent) {
     parts.push(
       run.evidence.target.mode === "local"
-        ? "A local rehearsal: Rail402, its Bazaar and the demo seller ran on the machine that recorded it, so its listings existed only for the run; its transactions are on the public testnet. The explorer proof is stellar.expert's API."
-        : `A hosted run against ${code(run.evidence.target.facilitatorUrl)}: its listings and their versions stay in that Bazaar. The explorer proof is stellar.expert's API.`,
+        ? `A local rehearsal: Rail402, its Bazaar and the demo seller ran on the machine that recorded it, so its listings existed only for the run; its transactions are on the public testnet. ${explorerProof(run, "receiptLinks")}`
+        : `A hosted run against ${code(run.evidence.target.facilitatorUrl)}: its listings and their versions stay in that Bazaar. ${explorerProof(run, "receiptLinks")}`,
       renderCurrent(pathOf(run.file), run.evidence),
     );
   }
@@ -516,6 +522,17 @@ export const PLAYGROUND_FILES = [
   "live-playground-stellar-testnet.json",
 ] as const;
 
+/**
+ * How a run proved its links: runs that opened each Rail402 Explorer link (`observation` on the
+ * `explorer` case) say so; every run also asked stellar.expert's API, independently of Rail402.
+ */
+function explorerProof(run: Run, observation: "receiptLinks" | "pageLinks"): string {
+  const opened = run.evidence.cases.find((entry) => entry.id === "explorer")?.observations?.[observation];
+  return Array.isArray(opened)
+    ? "Each link opened on the Rail402 Explorer, which answered naming the transaction's hash; the on-chain proof, independent of Rail402, is stellar.expert's API."
+    : "The explorer proof is stellar.expert's API.";
+}
+
 export function renderPlayground(set: EvidenceSet): string {
   const runs = PLAYGROUND_FILES.flatMap((file) => {
     const run = runOf(set, file);
@@ -526,8 +543,8 @@ export function renderPlayground(set: EvidenceSet): string {
     .map((run) =>
       [
         run.evidence.target.mode === "local"
-          ? "A local rehearsal: Rail402, its Bazaar, the demo seller and the Playground server ran on the machine that recorded it; its transactions are on the public testnet. The explorer proof is stellar.expert's API."
-          : `A run against ${code(run.evidence.target.facilitatorUrl)}: its transactions and the listings it read stay on the public testnet and in that Bazaar. The explorer proof is stellar.expert's API.`,
+          ? `A local rehearsal: Rail402, its Bazaar, the demo seller and the Playground server ran on the machine that recorded it; its transactions are on the public testnet. ${explorerProof(run, "pageLinks")}`
+          : `A run against ${code(run.evidence.target.facilitatorUrl)}: its transactions and the listings it read stay on the public testnet and in that Bazaar. ${explorerProof(run, "pageLinks")}`,
         renderCurrent(pathOf(run.file), run.evidence),
       ].join("\n\n"),
     )

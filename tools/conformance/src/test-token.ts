@@ -112,12 +112,14 @@ export async function test6Faucet(
   to: string,
   record: Test6Record = readTest6Record(),
 ): Promise<void> {
-  const account = await net.server.getAccount(source.publicKey());
-  const transaction = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: net.passphrase })
-    .addOperation(new Contract(record.contract_id).call("faucet", nativeToScVal(to, { type: "address" })))
-    .setTimeout(60)
-    .build();
-  const prepared = await net.server.prepareTransaction(transaction);
-  prepared.sign(source);
-  await net.submit(prepared);
+  await net.submitBuilt(async () => {
+    const account = await net.server.getAccount(source.publicKey());
+    const transaction = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: net.passphrase })
+      .addOperation(new Contract(record.contract_id).call("faucet", nativeToScVal(to, { type: "address" })))
+      .setTimeout(60)
+      .build();
+    const prepared = await net.server.prepareTransaction(transaction);
+    prepared.sign(source);
+    return prepared;
+  });
 }

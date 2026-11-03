@@ -46,8 +46,11 @@ export const CHECK_IDS = [
   "observability",
   "agent-payments",
   "playground",
+  /** A pubnet run's configuration, spend caps and sweep-back. */
+  "pubnet-config",
 ] as const;
 export type CheckId = (typeof CHECK_IDS)[number];
+export type SkipCategory = (typeof SKIP_CATEGORIES)[number];
 
 export const EVIDENCE_KINDS = [
   "canonical",
@@ -99,6 +102,64 @@ const rejection = z.strictObject({
   reason: z.string().trim().min(1, "must not be blank"),
 });
 
+/** Why a case is skipped: it cannot apply, it is left out on purpose, or it waits on something. */
+export const SKIP_CATEGORIES = [
+  "not-applicable",
+  "by-design",
+  "upstream-limitation",
+  "environment",
+  "pending-dependency",
+] as const;
+
+/** Runs from this date on must categorise every skipped case; older files are read as they are. */
+export const SKIP_CATEGORY_REQUIRED_FROM = "2026-10-23T00:00:00Z";
+
+const UNITS = z.string().regex(/^\d+$/, "must be a non-negative integer string");
+
+/** The network profile a run used, its spend caps, what it spent and how its funds were returned. */
+const profileBlock = z.strictObject({
+  id: z.enum(["testnet", "pubnet"]),
+  funding: z.enum(["friendbot", "treasury"]),
+  /** RPC host names; never full URLs, which can carry keys. */
+  rpcProviders: z.array(z.string().regex(/^[a-z0-9.-]+$/, "must be a host name")).min(1),
+  caps: z
+    .strictObject({
+      maxXlmStroops: UNITS,
+      maxUsdcBaseUnits: UNITS,
+      maxSettlements: z.number().int().positive(),
+      maxNewAccounts: z.number().int().positive(),
+    })
+    .optional(),
+  spent: z.strictObject({
+    xlmStroops: UNITS,
+    usdcBaseUnits: UNITS,
+    settlements: z.number().int().min(0),
+    newAccounts: z.number().int().min(0),
+  }),
+  /** What came back to the treasury: swept USDC and merged XLM. */
+  returned: z.strictObject({ xlmStroops: UNITS, usdcBaseUnits: UNITS }).optional(),
+  sweep: z.strictObject({
+    status: z.enum(["done", "partial", "not-needed"]),
+    transactions: z.array(z.string().regex(HASH)),
+    /** What the sweep could not return. */
+    stranded: z.strictObject({ usdcBaseUnits: UNITS, xlmStroops: UNITS }).optional(),
+  }),
+  /** The whole evidence run this file belongs to: its ledger's totals when the file was written. */
+  run: z
+    .strictObject({
+      id: z.string().regex(/^[0-9a-f]{16}$/, "must be a run id"),
+      spent: z.strictObject({
+        xlmStroops: UNITS,
+        usdcBaseUnits: UNITS,
+        settlements: z.number().int().min(0),
+        newAccounts: z.number().int().min(0),
+      }),
+      returned: z.strictObject({ xlmStroops: UNITS, usdcBaseUnits: UNITS }),
+      caps: z.strictObject({ maxNetXlmStroops: UNITS, maxNetUsdcBaseUnits: UNITS }),
+    })
+    .optional(),
+});
+
 const evidenceCase = z.strictObject({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "must be a lower-case kebab id"),
   title: z.string().trim().min(1),
@@ -109,6 +170,8 @@ const evidenceCase = z.strictObject({
   payTo: PAYER.optional(),
   status: z.enum(["passed", "failed", "skipped"]),
   skipReason: z.string().trim().min(1).optional(),
+  /** Why a case was skipped, for the report's aggregated table; skipped cases only. */
+  skipCategory: z.enum(SKIP_CATEGORIES).optional(),
   elapsedMs: z.number().min(0),
   rejections: z.array(rejection).optional(),
   transactions: z.array(transaction).optional(),
@@ -143,6 +206,20 @@ export const evidenceSchema = z.strictObject({
       commit: z.string().regex(COMMIT),
       version: z.string().min(1),
       preMerge: z.boolean(),
+    })
+    .optional(),
+  /** Required on pubnet. */
+  profile: profileBlock.optional(),
+  /**
+   * The upstream drift when the run was recorded: the upstream watch's fingerprint, or null when the
+   * watch list matched upstream. Absent when it was not checked.
+   */
+  upstreamDrift: z
+    .strictObject({
+      fingerprint: z
+        .string()
+        .regex(/^[0-9a-f]{64}$/)
+        .nullable(),
     })
     .optional(),
   packages: z.record(z.string(), z.string()),
@@ -197,12 +274,69 @@ export function checkEvidence(value: unknown): { evidence?: Evidence; problems: 
     if (entry.status !== "skipped" && entry.skipReason !== undefined) {
       problems.push(`cases.${index} (${entry.id}): skipReason is only allowed on skipped cases`);
     }
+    if (
+      entry.status === "skipped" &&
+      entry.skipCategory === undefined &&
+      Date.parse(evidence.startedAt) >= Date.parse(SKIP_CATEGORY_REQUIRED_FROM)
+    ) {
+      problems.push(`cases.${index} (${entry.id}): a skipped case needs a skipCategory`);
+    }
+    if (entry.status !== "skipped" && entry.skipCategory !== undefined) {
+      problems.push(`cases.${index} (${entry.id}): skipCategory is only allowed on skipped cases`);
+    }
   }
+  problems.push(...profileProblems(evidence));
   if (Date.parse(evidence.finishedAt) < Date.parse(evidence.startedAt)) {
     problems.push("finishedAt is earlier than startedAt");
   }
   problems.push(...findSecrets(value), ...findLocalPaths(value));
   return problems.length === 0 ? { evidence, problems } : { problems };
+}
+
+/** Pubnet runs carry their profile; spending stays within the caps; a passing pubnet run returned its funds. */
+export function profileProblems(evidence: Evidence): string[] {
+  const { profile } = evidence;
+  if (profile === undefined) {
+    return evidence.network === "stellar:pubnet" ? ["a pubnet run needs its profile block"] : [];
+  }
+  const problems: string[] = [];
+  const expected = evidence.network === "stellar:pubnet" ? "pubnet" : "testnet";
+  if (profile.id !== expected) problems.push(`profile.id is ${profile.id} on ${evidence.network}`);
+  if (evidence.network === "stellar:pubnet") {
+    if (profile.funding !== "treasury") problems.push("a pubnet run is funded from the treasury");
+    if (profile.caps === undefined) problems.push("a pubnet run needs its spend caps");
+    if (profile.sweep.status === "partial" && evidence.summary.failed === 0) {
+      problems.push("a passing pubnet run must return its funds (sweep status partial)");
+    }
+    const stranded = profile.sweep.stranded;
+    if (
+      stranded !== undefined &&
+      (BigInt(stranded.usdcBaseUnits) > 0n || BigInt(stranded.xlmStroops) > 0n) &&
+      profile.sweep.status !== "partial"
+    ) {
+      problems.push("profile.sweep left funds behind but its status is not partial");
+    }
+  }
+  const { caps, spent } = profile;
+  if (caps !== undefined) {
+    if (BigInt(spent.xlmStroops) > BigInt(caps.maxXlmStroops))
+      problems.push("profile.spent.xlmStroops is over its cap");
+    if (BigInt(spent.usdcBaseUnits) > BigInt(caps.maxUsdcBaseUnits))
+      problems.push("profile.spent.usdcBaseUnits is over its cap");
+    if (spent.settlements > caps.maxSettlements) problems.push("profile.spent.settlements is over its cap");
+    if (spent.newAccounts > caps.maxNewAccounts) problems.push("profile.spent.newAccounts is over its cap");
+  }
+  const run = profile.run;
+  if (run !== undefined) {
+    if (BigInt(run.spent.xlmStroops) - BigInt(run.returned.xlmStroops) > BigInt(run.caps.maxNetXlmStroops))
+      problems.push("profile.run spent more net XLM than its cap");
+    if (
+      BigInt(run.spent.usdcBaseUnits) - BigInt(run.returned.usdcBaseUnits) >
+      BigInt(run.caps.maxNetUsdcBaseUnits)
+    )
+      problems.push("profile.run lost more USDC than its cap");
+  }
+  return problems;
 }
 
 /**

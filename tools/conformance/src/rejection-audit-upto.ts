@@ -32,16 +32,18 @@ import { UptoStellarScheme as UptoStellarClient } from "@rail402.dev/upto/client
 import {
   accountSigner,
   addressCredentialsOf,
-  deploySimpleAccount,
   simpleAccountSigner,
   type LocalNetwork,
 } from "@rail402.dev/testkit";
 import { baseUrl, type CaseContext, type CaseRecorder } from "./harness.ts";
+import type { Caip2 } from "./network.ts";
 import { probe, type AuditAccounts } from "./rejection-audit-run.ts";
 
 export interface UptoAuditOptions {
   readonly facilitator: string;
   readonly net: LocalNetwork;
+  /** The CAIP-2 network of the payments; testnet by default. */
+  readonly network?: Caip2;
   /** The asset contract the facilitator accepts, held by the audit's payers. */
   readonly asset: string;
   /** A second asset the facilitator accepts, for the wrong-asset case; any other contract without it. */
@@ -60,7 +62,7 @@ export interface UptoAuditOptions {
 
 type Requirements = {
   readonly scheme: "upto";
-  readonly network: "stellar:testnet";
+  readonly network: Caip2;
   readonly asset: string;
   readonly payTo: string;
   readonly amount: string;
@@ -89,7 +91,7 @@ export async function runUptoAudit(recorder: CaseRecorder, options: UptoAuditOpt
 
   const requirements = (overrides: Partial<Requirements> = {}): Requirements => ({
     scheme: "upto",
-    network: "stellar:testnet",
+    network: options.network ?? "stellar:testnet",
     asset: options.asset,
     payTo: accounts.payTo,
     amount: CAP.toString(),
@@ -111,7 +113,7 @@ export async function runUptoAudit(recorder: CaseRecorder, options: UptoAuditOpt
   /** A payment signed by the upto client for `accepted`, as a buyer makes one. */
   const pay = async (from: Keypair = payer, accepted = requirements()): Promise<Payment> => {
     const client = new UptoStellarClient(
-      createEd25519Signer(from.secret(), "stellar:testnet"),
+      createEd25519Signer(from.secret(), options.network ?? "stellar:testnet"),
       clientOptions,
     );
     const created = await client.createPaymentPayload(2, accepted);
@@ -598,6 +600,7 @@ export async function runUptoAudit(recorder: CaseRecorder, options: UptoAuditOpt
         payer: "C",
       },
       "smart-account cases were turned off for this run",
+      "by-design",
     );
   } else {
     await recorder.run(
@@ -609,7 +612,7 @@ export async function runUptoAudit(recorder: CaseRecorder, options: UptoAuditOpt
         payer: "C",
       },
       async (context) => {
-        const account = await deploySimpleAccount(net, accounts.deployer, Keypair.random());
+        const { address: account } = await accounts.smartAccount();
         await accounts.fund(account, CAP);
         const client = new UptoStellarClient(
           {

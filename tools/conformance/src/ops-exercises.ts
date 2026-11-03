@@ -221,7 +221,7 @@ export const EXERCISES: readonly OpsExercise[] = [
     procedure:
       "Pay exact from an OpenZeppelin smart account with a delegate key under its own context rule, then, through the RPC proxy between the settle-time simulation and the broadcast, have the owner remove that rule.",
     expected:
-      "The transaction fails on chain in the account's __check_auth, is named smart_account_rejected, moves nothing, and its fee is the only sponsor cost, counted as wasted.",
+      "The transaction fails on chain in the account's __check_auth and moves nothing. /settle answers settlement_pending, since the owner could accept the authorization again and anyone holding the payment land it, and names smart_account_rejected only once the authorization expired unused; its fee is the only sponsor cost, counted as wasted.",
     tests: [
       {
         file: FE,
@@ -238,7 +238,7 @@ export const EXERCISES: readonly OpsExercise[] = [
     procedure:
       "Verify a payment, then move the payer's whole balance away: once before /settle, and once through the RPC proxy between the settle-time simulation and the broadcast.",
     expected:
-      "Before settle: refused as insufficient_funds with nothing submitted. After simulation: the transaction fails on chain, is named insufficient_funds, and its fee is the only sponsor cost, counted as wasted.",
+      "Before settle: refused as insufficient_funds with nothing submitted. After simulation: the transaction fails on chain; /settle answers settlement_pending, since the payer could top up and anyone holding the payment land it, and names insufficient_funds only once the authorization expired unused; its fee is the only sponsor cost, counted as wasted.",
     tests: [
       {
         file: FE,
@@ -354,6 +354,11 @@ export const EXERCISES: readonly OpsExercise[] = [
         name: "refuses loopback discovery fetches on a service that serves pubnet",
       },
     ],
+    testnet: [
+      "live-bazaar#unsafe-private-address",
+      "live-bazaar#unsafe-loopback",
+      "live-bazaar#ssrf-private-name",
+    ],
   },
   {
     id: "ssrf-rebinding",
@@ -367,6 +372,7 @@ export const EXERCISES: readonly OpsExercise[] = [
     tests: [
       { file: SFE, name: "checks every DNS answer, so a rebinding name cannot reach a private address" },
     ],
+    testnet: ["live-bazaar#ssrf-private-name"],
   },
   {
     id: "ssrf-redirect",
@@ -382,7 +388,7 @@ export const EXERCISES: readonly OpsExercise[] = [
       { file: SFE, name: "never follows a redirect towards a private or other destination" },
       { file: "packages/bazaar/test/origin.test.ts", name: "does not follow redirects" },
     ],
-    testnet: ["rejection-audit#mcp-redirect-private"],
+    testnet: ["rejection-audit#mcp-redirect-private", "live-bazaar#ssrf-redirect"],
   },
   {
     id: "ssrf-oversized",
@@ -436,7 +442,7 @@ export const EXERCISES: readonly OpsExercise[] = [
       },
       { file: CAT, name: "never lists an HTTP resource whose own response is not a 402", runIn: STORES },
     ],
-    testnet: ["live-bazaar#forged-metadata"],
+    testnet: ["live-bazaar#forged-metadata", "live-bazaar#forged-price", "live-bazaar#forged-asset"],
   },
   {
     id: "mcp-tool-planting",
@@ -512,7 +518,12 @@ export const EXERCISES: readonly OpsExercise[] = [
       },
       { file: "packages/sdk/test/discovery.test.ts", name: "fills route parameters and refuses traversal" },
     ],
-    testnet: ["live-bazaar#route-template"],
+    testnet: [
+      "live-bazaar#route-template",
+      "live-bazaar#traversal-route-template",
+      "live-bazaar#traversal-dot-segments",
+      "live-bazaar#traversal-encoded-separators",
+    ],
   },
   {
     id: "crash-k0",

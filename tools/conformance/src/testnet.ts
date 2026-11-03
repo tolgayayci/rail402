@@ -131,24 +131,26 @@ export class Treasury {
 
   /** Moves USDC from the treasury to any address (G… or C…) through the asset contract. */
   async transfer(to: string, amount: bigint): Promise<void> {
-    const account = await this.net.server.getAccount(this.keypair.publicKey());
-    const transaction = new TransactionBuilder(account, {
-      fee: BASE_FEE,
-      networkPassphrase: this.net.passphrase,
-    })
-      .addOperation(
-        new Contract(USDC_TESTNET_ADDRESS).call(
-          "transfer",
-          nativeToScVal(this.keypair.publicKey(), { type: "address" }),
-          nativeToScVal(to, { type: "address" }),
-          nativeToScVal(amount, { type: "i128" }),
-        ),
-      )
-      .setTimeout(60)
-      .build();
-    const prepared = await this.net.server.prepareTransaction(transaction);
-    prepared.sign(this.keypair);
-    await this.net.submit(prepared);
+    await this.net.submitBuilt(async () => {
+      const account = await this.net.server.getAccount(this.keypair.publicKey());
+      const transaction = new TransactionBuilder(account, {
+        fee: BASE_FEE,
+        networkPassphrase: this.net.passphrase,
+      })
+        .addOperation(
+          new Contract(USDC_TESTNET_ADDRESS).call(
+            "transfer",
+            nativeToScVal(this.keypair.publicKey(), { type: "address" }),
+            nativeToScVal(to, { type: "address" }),
+            nativeToScVal(amount, { type: "i128" }),
+          ),
+        )
+        .setTimeout(60)
+        .build();
+      const prepared = await this.net.server.prepareTransaction(transaction);
+      prepared.sign(this.keypair);
+      return prepared;
+    });
   }
 }
 

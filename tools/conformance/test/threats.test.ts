@@ -33,6 +33,8 @@ describe("the threat registry", () => {
     }
   });
 
+  // Ids are reserved per topic before parallel work lands, so a topic's numbers ascend but may skip a
+  // reserved id that is not in the registry yet.
   it("names threats after their topic, in order", () => {
     const prefixes = new Map<string, string>();
     for (const entry of registry.threats) {
@@ -45,7 +47,8 @@ describe("the threat registry", () => {
       const numbers = registry.threats
         .filter((entry) => entry.id.replace(/\d+$/, "") === prefix)
         .map((entry) => Number(entry.id.slice(prefix.length)));
-      expect(numbers, prefix).toEqual(numbers.map((_, index) => index + 1));
+      expect(numbers, prefix).toEqual([...numbers].sort((a, b) => a - b));
+      expect(new Set(numbers).size, prefix).toBe(numbers.length);
     }
   });
 });
@@ -158,6 +161,17 @@ describe("the operational exercises", () => {
       "M5",
       "M6",
       "M7",
+      "M8",
+      "M9",
+      "M10",
+      "M11",
+      "M12",
+      "M13",
+      "H1",
+      "H2",
+      "H3",
+      "H4",
+      "H5",
       "U2",
       "U4",
       "U5",
@@ -177,6 +191,18 @@ describe("the operational exercises", () => {
       "P8",
       // mcp:// tools have no origin to exercise against; an accepted, documented limit.
       "P10",
+      // Pubnet catalog policy, per-network quotas and trust: unit and integration tests prove these.
+      "P11",
+      "P12",
+      "P13",
+      "P14",
+      // Discovery cost and size limits: unit tests prove these.
+      "D1",
+      "D2",
+      "D3",
+      "D4",
+      // Discovery load shedding and its own pool: unit and integration tests and the load-test package.
+      "D5",
       // The Playground's own tests and its live run prove these; the operational exercises cover Rail402.
       "PG1",
       "PG2",
@@ -184,6 +210,94 @@ describe("the operational exercises", () => {
       "PG4",
       "PG5",
       "PG6",
+      // Unit and integration tests prove these fee-sponsorship and access-key controls; drills come with
+      // the operational exercises for pubnet.
+      "S8",
+      "S9",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "Q1",
+      "Q2",
+      "Q3",
+      "Q4",
+      "Q5",
+      "Q6",
+      "O8",
+      "O9",
+      "O10",
+      "U12",
+      "U13",
+      "N1",
+      "N2",
+      "N3",
+      "N4",
+      "N5",
+      "N6",
+      "N7",
+      "N9",
+      "N10",
+      "N11",
+      "K1",
+      "K2",
+      "K3",
+      // The upstream watcher's own tests prove these against a GitHub fake.
+      "SW1",
+      "SW2",
+      "SW3",
+      "SW4",
+      // The indexing rules' unit, hostile and fuzz tests prove these.
+      "I1",
+      "I2",
+      "I3",
+      "I4",
+      "I5",
+      "I13",
+      // The indexer's integration tests prove these until a degraded-indexing exercise exists.
+      "I6",
+      "I7",
+      "I8",
+      "I9",
+      "I10",
+      "I11",
+      "I12",
+      // The Explorer's page, API and live-lookup tests prove these.
+      "W1",
+      "W2",
+      "W3",
+      "W4",
+      "W5",
+      "W6",
+      "W7",
+      // Database roles and key custody, proved by the roles integration test and the ceremony tests.
+      "N8",
+      "K4",
+      "K5",
+      "K6",
+      "K7",
+      // Monitoring controls, proved by the configuration and rule tests.
+      "O11",
+      "O12",
+      "O13",
+      // Self-host independence, proved by the image test without internet and the in-process egress guard.
+      "O14",
+      // The status page's own controls, proved by its page test.
+      "O15",
+      // Release and deploy controls, proved by the workflow and deploy-gate tests.
+      "C1",
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      // The pubnet harness controls: their unit tests and the private-network funder tests prove them.
+      "CF1",
+      "CF2",
+      "CF3",
+      "CF4",
+      // Who decides and who sees a listing's usage: the catalog and usage-route tests prove these.
+      "P15",
+      "P16",
     ]);
     for (const entry of registry.threats) {
       expect(exercised.has(entry.id) !== unitOnly.has(entry.id), `${entry.id}: exercised or unit-only`).toBe(

@@ -12,6 +12,7 @@ import { isRail402Code } from "@rail402.dev/service";
 import {
   LocalNetwork,
   ServiceProcess,
+  deploySimpleAccount,
   deployUpto,
   mintTo,
   stopServiceProcesses,
@@ -93,6 +94,10 @@ describe.skipIf(!available)("rejection audit against the local service", () => {
     const untrusted = Keypair.random();
     await net.fund(untrusted);
     if (payTo === undefined || deployer === undefined) throw new Error("fixture");
+    const smartAccount = async () => {
+      const owner = Keypair.random();
+      return { address: await deploySimpleAccount(net, deployer, owner), owner };
+    };
 
     const recorder = await runRejectionAudit({
       facilitator: main.url,
@@ -107,6 +112,7 @@ describe.skipIf(!available)("rejection audit against the local service", () => {
         poor,
         deployer,
         fund: (to, amount) => mintTo(net, usdc, to, amount),
+        smartAccount,
       },
       keyedFacilitator: keyed.url,
       limitedFacilitator: limited.url,
@@ -132,6 +138,7 @@ describe.skipIf(!available)("rejection audit against the local service", () => {
         poor,
         deployer,
         fund: (to, amount) => mintTo(net, usdc, to, amount),
+        smartAccount,
       },
     });
 

@@ -4,7 +4,9 @@
  *
  *   node tools/conformance/src/upstream-e2e.ts --x402 ../x402 [--schemes exact[,upto]] \
  *     [--target local | --target hosted --facilitator https://…] [--allow-version-mismatch] \
- *     [--write [--allow-branch <branch>]]
+ *     [--network testnet|pubnet] [--write [--allow-branch <branch>]]
+ *   node tools/conformance/src/upstream-e2e.ts --target hosted --facilitator https://… \
+ *     --pending "<what is missing>" [--network pubnet] [--write]
  *
  * `--x402` is a checkout of x402-foundation/x402 at the tag of the @x402/stellar version Rail402
  * depends on (`--allow-version-mismatch` accepts another version and records it), prepared as its e2e
@@ -38,6 +40,13 @@
  * MCP tools the suite pays for (cataloged by the hosted Bazaar) stay the same three listings across
  * reruns instead of adding more each time; without that file it is fresh. With --write the result is
  * recorded as schemaVersion 2 evidence.
+ *
+ * The suite is third-party code, so it runs with an allow-listed environment (upstream-e2e-env.ts):
+ * never this process's secrets, secret-file paths, run confirmation or ledger. `--network pubnet`
+ * (hosted only) funds a buyer for this run only and a seller derived from the treasury seed, both
+ * swept and merged at the end, also on an error or a signal. The suite reaches the service through an
+ * in-process forwarder that debits each `/settle` against the caps before passing it on. The suite's
+ * Stellar client must pass `STELLAR_RPC_URL` (released suites do not; see the conformance page).
  */
 import { execFileSync, spawn } from "node:child_process";
 import {
@@ -54,7 +63,6 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { Asset, Keypair, Networks, Operation } from "@stellar/stellar-sdk";
-import { LocalNetwork } from "@rail402.dev/testkit";
 import {
   evidenceFileName,
   harnessProvenance,
@@ -62,7 +70,9 @@ import {
   writeEvidence,
   type CheckId,
   type EvidenceCase,
+  type SkipCategory,
 } from "./evidence.ts";
+import { startForwarder, type Forwarder } from "./forwarder.ts";
 import { buildEvidence, readTarget, settledTransaction, type Target } from "./harness.ts";
 import {
   HOSTED_BAZAAR_NOT_APPLICABLE,
@@ -72,16 +82,20 @@ import {
   releaseTagFor,
 } from "./upstream-e2e-output.ts";
 import {
-  NETWORK,
-  TESTNET_FRIENDBOT_URL,
-  TESTNET_RPC_URL,
-  USDC,
-  USDC_TESTNET_ADDRESS,
-  gitCommit,
-  log,
-  operatorAccount,
-  versions,
-} from "./testnet.ts";
+  NETWORK_OPTION,
+  ProfileNetwork,
+  feeCeilingStroops,
+  parseNetworkId,
+  profileEvidence,
+  resolveProfile,
+  startRun,
+  sweepObservation,
+  withRun,
+  type Funder,
+  type SweepResult,
+} from "./network.ts";
+import { suiteEnvironment } from "./upstream-e2e-env.ts";
+import { USDC, gitCommit, log, operatorAccount, versions } from "./testnet.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -90,8 +104,10 @@ const { values: args } = parseArgs({
     target: { type: "string", default: "local" },
     facilitator: { type: "string" },
     "allow-version-mismatch": { type: "boolean", default: false },
+    pending: { type: "string" },
     write: { type: "boolean", default: false },
     "allow-branch": { type: "string" },
+    ...NETWORK_OPTION,
   },
 });
 
@@ -107,12 +123,24 @@ if (!HOSTED && args.facilitator !== undefined) {
   throw new Error("--facilitator applies to --target hosted only");
 }
 
+const PROFILE = resolveProfile(parseNetworkId(args.network));
+const NETWORK = PROFILE.caip2;
+const PUBNET = PROFILE.id === "pubnet";
+// A local Rail402 on pubnet would need a funded pubnet sponsor of its own; pubnet runs target the
+// deployed service.
+if (PUBNET && !HOSTED) throw new Error("--network pubnet needs --target hosted --facilitator <url>");
+/**
+ * Settlements a suite run makes at most (one per paid route and client): checked against the caps
+ * before anything is funded; each `/settle` is debited when the suite sends it.
+ */
+const SUITE_SETTLEMENTS_BOUND = 30;
+
 // Evidence is recorded only from a clean commit on main, checked before any testnet funds are spent.
 const provenance = args.write ? harnessProvenance({ allowBranch: args["allow-branch"] }) : undefined;
 
 const PROXY = HOSTED ? "rail402-hosted" : "rail402";
 const SUITE_ARGS = [
-  "--testnet",
+  PUBNET ? "--mainnet" : "--testnet",
   "--families=stellar",
   `--facilitators=${PROXY}`,
   ...(HOSTED ? [] : ["--extensions=bazaar"]),
@@ -126,8 +154,13 @@ const LISTING_QUOTA = 1000;
  * seed (`operatorAccount`), so reruns pay the same payTo and update its listings in place, and nobody
  * else can take the account over. Without the seed file it is a fresh account.
  */
-const HOSTED_SELLER = HOSTED ? operatorAccount("upstream e2e hosted seller") : undefined;
-const net = new LocalNetwork(TESTNET_RPC_URL, TESTNET_FRIENDBOT_URL);
+const HOSTED_SELLER = HOSTED && !PUBNET ? operatorAccount("upstream e2e hosted seller") : undefined;
+const net = new ProfileNetwork(PROFILE);
+
+interface SuiteReport {
+  readonly summary: { total: number; passed: number; failed: number; durationMinutes: number };
+  readonly results: SuiteResult[];
+}
 
 interface SuiteResult {
   readonly client: string;
@@ -141,30 +174,47 @@ interface SuiteResult {
 }
 
 /** Suite components and modes that cannot involve a Stellar `exact` facilitator, with the reason. */
-const NOT_APPLICABLE: readonly { id: string; title: string; reason: string }[] = [
+const NOT_APPLICABLE: readonly { id: string; title: string; reason: string; category: SkipCategory }[] = [
   {
     id: "go-python-components",
     title: "Go and Python clients, servers and facilitators",
     reason: "the upstream Go and Python SDKs have no Stellar mechanism",
+    category: "upstream-limitation",
   },
   {
     id: "x402-v1-legacy",
     title: "x402 v1 (legacy) scenarios",
     reason: "Stellar exact is defined for x402 v2 only",
+    category: "not-applicable",
   },
-  { id: "escrow", title: "escrow scheme scenarios", reason: "the suite has no Stellar escrow mechanism" },
   {
-    id: "pubnet",
-    title: "mainnet mode",
-    reason: "the suite's Stellar client is built without an RPC URL, which the SDK requires on pubnet",
+    id: "escrow",
+    title: "escrow scheme scenarios",
+    reason: "the suite has no Stellar escrow mechanism",
+    category: "upstream-limitation",
   },
 ];
 
+/**
+ * Recorded on testnet runs: the suite's mainnet mode is a run of its own (`--network pubnet`), and
+ * released suites build their Stellar client without an RPC URL, which the SDK requires on pubnet.
+ */
+const PUBNET_MODE = {
+  id: "pubnet",
+  title: "mainnet mode",
+  reason: "the suite's Stellar client is built without an RPC URL, which the SDK requires on pubnet",
+  category: "upstream-limitation" as const,
+};
+
 async function main() {
+  if (args.pending !== undefined) {
+    await recordPending(args.pending);
+    return;
+  }
   if (args.x402 === undefined) throw new Error("--x402 <path to an x402 checkout> is required");
   const x402 = resolve(args.x402);
   const e2e = join(x402, "e2e");
-  if (USDC.contractId(Networks.TESTNET) !== USDC_TESTNET_ADDRESS)
+  if (!PUBNET && USDC.contractId(Networks.TESTNET) !== PROFILE.usdc.contract)
     throw new Error("USDC issuer/contract mismatch");
 
   const pinned = readVersion(join(root, "tools/conformance/node_modules/@x402/stellar/package.json"));
@@ -217,64 +267,112 @@ async function main() {
 
   // The suite requires a Stellar facilitator key even for a hosted facilitator, which never reads it.
   const sponsor = Keypair.random();
-  const buyer = Keypair.random();
-  const seller = HOSTED_SELLER?.keypair ?? Keypair.random();
-  if (HOSTED_SELLER?.origin === "fresh") {
+  let buyer = Keypair.random();
+  let seller = HOSTED_SELLER?.keypair ?? Keypair.random();
+  if (!PUBNET && HOSTED_SELLER?.origin === "fresh") {
     log(
       "RAIL402_SPONSOR_SECRET_FILE is not set: the hosted seller is a fresh account, so its listings are new",
     );
   }
-  log(`funding sponsor ${sponsor.publicKey()}, buyer ${buyer.publicKey()}, seller ${seller.publicKey()}`);
-  // Funding an account that already exists (the hosted seller on a rerun) counts as funded, and a
-  // repeated trustline only restates its limit.
-  await net.fund(...(HOSTED ? [buyer, seller] : [sponsor, buyer, seller]));
-  await net.classic(seller, [Operation.changeTrust({ asset: USDC })]);
-  await net.classic(buyer, [
-    Operation.changeTrust({ asset: USDC }),
-    Operation.pathPaymentStrictReceive({
-      sendAsset: Asset.native(),
-      sendMax: "100",
-      destination: buyer.publicKey(),
-      destAsset: USDC,
-      destAmount: "1",
-      path: [],
-    }),
-  ]);
-  log("buyer holds 1 USDC; seller has a USDC trustline");
+  let funder: Funder | undefined;
+  let sweep: SweepResult | undefined;
+  if (PUBNET) {
+    // Every /settle the suite sends passes the in-process forwarder below, which counts it first.
+    funder = await startRun("upstream-e2e", PROFILE, net, { facilitators: [target?.facilitatorUrl ?? ""] });
+  }
 
   const work = mkdtempSync(join(tmpdir(), "rail402-e2e-"));
   const resultsFile = join(work, "results.json");
   const targetFile = join(work, "target.json");
   const catalogFile = join(work, "catalog-outcomes.txt");
   const command = ["pnpm", "test", ...SUITE_ARGS, `--output-json=${resultsFile}`];
-  log(`running ${command.join(" ")} in ${e2e}`);
   const startedAt = new Date().toISOString();
-  const { code, output } = await run(command, e2e, {
-    RAIL402_ROOT: root,
-    FACILITATOR_STELLAR_PRIVATE_KEY: sponsor.secret(),
-    CLIENT_STELLAR_PRIVATE_KEY: buyer.secret(),
-    SERVER_STELLAR_ADDRESS: seller.publicKey(),
-    ...(HOSTED
-      ? { RAIL402_FACILITATOR_URL: target?.facilitatorUrl ?? "" }
-      : {
-          RAIL402_TARGET_FILE: targetFile,
-          RAIL402_CATALOG_FILE: catalogFile,
-          BAZAAR_MAX_NEW_LISTINGS_PER_PAYER_PER_HOUR: String(LISTING_QUOTA),
-          BAZAAR_MAX_NEW_LISTINGS_PER_OWNER_PER_HOUR: String(LISTING_QUOTA),
-        }),
-  });
+  let suite: { code: number; output: string } | undefined;
+  let report: SuiteReport | undefined;
+  const cases: EvidenceCase[] = [];
 
-  const report = JSON.parse(readFileSync(resultsFile, "utf8")) as {
-    summary: { total: number; passed: number; failed: number; durationMinutes: number };
-    results: SuiteResult[];
+  const body = async () => {
+    let counting: Forwarder | undefined;
+    try {
+      if (funder !== undefined) {
+        // The treasury funds a buyer for this run only (its key reaches third-party code) and a
+        // seller derived from the treasury seed; both are swept and merged at the end.
+        funder.meter.ensure(
+          {
+            settlements: SUITE_SETTLEMENTS_BOUND,
+            xlmStroops: feeCeilingStroops(PROFILE, "exact") * BigInt(SUITE_SETTLEMENTS_BOUND),
+            usdcBaseUnits: 10_000_000n,
+          },
+          "the suite's run",
+        );
+        [buyer = buyer] = await funder.accounts(1, "1", true, { role: "suite-buyer", perRun: true });
+        [seller = seller] = await funder.accounts(1, "0", true, { role: "suite-seller" });
+        counting = await startForwarder({ target: target?.facilitatorUrl ?? "" });
+      } else {
+        log(
+          `funding sponsor ${sponsor.publicKey()}, buyer ${buyer.publicKey()}, seller ${seller.publicKey()}`,
+        );
+        // Funding an account that already exists (the hosted seller on a rerun) counts as funded, and a
+        // repeated trustline only restates its limit.
+        await net.fund(...(HOSTED ? [buyer, seller] : [sponsor, buyer, seller]));
+        await net.classic(seller, [Operation.changeTrust({ asset: USDC })]);
+        await net.classic(buyer, [
+          Operation.changeTrust({ asset: USDC }),
+          Operation.pathPaymentStrictReceive({
+            sendAsset: Asset.native(),
+            sendMax: "100",
+            destination: buyer.publicKey(),
+            destAsset: USDC,
+            destAmount: "1",
+            path: [],
+          }),
+        ]);
+      }
+      log("buyer holds 1 USDC; seller has a USDC trustline");
+
+      log(`running ${command.join(" ")} in ${e2e}`);
+      // Third-party code: an allow-listed environment and run-scoped keys only (upstream-e2e-env.ts).
+      suite = await run(
+        command,
+        e2e,
+        suiteEnvironment(process.env, {
+          RAIL402_ROOT: root,
+          ...(process.env["RAIL402_VERSION"] === undefined
+            ? {}
+            : { RAIL402_VERSION: process.env["RAIL402_VERSION"] }),
+          FACILITATOR_STELLAR_PRIVATE_KEY: sponsor.secret(),
+          CLIENT_STELLAR_PRIVATE_KEY: buyer.secret(),
+          SERVER_STELLAR_ADDRESS: seller.publicKey(),
+          ...(PUBNET ? { STELLAR_RPC_URL: net.rpcUrl } : {}),
+          ...(HOSTED
+            ? { RAIL402_FACILITATOR_URL: counting?.url ?? target?.facilitatorUrl ?? "" }
+            : {
+                RAIL402_TARGET_FILE: targetFile,
+                RAIL402_CATALOG_FILE: catalogFile,
+                TESTNET_BAZAAR_MAX_NEW_LISTINGS_PER_PAYER_PER_HOUR: String(LISTING_QUOTA),
+                TESTNET_BAZAAR_MAX_NEW_LISTINGS_PER_OWNER_PER_HOUR: String(LISTING_QUOTA),
+              }),
+        }),
+      );
+    } finally {
+      await counting?.close();
+    }
+    if (!existsSync(resultsFile)) {
+      throw new Error(`the suite exited with ${String(suite.code)} and wrote no results (${resultsFile})`);
+    }
+    report = JSON.parse(readFileSync(resultsFile, "utf8")) as SuiteReport;
+    for (const result of report.results) cases.push(await suiteCase(result));
   };
+  if (funder === undefined) await body();
+  else sweep = await withRun(funder, body);
+  if (suite === undefined || report === undefined) throw new Error("the suite did not run");
+  const { code, output } = suite;
+
   const discovery = /Discovery Validation: (PASSED|FAILED)/.exec(output)?.[1] ?? "NOT RUN";
   const discovered = /Discovered: (\d+\/\d+)/.exec(output)?.[1];
   const missing = missingResources(output);
   target ??= localTarget(targetFile);
 
-  const cases: EvidenceCase[] = [];
-  for (const result of report.results) cases.push(await suiteCase(result));
   cases.push(
     HOSTED
       ? {
@@ -283,6 +381,7 @@ async function main() {
           checks: ["discovery"],
           status: "skipped",
           skipReason: HOSTED_BAZAAR_NOT_APPLICABLE,
+          skipCategory: "not-applicable",
           elapsedMs: 0,
         }
       : {
@@ -309,16 +408,29 @@ async function main() {
       scheme: "upto",
       status: "skipped",
       skipReason: "no Stellar upto route upstream yet: the x402 checkout has no Stellar upto mechanism",
+      skipCategory: "upstream-limitation",
       elapsedMs: 0,
     });
   }
-  for (const entry of NOT_APPLICABLE) {
+  if (sweep !== undefined) {
+    const swept = sweep.status !== "partial";
+    cases.push({
+      id: "sweep-back",
+      title: "the run's USDC is back in the operator treasury and its accounts are merged",
+      checks: ["pubnet-config"],
+      status: swept ? "passed" : "failed",
+      elapsedMs: 0,
+      observations: { sweep: sweepObservation(sweep) },
+    });
+  }
+  for (const entry of PUBNET ? NOT_APPLICABLE : [...NOT_APPLICABLE, PUBNET_MODE]) {
     cases.push({
       id: entry.id,
       title: entry.title,
       checks: ["upstream-e2e"],
       status: "skipped",
       skipReason: entry.reason,
+      skipCategory: entry.category,
       elapsedMs: 0,
     });
   }
@@ -330,6 +442,9 @@ async function main() {
       provenance: provenance ?? { commit: gitCommit().replace(/-dirty$/, ""), dirty: false },
       network: NETWORK,
       target,
+      ...(funder === undefined || sweep === undefined
+        ? {}
+        : { profile: profileEvidence(PROFILE, funder, sweep) }),
       upstream: {
         repository,
         ref: releaseTag ?? published?.branch ?? gitRef(x402),
@@ -340,7 +455,8 @@ async function main() {
       packages: versions(["@x402/core", "@x402/stellar", "@stellar/stellar-sdk"]),
       command:
         `node tools/conformance/src/upstream-e2e.ts --x402 <x402 checkout> --schemes ${SCHEMES.join(",")} ` +
-        `--target ${args.target}${HOSTED ? ` --facilitator ${target.facilitatorUrl}` : ""}`,
+        `--target ${args.target}${HOSTED ? ` --facilitator ${target.facilitatorUrl}` : ""}` +
+        (PUBNET ? " --network pubnet" : ""),
       config: {
         suite: `pnpm test ${SUITE_ARGS.join(" ")}`,
         suiteExitCode: code,
@@ -351,7 +467,7 @@ async function main() {
         schemes: SCHEMES.join(","),
         stellarUptoUpstream: stellarUpto,
         versionMismatch: upstream !== pinned,
-        sellerAccount: HOSTED_SELLER?.origin ?? "fresh",
+        sellerAccount: PUBNET ? "treasury-derived" : (HOSTED_SELLER?.origin ?? "fresh"),
         ...(HOSTED
           ? {}
           : {
@@ -379,6 +495,73 @@ async function main() {
     log(`evidence written to ${writeEvidence(evidence, { allowBranch: args["allow-branch"], file })}`);
   }
   if (code !== 0 || report.summary.total === 0 || evidence.summary.failed > 0) process.exitCode = 1;
+}
+
+/**
+ * `--pending <reason>`: records that the suite could not run here because something it needs is
+ * missing (for example no checkout whose Stellar client takes an RPC URL), as one skipped case in the
+ * `pending-dependency` category, which a final report refuses. Nothing is funded or run.
+ */
+async function recordPending(reason: string) {
+  if (reason.trim() === "") throw new Error("--pending needs a reason");
+  const target = HOSTED ? await readTarget(args.facilitator ?? "", "hosted") : undefined;
+  if (target === undefined) throw new Error("--pending applies to --target hosted");
+  const caps = PROFILE.caps;
+  const evidence = buildEvidence(
+    {
+      kind: "upstream-e2e",
+      provenance: provenance ?? { commit: gitCommit().replace(/-dirty$/, ""), dirty: false },
+      network: NETWORK,
+      target,
+      ...(PUBNET
+        ? {
+            // Nothing was funded: the profile records the caps and that nothing was spent.
+            profile: {
+              id: PROFILE.id,
+              funding: PROFILE.funding.kind,
+              rpcProviders: PROFILE.rpcUrls.map((url) => new URL(url).hostname),
+              ...(caps === undefined
+                ? {}
+                : {
+                    caps: {
+                      maxXlmStroops: caps.maxXlmStroops.toString(),
+                      maxUsdcBaseUnits: caps.maxUsdcBaseUnits.toString(),
+                      maxSettlements: caps.maxSettlements,
+                      maxNewAccounts: caps.maxNewAccounts,
+                    },
+                  }),
+              spent: { xlmStroops: "0", usdcBaseUnits: "0", settlements: 0, newAccounts: 0 },
+              sweep: { status: "not-needed" as const, transactions: [] },
+            },
+          }
+        : {}),
+      packages: versions(["@x402/core", "@x402/stellar", "@stellar/stellar-sdk"]),
+      command:
+        `node tools/conformance/src/upstream-e2e.ts --target hosted --facilitator ${target.facilitatorUrl}` +
+        (PUBNET ? " --network pubnet" : "") +
+        " --pending <reason>",
+      config: { suite: "not run" },
+      accounts: {},
+      startedAt: new Date().toISOString(),
+    },
+    [
+      {
+        id: "suite",
+        title: "the upstream x402 e2e suite",
+        checks: ["upstream-e2e"],
+        status: "skipped",
+        skipReason: reason.trim(),
+        skipCategory: "pending-dependency",
+        elapsedMs: 0,
+      },
+    ],
+  );
+  process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
+  if (provenance !== undefined) {
+    recheckProvenance(provenance, { allowBranch: args["allow-branch"] });
+    const file = evidenceFileName("upstream-e2e", NETWORK, "hosted");
+    log(`evidence written to ${writeEvidence(evidence, { allowBranch: args["allow-branch"], file })}`);
+  }
 }
 
 /** One suite scenario as an evidence case, with its settlement read back from the chain. */
@@ -411,7 +594,7 @@ async function suiteCase(result: SuiteResult): Promise<EvidenceCase> {
     try {
       const settled = await settledTransaction(net, hash, {
         scheme,
-        asset: USDC_TESTNET_ADDRESS,
+        asset: PROFILE.usdc.contract,
         decimals: 7,
         amount: "0",
         payerType: "G",
@@ -454,7 +637,8 @@ function run(command: string[], cwd: string, env: Record<string, string>) {
     const [file = "", ...rest] = command;
     const child = spawn(file, rest, {
       cwd,
-      env: { ...process.env, ...env },
+      // Never the parent's environment: the caller passes the whole, allow-listed environment.
+      env,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";

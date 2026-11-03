@@ -27,7 +27,8 @@ import { UPTO_TESTNET_DEPLOYMENT } from "@rail402.dev/upto";
 import { z } from "zod";
 import { harnessProvenance, recheckProvenance, writeEvidence } from "./evidence.ts";
 import { CaseRecorder, buildEvidence, explorerUrl, readTarget, type Target } from "./harness.ts";
-import { NETWORK, TESTNET_RPC_URL, gitCommit, log, versions } from "./testnet.ts";
+import { TESTNET_RPC_URL, gitCommit, log, versions } from "./testnet.ts";
+import { NETWORK_OPTION, refusePubnet, resolveProfile } from "./network.ts";
 import { checkTest6OnChain, readTest6Record } from "./test-token.ts";
 
 const { values: args } = parseArgs({
@@ -36,8 +37,14 @@ const { values: args } = parseArgs({
     "no-rebuild": { type: "boolean", default: false },
     write: { type: "boolean", default: false },
     "allow-branch": { type: "string" },
+    ...NETWORK_OPTION,
   },
 });
+
+// Refused before the pubnet profile is read, so the refusal names the real reason.
+refusePubnet(args.network, "the upto contract check (no pubnet deployment is published yet)");
+const PROFILE = resolveProfile("testnet");
+const NETWORK = PROFILE.caip2;
 
 // Evidence is recorded only from a clean commit on main.
 const provenance = args.write ? harnessProvenance({ allowBranch: args["allow-branch"] }) : undefined;
@@ -190,7 +197,7 @@ async function main() {
     scheme: "upto" as const,
   };
   if (args["no-rebuild"]) {
-    recorder.skip({ ...rebuild, checks: [...rebuild.checks] }, "--no-rebuild was given");
+    recorder.skip({ ...rebuild, checks: [...rebuild.checks] }, "--no-rebuild was given", "by-design");
   } else {
     await recorder.run({ ...rebuild, checks: [...rebuild.checks] }, (context) => {
       const run = spawnSync("bash", [join(ROOT, "scripts/contracts/verify.sh"), "--network", "testnet"], {
@@ -218,6 +225,7 @@ async function main() {
         scheme: "upto",
       },
       "no --facilitator was given",
+      "environment",
     );
   } else {
     await recorder.run(

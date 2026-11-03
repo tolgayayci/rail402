@@ -28,13 +28,14 @@ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { encodePaymentRequiredHeader } from "@x402/core/http";
 import { MAX_REASON_LENGTH } from "@rail402.dev/mcp";
 import type { CaseContext, CaseRecorder } from "./harness.ts";
+import type { Caip2 } from "./network.ts";
 
 export interface McpAuditOptions {
   /** Node and arguments that start rail402-mcp over stdio, e.g. `[process.execPath, "…/bin.ts"]`. */
   readonly command: readonly [string, ...string[]];
   /** The Rail402 under audit: the server's Bazaar (and, through sellers, facilitator). */
   readonly facilitator: string;
-  readonly network: "stellar:testnet";
+  readonly network: Caip2;
   readonly rpcUrl: string;
   /**
    * The accepted asset the policy allows, as the seller prices it. The network's USDC is built into
@@ -226,6 +227,7 @@ export async function runMcpAudit(recorder: CaseRecorder, options: McpAuditOptio
         checks: ["mcp", "rejection-codes"],
       },
       "needs settled payments first; the live agent run refuses it through rail402-mcp after a settled payment, and the SDK's budget ledger tests prove it (packages/sdk/test/guard.test.ts)",
+      "by-design",
     );
 
     const protocolCases: readonly {

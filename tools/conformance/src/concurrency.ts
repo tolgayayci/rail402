@@ -14,18 +14,20 @@
  * concurrency-upto-stellar-testnet.json and concurrency-mixed-stellar-testnet.json.
  */
 import { parseArgs } from "node:util";
-import { LocalNetwork } from "@rail402.dev/testkit";
 import { concurrencyEvidence, runConcurrency, type ConcurrencyScheme } from "./concurrency-run.ts";
 import { harnessProvenance, recheckProvenance, runFileName, writeEvidence } from "./evidence.ts";
 import {
-  NETWORK,
-  TESTNET_FRIENDBOT_URL,
-  TESTNET_RPC_URL,
-  Treasury,
-  USDC_TESTNET_ADDRESS,
-  log,
-  versions,
-} from "./testnet.ts";
+  NETWORK_OPTION,
+  ProfileNetwork,
+  feeCeilingStroops,
+  parseNetworkId,
+  profileEvidence,
+  resolveProfile,
+  startRun,
+  sweepObservation,
+  withRun,
+} from "./network.ts";
+import { log, versions } from "./testnet.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -34,10 +36,11 @@ const { values: args } = parseArgs({
     batches: { type: "string", default: "3" },
     size: { type: "string", default: "20" },
     duplicates: { type: "string", default: "2" },
-    rpc: { type: "string", default: TESTNET_RPC_URL },
-    friendbot: { type: "string", default: TESTNET_FRIENDBOT_URL },
+    rpc: { type: "string" },
+    friendbot: { type: "string" },
     write: { type: "boolean", default: false },
     "allow-branch": { type: "string" },
+    ...NETWORK_OPTION,
   },
 });
 
@@ -54,6 +57,11 @@ if (!["exact", "upto", "mixed"].includes(args.scheme)) {
   throw new Error(`--scheme ${args.scheme}: expected exact, upto or mixed`);
 }
 const SCHEME = args.scheme as ConcurrencyScheme;
+const PROFILE = resolveProfile(parseNetworkId(args.network), { needsUpto: SCHEME !== "exact" });
+const NETWORK = PROFILE.caip2;
+if (PROFILE.id !== "testnet" && (args.rpc !== undefined || args.friendbot !== undefined)) {
+  throw new Error("--rpc and --friendbot apply to testnet runs; pubnet uses RAIL402_PUBNET_RPC_URLS");
+}
 const BATCHES = integer("batches", args.batches, 1, 20);
 const SIZE = integer("size", args.size, 1, 100);
 const DUPLICATES = integer("duplicates", args.duplicates, 0, SIZE);
@@ -68,7 +76,13 @@ const AMOUNT = 10_000n;
 const STARTING = { text: "0.01", baseUnits: 100_000n };
 
 async function main() {
-  const net = new LocalNetwork(args.rpc, args.friendbot);
+  const net = new ProfileNetwork({
+    ...PROFILE,
+    ...(args.rpc === undefined ? {} : { rpcUrls: [args.rpc] }),
+    ...(args.friendbot === undefined || PROFILE.funding.kind !== "friendbot"
+      ? {}
+      : { funding: { ...PROFILE.funding, friendbotUrl: args.friendbot } }),
+  });
   const [primary = ""] = FACILITATORS;
   const health = (await (await fetch(`${primary}/health`)).json()) as { version?: string };
   const supported: unknown = await (await fetch(`${primary}/supported`)).json();
@@ -82,26 +96,68 @@ async function main() {
 
   const payers = BATCHES * SIZE;
   log(`opening a treasury for ${String(payers)} payers`);
-  const treasury = await new Treasury(net).open(String(Math.ceil((payers * 0.01 + 1) * 100) / 100));
-  const [seller] = await treasury.accounts(1, "0");
-  if (seller === undefined) throw new Error("no seller account");
-
-  const run = await runConcurrency({
-    scheme: SCHEME,
-    ...(typeof authority === "string" ? { upto: { authority } } : {}),
+  const treasury = await startRun("concurrency", PROFILE, net, {
+    usdc: String(Math.ceil((payers * 0.01 + 1) * 100) / 100),
     facilitators: FACILITATORS,
-    net,
-    asset: { contract: USDC_TESTNET_ADDRESS, symbol: "USDC", decimals: 7 },
-    payTo: seller.publicKey(),
-    amount: AMOUNT,
-    batches: BATCHES,
-    size: SIZE,
-    duplicates: DUPLICATES,
-    payers: (count) => treasury.accounts(count, STARTING.text),
-    startingBalance: STARTING.baseUnits,
-    explorer: (hash) => `https://stellar.expert/explorer/testnet/tx/${hash}`,
-    log,
   });
+  // Every /settle is debited when it is sent, duplicates included; the run's known needs (one settlement
+  // per payment and per duplicate, the payers' USDC) are checked against the caps before anything is sent.
+  const ceiling = feeCeilingStroops(PROFILE, SCHEME === "exact" ? "exact" : "upto");
+  const requests = BATCHES * (SIZE + DUPLICATES);
+  treasury.meter.ensure(
+    {
+      settlements: requests,
+      xlmStroops: ceiling * BigInt(requests),
+      usdcBaseUnits: STARTING.baseUnits * BigInt(payers),
+      newAccounts: payers + 1,
+    },
+    `${String(requests)} settlement requests`,
+  );
+
+  let run: Awaited<ReturnType<typeof runConcurrency>> | undefined;
+  let seller: string | undefined;
+  const sweep = await withRun(treasury, async () => {
+    const [account] = await treasury.accounts(1, "0", true, { role: "seller" });
+    if (account === undefined) throw new Error("no seller account");
+    seller = account.publicKey();
+    run = await runConcurrency({
+      network: NETWORK,
+      scheme: SCHEME,
+      ...(typeof authority === "string"
+        ? {
+            upto: {
+              authority,
+              ...(PROFILE.id === "testnet" || PROFILE.upto === undefined
+                ? {}
+                : { contract: PROFILE.upto.contract }),
+            },
+          }
+        : {}),
+      facilitators: FACILITATORS,
+      net,
+      asset: { contract: PROFILE.usdc.contract, symbol: "USDC", decimals: 7 },
+      payTo: seller,
+      amount: AMOUNT,
+      batches: BATCHES,
+      size: SIZE,
+      duplicates: DUPLICATES,
+      payers: (count) => treasury.accounts(count, STARTING.text),
+      startingBalance: STARTING.baseUnits,
+      explorer: PROFILE.explorer.tx,
+      log,
+    });
+  });
+  if (run === undefined || seller === undefined) throw new Error("the run did not finish");
+  if (PROFILE.id !== "testnet") {
+    run.cases.push({
+      id: "sweep-back",
+      title: "the run's USDC is back in the operator treasury and its accounts are merged",
+      checks: ["pubnet-config"],
+      status: sweep.status === "partial" ? "failed" : "passed",
+      elapsedMs: 0,
+      observations: { sweep: sweepObservation(sweep) },
+    });
+  }
 
   const failed = run.cases.filter((entry) => entry.status === "failed").length;
   if (provenance === undefined) {
@@ -114,7 +170,7 @@ async function main() {
       healthVersion: health.version ?? "unknown",
       supported,
       packages: versions(["@x402/core", "@x402/stellar", "@stellar/stellar-sdk"]),
-      command: `node tools/conformance/src/concurrency.ts --facilitator ${FACILITATORS.join(",")} --scheme ${SCHEME} --batches ${String(BATCHES)} --size ${String(SIZE)} --duplicates ${String(DUPLICATES)}`,
+      command: `node tools/conformance/src/concurrency.ts --facilitator ${FACILITATORS.join(",")} --scheme ${SCHEME} --batches ${String(BATCHES)} --size ${String(SIZE)} --duplicates ${String(DUPLICATES)}${PROFILE.id === "testnet" ? "" : ` --network ${PROFILE.id}`}`,
       config: {
         scheme: SCHEME,
         batches: BATCHES,
@@ -122,7 +178,8 @@ async function main() {
         duplicates: DUPLICATES,
         amount: AMOUNT.toString(),
       },
-      accounts: { payTo: seller.publicKey(), treasury: treasury.keypair.publicKey() },
+      accounts: { payTo: seller, treasury: treasury.keypair.publicKey() },
+      ...(PROFILE.id === "testnet" ? {} : { profile: profileEvidence(PROFILE, treasury, sweep) }),
     });
     recheckProvenance(provenance, { allowBranch: args["allow-branch"] });
     // One file per scheme: `exact` keeps the plain name, `upto` and `mixed` runs are variants.

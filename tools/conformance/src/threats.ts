@@ -37,6 +37,11 @@ export const REQUIRED_TOPICS = [
   "smart-accounts",
   "mcp-paid-calls",
   "upto-contract",
+  "network-isolation",
+  "access-keys",
+  "key-custody",
+  "explorer",
+  "explorer-web",
 ] as const;
 
 const ID = /^[A-Z]{1,2}\d{1,2}$/;

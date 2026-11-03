@@ -3,10 +3,17 @@
  * their rejections, transactions and observations, describing a settlement transaction from the
  * chain, and assembling the evidence document that `writeEvidence` checks and writes.
  */
+import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { FeeBumpTransaction, TransactionBuilder, rpc, type Transaction } from "@stellar/stellar-sdk";
+import {
+  FeeBumpTransaction,
+  Networks,
+  TransactionBuilder,
+  rpc,
+  type Transaction,
+} from "@stellar/stellar-sdk";
 import { reportCode } from "@rail402.dev/errors";
-import { onChainSettlement, type LocalNetwork } from "@rail402.dev/testkit";
+import { onChainSettlement, settledLookup, type LocalNetwork } from "@rail402.dev/testkit";
 import type {
   CheckId,
   Evidence,
@@ -15,10 +22,27 @@ import type {
   EvidenceRejection,
   EvidenceTransaction,
   Provenance,
+  SkipCategory,
 } from "./evidence.ts";
 import { log } from "./testnet.ts";
 
 export type Network = Evidence["network"];
+
+/**
+ * Runs a build or check step whose output a reader follows, with its standard output and error both
+ * sent to this process's standard error: a harness's standard output carries its evidence document
+ * only. The step inherits this process's environment unless `env` is given. Returns the step's exit
+ * status (null when a signal ended it).
+ */
+export function runToStderr(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  env?: NodeJS.ProcessEnv,
+): number | null {
+  return spawnSync(command, args, { cwd, stdio: ["ignore", 2, 2], ...(env === undefined ? {} : { env }) })
+    .status;
+}
 
 /** A stellar.expert link for a testnet transaction. */
 export function explorerUrl(hash: string, network: Network = "stellar:testnet"): string {
@@ -138,11 +162,17 @@ export class CaseRecorder {
     return passed;
   }
 
-  /** Records a case that cannot run here, with the reason. */
-  skip(spec: CaseSpec, reason: string): void {
+  /** Records a case that cannot run here, with the reason and why it is skipped (its category). */
+  skip(spec: CaseSpec, reason: string, category: SkipCategory): void {
     if (!this.selected(spec.id)) return;
-    log(`SKIP ${spec.id}: ${reason}`);
-    this.cases.push({ ...caseFields(spec), status: "skipped", skipReason: reason, elapsedMs: 0 });
+    log(`SKIP ${spec.id} (${category}): ${reason}`);
+    this.cases.push({
+      ...caseFields(spec),
+      status: "skipped",
+      skipReason: reason,
+      skipCategory: category,
+      elapsedMs: 0,
+    });
   }
 
   get failed(): number {
@@ -191,7 +221,7 @@ export async function settledTransaction(
   const onChain = await onChainSettlement(net.server, net.passphrase, hash);
   let xdr: { envelopeXdr: string; resultXdr: string } | undefined;
   if (facts.withXdr === true) {
-    const response = await net.server.getTransaction(hash);
+    const response = await settledLookup(net.server, hash);
     if (response.status !== rpc.Api.GetTransactionStatus.SUCCESS)
       throw new Error(`${hash} is not successful`);
     xdr = {
@@ -216,7 +246,12 @@ export async function settledTransaction(
       to: transfer.to,
       amount: transfer.amount.toString(),
     })),
-    explorer: explorerUrl(hash, facts.network),
+    // Without an explicit network, the client's passphrase says which explorer to link.
+    explorer: explorerUrl(
+      hash,
+      facts.network ??
+        (net.passphrase === (Networks.PUBLIC as string) ? "stellar:pubnet" : "stellar:testnet"),
+    ),
     ...(xdr ?? {}),
   };
 }
@@ -239,8 +274,21 @@ export interface EvidenceContext {
   readonly config: Record<string, string | number | boolean>;
   readonly accounts: Record<string, string>;
   readonly upstream?: Evidence["upstream"];
+  /** The network profile block; required on pubnet. */
+  readonly profile?: Evidence["profile"];
   readonly startedAt: string;
   readonly finishedAt?: string;
+}
+
+/**
+ * The upstream drift at test time, from RAIL402_UPSTREAM_DRIFT (`none` or the watch's fingerprint),
+ * which `pnpm evidence` sets from `pnpm upstream:watch` before the harnesses run.
+ */
+function upstreamDrift(env = process.env): { upstreamDrift?: { fingerprint: string | null } } {
+  const value = env["RAIL402_UPSTREAM_DRIFT"]?.trim();
+  if (value === "none") return { upstreamDrift: { fingerprint: null } };
+  if (value !== undefined && /^[0-9a-f]{64}$/.test(value)) return { upstreamDrift: { fingerprint: value } };
+  return {};
 }
 
 /** A schemaVersion 2 evidence document; `writeEvidence` enforces the writer rules. */
@@ -260,6 +308,8 @@ export function buildEvidence(context: EvidenceContext, cases: readonly Evidence
       ...(context.provenance.branch === undefined ? {} : { branch: context.provenance.branch }),
     },
     ...(context.upstream === undefined ? {} : { upstream: context.upstream }),
+    ...(context.profile === undefined ? {} : { profile: context.profile }),
+    ...upstreamDrift(),
     packages: context.packages,
     command: context.command,
     config: context.config,

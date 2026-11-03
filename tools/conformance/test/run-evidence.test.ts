@@ -30,9 +30,11 @@ function declaredOptions(harness: string): string[] {
     else if (source[end] === "}" && --depth === 0) break;
   }
   const body = source.slice(open, end);
-  return [...body.matchAll(/^\s+(?:"([a-z0-9-]+)"|([a-z0-9]+)):\s*\{\s*type:/gm)].map(
+  const options = [...body.matchAll(/^\s+(?:"([a-z0-9-]+)"|([a-z0-9]+)):\s*\{\s*type:/gm)].map(
     (option) => option[1] ?? option[2] ?? "",
   );
+  // The shared `--network` option of network.ts.
+  return body.includes("...NETWORK_OPTION") ? [...options, "network"] : options;
 }
 
 describe("the evidence runbook", () => {
@@ -53,7 +55,8 @@ describe("the evidence runbook", () => {
 
   it("runs the live agent under the source condition; its packages come from the clean tarballs", () => {
     const agent = invocations.filter((entry) => entry.harness === "live-agent");
-    expect(agent).toHaveLength(2);
+    // The local rehearsal, the hosted run and the pubnet run.
+    expect(agent).toHaveLength(3);
     for (const { line } of agent) {
       expect(line).toContain('"${NODE[@]}" $H/live-agent.ts');
       expect(line, "pack-check builds the workspace itself").not.toContain("--skip-build");
@@ -61,7 +64,7 @@ describe("the evidence runbook", () => {
     expect(SCRIPT).not.toMatch(/^\s*(?:if )?pnpm build\b/m);
   });
 
-  it("installs the published packages in both agent runs when a registry is named", () => {
+  it("installs the published packages in every agent run when a registry is named", () => {
     expect(SCRIPT).toMatch(
       /^\[\[ -n "\$\{RAIL402_LIVE_AGENT_REGISTRY:-\}" \]\] && REGISTRY=\(--registry "\$RAIL402_LIVE_AGENT_REGISTRY"\)$/m,
     );
@@ -80,7 +83,8 @@ describe("the evidence runbook", () => {
 
   it("runs the hosted agent run with the Bazaar and seller it names", () => {
     const hosted = invocations.filter(
-      (entry) => entry.harness === "live-agent" && entry.flags.includes("seller"),
+      (entry) =>
+        entry.harness === "live-agent" && entry.flags.includes("seller") && !entry.flags.includes("network"),
     );
     expect(hosted).toHaveLength(1);
     expect(hosted[0]?.flags).toEqual(expect.arrayContaining(["bazaar", "seller"]));
@@ -114,6 +118,59 @@ describe("the evidence runbook", () => {
   it("prints the whole header comment for --help", () => {
     const header = SCRIPT.split("\n").findIndex((line, index) => index > 0 && !line.startsWith("#"));
     expect(SCRIPT).toContain(`sed -n '2,${String(header)}p' "$0"`);
+  });
+
+  it("runs only the reduced, capped step list on pubnet, against the deployed service", () => {
+    const pubnet = LINES.filter((line) => /--network pubnet/.test(line) && !/^\s*#/.test(line));
+    expect(pubnet.map((line) => /\$H\/([a-z0-9-]+)\.ts/.exec(line)?.[1])).toEqual([
+      "canonical",
+      "live-matrix",
+      "concurrency",
+      "upstream-e2e",
+      // Without its checkout, the suite is recorded as waiting on that dependency.
+      "upstream-e2e",
+      "rejection-audit",
+      "live-bazaar",
+      "live-agent",
+    ]);
+    for (const line of pubnet) {
+      expect(line).toMatch(/--(?:facilitator|bazaar) "\$P"/);
+      expect(line).not.toMatch(/test6|fault-recovery|benchmark|SPONSOR/);
+    }
+    expect(pubnet.find((line) => line.includes("--pending"))).toContain(
+      "RAIL402_X402_PUBNET_CHECKOUT is not set",
+    );
+    for (const cap of [
+      "RAIL402_PUBNET_MAX_SPEND_XLM",
+      "RAIL402_PUBNET_RUN_MAX_XLM",
+      "RAIL402_PUBNET_RUN_MAX_USDC_LOSS",
+    ]) {
+      expect(SCRIPT).toContain(cap);
+    }
+    expect(SCRIPT).toMatch(/needs_service\(\) \{\n\s+\[\[ "\$NETWORK" == pubnet \]\] && return 1/);
+  });
+
+  it("plans a pubnet run first, claims it once, and closes its ledger on every exit", () => {
+    const pubnet = SCRIPT.slice(SCRIPT.indexOf("# --- pubnet ---"));
+    // Without a confirmation the script plans and exits before any harness runs.
+    const plan = pubnet.indexOf('"${PUBNET_RUN[@]}" plan');
+    const claim = pubnet.indexOf('"${PUBNET_RUN[@]}" claim --run "$RAIL402_PUBNET_RUN_CONFIRM"');
+    const firstHarness = pubnet.indexOf("$H/canonical.ts");
+    expect(plan).toBeGreaterThan(-1);
+    expect(pubnet.slice(plan, claim)).toMatch(/exit 0/);
+    expect(claim).toBeGreaterThan(plan);
+    expect(firstHarness).toBeGreaterThan(claim);
+    expect(pubnet).toContain("export RAIL402_PUBNET_LEDGER");
+    // cleanup runs on every exit and closes the ledger the script claimed.
+    const cleanup = SCRIPT.slice(SCRIPT.indexOf("cleanup() {"), SCRIPT.indexOf("trap cleanup EXIT"));
+    expect(cleanup).toContain('tools/conformance/src/pubnet-run.ts close --ledger "$PUBNET_LEDGER_TO_CLOSE"');
+    expect(pubnet).toContain('PUBNET_LEDGER_TO_CLOSE="$RAIL402_PUBNET_LEDGER"');
+  });
+
+  it("records the upstream drift at test time for every harness", () => {
+    expect(SCRIPT).toContain("pnpm -s upstream:watch --json");
+    expect(SCRIPT).toContain("export RAIL402_UPSTREAM_DRIFT=none");
+    expect(SCRIPT.indexOf("RAIL402_UPSTREAM_DRIFT=none")).toBeLessThan(SCRIPT.indexOf("$H/canonical.ts"));
   });
 
   it("runs every default step", () => {
@@ -163,8 +220,36 @@ describe("the evidence runbook", () => {
     expect(hosted[0]?.line).toMatch(/^\s*run canonical-hosted /);
   });
 
+  it("records the deployed catalog's live Bazaar run beside the local one, only when it is named", () => {
+    const runs = invocations.filter(
+      (entry) => entry.harness === "live-bazaar" && !entry.line.includes("--network pubnet"),
+    );
+    expect(runs).toHaveLength(2);
+    const hosted = runs.filter((entry) => entry.line.includes("$HOSTED_URL"));
+    expect(hosted).toHaveLength(1);
+    expect(hosted[0]?.line).toMatch(/^\s*run live-bazaar-hosted /);
+    expect(hosted[0]?.line).toContain(
+      '--seller "${RAIL402_EVIDENCE_HOSTED_SELLER:-https://demo.rail402.dev}"',
+    );
+  });
+
+  it("pays a public seller in the pubnet Bazaar and agent runs, and fails them without one", () => {
+    const pubnet = invocations.filter(
+      (entry) =>
+        ["live-bazaar", "live-agent"].includes(entry.harness) && entry.line.includes("--network pubnet"),
+    );
+    expect(pubnet.map((entry) => entry.harness)).toEqual(["live-bazaar", "live-agent"]);
+    for (const { line } of pubnet) expect(line).toContain('--seller "$S"');
+    expect(SCRIPT).toContain('S="$RAIL402_EVIDENCE_PUBNET_SELLER"');
+    expect(SCRIPT).toMatch(
+      /RAIL402_EVIDENCE_PUBNET_SELLER \(a public demo seller, https\) is not set"\n\s+FAILED\+=/,
+    );
+  });
+
   it("records the deployed service's rejection audit beside the local one, only when it is named", () => {
-    const audits = invocations.filter((entry) => entry.harness === "rejection-audit");
+    const audits = invocations.filter(
+      (entry) => entry.harness === "rejection-audit" && !entry.line.includes("--network pubnet"),
+    );
     expect(audits).toHaveLength(2);
     const hosted = audits.filter((entry) => entry.line.includes("$HOSTED_URL"));
     expect(hosted).toHaveLength(1);

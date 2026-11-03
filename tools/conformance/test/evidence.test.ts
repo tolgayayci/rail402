@@ -235,6 +235,116 @@ describe("checkEvidence", () => {
     expect(findSecrets({ account: Keypair.random().publicKey(), text: `S${"A".repeat(55)}` })).toEqual([]);
   });
 
+  it("requires a profile on pubnet, spending within its caps and funds returned on a passing run", () => {
+    const profile = {
+      id: "pubnet" as const,
+      funding: "treasury" as const,
+      rpcProviders: ["mainnet.sorobanrpc.com"],
+      caps: {
+        maxXlmStroops: "50000000",
+        maxUsdcBaseUnits: "50000000",
+        maxSettlements: 100,
+        maxNewAccounts: 6,
+      },
+      spent: { xlmStroops: "1200000", usdcBaseUnits: "20000000", settlements: 12, newAccounts: 2 },
+      sweep: { status: "done" as const, transactions: ["c".repeat(64)] },
+    };
+    const pubnet = { network: "stellar:pubnet" as const };
+    expect(checkEvidence(sample(pubnet)).problems).toEqual(["a pubnet run needs its profile block"]);
+    expect(checkEvidence(sample({ ...pubnet, profile })).problems).toEqual([]);
+    expect(
+      checkEvidence(
+        sample({ ...pubnet, profile: { ...profile, spent: { ...profile.spent, settlements: 101 } } }),
+      ).problems,
+    ).toEqual(["profile.spent.settlements is over its cap"]);
+    expect(
+      checkEvidence(
+        sample({ ...pubnet, profile: { ...profile, sweep: { status: "partial", transactions: [] } } }),
+      ).problems,
+    ).toEqual(["a passing pubnet run must return its funds (sweep status partial)"]);
+    const { caps: _caps, ...uncapped } = profile;
+    expect(checkEvidence(sample({ ...pubnet, profile: uncapped })).problems).toEqual([
+      "a pubnet run needs its spend caps",
+    ]);
+    expect(
+      checkEvidence(
+        sample({ ...pubnet, profile: { ...profile, rpcProviders: ["https://rpc.example/?key=x"] } }),
+      ).problems.join("\n"),
+    ).toMatch(/must be a host name/);
+  });
+
+  it("checks a pubnet run's stranded funds and the whole run's net caps", () => {
+    const profile = {
+      id: "pubnet" as const,
+      funding: "treasury" as const,
+      rpcProviders: ["mainnet.sorobanrpc.com"],
+      caps: {
+        maxXlmStroops: "50000000",
+        maxUsdcBaseUnits: "50000000",
+        maxSettlements: 100,
+        maxNewAccounts: 6,
+      },
+      spent: { xlmStroops: "1200000", usdcBaseUnits: "20000000", settlements: 12, newAccounts: 2 },
+      returned: { xlmStroops: "39000000", usdcBaseUnits: "20000000" },
+      sweep: {
+        status: "done" as const,
+        transactions: ["c".repeat(64)],
+        stranded: { usdcBaseUnits: "0", xlmStroops: "0" },
+      },
+      run: {
+        id: "0123456789abcdef",
+        spent: { xlmStroops: "90000000", usdcBaseUnits: "60000000", settlements: 30, newAccounts: 12 },
+        returned: { xlmStroops: "80000000", usdcBaseUnits: "59990000" },
+        caps: { maxNetXlmStroops: "20000000", maxNetUsdcBaseUnits: "100000" },
+      },
+    };
+    const pubnet = { network: "stellar:pubnet" as const };
+    expect(checkEvidence(sample({ ...pubnet, profile })).problems).toEqual([]);
+    // Funds left behind under a "done" sweep are refused.
+    expect(
+      checkEvidence(
+        sample({
+          ...pubnet,
+          profile: {
+            ...profile,
+            sweep: { ...profile.sweep, stranded: { usdcBaseUnits: "5", xlmStroops: "0" } },
+          },
+        }),
+      ).problems,
+    ).toEqual(["profile.sweep left funds behind but its status is not partial"]);
+    expect(
+      checkEvidence(
+        sample({
+          ...pubnet,
+          profile: { ...profile, run: { ...profile.run, returned: { xlmStroops: "0", usdcBaseUnits: "0" } } },
+        }),
+      ).problems,
+    ).toEqual(["profile.run spent more net XLM than its cap", "profile.run lost more USDC than its cap"]);
+  });
+
+  it("requires a skip category on the skipped cases of a run recorded from the requirement's date", () => {
+    const recent = { startedAt: "2026-10-24T10:00:00.000Z", finishedAt: "2026-10-24T10:05:00.000Z" };
+    expect(checkEvidence(sample(recent)).problems).toEqual([
+      "cases.1 (upto): a skipped case needs a skipCategory",
+    ]);
+    expect(
+      checkEvidence(sample({ ...recent, cases: [SETTLED, { ...SKIPPED, skipCategory: "environment" }] }))
+        .problems,
+    ).toEqual([]);
+    // Files recorded before are read as they are.
+    expect(checkEvidence(sample()).problems).toEqual([]);
+  });
+
+  it("allows a skip category on skipped cases only", () => {
+    expect(
+      checkEvidence(sample({ cases: [SETTLED, { ...SKIPPED, skipCategory: "pending-dependency" }] }))
+        .problems,
+    ).toEqual([]);
+    expect(
+      checkEvidence(sample({ cases: [{ ...SETTLED, skipCategory: "by-design" }, SKIPPED] })).problems,
+    ).toEqual(["cases.0 (g-payer-settles): skipCategory is only allowed on skipped cases"]);
+  });
+
   it("refuses a path of the machine that recorded it", () => {
     const home = join(tmpdir(), "rail402-live-agent-home-x", "payer.key");
     expect(checkEvidence(sample({ command: `rail402 keys new --key-file ${home}` })).problems).toEqual([
