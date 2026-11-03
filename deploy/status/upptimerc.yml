@@ -1,0 +1,114 @@
+# The public status page's checks (Upptime, MIT): copy to .upptimerc.yml in the status repository. Checks
+# run from GitHub Actions every 5 minutes, outside the service's host, and are read-only: no check pays,
+# signs or writes anything. Each check asserts content, not only a status code, so a proxy error page or a
+# half-started service counts as down.
+#
+# Availability is Upptime's own figure: a failed check opens an incident issue and the next passing check
+# closes it, and a component's uptime is the share of the window not covered by its incidents. Checks run
+# every 5 minutes at best (GitHub may delay or skip scheduled runs), so an outage that starts and ends
+# between two runs is not seen, and an incident's length is known only to the run interval. This
+# is not the internal monitoring, which scrapes every 15 seconds. Each network's readiness
+# (/ready/testnet, /ready/pubnet) is its own component: it follows that network's RPC and sponsor, so it is
+# the "degraded" signal. /health only marks a starting service as down: its top-level state aggregates both
+# networks' warnings, so it does not stand for either network.
+owner: tolgayayci
+repo: rail402-status
+user-agent: rail402-status
+sites:
+  # --- testnet ---
+  - name: Testnet facilitator /supported
+    url: https://testnet.rail402.dev/supported
+    expectedStatusCodes: [200]
+    maxResponseTime: 5000
+    __dangerous__body_down_if_text_missing: '"areFeesSponsored":true'
+    tags: [testnet, facilitator]
+  - name: Testnet Bazaar /discovery/resources
+    url: https://testnet.rail402.dev/discovery/resources?limit=1
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: '"items"'
+    tags: [testnet, bazaar]
+  - name: Testnet Bazaar /discovery/search
+    url: https://testnet.rail402.dev/discovery/search?query=weather&limit=1
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: '"partialResults"'
+    tags: [testnet, bazaar]
+  - name: Testnet facilitator /health
+    url: https://testnet.rail402.dev/health
+    expectedStatusCodes: [200]
+    __dangerous__body_down: '"state":"starting"'
+    tags: [testnet, facilitator]
+  - name: Testnet readiness /ready/testnet (degraded signal)
+    url: https://testnet.rail402.dev/ready/testnet
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: '"ready":true'
+    tags: [testnet, readiness]
+  # --- mainnet: published once the mainnet host serves ---
+  - name: Mainnet facilitator /supported
+    url: https://mainnet.rail402.dev/supported
+    expectedStatusCodes: [200]
+    maxResponseTime: 5000
+    __dangerous__body_down_if_text_missing: '"stellar:pubnet"'
+    tags: [pubnet, facilitator]
+  - name: Mainnet Bazaar /discovery/resources
+    url: https://mainnet.rail402.dev/discovery/resources?limit=1
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: '"items"'
+    tags: [pubnet, bazaar]
+  - name: Mainnet Bazaar /discovery/search
+    url: https://mainnet.rail402.dev/discovery/search?query=weather&limit=1
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: '"partialResults"'
+    tags: [pubnet, bazaar]
+  - name: Mainnet facilitator /health
+    url: https://mainnet.rail402.dev/health
+    expectedStatusCodes: [200]
+    __dangerous__body_down: '"state":"starting"'
+    tags: [pubnet, facilitator]
+  - name: Mainnet readiness /ready/pubnet (degraded signal)
+    url: https://mainnet.rail402.dev/ready/pubnet
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: '"ready":true'
+    tags: [pubnet, readiness]
+  - name: Mainnet hosted MCP
+    url: https://mainnet.rail402.dev/mcp/pubnet
+    expectedStatusCodes: [405]
+    __dangerous__body_down_if_text_missing: '"method_not_allowed"'
+    tags: [pubnet, mcp]
+  # --- other public services ---
+  - name: Demo seller
+    url: https://demo.rail402.dev/weather
+    expectedStatusCodes: [402]
+    tags: [testnet, demo]
+  - name: Playground
+    url: https://playground.rail402.dev/
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: "Rail402"
+    tags: [testnet, playground]
+  # The hosted MCP server takes JSON-RPC over POST only, and these checks never write: a GET answered with
+  # the server's own method_not_allowed error shows the MCP route is served.
+  - name: Testnet hosted MCP
+    url: https://testnet.rail402.dev/mcp/testnet
+    expectedStatusCodes: [405]
+    __dangerous__body_down_if_text_missing: '"method_not_allowed"'
+    tags: [testnet, mcp]
+  - name: Explorer
+    url: https://explorer.rail402.dev/health
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: '"status":"ok"'
+    tags: [testnet, explorer]
+  - name: Documentation
+    url: https://docs.rail402.dev/
+    expectedStatusCodes: [200]
+    tags: [docs]
+status-website:
+  cname: status.rail402.dev
+  name: Rail402 status
+  introTitle: Rail402 status
+  introMessage: >-
+    Checks run about every 5 minutes from outside the service, with content assertions; an outage shorter
+    than one interval can be missed. Each network's readiness is shown separately: it follows that
+    network's RPC.
+  navbar:
+    - title: Documentation
+      url: https://docs.rail402.dev
+skipPoweredByReadme: false

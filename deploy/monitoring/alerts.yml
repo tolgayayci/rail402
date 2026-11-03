@@ -1,0 +1,385 @@
+# Rendered from deploy/monitoring/alerts.ts by `node deploy/monitoring/alerts.ts`; edit that file.
+# Every alert carries a severity (page, ticket or heartbeat), an owner role and a runbook link.
+groups:
+  - name: rail402
+    rules:
+      - alert: Rail402Down
+        expr: 'up{job="rail402"} == 0'
+        for: 2m
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "A Rail402 replica does not answer its metrics scrape."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402down"
+      - alert: Rail402NoReplica
+        expr: 'absent(up{job="rail402"} == 1)'
+        for: 2m
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "No Rail402 replica answers its metrics scrape."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402noreplica"
+      - alert: Rail402ReplicaMissing
+        expr: 'count(up{job="rail402"} == 1) < 2'
+        for: 10m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "Fewer replicas answer than the deployment runs."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402replicamissing"
+      - alert: Rail402NotReady
+        expr: 'probe_success{job="rail402-ready"} == 0'
+        for: 5m
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "A replica's /ready has failed for 5 minutes."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402notready"
+      - alert: Rail402SupportedBroken
+        expr: 'probe_success{job="rail402-supported"} == 0'
+        for: 5m
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "/supported does not advertise sponsored fees."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402supportedbroken"
+      - alert: Rail402NetworkNotReady
+        expr: 'probe_success{job=~"rail402-ready-(testnet|pubnet)"} == 0 and on (network) count by (network) (rail402_network_serving)'
+        for: 5m
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "A network's /ready/<network> has failed for 5 minutes."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402networknotready"
+      - alert: Rail402NetworkHeld
+        expr: "rail402_network_serving == 0"
+        for: 5m
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "A network has not been serving payments for 5 minutes."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402networkheld"
+      - alert: Rail402SponsorBalanceLow
+        expr: 'rail402_sponsor_balance_stroops < rail402_sponsor_balance_floor_stroops or rail402_sponsor_balance_stroops{network!="stellar:testnet"} < 1000000000'
+        for: 5m
+        labels:
+          severity: '{{ if eq $labels.network "stellar:testnet" }}ticket{{ else }}page{{ end }}'
+          owner: '{{ if eq $labels.network "stellar:testnet" }}primary on-call{{ else }}key custodian{{ end }}'
+        annotations:
+          summary: "A network's fee sponsor balance is below its readiness floor, or a pubnet sponsor below 100 XLM."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402sponsorbalancelow"
+      - alert: Rail402SponsorBudgetNearlySpent
+        expr: "rail402_sponsor_budget_used_ratio > 0.8"
+        for: 5m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "More than 80% of a network's hourly sponsor budget is committed."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402sponsorbudgetnearlyspent"
+      - alert: Rail402SponsorGuardRefusing
+        expr: "increase(rail402_sponsor_guard_refusals_total[10m]) > 0"
+        for: 0s
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "The sponsor guard refused settlements."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402sponsorguardrefusing"
+      - alert: Rail402WastedFees
+        expr: 'increase(rail402_sponsor_fees_stroops_total{outcome="wasted"}[1h]) > 5000000'
+        for: 0s
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "Settlements that failed on chain cost more than the hourly allowance."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402wastedfees"
+      - alert: Rail402ChannelsExhausted
+        expr: "rail402_channels_total > 0 and rail402_channels_in_use >= rail402_channels_total"
+        for: 5m
+        labels:
+          severity: page
+          owner: "primary on-call"
+          cause: channels
+        annotations:
+          summary: "Every channel account has been busy for 5 minutes."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402channelsexhausted"
+      - alert: Rail402ChannelLeaseTimeouts
+        expr: "increase(rail402_channel_lease_timeouts_total[10m]) > 0"
+        for: 0s
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+          cause: channels
+        annotations:
+          summary: "Settlements timed out waiting for a channel."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402channelleasetimeouts"
+      - alert: Rail402SequenceConflict
+        expr: 'increase(rail402_sequence_conflicts_total{kind="bad_seq"}[10m]) > 0'
+        for: 0s
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "A channel account's sequence number was used outside Rail402."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402sequenceconflict"
+      - alert: Rail402SettlementsUnresolvable
+        expr: "rail402_settlements_unresolvable > 0"
+        for: 0s
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "A recorded settlement can no longer be proven landed or not."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402settlementsunresolvable"
+      - alert: Rail402SettlementFailureRate
+        expr: 'sum by (network) (rate(rail402_settlements_total{outcome="failure"}[10m])) > 0.2 * sum by (network) (rate(rail402_settlements_total[10m])) and sum by (network) (rate(rail402_settlements_total[10m])) > 0.01'
+        for: 10m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "More than 20% of settlements fail."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402settlementfailurerate"
+      - alert: Rail402RpcStale
+        expr: "rail402_rpc_ledger_age_seconds > 60"
+        for: 2m
+        labels:
+          severity: page
+          owner: "primary on-call"
+          cause: rpc
+        annotations:
+          summary: "The RPC's latest ledger is more than a minute old."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402rpcstale"
+      - alert: Rail402RpcTransportErrors
+        expr: "increase(rail402_rpc_transport_errors_total[10m]) > 10"
+        for: 0s
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "RPC or Horizon requests fail at the transport level."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402rpctransporterrors"
+      - alert: Rail402RpcFailover
+        expr: "increase(rail402_rpc_failovers_total[15m]) > 0"
+        for: 0s
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+          cause: rpc
+        annotations:
+          summary: "A network failed over to another RPC provider."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402rpcfailover"
+      - alert: Rail402ContractTtlLow
+        expr: "rail402_contract_ttl_ledgers < 120960"
+        for: 15m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "A watched contract entry expires in less than about 7 days."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402contractttllow"
+      - alert: Rail402UptoAuthorityFunded
+        expr: "rail402_upto_authority_balance_stroops > 0"
+        for: 15m
+        labels:
+          severity: ticket
+          owner: "key custodian"
+        annotations:
+          summary: "The settlement authority holds XLM."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402uptoauthorityfunded"
+      - alert: Rail402TtlKeeperFailed
+        expr: 'increase(rail402_upto_ttl_keeper_actions_total{outcome="failed"}[1h]) > 0'
+        for: 0s
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "The contract TTL keeper failed an extension or restore."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402ttlkeeperfailed"
+      - alert: Rail402SearchIndexBuildFailed
+        expr: 'increase(rail402_search_index_builds_total{outcome!="ok"}[1h]) > 0'
+        for: 0s
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "A search index build failed or fell back."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402searchindexbuildfailed"
+      - alert: Rail402DiscoveryShedding
+        expr: "sum without (route) (increase(rail402_discovery_shed_total[10m])) > 20"
+        for: 5m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "Discovery keeps refusing requests with 503 under load."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402discoveryshedding"
+      - alert: Rail402CatalogOutboxBacklog
+        expr: "rail402_catalog_outbox_pending > 500"
+        for: 30m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "Settled payments are waiting to be cataloged."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402catalogoutboxbacklog"
+      - alert: Rail402BackgroundErrors
+        expr: "increase(rail402_background_errors_total[15m]) > 5"
+        for: 0s
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "A background task keeps failing."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402backgrounderrors"
+      - alert: Rail402AccessKeysReloadFailed
+        expr: "increase(rail402_access_keys_reload_failures_total[15m]) > 0"
+        for: 0s
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "The access-key file could not be reloaded."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402accesskeysreloadfailed"
+      - alert: Watchdog
+        expr: "vector(1)"
+        for: 0s
+        labels:
+          severity: heartbeat
+          owner: "primary on-call"
+        annotations:
+          summary: "Always firing: proves the alerting pipeline works."
+          runbook_url: "https://docs.rail402.dev/runbook#watchdog"
+  # The Explorer (indexers and web role) and the hosted MCP endpoint.
+  - name: rail402-apps
+    rules:
+      - alert: Rail402ExplorerLag
+        expr: 'rail402_explorer_lag_ledgers > 720 or changes(rail402_explorer_last_ledger[1h]) == 0 or on (instance) (up{job="rail402-explorer-indexer"} == 1 unless on (instance) rail402_explorer_last_ledger)'
+        for: 15m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "The Explorer indexer is more than about an hour behind the network, or not progressing."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402explorerlag"
+      - alert: Rail402ExplorerIndexerDown
+        expr: 'up{job="rail402-explorer-indexer"} == 0'
+        for: 5m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "An Explorer indexer does not answer its metrics scrape."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402explorerindexerdown"
+      - alert: Rail402ExplorerIndexerFailures
+        expr: "increase(rail402_explorer_failures_total[15m]) > 0 or increase(rail402_explorer_chain_breaks_total[15m]) > 0"
+        for: 0s
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "An Explorer indexer recorded indexing failures or a chain break."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402explorerindexerfailures"
+      - alert: Rail402ExplorerDiscoveryAnomaly
+        expr: "increase(rail402_explorer_candidates_capped_total[1h]) > 0 or increase(rail402_explorer_head_regressions_total[1h]) > 0 or increase(rail402_explorer_discovery_restarts_total[1h]) > 0"
+        for: 0s
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "Explorer discovery listed unusually many candidates, saw its source's head far behind, or restarted routes."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402explorerdiscoveryanomaly"
+      - alert: Rail402ExplorerWebDown
+        expr: 'up{job="rail402-explorer-web"} == 0'
+        for: 5m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "The Explorer web role does not answer its metrics scrape."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402explorerwebdown"
+      - alert: Rail402McpDown
+        expr: 'up{job="rail402-mcp"} == 0'
+        for: 5m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "The hosted MCP endpoint does not answer its metrics scrape."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402mcpdown"
+      - alert: Rail402McpUpstreamBudget
+        expr: 'increase(rail402_mcp_refusals_total{reason="upstream_budget"}[15m]) > 10'
+        for: 15m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "The hosted MCP endpoint keeps refusing calls for lack of upstream budget."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402mcpupstreambudget"
+  # The database host: WAL archiving and backups (deploy/postgres/backup-metrics.sh through
+  # node_exporter's textfile collector) and free disk space (node_exporter).
+  - name: rail402-host
+    rules:
+      - alert: Rail402WalArchiveFailing
+        expr: "rail402_wal_last_failed_timestamp_seconds > rail402_wal_last_archived_timestamp_seconds"
+        for: 5m
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "Postgres cannot archive WAL to the backup repository."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402walarchivefailing"
+      - alert: Rail402WalArchiveBehind
+        expr: "rail402_wal_archive_oldest_pending_seconds > 900"
+        for: 0s
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "A WAL segment has waited more than 15 minutes for the archive."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402walarchivebehind"
+      - alert: Rail402BackupStale
+        expr: "time() - max without (type) (rail402_backup_last_completed_timestamp_seconds) > 108000 or absent(rail402_backup_last_completed_timestamp_seconds) and on() rail402_wal_archive_enabled == 1 and on() rail402_wal_archive_enabled offset 6h == 1"
+        for: 0s
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "The newest completed backup is more than 30 hours old, or none is listed."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402backupstale"
+      - alert: Rail402BackupMetricsStale
+        expr: "time() - rail402_backup_metrics_collected_timestamp_seconds > 600 or absent(rail402_backup_metrics_collected_timestamp_seconds)"
+        for: 5m
+        labels:
+          severity: ticket
+          owner: "primary on-call"
+        annotations:
+          summary: "The archive and backup metrics stopped updating."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402backupmetricsstale"
+      - alert: Rail402DiskAlmostFull
+        expr: 'node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs"} < 0.1'
+        for: 5m
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "A host filesystem has less than 10% free space."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402diskalmostfull"
+      - alert: Rail402DiskFillingFast
+        expr: 'predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs"}[6h], 4 * 3600) < 0'
+        for: 30m
+        labels:
+          severity: page
+          owner: "primary on-call"
+        annotations:
+          summary: "A host filesystem will be full within 4 hours at its current rate."
+          runbook_url: "https://docs.rail402.dev/runbook#rail402diskfillingfast"

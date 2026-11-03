@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'sha256-tsFiml+Quil8b37Vhff4ifL4Wq7qia2LXz/Vn2sraPk='; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <title>Rail402 Status</title>
+    <meta
+      name="description"
+      content="Availability of Rail402's hosted x402 services on Stellar, checked every 5 minutes from outside the service."
+    />
+    <link rel="icon" type="image/svg+xml" href="design/logos/rail402-mark.svg" />
+    <link
+      rel="preload"
+      href="design/fonts/space-grotesk-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="preload" href="design/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link
+      rel="preload"
+      href="design/fonts/jetbrains-mono-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="design/tokens.css" />
+    <link rel="stylesheet" href="design/rail402.css" />
+    <link rel="stylesheet" href="status.css" />
+  </head>
+  <body class="r4-page">
+    <header class="r4-header">
+      <div class="container">
+        <a class="r4-brand" href="https://rail402.dev">
+          <img src="design/logos/rail402-mark.svg" alt="" width="28" height="28" />
+          <span class="r4-brand-name">Rail402</span>
+          <span class="r4-brand-product">Status</span>
+        </a>
+        <nav class="r4-nav" aria-label="Rail402">
+          <a class="ext" href="https://docs.rail402.dev" target="_blank" rel="noopener"
+            ><svg class="nav-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M3 13V3.5A1.5 1.5 0 0 1 4.5 2H13v9.5H4.5A1.5 1.5 0 0 0 3 13a1.5 1.5 0 0 0 1.5 1.5H13"
+              />
+              <path d="M6 5h4" /></svg
+            >Docs<span class="sr"> (opens in a new tab)</span
+            ><svg class="ext-arrow" width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+              <path d="M4 2H9V7M9 2L3 8" /></svg
+          ></a>
+          <a class="ext" href="https://playground.rail402.dev" target="_blank" rel="noopener"
+            ><svg class="nav-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M6 2h4" />
+              <path d="M7 2v4.2L3.2 12.6A1 1 0 0 0 4.1 14h7.8a1 1 0 0 0 .9-1.4L9 6.2V2" />
+              <path d="M4.8 10h6.4" /></svg
+            >Playground<span class="sr"> (opens in a new tab)</span
+            ><svg class="ext-arrow" width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+              <path d="M4 2H9V7M9 2L3 8" /></svg
+          ></a>
+          <a class="ext" href="https://explorer.rail402.dev" target="_blank" rel="noopener"
+            ><svg class="nav-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" />
+              <path d="m10.5 5.5-1.6 3.4-3.4 1.6 1.6-3.4z" /></svg
+            >Explorer<span class="sr"> (opens in a new tab)</span
+            ><svg class="ext-arrow" width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+              <path d="M4 2H9V7M9 2L3 8" /></svg
+          ></a>
+        </nav>
+        <button class="r4-button help-open" type="button" id="help-open" aria-haspopup="dialog">
+          Have a problem?
+        </button>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <div class="r4-notice" data-kind="info" id="preview" hidden>
+        <span class="r4-notice-code">preview</span>
+        <span class="r4-notice-reason"
+          >Sample data. The real page reads the check history from the status repository once it runs.</span
+        >
+      </div>
+
+      <section class="r4-card summary" aria-live="polite" aria-labelledby="overall">
+        <div class="summary-head">
+          <span class="r4-badge" id="overall-badge">Loading</span>
+          <h1 class="title" id="overall">Loading status…</h1>
+        </div>
+        <p class="summary-sub body" id="overall-sub">Checked from outside the service, every 5 minutes</p>
+        <div id="overall-notice"></div>
+        <dl class="figures">
+          <div>
+            <dt class="r4-eyebrow">stellar:pubnet · lowest 7-day</dt>
+            <dd class="figure-value" id="fig-mainnet">—</dd>
+          </div>
+          <div>
+            <dt class="r4-eyebrow">stellar:testnet · lowest 7-day</dt>
+            <dd class="figure-value" id="fig-testnet">—</dd>
+          </div>
+          <div>
+            <dt class="r4-eyebrow">Measured since (UTC)</dt>
+            <dd class="figure-value" id="fig-since" data-quiet>—</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="net" id="mainnet" aria-labelledby="mainnet-title">
+        <h2 class="r4-h2" id="mainnet-title">
+          Mainnet<span class="r4-badge" data-network="stellar:pubnet">stellar:pubnet</span>
+        </h2>
+        <p class="net-note small">
+          One bar per UTC day for the last 30 days, oldest on the left, today on the right.
+        </p>
+        <div id="ledger-pubnet"></div>
+      </section>
+
+      <section class="net" id="testnet" aria-labelledby="testnet-title">
+        <h2 class="r4-h2" id="testnet-title">
+          Testnet<span class="r4-badge" data-network="stellar:testnet">stellar:testnet</span>
+        </h2>
+        <p class="net-note small">
+          One bar per UTC day for the last 30 days, oldest on the left, today on the right.
+        </p>
+        <div id="ledger-testnet"></div>
+      </section>
+
+      <ul class="legend small" aria-label="Legend">
+        <li>
+          <span class="key" aria-hidden="true"><i class="day"></i></span>No downtime
+        </li>
+        <li>
+          <span class="key" aria-hidden="true"><i class="day partial"></i></span>Up to 30 min down
+        </li>
+        <li>
+          <span class="key" aria-hidden="true"><i class="day down"></i></span>Over 30 min down
+        </li>
+        <li>
+          <span class="key" aria-hidden="true"><i class="day nodata"></i></span>Not measured
+        </li>
+      </ul>
+
+      <section class="net" id="incidents" aria-labelledby="incidents-title">
+        <h2 class="r4-h2" id="incidents-title">Incidents</h2>
+        <p class="net-note small">Posted by the operators after review.</p>
+        <div class="incidents" id="incident-list"></div>
+      </section>
+    </main>
+
+    <div class="day-tip" id="day-tip" role="tooltip" hidden></div>
+
+    <dialog class="help" id="help" aria-labelledby="help-title">
+      <div class="help-body">
+        <div class="help-head">
+          <h2 class="r4-card-title" id="help-title">Have a problem?</h2>
+          <button class="r4-icon-button" type="button" id="help-close" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 3l8 8M11 3l-8 8" />
+            </svg>
+          </button>
+        </div>
+        <p class="r4-card-body">
+          Tell us what went wrong. The network, the endpoint and the time in UTC help us find it fast.
+        </p>
+        <div class="help-options">
+          <a
+            class="r4-card"
+            href="https://github.com/tolgayayci/rail402/issues/new"
+            target="_blank"
+            rel="noopener"
+          >
+            <p class="r4-eyebrow" data-tone="accent">GitHub</p>
+            <h3 class="r4-card-title ext">
+              Open an issue<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M4 2h6v6M10 2L3 9" /></svg
+              ><span class="sr">(opens in a new tab)</span>
+            </h3>
+            <p class="r4-card-body">
+              Report a bug or an outage in public on tolgayayci/rail402, where others can follow it.
+            </p>
+          </a>
+          <a class="r4-card" href="mailto:tolga@yk-labs.com">
+            <p class="r4-eyebrow" data-tone="accent">Email</p>
+            <h3 class="r4-card-title">Reach us by email</h3>
+            <p class="r4-card-body">
+              Write to <span class="data">tolga@yk-labs.com</span> for anything you would rather not post in
+              public.
+            </p>
+          </a>
+        </div>
+      </div>
+    </dialog>
+
+    <script>
+      (function () {
+        "use strict";
+        var DAYS = 30;
+        // First day the checks ran (UTC, YYYY-MM-DD); earlier days show as not measured.
+        var MEASURED_SINCE = null;
+        var T = "https://testnet.rail402.dev";
+        var M = "https://mainnet.rail402.dev";
+        var EXPLORER = "https://explorer.rail402.dev/health";
+        var DOCS = "https://docs.rail402.dev/";
+        // Each row is matched to a check of deploy/status/upptimerc.yml by its URL. The Explorer and the
+        // documentation serve both networks, so their one check shows in both sections.
+        var COMPONENTS = [
+          {
+            net: "pubnet",
+            name: "Facilitator",
+            check: "GET /supported · advertises stellar:pubnet",
+            url: M + "/supported",
+          },
+          {
+            net: "pubnet",
+            name: "Network readiness",
+            check: "GET /ready/pubnet · RPC, sponsor, channels",
+            url: M + "/ready/pubnet",
+          },
+          { net: "pubnet", name: "Service health", check: "GET /health", url: M + "/health" },
+          {
+            net: "pubnet",
+            name: "Bazaar catalog",
+            check: "GET /discovery/resources",
+            url: M + "/discovery/resources?limit=1",
+          },
+          {
+            net: "pubnet",
+            name: "Bazaar search",
+            check: "GET /discovery/search",
+            url: M + "/discovery/search?query=weather&limit=1",
+          },
+          {
+            net: "pubnet",
+            name: "Hosted MCP",
+            check: "GET /mcp/pubnet · route answers",
+            url: M + "/mcp/pubnet",
+          },
+          { net: "pubnet", name: "Explorer", check: "GET explorer.rail402.dev/health", url: EXPLORER },
+          { net: "pubnet", name: "Documentation", check: "GET docs.rail402.dev", url: DOCS },
+          {
+            net: "testnet",
+            name: "Facilitator",
+            check: "GET /supported · advertises fee sponsorship",
+            url: T + "/supported",
+          },
+          {
+            net: "testnet",
+            name: "Network readiness",
+            check: "GET /ready/testnet · RPC, sponsor, channels",
+            url: T + "/ready/testnet",
+          },
+          { net: "testnet", name: "Service health", check: "GET /health", url: T + "/health" },
+          {
+            net: "testnet",
+            name: "Bazaar catalog",
+            check: "GET /discovery/resources",
+            url: T + "/discovery/resources?limit=1",
+          },
+          {
+            net: "testnet",
+            name: "Bazaar search",
+            check: "GET /discovery/search",
+            url: T + "/discovery/search?query=weather&limit=1",
+          },
+          {
+            net: "testnet",
+            name: "Hosted MCP",
+            check: "GET /mcp/testnet · route answers",
+            url: T + "/mcp/testnet",
+          },
+          { net: "testnet", name: "Explorer", check: "GET explorer.rail402.dev/health", url: EXPLORER },
+          {
+            net: "testnet",
+            name: "Playground",
+            check: "GET playground.rail402.dev",
+            url: "https://playground.rail402.dev/",
+          },
+          {
+            net: "testnet",
+            name: "Demo seller",
+            check: "GET demo.rail402.dev/weather · answers 402",
+            url: "https://demo.rail402.dev/weather",
+          },
+          { net: "testnet", name: "Documentation", check: "GET docs.rail402.dev", url: DOCS },
+        ];
+        var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+        function $(id) {
+          return document.getElementById(id);
+        }
+        function esc(s) {
+          return String(s).replace(/[&<>"']/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+          });
+        }
+        function day(d) {
+          return d.toISOString().slice(0, 10);
+        }
+        function lastDays() {
+          var out = [],
+            now = new Date();
+          var base = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+          for (var i = DAYS - 1; i >= 0; i--) out.push(day(new Date(base - i * 86400000)));
+          return out;
+        }
+        function longDate(d) {
+          var p = d.split("-");
+          return Number(p[2]) + " " + MONTHS[Number(p[1]) - 1] + " " + p[0];
+        }
+        function pct(s) {
+          var n = parseFloat(String(s || "").replace("%", ""));
+          return isFinite(n) ? n : null;
+        }
+        // The figure as recorded, cut (never rounded) to two decimals: 98.959 shows as 98.95 %, not 98.96 %.
+        function shown(s) {
+          var m = /^\s*(\d{1,3})(?:\.(\d*))?\s*%?\s*$/.exec(String(s === undefined || s === null ? "" : s));
+          return m ? m[1] + "." + ((m[2] || "") + "00").slice(0, 2) + "%" : null;
+        }
+        // The lowest recorded figure of a list, as shown().
+        function lowest(list) {
+          var best = null;
+          list.forEach(function (s) {
+            var n = pct(s);
+            if (n !== null && shown(s) !== null && (best === null || n < pct(best))) best = s;
+          });
+          return best === null ? null : shown(best);
+        }
+        function minutes(m) {
+          return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min";
+        }
+        function sinceText(since) {
+          if (!since) return null;
+          var start = Date.parse(since + "T00:00:00Z");
+          if (!isFinite(start)) return null;
+          var today = Date.parse(day(new Date()) + "T00:00:00Z");
+          var n = Math.max(0, Math.round((today - start) / 86400000)) + 1;
+          return since + " · " + n + (n === 1 ? " day" : " days");
+        }
+        // Each state is a word as well as a colour; the badge styles come from the design system.
+        var STATE = {
+          up: { label: "Operational", badge: "settled" },
+          degraded: { label: "Slow", badge: "pending" },
+          down: { label: "Down", badge: "failed" },
+        };
+        var DAY_STATE = {
+          up: ["settled", "No downtime"],
+          partial: ["pending", "Partial outage"],
+          down: ["failed", "Major outage"],
+          nodata: ["", "Not measured"],
+        };
+        function badge(status) {
+          var s = STATE[status];
+          if (!s) return '<span class="r4-badge">' + (status ? "Unknown" : "No data") + "</span>";
+          return '<span class="r4-badge" data-status="' + s.badge + '">' + s.label + "</span>";
+        }
+        function setBadge(el, status, label) {
+          var s = STATE[status];
+          if (s) el.setAttribute("data-status", s.badge);
+          else el.removeAttribute("data-status");
+          el.textContent = label || (s ? s.label : "No data");
+        }
+        function notice(kind, code, reason) {
+          return (
+            '<div class="r4-notice"' +
+            (kind ? ' data-kind="' + kind + '"' : "") +
+            '><span class="r4-notice-code">' +
+            esc(code) +
+            '</span><span class="r4-notice-reason">' +
+            esc(reason) +
+            "</span></div>"
+          );
+        }
+
+        // The days of every row, for the hover card: rows[i][d] = { date, state, minutes }.
+        var rows = [];
+        var issuesShown = [];
+
+        function record(entry, since) {
+          var down = (entry && entry.dailyMinutesDown) || {};
+          return lastDays().map(function (d) {
+            if (!entry || (since && d < since)) return { date: d, state: "nodata", minutes: 0 };
+            // The history file is data from outside the page: only a count of minutes is used.
+            var m = Math.max(0, Math.round(Number(down[d]) || 0));
+            return { date: d, state: m === 0 ? "up" : m <= 30 ? "partial" : "down", minutes: m };
+          });
+        }
+
+        function fact(k, v, title) {
+          return (
+            '<span class="fact" title="' +
+            esc(title) +
+            '"><span class="fact-k caption">' +
+            esc(k) +
+            '</span><span class="data">' +
+            esc(v) +
+            "</span></span>"
+          );
+        }
+
+        function row(c, entry, since) {
+          var status = entry ? entry.status : null;
+          var week = entry ? shown(entry.uptimeWeek) : null;
+          var all = entry ? shown(entry.uptime) : null;
+          var ms =
+            entry && entry.timeDay !== "" && isFinite(Number(entry.timeDay))
+              ? Math.round(Number(entry.timeDay))
+              : null;
+          var days = record(entry, since);
+          var index = rows.push(days) - 1;
+          var count = { up: 0, partial: 0, down: 0, nodata: 0 };
+          var cells = days
+            .map(function (d, i) {
+              count[d.state]++;
+              return (
+                '<span class="cell" data-row="' +
+                index +
+                '" data-day="' +
+                i +
+                '"><i class="day' +
+                (d.state === "up" ? "" : " " + d.state) +
+                '"></i></span>'
+              );
+            })
+            .join("");
+          var said =
+            count.up +
+            " days without downtime, " +
+            count.partial +
+            " with up to 30 minutes down, " +
+            count.down +
+            " with more, " +
+            count.nodata +
+            " not measured";
+          return (
+            '<div class="row">' +
+            '<div class="row-head"><div class="who"><p class="who-name">' +
+            esc(c.name) +
+            '</p><span class="who-check code">' +
+            esc(c.check) +
+            "</span></div>" +
+            '<div class="facts">' +
+            (ms !== null ? fact("today", ms + " ms", "Average response time today") : "") +
+            (week !== null ? fact("7 days", week, "Uptime over the last 7 days") : "") +
+            (all !== null ? fact("since start", all, "Uptime since the checks began") : "") +
+            badge(status) +
+            "</div></div>" +
+            '<div class="bars" tabindex="0" role="img" data-row="' +
+            index +
+            '" aria-label="' +
+            esc(c.name + ", last 30 days: " + said + ". Use the arrow keys for each day.") +
+            '">' +
+            cells +
+            "</div>" +
+            '<div class="axis caption" aria-hidden="true"><span>30 days ago</span><span class="axis-line"></span>' +
+            (all !== null ? "<span>" + esc(all) + ' uptime</span><span class="axis-line"></span>' : "") +
+            "<span>Today</span></div>" +
+            "</div>"
+          );
+        }
+
+        function ledger(net, byUrl, since, failed) {
+          var el = $("ledger-" + net);
+          if (failed) {
+            el.className = "";
+            el.innerHTML = notice(
+              "",
+              "data_unavailable",
+              "The checks for stellar:" +
+                net +
+                " could not be fetched, so no figures are shown. Reload the page in a few minutes.",
+            );
+            return;
+          }
+          el.className = "r4-card";
+          el.innerHTML =
+            '<div class="rows">' +
+            COMPONENTS.filter(function (c) {
+              return c.net === net;
+            })
+              .map(function (c) {
+                return row(c, byUrl[c.url], since);
+              })
+              .join("") +
+            "</div>";
+        }
+
+        function when(v) {
+          return String(v || "")
+            .slice(0, 16)
+            .replace("T", " ");
+        }
+        function span(i) {
+          var start = Date.parse(i.start || "");
+          var end = i.end ? Date.parse(i.end) : Date.now();
+          if (!isFinite(start) || !isFinite(end) || end < start) return "—";
+          return minutes(Math.round((end - start) / 60000)) + (i.end ? "" : " so far");
+        }
+        function incident(i) {
+          var open = !i.end;
+          return (
+            '<article class="r4-card incident">' +
+            '<div class="incident-head"><span class="r4-badge" data-status="' +
+            (open ? "failed" : "settled") +
+            '">' +
+            (open ? "Ongoing" : "Resolved") +
+            '</span><span class="incident-date data">' +
+            esc(String(i.start || "").slice(0, 10)) +
+            "</span></div>" +
+            '<h3 class="r4-card-title">' +
+            esc(i.title) +
+            "</h3>" +
+            (i.summary ? '<p class="r4-card-body">' + esc(i.summary) + "</p>" : "") +
+            '<dl class="incident-facts">' +
+            '<div><dt class="r4-eyebrow">Started</dt><dd class="data">' +
+            esc(when(i.start) + " UTC") +
+            "</dd></div>" +
+            '<div><dt class="r4-eyebrow">Resolved</dt><dd class="data">' +
+            esc(open ? "—" : when(i.end) + " UTC") +
+            "</dd></div>" +
+            '<div><dt class="r4-eyebrow">Duration</dt><dd class="data">' +
+            esc(span(i)) +
+            "</dd></div>" +
+            "</dl></article>"
+          );
+        }
+
+        function render(summary, issues, since, failed) {
+          rows = [];
+          var byUrl = {};
+          summary.forEach(function (s) {
+            if (s && typeof s.url === "string") byUrl[s.url] = s;
+          });
+          ledger("pubnet", byUrl, since, failed);
+          ledger("testnet", byUrl, since, failed);
+
+          var measured = COMPONENTS.map(function (c) {
+            return byUrl[c.url];
+          }).filter(Boolean);
+          var h = $("overall"),
+            b = $("overall-badge");
+          if (failed) {
+            h.textContent = "Status data could not be fetched";
+            setBadge(b, null);
+          } else if (!measured.length) {
+            h.textContent = "No checks recorded yet";
+            setBadge(b, null);
+          } else if (
+            measured.some(function (s) {
+              return s.status === "down";
+            })
+          ) {
+            h.textContent = "Some services are down";
+            setBadge(b, "down");
+          } else if (
+            measured.some(function (s) {
+              return s.status === "degraded";
+            })
+          ) {
+            h.textContent = "Some services are slow";
+            setBadge(b, "degraded");
+          } else {
+            h.textContent = "All systems operational";
+            setBadge(b, "up");
+          }
+          ["pubnet", "testnet"].forEach(function (net) {
+            var week = lowest(
+              COMPONENTS.filter(function (c) {
+                return c.net === net && byUrl[c.url];
+              }).map(function (c) {
+                return byUrl[c.url].uptimeWeek;
+              }),
+            );
+            $(net === "pubnet" ? "fig-mainnet" : "fig-testnet").textContent = week || "—";
+          });
+          $("fig-since").textContent = sinceText(since) || "—";
+          $("overall-sub").textContent = failed
+            ? "No figures are shown until the check data loads."
+            : measured.length
+              ? "Checked from outside the service, every 5 minutes"
+              : "The first check run has not finished.";
+          $("overall-notice").innerHTML = failed
+            ? notice(
+                "",
+                "data_unavailable",
+                "The check data could not be fetched. Reload the page in a few minutes.",
+              )
+            : "";
+
+          issuesShown = (issues || []).slice(0, 12);
+          $("incident-list").innerHTML = failed
+            ? '<div class="r4-card incident-empty"><p class="quiet body">Incidents could not be fetched with the check data.</p></div>'
+            : issuesShown.length
+              ? issuesShown.map(incident).join("")
+              : '<div class="r4-card incident-empty"><p class="quiet body">No incidents posted.</p></div>';
+          bindBars();
+        }
+
+        // The hover card of one day: its date, its state with the minutes down, and the incidents posted
+        // for it. Built as text nodes only; the keyboard reaches it through each row's bars.
+        var tip = $("day-tip");
+        var active = null;
+        function related(date) {
+          return issuesShown
+            .filter(function (i) {
+              var from = String(i.start || "").slice(0, 10);
+              var to = i.end ? String(i.end).slice(0, 10) : day(new Date());
+              return from && from <= date && date <= to;
+            })
+            .map(function (i) {
+              return String(i.title);
+            });
+        }
+        function el(tag, cls, text) {
+          var e = document.createElement(tag);
+          if (cls) e.className = cls;
+          if (text !== undefined) e.textContent = text;
+          return e;
+        }
+        function clearActive() {
+          var cells = document.querySelectorAll(".cell.is-active");
+          for (var k = 0; k < cells.length; k++) cells[k].classList.remove("is-active");
+        }
+        function showTip(r, i) {
+          var d = rows[r] && rows[r][i];
+          var cell = document.querySelector('.cell[data-row="' + r + '"][data-day="' + i + '"]');
+          if (!d || !cell) return;
+          active = { row: r, day: i };
+          clearActive();
+          cell.classList.add("is-active");
+          var state = DAY_STATE[d.state];
+          tip.textContent = "";
+          var arrow = el("span", "day-tip-arrow");
+          tip.appendChild(arrow);
+          tip.appendChild(el("p", "day-tip-date", longDate(d.date)));
+          var line = el("div", "day-tip-state");
+          var b = el("span", "r4-badge", state[1]);
+          if (state[0]) b.setAttribute("data-status", state[0]);
+          line.appendChild(b);
+          line.appendChild(el("span", "data", d.state === "nodata" ? "—" : minutes(d.minutes)));
+          tip.appendChild(line);
+          var titles = d.state === "nodata" ? [] : related(d.date);
+          if (titles.length) {
+            var rel = el("div", "day-tip-related");
+            rel.appendChild(el("p", "r4-eyebrow", "Related"));
+            titles.slice(0, 3).forEach(function (t) {
+              rel.appendChild(el("p", "body", t));
+            });
+            tip.appendChild(rel);
+          } else if (d.minutes > 0) {
+            tip.appendChild(el("p", "caption quiet", "No incident posted for this day."));
+          }
+          tip.hidden = false;
+          var box = cell.getBoundingClientRect();
+          var width = tip.offsetWidth;
+          var page = document.documentElement.clientWidth;
+          var center = box.left + box.width / 2;
+          var left = Math.max(16, Math.min(center - width / 2, page - width - 16));
+          tip.style.left = left + window.scrollX + "px";
+          tip.style.top = box.bottom + window.scrollY + 10 + "px";
+          arrow.style.left = center - left + "px";
+        }
+        function hideTip() {
+          active = null;
+          tip.hidden = true;
+          clearActive();
+        }
+        function bindBars() {
+          var bars = document.querySelectorAll(".bars");
+          for (var k = 0; k < bars.length; k++) {
+            bars[k].addEventListener("mouseover", function (e) {
+              var cell = e.target.closest(".cell");
+              if (cell) showTip(Number(cell.getAttribute("data-row")), Number(cell.getAttribute("data-day")));
+            });
+            bars[k].addEventListener("mouseleave", hideTip);
+            bars[k].addEventListener("focus", function (e) {
+              showTip(Number(e.currentTarget.getAttribute("data-row")), DAYS - 1);
+            });
+            bars[k].addEventListener("blur", hideTip);
+            bars[k].addEventListener("keydown", function (e) {
+              var r = Number(e.currentTarget.getAttribute("data-row"));
+              var i = active && active.row === r ? active.day : DAYS - 1;
+              var next = { ArrowLeft: i - 1, ArrowRight: i + 1, Home: 0, End: DAYS - 1 }[e.key];
+              if (e.key === "Escape") return hideTip();
+              if (next === undefined) return;
+              e.preventDefault();
+              showTip(r, Math.min(DAYS - 1, Math.max(0, next)));
+            });
+          }
+        }
+        window.addEventListener("resize", hideTip);
+
+        // The help dialog: a native modal, closed by its button, Escape or a click outside it.
+        var help = $("help");
+        $("help-open").addEventListener("click", function () {
+          help.showModal();
+        });
+        $("help-close").addEventListener("click", function () {
+          help.close();
+        });
+        help.addEventListener("click", function (e) {
+          if (e.target === help) help.close();
+        });
+
+        function sample() {
+          var days = lastDays();
+          var since = days[9];
+          function downs(seed) {
+            var out = {};
+            days.forEach(function (d, i) {
+              if (d < since) return;
+              var v = (i * 37 + seed * 11) % 97;
+              if (v === 3) out[d] = 41;
+              else if (v === 41 || v === 77) out[d] = 6 + seed;
+            });
+            return out;
+          }
+          var seen = {};
+          var summary = [];
+          COMPONENTS.forEach(function (c, k) {
+            if (seen[c.url]) return;
+            seen[c.url] = true;
+            summary.push({
+              name: c.name,
+              url: c.url,
+              status: "up",
+              uptime: (99.9 - (k % 5) * 0.03).toFixed(2) + "%",
+              uptimeWeek: (100 - (k % 3) * 0.06).toFixed(2) + "%",
+              timeDay: 180 + k * 17,
+              dailyMinutesDown: downs(k + 1),
+            });
+          });
+          return { summary: summary, issues: [], since: since };
+        }
+
+        var host = location.hostname;
+        var live = host === "status.rail402.dev";
+        if (!live) {
+          var s = sample();
+          $("preview").hidden = false;
+          render(s.summary, s.issues, s.since, false);
+          return;
+        }
+        Promise.all([
+          fetch("history/summary.json", { cache: "no-store" }).then(function (r) {
+            if (!r.ok) throw new Error(r.status);
+            return r.json();
+          }),
+          // Only incidents the operators have reviewed and posted; nothing from the checks is published on its own.
+          fetch("incidents.json", { cache: "no-store" })
+            .then(function (r) {
+              return r.ok ? r.json() : [];
+            })
+            .catch(function () {
+              return [];
+            }),
+        ])
+          .then(function (res) {
+            render(
+              Array.isArray(res[0]) ? res[0] : [],
+              Array.isArray(res[1]) ? res[1] : [],
+              MEASURED_SINCE,
+              false,
+            );
+          })
+          .catch(function () {
+            render([], [], MEASURED_SINCE, true);
+          });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,109 @@
+# Monitoring for a Rail402 Compose stack: Prometheus, Alertmanager, the blackbox exporter and
+# node_exporter, all Apache-2.0. Merge into the stack's compose file (or use `docker compose -f
+# compose.yaml -f this`), and add the facilitator replicas to the `scrape` network, and to no other
+# network of this file. The Explorer's indexers (explorer-indexer-testnet, explorer-indexer-pubnet),
+# its web role (explorer-web, with EXPLORER_METRICS_HOST=0.0.0.0) and the hosted MCP endpoint
+# (rail402-mcp) join `scrape` the same way when the deployment runs them (prometheus.yml).
+#
+# Nothing here publishes a port or joins the proxy's network. The networks are split by who may talk
+# to whom, because the facilitator holds the hot sponsor seed and is the process most exposed to
+# outside input:
+#   scrape        Prometheus, the blackbox exporter and the facilitator replicas: Prometheus pulls
+#                 metrics and probes from here.
+#   alerting      Prometheus and Alertmanager only. Alertmanager's API has no authentication and can
+#                 silence alerts, so nothing the service runs can reach it.
+#   host-metrics  Prometheus and node_exporter only: the host's filesystem figures stay away from the
+#                 service.
+#   alerting-egress  Alertmanager's notifications, the only route out.
+# Images are pinned by digest.
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+    # No --web.enable-admin-api and no --web.enable-lifecycle: whoever reaches Prometheus on the scrape
+    # network can read series, but cannot delete them, reload the rules or stop it.
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    secrets: [metrics_private_token]
+    networks: [scrape, alerting, host-metrics]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 768m
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    secrets: [alert_webhook_url, deadman_url]
+    networks: [alerting, alerting-egress]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    restart: unless-stopped
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.29.0@sha256:9613f2884689b6fad9f1939f6a3b0388c93a022cfaededb19545b329b5c83dea
+    command: [--config.file=/etc/blackbox/blackbox.yml]
+    volumes:
+      - ./monitoring/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    networks: [scrape]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 64m
+    restart: unless-stopped
+
+  # Free disk space of the host's filesystems, and the WAL archiving and backup figures that
+  # deploy/postgres/backup-metrics.sh writes to ./monitoring/textfile every minute. Every other
+  # collector is off.
+  node-exporter:
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    command:
+      - --path.rootfs=/host
+      - --collector.disable-defaults
+      - --collector.filesystem
+      - --collector.textfile
+      - --collector.textfile.directory=/textfile
+    volumes:
+      - /:/host:ro,rslave
+      - ./monitoring/textfile:/textfile:ro
+    networks: [host-metrics]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 64m
+    restart: unless-stopped
+
+networks:
+  # internal: no route to the internet or the host's other networks.
+  scrape:
+    internal: true
+  alerting:
+    internal: true
+  host-metrics:
+    internal: true
+  alerting-egress: {}
+
+volumes:
+  prometheus-data: {}
+  alertmanager-data: {}
+
+secrets:
+  metrics_private_token:
+    file: ./secrets/metrics_private_token
+  alert_webhook_url:
+    file: ./secrets/alert_webhook_url
+  deadman_url:
+    file: ./secrets/deadman_url

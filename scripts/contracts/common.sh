@@ -25,11 +25,14 @@ RELEASE_CLI_URL="https://github.com/stellar/stellar-cli/releases/download/v$RELE
 # `--optimize` is what the release workflow passes; `--locked` only refuses a stale lockfile.
 RELEASE_OPT=(--locked --optimize)
 SOURCE_REPO="github:tolgayayci/rail402"
+# The reviewed revision of stellar.expert's release workflow; a pubnet deploy accepts only an attestation
+# from it (.github/workflows/contract-release.yml checks the same revision).
+RELEASE_WORKFLOW_REVIEWED="6b16426dd3a61715ddddf83a2df322a6371fe071"
 
 FIXTURES="packages/testkit/fixtures"
 # The contracts built from this repository, by name. Each crate directory is its own Cargo
 # project (manifest, lockfile, toolchain file) and the complete build input of its wasm.
-CONTRACTS=(upto test-token approve-spending-limit)
+CONTRACTS=(upto test-token approve-spending-limit ed25519-account)
 
 # select_contract <name>: sets CONTRACT_NAME, CONTRACT_CRATE (crate directory), CONTRACT_RECIPE
 # (sep58 or release), CONTRACT_WASM (the file cargo writes), FIXTURE_WASM and FIXTURE_PROVENANCE for
@@ -43,6 +46,7 @@ select_contract() {
     approve-spending-limit)
       CONTRACT_CRATE="contracts/testing/approve-spending-limit" fixture="approve_spending_limit"
       ;;
+    ed25519-account) CONTRACT_CRATE="contracts/testing/ed25519-account" fixture="ed25519_account" ;;
     *) fail "unknown contract: $1 (known: ${CONTRACTS[*]})" ;;
   esac
   CONTRACT_NAME="$1"

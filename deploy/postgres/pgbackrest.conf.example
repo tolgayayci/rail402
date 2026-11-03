@@ -1,0 +1,45 @@
+# pgBackRest for a Rail402 database: WAL archived continuously, full and differential backups, everything
+# encrypted before it leaves the host. Generic example for an S3-compatible bucket.
+#
+# Deliver this file as a file secret (mode 0400, readable only by the database container's postgres user)
+# and point PGBACKREST_CONFIG at it: the repository key and the cipher passphrase belong in it, never in
+# the container's environment, where `docker inspect` shows them. Keep a copy of the cipher passphrase off
+# the host as well: without it the backups cannot be read.
+#
+# Immutability, in two tiers. pgBackRest rewrites backup.info and archive.info on every backup and
+# `expire` deletes old backup sets, so the bucket must accept overwrites and deletes; a store that refuses
+# every overwrite (a whole-bucket WORM mode) breaks it.
+#   1. Turn versioning on and give this host a key that can write objects but cannot delete object
+#      versions, change versioning or lifecycle, or bypass retention: an overwrite or a delete then only
+#      adds a version or a delete marker, and earlier versions stay recoverable.
+#   2. Object lock with a default retention on the versions (S3 object lock works per version, so
+#      overwrites and delete markers still succeed) keeps them undeletable for that period, even with the
+#      account's credentials; a lifecycle rule removes noncurrent versions once it has passed.
+# Run deploy/postgres/restore-drill.sh's steps against the real bucket, with its policy locked, before
+# relying on it: the committed drill uses a local repository.
+[global]
+repo1-type=s3
+repo1-s3-bucket=rail402-backups
+repo1-s3-endpoint=s3.example.com
+repo1-s3-region=example-region
+repo1-s3-key=<access key id>
+repo1-s3-key-secret=<secret access key>
+repo1-path=/rail402
+repo1-cipher-type=aes-256-cbc
+repo1-cipher-pass=<passphrase>
+# Keep two full backups and the WAL needed to restore to any point since the older one. Expiry runs after
+# each backup (expire-auto); with versioning it adds delete markers, and the locked versions stay.
+repo1-retention-full=2
+repo1-retention-full-type=count
+expire-auto=y
+repo1-s3-uri-style=path
+archive-async=y
+spool-path=/var/spool/pgbackrest
+start-fast=y
+compress-type=zst
+log-level-console=info
+log-level-file=detail
+
+[rail402]
+pg1-path=/var/lib/postgresql/18/docker
+pg1-user=rail402

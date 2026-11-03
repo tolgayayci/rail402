@@ -1,0 +1,5 @@
+# The keys allowed to sign Rail402 release tags (vX.Y.Z), in ssh-keygen's allowed_signers format: the
+# signer's git email, the namespaces it may sign, and its SSH public key. deploy/check-deployable.ts
+# verifies a release tag against this file only, never against the operator's own git trust settings.
+# A new release signer is added here in a reviewed commit on main, before signing a tag.
+40897846+tolgayayci@users.noreply.github.com namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICSFIiuD31JYsW6HF5ODYGZsLHTeXd5a1NJZyC3kO/KO

@@ -1,0 +1,145 @@
+# Prometheus for a Rail402 deployment. Generic example: service names match compose.example.yaml.
+# Prometheus has no published port; it reaches the replicas on the scrape network, Alertmanager on the
+# alerting network and node_exporter on the host-metrics network.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  # Every facilitator replica, found through the service's DNS name (one A record per replica).
+  # /metrics/private carries every series, including pubnet sponsor and budget figures; the bearer
+  # token is the value whose SHA-256 is METRICS_PRIVATE_TOKEN_SHA256. Set that variable on every
+  # deployment, one network or two: without it /metrics/private answers 404, every replica looks down
+  # (Rail402Down) and every metric-based alert is blind.
+  - job_name: rail402
+    metrics_path: /metrics/private
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/metrics_private_token
+    dns_sd_configs:
+      - names: [facilitator]
+        type: A
+        port: 8080
+        refresh_interval: 30s
+
+  # Process-level readiness of each replica, through the blackbox exporter: database, search index,
+  # access keys, and the networks that gate /ready (on a one-network deployment, that network).
+  # Targets are fixed here; the exporter allows only the modules in blackbox.yml.
+  - job_name: rail402-ready
+    metrics_path: /probe
+    params:
+      module: [rail402_ready]
+    dns_sd_configs:
+      - names: [facilitator]
+        type: A
+        port: 8080
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: (.+)
+        target_label: __param_target
+        replacement: http://${1}/ready
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # Each network's readiness on each replica (/ready/testnet, /ready/pubnet): with two networks in one
+  # process neither gates /ready, so an RPC outage shows here. Rail402NetworkNotReady ignores probes of
+  # a network the service does not report, so a testnet-only deployment may keep the pubnet job.
+  - job_name: rail402-ready-testnet
+    metrics_path: /probe
+    params:
+      module: [rail402_ready]
+    dns_sd_configs:
+      - names: [facilitator]
+        type: A
+        port: 8080
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: (.+)
+        target_label: __param_target
+        replacement: http://${1}/ready/testnet
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: network
+        replacement: stellar:testnet
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  - job_name: rail402-ready-pubnet
+    metrics_path: /probe
+    params:
+      module: [rail402_ready]
+    dns_sd_configs:
+      - names: [facilitator]
+        type: A
+        port: 8080
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: (.+)
+        target_label: __param_target
+        replacement: http://${1}/ready/pubnet
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: network
+        replacement: stellar:pubnet
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # /supported must answer 200 and advertise sponsored fees.
+  - job_name: rail402-supported
+    metrics_path: /probe
+    params:
+      module: [rail402_supported]
+    static_configs:
+      - targets: ["http://facilitator:8080/supported"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # The Explorer: each indexer serves /metrics with its health on 9464 (lag, failures, chain breaks), the
+  # web role on 9465 (EXPLORER_METRICS_HOST=0.0.0.0, on the scrape network only). Targets are listed
+  # one by one, so a stopped indexer stays a target with up == 0 (Rail402ExplorerIndexerDown) instead
+  # of dropping out of service discovery. Remove the jobs of components the deployment does not run.
+  - job_name: rail402-explorer-indexer
+    static_configs:
+      - targets: ["explorer-indexer-testnet:9464", "explorer-indexer-pubnet:9464"]
+
+  - job_name: rail402-explorer-web
+    static_configs:
+      - targets: ["explorer-web:9465"]
+
+  # The hosted MCP endpoint's /metrics (calls, refusals, upstream budget) on 9464.
+  - job_name: rail402-mcp
+    static_configs:
+      - targets: ["rail402-mcp:9464"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
+  - job_name: blackbox
+    static_configs:
+      - targets: ["blackbox:9115"]
+
+  # The database host: free disk space and the WAL archiving and backup figures (alerts.yml,
+  # group rail402-host).
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]

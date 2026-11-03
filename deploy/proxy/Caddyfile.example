@@ -1,0 +1,99 @@
+# Caddy in front of a Rail402 deployment: one host per network view, two facilitator replicas behind
+# each. Generic example: replace the host names and the upstream names with your own.
+#
+# - Requests go to whichever replica answers /ready; a replica that fails it, or is being restarted,
+#   is taken out of rotation within seconds, so replicas can be restarted one at a time without
+#   dropping requests.
+# - No log holds payment material or caller credentials: every logger deletes the payment headers
+#   (Payment-Signature, X-Payment, and X-Relay-H-Payment-Signature, under which the Playground's relay
+#   forwards a buyer's payment to a seller) and the API key header from the requests it logs, in
+#   addition to Caddy's default redaction of Authorization and cookies. That is the sites' access logs
+#   and, in the global options, the logger of failed requests and the default logger, which receives
+#   every other entry that carries a request: reverse_proxy's own (a response cut off mid-body, debug
+#   round trips) and the access entries of a request whose Host matches a site only without case, or no
+#   site.
+# - Host names no site claims get a 404 from the last site block.
+# - Each replica sees one hop (TRUSTED_PROXY_HOPS=1): X-Forwarded-For is replaced with {client_ip}.
+#   Without trusted_proxies (below), {client_ip} is the TCP peer, which is right when clients connect
+#   to Caddy directly. Behind a CDN or load balancer, list only its published address ranges, so that
+#   {client_ip} is the client it reports; never list ranges others can send from (a shared host's
+#   private network, for example), or any caller could choose its own address and rate-limit bucket.
+
+{
+	# Entries outside the sites' access logs carry the request's headers too. The default logger gets
+	# every entry no other logger takes, so it deletes the same headers; a request that fails in Caddy
+	# (no ready replica, a failed round trip) is logged as a handler error on http.log.error, by a logger
+	# of its own.
+	log default {
+		format filter {
+			wrap json
+			request>headers>Payment-Signature delete
+			request>headers>X-Payment delete
+			request>headers>X-Api-Key delete
+			request>headers>X-Relay-H-Payment-Signature delete
+		}
+		exclude http.log.error
+	}
+	log errors {
+		format filter {
+			wrap json
+			request>headers>Payment-Signature delete
+			request>headers>X-Payment delete
+			request>headers>X-Api-Key delete
+			request>headers>X-Relay-H-Payment-Signature delete
+		}
+		include http.log.error
+	}
+	servers {
+		# trusted_proxies static 203.0.113.0/24 2001:db8::/32
+		# client_ip_headers X-Forwarded-For
+	}
+}
+
+(rail402_site) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	log {
+		output stdout
+		format filter {
+			wrap json
+			request>headers>Payment-Signature delete
+			request>headers>X-Payment delete
+			request>headers>X-Api-Key delete
+			request>headers>X-Relay-H-Payment-Signature delete
+		}
+	}
+}
+
+(rail402_facilitator) {
+	reverse_proxy facilitator-a:8080 facilitator-b:8080 {
+		lb_policy round_robin
+		# A request that finds no healthy replica waits up to 10 s for one instead of failing at once.
+		lb_try_duration 10s
+		lb_try_interval 250ms
+		health_uri /ready
+		health_interval 5s
+		health_timeout 3s
+		health_status 200
+		fail_duration 30s
+		header_up X-Forwarded-For {client_ip}
+		flush_interval -1
+	}
+}
+
+testnet.example.com {
+	import rail402_site
+	import rail402_facilitator
+}
+
+mainnet.example.com {
+	import rail402_site
+	import rail402_facilitator
+}
+
+# Host names no site claims (over HTTPS, only names with a certificate get this far).
+http://, https:// {
+	respond "Not found" 404
+}

@@ -2,6 +2,8 @@
 # Deploys a contract of this repository from its committed wasm fixture and writes a deployment record.
 #
 #   scripts/contracts/deploy.sh --network testnet|local --deployer-secret-file <file> [options]
+#   scripts/contracts/deploy.sh --network pubnet --rpc-url <https url> --release-wasm <file> \
+#                               --deployer-secret-file <file> [--confirm <contract address>]
 #
 #   --contract <name>         upto (default) or test-token
 #   --symbol <SYMBOL>         test-token: token symbol, e.g. TEST6 (required for test-token)
@@ -9,6 +11,18 @@
 #   --name <name>             test-token: token name (default "Rail402 Test Token (<n> decimals)")
 #   --fund                    fund the deployer from the network's Friendbot first
 #   --record <file>           where to write the record (defaults below)
+#   --rpc-url <url>           pubnet: the RPC to deploy through (https; it may embed a provider key)
+#   --public-rpc-url <url>    pubnet: the keyless RPC written to the record for verify.sh
+#                             (default https://mainnet.sorobanrpc.com)
+#   --release-wasm <file>     pubnet: the wasm of the contract's GitHub release, built and attested by
+#                             stellar.expert's workflow; it must be the committed fixture, byte for byte
+#   --confirm <address>       pubnet: the address the script prints, to confirm without a terminal
+#
+# Pubnet is upto only, never funded by the script, and checked before anything is sent: the release
+# wasm must equal the committed fixture and carry a valid attestation from stellar.expert's workflow
+# (`gh attestation verify`), the upload is simulated and its fee printed, and the operator types the
+# contract address (or passes it with --confirm) before the first transaction. Run it with a fresh
+# deployer that holds only what the deployment costs, and merge that account away afterwards.
 #
 # The contract address is derived from (network, deployer, salt) and printed before anything is sent.
 # The salt is sha256("x402-upto-stellar/v1.1") for upto and sha256("rail402-test-token/v1/<SYMBOL>")
@@ -18,7 +32,7 @@
 # writes the record: contracts/stellar/deployments/<network>.json for upto,
 # contracts/testing/deployments/<symbol>-<network>.json for a test token, and target/contracts/
 # deployments/ for the local network. A record it replaces for another contract is kept, shortened,
-# in the new record's `previous` list. Only testnet and a local network are supported. The deployer's
+# in the new record's `previous` list. The deployer's
 # secret is read from a file and handed to the CLI through the environment, never on a command line.
 # Needs Docker, git, jq and curl.
 set -euo pipefail
@@ -35,6 +49,10 @@ decimals=""
 token_name=""
 fund=0
 record=""
+pubnet_rpc_url=""
+public_rpc_url="https://mainnet.sorobanrpc.com"
+release_wasm=""
+confirm=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --network)
@@ -66,14 +84,33 @@ while [[ $# -gt 0 ]]; do
       record="${2:?--record needs a file}"
       shift 2
       ;;
+    --rpc-url)
+      pubnet_rpc_url="${2:?--rpc-url needs a URL}"
+      shift 2
+      ;;
+    --public-rpc-url)
+      public_rpc_url="${2:?--public-rpc-url needs a URL}"
+      shift 2
+      ;;
+    --release-wasm)
+      release_wasm="${2:?--release-wasm needs a file}"
+      shift 2
+      ;;
+    --confirm)
+      confirm="${2:?--confirm needs the contract address}"
+      shift 2
+      ;;
     -h | --help)
-      sed -n '2,23p' "$0"
+      sed -n '2,40p' "$0"
       exit 0
       ;;
     *) fail "unknown argument: $1" ;;
   esac
 done
 
+passphrase="Test SDF Network ; September 2015"
+caip2="stellar:testnet"
+record_rpc_url=""
 case "$network" in
   testnet)
     rpc_url="https://soroban-testnet.stellar.org"
@@ -83,10 +120,26 @@ case "$network" in
     rpc_url="${LOCAL_RPC_URL:-http://localhost:8000/rpc}"
     friendbot="${LOCAL_FRIENDBOT_URL:-http://localhost:8000/friendbot}"
     ;;
-  "") fail "give --network testnet or --network local (see --help)" ;;
-  *) fail "unsupported network: $network (testnet or local)" ;;
+  pubnet)
+    [[ "$contract" == "upto" ]] || fail "only the upto contract is deployed to pubnet"
+    ((fund == 0)) || fail "--fund is for test networks; fund a pubnet deployer yourself"
+    [[ -n "$pubnet_rpc_url" ]] || fail "give --rpc-url: pubnet has no default RPC"
+    [[ "$pubnet_rpc_url" == https://* ]] || fail "--rpc-url must use https on pubnet"
+    [[ "$public_rpc_url" == https://* ]] || fail "--public-rpc-url must use https"
+    [[ -n "$release_wasm" ]] || fail "give --release-wasm: pubnet deploys the attested release bytes only"
+    rpc_url="$pubnet_rpc_url"
+    friendbot=""
+    passphrase="Public Global Stellar Network ; September 2015"
+    caip2="stellar:pubnet"
+    ;;
+  "") fail "give --network testnet, pubnet or local (see --help)" ;;
+  *) fail "unsupported network: $network (testnet, pubnet or local)" ;;
 esac
-passphrase="Test SDF Network ; September 2015"
+# The record never holds a deploy-time URL that may embed a provider key.
+record_rpc_url="$rpc_url"
+[[ "$network" != "pubnet" ]] || record_rpc_url="$public_rpc_url"
+[[ "$network" == "pubnet" || -z "$pubnet_rpc_url$release_wasm$confirm" ]] ||
+  fail "--rpc-url, --release-wasm and --confirm are for pubnet"
 
 [[ -n "$secret_file" ]] || fail "give --deployer-secret-file"
 [[ -r "$secret_file" ]] || fail "cannot read $secret_file"
@@ -126,6 +179,17 @@ git diff --quiet HEAD -- "$CONTRACT_CRATE" "$FIXTURE_WASM" "$FIXTURE_PROVENANCE"
 wasm_sha256="$(sha256 "$FIXTURE_WASM")"
 [[ "$wasm_sha256" == "$(jq -er .wasm_sha256 "$FIXTURE_PROVENANCE")" ]] ||
   fail "$FIXTURE_WASM does not match $FIXTURE_PROVENANCE"
+if [[ "$network" == "pubnet" ]]; then
+  # stellar.expert validates a contract only when it runs the bytes its own release workflow built.
+  [[ -r "$release_wasm" ]] || fail "cannot read $release_wasm"
+  released="$(sha256 "$release_wasm")"
+  [[ "$released" == "$wasm_sha256" ]] ||
+    fail "the release wasm is $released, not the committed fixture $wasm_sha256: refusing to deploy other bytes to pubnet"
+  command -v gh >/dev/null || fail "gh is not installed: it verifies the release attestation"
+  gh attestation verify "$release_wasm" --repo "${SOURCE_REPO#github:}" \
+    --signer-repo stellar-expert/soroban-build-workflow --signer-digest "$RELEASE_WORKFLOW_REVIEWED" >&2 ||
+    fail "$release_wasm has no valid attestation from the reviewed revision of stellar.expert's release workflow"
+fi
 commit="$(git rev-parse HEAD)"
 salt="$(printf '%s' "$salt_input" | sha256sum | cut -d' ' -f1)"
 
@@ -181,12 +245,29 @@ deployer="$(docker run --rm --platform "$BUILD_PLATFORM" --env HOME=/tmp --env S
   --entrypoint sh "$BUILD_IMAGE" -c 'stellar keys public-key "$STELLAR_ACCOUNT"')"
 contract_id="$(cli contract id wasm --salt "$salt" 2>/dev/null)"
 cli_version="$(cli version --only-version 2>/dev/null)"
-say "network      $network ($rpc_url)"
+# Only the RPC's origin: a provider URL may carry a key in its path.
+say "network      $network ($(sed -E 's#^(https?://[^/]+).*#\1#' <<<"$rpc_url"))"
 say "contract     $CONTRACT_CRATE${symbol:+ as $symbol ($decimals decimals)}"
 say "wasm         $wasm_sha256 ($FIXTURE_WASM)"
 say "deployer     $deployer"
 say "salt         $salt = sha256(\"$salt_input\")"
 say "address      $contract_id"
+
+if [[ "$network" == "pubnet" ]]; then
+  # The upload is simulated first, so the operator sees what the deployer pays before signing anything.
+  say "simulating the upload"
+  upload_xdr="$(cli contract upload --wasm /work/contract.wasm --optimize=false --build-only 2>/dev/null)" ||
+    fail "could not build the upload transaction (is the deployer funded?)"
+  simulation="$(rpc simulateTransaction "{\"transaction\":\"$upload_xdr\"}")"
+  upload_fee="$(jq -er .result.minResourceFee <<<"$simulation")" || fail "the upload simulation failed: $(jq -c .result.error <<<"$simulation")"
+  say "upload       resource fee $upload_fee stroops ($(awk "BEGIN { printf \"%.7f\", $upload_fee / 10000000 }") XLM), before deploy and TTL extension"
+  if [[ -z "$confirm" ]]; then
+    [[ -r /dev/tty ]] || fail "no terminal to confirm on; pass --confirm $contract_id"
+    printf 'Type the contract address to deploy it to pubnet: ' >/dev/tty
+    read -r confirm </dev/tty
+  fi
+  [[ "$confirm" == "$contract_id" ]] || fail "confirmation does not match $contract_id; nothing was sent"
+fi
 
 if ((fund)); then
   say "funding the deployer from $friendbot"
@@ -246,9 +327,9 @@ mkdir -p "$(dirname "$record")"
 jq -n \
   --arg contract "$CONTRACT_NAME" \
   --arg network "$network" \
-  --arg caip2 "stellar:testnet" \
+  --arg caip2 "$caip2" \
   --arg passphrase "$passphrase" \
-  --arg rpc_url "$rpc_url" \
+  --arg rpc_url "$record_rpc_url" \
   --arg contract_id "$contract_id" \
   --argjson constructor "$constructor" \
   --arg wasm_sha256 "$wasm_sha256" \

@@ -1,0 +1,513 @@
+/* The status page's own layout, built only from the design system's tokens (design/tokens.css): a summary
+ * first, then one section per Stellar network (mainnet, then testnet) with a row per check and its 30-day
+ * record, then the incidents. Paper (light) only. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ground);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* As on the Playground: a plain page, not the paper grid, with larger body text and cards set off by
+ * clear edges. */
+body.r4-page {
+  background-image: none;
+  font-size: 15px;
+  line-height: 23px;
+}
+
+.r4-card {
+  border-color: var(--line-strong);
+}
+
+/* Components set their own display; the hidden attribute still wins. */
+[hidden] {
+  display: none !important;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.quiet {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Header: the bar runs edge to edge; its content lines up with the content column. */
+
+.container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: calc(1280px - 2 * var(--space-6));
+  min-height: inherit;
+  margin: 0 auto;
+}
+
+.help-open {
+  flex: none;
+}
+
+.ext {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ext svg {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ext .ext-arrow {
+  opacity: 0.7;
+}
+
+.wrap {
+  display: grid;
+  gap: var(--space-7);
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-6) var(--space-8);
+}
+
+.wrap > * {
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .container {
+    gap: var(--space-3);
+  }
+}
+
+/* On a phone the links take a row of their own under the mark and the button. */
+@media (max-width: 560px) {
+  .container {
+    flex-wrap: wrap;
+    padding-block: var(--space-3) var(--space-2);
+  }
+
+  .container .r4-nav {
+    order: 3;
+    width: 100%;
+    margin-left: calc(var(--space-2) * -1 - 2px);
+  }
+
+  .help-open {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .wrap {
+    padding: var(--space-5) var(--space-4) var(--space-8);
+  }
+}
+
+/* Summary */
+
+.summary {
+  gap: var(--space-4);
+}
+
+.summary-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.summary-head h1 {
+  margin: 0;
+  text-wrap: balance;
+}
+
+.summary-sub {
+  margin: 0;
+  color: var(--muted);
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4) var(--space-5);
+  margin: var(--space-2) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.figures dd {
+  margin: var(--space-1) 0 0;
+}
+
+.figure-value {
+  font: 600 24px/30px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.figure-value[data-quiet] {
+  font-size: 18px;
+  color: var(--muted);
+}
+
+/* Networks */
+
+.net {
+  display: grid;
+  gap: var(--space-4);
+  scroll-margin-top: var(--space-5);
+}
+
+.net .r4-h2 .r4-badge {
+  margin-left: var(--space-2);
+  vertical-align: 0.2em;
+}
+
+.net-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.rows {
+  display: grid;
+}
+
+.row {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.row:last-child {
+  padding-bottom: 0;
+}
+
+.row-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-4);
+}
+
+.who {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.who-name {
+  margin: 0;
+  font: 600 14px/20px var(--font-sans);
+}
+
+.who-check {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+@media (max-width: 560px) {
+  .row-head {
+    display: grid;
+  }
+
+  .facts .r4-badge {
+    order: -1;
+  }
+}
+
+.fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.fact-k {
+  color: var(--muted);
+}
+
+/* The 30-day record: one bar per UTC day, oldest first. The state is in the bar's height as well as its
+ * colour, so it reads without colour: full for no downtime, about half for up to 30 minutes down, a stub
+ * for more, and an empty outline for a day that was not measured. Each column is the hover target. */
+
+.bars {
+  display: grid;
+  grid-template-columns: repeat(30, minmax(0, 1fr));
+  gap: 2px;
+  height: 28px;
+  border-radius: var(--radius-0);
+}
+
+.cell {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+
+.cell .day {
+  width: 100%;
+}
+
+.cell:hover .day,
+.cell.is-active .day {
+  opacity: 0.7;
+}
+
+.day {
+  display: inline-block;
+  height: 100%;
+  border-radius: var(--radius-0);
+  background: var(--ok);
+}
+
+.day.partial {
+  height: 55%;
+  background: var(--warn);
+}
+
+.day.down {
+  height: 22%;
+  background: var(--danger);
+}
+
+.day.nodata {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.axis {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--muted);
+}
+
+.axis-line {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.legend .key {
+  display: inline-flex;
+  align-items: flex-end;
+  width: 8px;
+  height: 16px;
+}
+
+.legend .day {
+  width: 100%;
+}
+
+/* The hover card of one day: date, state with its minutes down, and the incidents posted for it. */
+
+.day-tip {
+  position: absolute;
+  z-index: 5;
+  display: grid;
+  gap: var(--space-3);
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink);
+  pointer-events: none;
+}
+
+.day-tip p {
+  margin: 0;
+}
+
+.day-tip-arrow {
+  position: absolute;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.day-tip-date {
+  font: 600 14px/20px var(--font-sans);
+}
+
+.day-tip-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--surface-soft);
+}
+
+.day-tip-related {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* Incidents */
+
+.incidents {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.incident {
+  gap: var(--space-3);
+}
+
+.incident-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.incident-date {
+  color: var(--muted);
+}
+
+.incident .r4-card-body {
+  max-width: 72ch;
+}
+
+.incident-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  margin: var(--space-1) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.incident-facts dd {
+  margin: var(--space-1) 0 0;
+}
+
+.incident-empty {
+  padding-block: var(--space-4);
+}
+
+/* The help dialog: a native modal built from tokens; the system has no dialog component yet. */
+
+.help {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-dialog);
+  color: var(--ink);
+}
+
+.help::backdrop {
+  background: var(--ink, #111111);
+  opacity: 0.4;
+}
+
+.help-body {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.help-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.help-head .r4-card-title,
+.help .r4-card-body {
+  margin: 0;
+}
+
+.help-head svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.help-options {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.help-options .r4-card-title {
+  margin: 0;
+}
+
+.help-options .r4-eyebrow {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,37 @@
+# The role sheet of a Rail402 deployment: who fills each role named in the alert catalog
+# (deploy/monitoring/alerts.ts) and the operator runbook (docs/runbook.mdx). It is an operator setting:
+# copy it next to the deployment's private settings, never into a repository, fill in every role, and
+# give every role at least two people. Review it whenever someone joins or leaves, and before every
+# release to mainnet.
+#
+# Every alert carries its role in the `owner` label, and Alertmanager sends pages and tickets to the
+# paging service named by the `alert_webhook_url` file secret. Configure that service's schedules and
+# escalation policies from this sheet and route on the `owner` label, so a page for the key custodian
+# reaches the key custodian.
+#
+#   people     names and how to reach them: a phone number for pages, a chat handle, an e-mail address
+#   schedule   the paging service's schedule or escalation policy for the role
+roles:
+  # Receives every page and ticket; first responder. The deployment's primary operator.
+  primary on-call:
+    people: []
+    schedule: ""
+  # Receives every page; takes over when the primary does not acknowledge or asks for help. The backup
+  # operator, who also reviews every production change the primary makes.
+  secondary on-call:
+    people: []
+    schedule: ""
+  # Approves release tags, production deploys and accepted security findings.
+  release approver:
+    people: []
+    schedule: ""
+  # Holds the treasury account, the cold signer and the encrypted seed backups; tops up the sponsor and
+  # approves rotations. Two people.
+  key custodian:
+    people: []
+    schedule: ""
+  # Receives vulnerability reports and suspected key or access-key compromises; decides on disclosure
+  # and coordinates the response with the key custodian.
+  security contact:
+    people: []
+    schedule: ""

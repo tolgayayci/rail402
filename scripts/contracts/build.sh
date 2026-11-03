@@ -3,7 +3,7 @@
 #
 #   scripts/contracts/build.sh                    build every contract into target/contracts/<name>/
 #   scripts/contracts/build.sh --contract <name>  build only <name> (repeatable): upto, test-token,
-#                                                 approve-spending-limit
+#                                                 approve-spending-limit, ed25519-account
 #   scripts/contracts/build.sh --rev <git-rev>    build a committed revision instead of the working tree
 #   scripts/contracts/build.sh --check            build and fail unless each result equals its committed
 #                                                 fixture and provenance record

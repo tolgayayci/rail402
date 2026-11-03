@@ -1,0 +1,44 @@
+# Alertmanager for Rail402. Generic example: the receivers read their secrets from files.
+# page alerts go to the on-call channel at once and repeat hourly; ticket alerts are grouped and
+# repeat daily; the always-firing Watchdog goes to an off-host dead-man's switch every minute, which
+# alerts on its own when the heartbeat stops (host, Prometheus or Alertmanager down).
+route:
+  receiver: tickets
+  group_by: [alertname, network]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 24h
+  routes:
+    - matchers: ['severity="heartbeat"']
+      receiver: deadman
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
+    - matchers: ['severity="page"']
+      receiver: pages
+      repeat_interval: 1h
+
+# A page silences only the tickets it covers: those with the same `cause` label on the same network
+# (deploy/monitoring/alerts.ts sets the label, for example Rail402ChannelsExhausted covers
+# Rail402ChannelLeaseTimeouts). An alert without a cause is never silenced, so an unrelated page never
+# hides an independent failure. Both sides must carry the labels: `equal` treats two missing labels
+# as equal, so without the matchers an alert without them would silence every other one without them.
+inhibit_rules:
+  - source_matchers: ['severity="page"', 'network=~".+"', 'cause=~".+"']
+    target_matchers: ['severity="ticket"', 'network=~".+"', 'cause=~".+"']
+    equal: [network, cause]
+
+receivers:
+  # Both on-call roles receive every page.
+  - name: pages
+    webhook_configs:
+      - url_file: /run/secrets/alert_webhook_url
+        send_resolved: true
+  - name: tickets
+    webhook_configs:
+      - url_file: /run/secrets/alert_webhook_url
+        send_resolved: true
+  - name: deadman
+    webhook_configs:
+      - url_file: /run/secrets/deadman_url
+        send_resolved: false

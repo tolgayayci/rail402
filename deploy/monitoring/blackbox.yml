@@ -1,0 +1,22 @@
+# blackbox_exporter modules for Rail402. Only these modules exist, and Prometheus fixes the targets:
+# the exporter has no published port and sits on the internal monitoring network only, so its
+# /probe?target= endpoint cannot be used by anyone else to reach other hosts.
+modules:
+  rail402_ready:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      preferred_ip_protocol: ip4
+      follow_redirects: false
+  rail402_supported:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      preferred_ip_protocol: ip4
+      follow_redirects: false
+      fail_if_body_not_matches_regexp:
+        - '"areFeesSponsored":\s*true'

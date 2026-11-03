@@ -1,0 +1,529 @@
+# promtool unit tests for alerts.yml:
+#   docker run --rm -v "$PWD/deploy/monitoring:/m:ro" --entrypoint promtool prom/prometheus test rules /m/alerts.test.yml
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="rail402", instance="10.0.0.2:8080"}'
+        values: "1 1 0 0 0 0 0 0 0 0 0 0 0 0"
+      - series: 'up{job="rail402", instance="10.0.0.3:8080"}'
+        values: "1 1 1 1 1 1 1 1 1 1 1 1 1 1"
+      - series: 'rail402_sponsor_balance_stroops{network="stellar:pubnet"}'
+        values: "2000000000 900000000 900000000 900000000 900000000 900000000 900000000 900000000"
+      - series: 'rail402_sponsor_balance_stroops{network="stellar:testnet"}'
+        values: "900000000x20"
+      - series: 'rail402_sponsor_balance_floor_stroops{network="stellar:pubnet"}'
+        values: "500000000x20"
+      - series: 'rail402_sponsor_balance_floor_stroops{network="stellar:testnet"}'
+        values: "1000000000x20"
+      - series: 'rail402_channels_total{network="stellar:testnet"}'
+        values: "4x10"
+      - series: 'rail402_channels_in_use{network="stellar:testnet"}'
+        values: "4x10"
+      - series: 'rail402_sequence_conflicts_total{network="stellar:testnet", kind="bad_seq"}'
+        values: "0 0 1 1"
+      - series: 'rail402_channel_lease_timeouts_total{network="stellar:testnet"}'
+        values: "0 0 1 1"
+      # Discovery sheds 1 search a minute (quiet) and 10 resource listings a minute (a ticket).
+      - series: 'rail402_discovery_shed_total{route="search", reason="database_busy"}'
+        values: "0+1x20"
+      - series: 'rail402_discovery_shed_total{route="resources", reason="admission"}'
+        values: "0+10x20"
+      - series: 'rail402_rpc_ledger_age_seconds{network="stellar:pubnet"}'
+        values: "5 90 90 90 90 90"
+      # A replica that never read a testnet ledger: its age counts from start, one second per second.
+      - series: 'rail402_rpc_ledger_age_seconds{network="stellar:testnet", instance="10.0.0.3:8080"}'
+        values: "0+60x10"
+      - series: 'rail402_rpc_failovers_total{network="stellar:pubnet", from="primary", to="fallback"}'
+        values: "0 1 1 1"
+      - series: 'rail402_sponsor_budget_used_ratio{network="stellar:pubnet"}'
+        values: "0.5 0.5 0.85 0.85 0.85 0.85 0.85 0.85 0.85"
+      - series: 'rail402_sponsor_budget_used_ratio{network="stellar:testnet"}'
+        values: "0.79x10"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: Rail402Down
+        exp_alerts:
+          - exp_labels: { job: rail402, instance: "10.0.0.2:8080", severity: page, owner: "primary on-call" }
+            exp_annotations:
+              summary: "A Rail402 replica does not answer its metrics scrape."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402down"
+      # One replica down for 10 minutes: redundancy is gone, a ticket; the other still answers.
+      - eval_time: 12m
+        alertname: Rail402ReplicaMissing
+        exp_alerts:
+          - exp_labels: { severity: ticket, owner: "primary on-call" }
+            exp_annotations:
+              summary: "Fewer replicas answer than the deployment runs."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402replicamissing"
+      - eval_time: 12m
+        alertname: Rail402NoReplica
+        exp_alerts: []
+      # Pubnet at 90 XLM, above its 50 XLM floor, still pages the custodian (below 100 XLM); testnet at
+      # 90 XLM below its own 100 XLM floor is a ticket for the on-call.
+      - eval_time: 7m
+        alertname: Rail402SponsorBalanceLow
+        exp_alerts:
+          - exp_labels: { network: "stellar:pubnet", severity: page, owner: "key custodian" }
+            exp_annotations:
+              summary: "A network's fee sponsor balance is below its readiness floor, or a pubnet sponsor below 100 XLM."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402sponsorbalancelow"
+          - exp_labels: { network: "stellar:testnet", severity: ticket, owner: "primary on-call" }
+            exp_annotations:
+              summary: "A network's fee sponsor balance is below its readiness floor, or a pubnet sponsor below 100 XLM."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402sponsorbalancelow"
+      - eval_time: 3m
+        alertname: Rail402SponsorBalanceLow
+        exp_alerts: []
+      # 85% of the pubnet budget is committed; testnet at 79% stays quiet.
+      - eval_time: 8m
+        alertname: Rail402SponsorBudgetNearlySpent
+        exp_alerts:
+          - exp_labels: { network: "stellar:pubnet", severity: ticket, owner: "primary on-call" }
+            exp_annotations:
+              summary: "More than 80% of a network's hourly sponsor budget is committed."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402sponsorbudgetnearlyspent"
+      - eval_time: 6m
+        alertname: Rail402ChannelsExhausted
+        exp_alerts:
+          - exp_labels:
+              { network: "stellar:testnet", severity: page, owner: "primary on-call", cause: channels }
+            exp_annotations:
+              summary: "Every channel account has been busy for 5 minutes."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402channelsexhausted"
+      # Alerts a page covers carry its cause, which Alertmanager's inhibition matches on.
+      - eval_time: 3m
+        alertname: Rail402ChannelLeaseTimeouts
+        exp_alerts:
+          - exp_labels:
+              { network: "stellar:testnet", severity: ticket, owner: "primary on-call", cause: channels }
+            exp_annotations:
+              summary: "Settlements timed out waiting for a channel."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402channelleasetimeouts"
+      - eval_time: 2m
+        alertname: Rail402RpcStale
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: Rail402RpcStale
+        exp_alerts:
+          - exp_labels:
+              {
+                network: "stellar:testnet",
+                instance: "10.0.0.3:8080",
+                severity: page,
+                owner: "primary on-call",
+                cause: rpc,
+              }
+            exp_annotations:
+              summary: "The RPC's latest ledger is more than a minute old."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402rpcstale"
+          - exp_labels: { network: "stellar:pubnet", severity: page, owner: "primary on-call", cause: rpc }
+            exp_annotations:
+              summary: "The RPC's latest ledger is more than a minute old."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402rpcstale"
+      - eval_time: 2m
+        alertname: Rail402RpcFailover
+        exp_alerts:
+          - exp_labels:
+              {
+                network: "stellar:pubnet",
+                from: primary,
+                to: fallback,
+                severity: ticket,
+                owner: "primary on-call",
+                cause: rpc,
+              }
+            exp_annotations:
+              summary: "A network failed over to another RPC provider."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402rpcfailover"
+      - eval_time: 3m
+        alertname: Rail402DiscoveryShedding
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: Rail402DiscoveryShedding
+        exp_alerts:
+          - exp_labels: { reason: admission, severity: ticket, owner: "primary on-call" }
+            exp_annotations:
+              summary: "Discovery keeps refusing requests with 503 under load."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402discoveryshedding"
+      - eval_time: 3m
+        alertname: Rail402SequenceConflict
+        exp_alerts:
+          - exp_labels:
+              { network: "stellar:testnet", kind: bad_seq, severity: page, owner: "primary on-call" }
+            exp_annotations:
+              summary: "A channel account's sequence number was used outside Rail402."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402sequenceconflict"
+      - eval_time: 1m
+        alertname: Watchdog
+        exp_alerts:
+          - exp_labels: { severity: heartbeat, owner: "primary on-call" }
+            exp_annotations:
+              summary: "Always firing: proves the alerting pipeline works."
+              runbook_url: "https://docs.rail402.dev/runbook#watchdog"
+
+  # Every replica gone from service discovery: no `up` series at all.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="rail402", instance="10.0.0.2:8080"}'
+        values: "1 1 _ _ _ _ _ _ _ _ _ _"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: Rail402NoReplica
+        exp_alerts:
+          - exp_labels: { severity: page, owner: "primary on-call" }
+            exp_annotations:
+              summary: "No Rail402 replica answers its metrics scrape."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402noreplica"
+
+  # Per-network readiness: pubnet's probe fails while the process stays ready. A failing probe of a
+  # network the service does not serve (no rail402_network_serving series) never alerts.
+  - interval: 1m
+    input_series:
+      - series: 'probe_success{job="rail402-ready-pubnet", network="stellar:pubnet", instance="http://10.0.0.2:8080/ready/pubnet"}'
+        values: "0x10"
+      - series: 'probe_success{job="rail402-ready-testnet", network="stellar:testnet", instance="http://10.0.0.2:8080/ready/testnet"}'
+        values: "1x10"
+      - series: 'probe_success{job="rail402-ready-pubnet", network="stellar:futurenet", instance="http://10.0.0.2:8080/ready/futurenet"}'
+        values: "0x10"
+      - series: 'probe_success{job="rail402-ready", instance="http://10.0.0.2:8080/ready"}'
+        values: "1x10"
+      - series: 'rail402_network_serving{network="stellar:pubnet", instance="10.0.0.2:8080"}'
+        values: "1x10"
+      - series: 'rail402_network_serving{network="stellar:testnet", instance="10.0.0.2:8080"}'
+        values: "1x10"
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: Rail402NetworkNotReady
+        exp_alerts:
+          - exp_labels:
+              {
+                job: rail402-ready-pubnet,
+                network: "stellar:pubnet",
+                instance: "http://10.0.0.2:8080/ready/pubnet",
+                severity: page,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "A network's /ready/<network> has failed for 5 minutes."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402networknotready"
+      - eval_time: 7m
+        alertname: Rail402NotReady
+        exp_alerts: []
+
+  # WAL archiving fails from minute 3 on (the last failure is newer than the last success), and a
+  # segment waits ever longer for the archive.
+  - interval: 1m
+    input_series:
+      - series: 'rail402_wal_last_archived_timestamp_seconds{instance="host"}'
+        values: "60 120 180 180 180 180 180 180 180 180 180 180"
+      - series: 'rail402_wal_last_failed_timestamp_seconds{instance="host"}'
+        values: "0 0 0 240 300 360 420 480 540 600 660 720"
+      - series: 'rail402_wal_archive_oldest_pending_seconds{instance="host"}'
+        values: "0 0 0 60 120 300 600 900 1000 1100 1200 1300"
+      - series: 'rail402_backup_last_completed_timestamp_seconds{instance="host", type="full"}'
+        values: "0x12"
+      - series: 'rail402_backup_metrics_collected_timestamp_seconds{instance="host"}'
+        values: "0+60x12"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: Rail402WalArchiveFailing
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: Rail402WalArchiveFailing
+        exp_alerts:
+          - exp_labels: { instance: host, severity: page, owner: "primary on-call" }
+            exp_annotations:
+              summary: "Postgres cannot archive WAL to the backup repository."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402walarchivefailing"
+      - eval_time: 9m
+        alertname: Rail402WalArchiveBehind
+        exp_alerts:
+          - exp_labels: { instance: host, severity: page, owner: "primary on-call" }
+            exp_annotations:
+              summary: "A WAL segment has waited more than 15 minutes for the archive."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402walarchivebehind"
+      - eval_time: 9m
+        alertname: Rail402BackupMetricsStale
+        exp_alerts: []
+
+  # The last backup completed at t=0; 30 hours later it is stale. The collector stops at 31 h.
+  - interval: 1h
+    input_series:
+      - series: 'rail402_backup_last_completed_timestamp_seconds{instance="host", type="full"}'
+        values: "0x40"
+      - series: 'rail402_backup_last_completed_timestamp_seconds{instance="host", type="diff"}'
+        values: "0x40"
+      - series: 'rail402_backup_metrics_collected_timestamp_seconds{instance="host"}'
+        values: "0+3600x31"
+    alert_rule_test:
+      - eval_time: 29h
+        alertname: Rail402BackupStale
+        exp_alerts: []
+      - eval_time: 31h
+        alertname: Rail402BackupStale
+        exp_alerts:
+          - exp_labels: { instance: host, severity: page, owner: "primary on-call" }
+            exp_annotations:
+              summary: "The newest completed backup is more than 30 hours old, or none is listed."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402backupstale"
+      - eval_time: 33h
+        alertname: Rail402BackupMetricsStale
+        exp_alerts:
+          - exp_labels: { severity: ticket, owner: "primary on-call" }
+            exp_annotations:
+              summary: "The archive and backup metrics stopped updating."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402backupmetricsstale"
+
+  # Archiving on, but the repository lists no backup (never taken, or unreadable): pages after 6 hours.
+  - interval: 1h
+    input_series:
+      - series: 'rail402_wal_archive_enabled{instance="host"}'
+        values: "1x10"
+      - series: 'rail402_backup_metrics_collected_timestamp_seconds{instance="host"}'
+        values: "0+3600x10"
+    alert_rule_test:
+      - eval_time: 5h
+        alertname: Rail402BackupStale
+        exp_alerts: []
+      - eval_time: 7h
+        alertname: Rail402BackupStale
+        exp_alerts:
+          - exp_labels: { severity: page, owner: "primary on-call" }
+            exp_annotations:
+              summary: "The newest completed backup is more than 30 hours old, or none is listed."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402backupstale"
+
+  # Archiving off: no backup series is expected, nothing fires.
+  - interval: 1h
+    input_series:
+      - series: 'rail402_wal_archive_enabled{instance="host"}'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 9h
+        alertname: Rail402BackupStale
+        exp_alerts: []
+
+  # Indexers that answer their scrape but do not progress: testnet's walked-through ledger is frozen,
+  # pubnet's is not exported at all. Neither crosses the lag threshold, both are reported.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="rail402-explorer-indexer", instance="explorer-indexer-pubnet:9464"}'
+        values: "1x90"
+      - series: 'up{job="rail402-explorer-indexer", instance="explorer-indexer-testnet:9464"}'
+        values: "1x90"
+      - series: 'rail402_explorer_last_ledger{job="rail402-explorer-indexer", instance="explorer-indexer-testnet:9464", network="stellar:testnet"}'
+        values: "1000+12x10 1120x80"
+      - series: 'rail402_explorer_lag_ledgers{job="rail402-explorer-indexer", instance="explorer-indexer-testnet:9464", network="stellar:testnet"}'
+        values: "0x90"
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: Rail402ExplorerLag
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: Rail402ExplorerLag
+        exp_alerts:
+          - exp_labels:
+              {
+                job: rail402-explorer-indexer,
+                instance: "explorer-indexer-pubnet:9464",
+                severity: ticket,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "The Explorer indexer is more than about an hour behind the network, or not progressing."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402explorerlag"
+      - eval_time: 88m
+        alertname: Rail402ExplorerLag
+        exp_alerts:
+          - exp_labels:
+              {
+                job: rail402-explorer-indexer,
+                instance: "explorer-indexer-pubnet:9464",
+                severity: ticket,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "The Explorer indexer is more than about an hour behind the network, or not progressing."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402explorerlag"
+          - exp_labels:
+              {
+                job: rail402-explorer-indexer,
+                instance: "explorer-indexer-testnet:9464",
+                network: "stellar:testnet",
+                severity: ticket,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "The Explorer indexer is more than about an hour behind the network, or not progressing."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402explorerlag"
+
+  # The pubnet indexer stops (its target stays listed and answers nothing); failures before it stopped.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="rail402-explorer-indexer", instance="explorer-indexer-pubnet:9464"}'
+        values: "1 1 1 0 0 0 0 0 0 0 0 0"
+      - series: 'up{job="rail402-explorer-indexer", instance="explorer-indexer-testnet:9464"}'
+        values: "1x12"
+      - series: 'rail402_explorer_failures_total{job="rail402-explorer-indexer", instance="explorer-indexer-pubnet:9464", network="stellar:pubnet", code="anchor_mismatch"}'
+        values: "0 0 1"
+      - series: 'rail402_explorer_lag_ledgers{job="rail402-explorer-indexer", instance="explorer-indexer-testnet:9464", network="stellar:testnet"}'
+        values: "800x30"
+      - series: 'rail402_explorer_last_ledger{job="rail402-explorer-indexer", instance="explorer-indexer-testnet:9464", network="stellar:testnet"}'
+        values: "1000+12x30"
+      - series: 'up{job="rail402-explorer-web", instance="explorer-web:9465"}'
+        values: "0x10"
+      - series: 'up{job="rail402-mcp", instance="rail402-mcp:9464"}'
+        values: "1x10"
+      - series: 'rail402_mcp_refusals_total{job="rail402-mcp", instance="rail402-mcp:9464", reason="upstream_budget"}'
+        values: "0+5x40"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: Rail402ExplorerIndexerFailures
+        exp_alerts:
+          - exp_labels:
+              {
+                job: rail402-explorer-indexer,
+                instance: "explorer-indexer-pubnet:9464",
+                network: "stellar:pubnet",
+                code: anchor_mismatch,
+                severity: ticket,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "An Explorer indexer recorded indexing failures or a chain break."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402explorerindexerfailures"
+      - eval_time: 9m
+        alertname: Rail402ExplorerIndexerDown
+        exp_alerts:
+          - exp_labels:
+              {
+                job: rail402-explorer-indexer,
+                instance: "explorer-indexer-pubnet:9464",
+                severity: ticket,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "An Explorer indexer does not answer its metrics scrape."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402explorerindexerdown"
+      - eval_time: 16m
+        alertname: Rail402ExplorerLag
+        exp_alerts:
+          - exp_labels:
+              {
+                job: rail402-explorer-indexer,
+                instance: "explorer-indexer-testnet:9464",
+                network: "stellar:testnet",
+                severity: ticket,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "The Explorer indexer is more than about an hour behind the network, or not progressing."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402explorerlag"
+      - eval_time: 6m
+        alertname: Rail402ExplorerWebDown
+        exp_alerts:
+          - exp_labels:
+              {
+                job: rail402-explorer-web,
+                instance: "explorer-web:9465",
+                severity: ticket,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "The Explorer web role does not answer its metrics scrape."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402explorerwebdown"
+      - eval_time: 9m
+        alertname: Rail402McpDown
+        exp_alerts: []
+      - eval_time: 31m
+        alertname: Rail402McpUpstreamBudget
+        exp_alerts:
+          - exp_labels:
+              {
+                job: rail402-mcp,
+                instance: "rail402-mcp:9464",
+                reason: upstream_budget,
+                severity: ticket,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "The hosted MCP endpoint keeps refusing calls for lack of upstream budget."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402mcpupstreambudget"
+
+  # The data disk falls below 10% free and keeps falling; the root tmpfs is ignored.
+  - interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{instance="host", mountpoint="/var/lib/docker", fstype="ext4"}'
+        values: "20000-50x360"
+      - series: 'node_filesystem_size_bytes{instance="host", mountpoint="/var/lib/docker", fstype="ext4"}'
+        values: "100000x360"
+      - series: 'node_filesystem_avail_bytes{instance="host", mountpoint="/run", fstype="tmpfs"}'
+        values: "1x360"
+      - series: 'node_filesystem_size_bytes{instance="host", mountpoint="/run", fstype="tmpfs"}'
+        values: "100000x360"
+    alert_rule_test:
+      - eval_time: 3h
+        alertname: Rail402DiskAlmostFull
+        exp_alerts: []
+      - eval_time: 4h
+        alertname: Rail402DiskAlmostFull
+        exp_alerts:
+          - exp_labels:
+              {
+                instance: host,
+                mountpoint: /var/lib/docker,
+                fstype: ext4,
+                severity: page,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "A host filesystem has less than 10% free space."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402diskalmostfull"
+      - eval_time: 5h
+        alertname: Rail402DiskFillingFast
+        exp_alerts:
+          - exp_labels:
+              {
+                instance: host,
+                mountpoint: /var/lib/docker,
+                fstype: ext4,
+                severity: page,
+                owner: "primary on-call",
+              }
+            exp_annotations:
+              summary: "A host filesystem will be full within 4 hours at its current rate."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402diskfillingfast"
+
+  # A pubnet floor of 0, or no floor series at all, never switches the sponsor page off; testnet above
+  # its floor stays quiet.
+  - interval: 1m
+    input_series:
+      - series: 'rail402_sponsor_balance_stroops{network="stellar:pubnet", instance="10.0.0.2:8080"}'
+        values: "900000000x10"
+      - series: 'rail402_sponsor_balance_floor_stroops{network="stellar:pubnet", instance="10.0.0.2:8080"}'
+        values: "0x10"
+      - series: 'rail402_sponsor_balance_stroops{network="stellar:pubnet", instance="10.0.0.3:8080"}'
+        values: "900000000x10"
+      - series: 'rail402_sponsor_balance_stroops{network="stellar:testnet"}'
+        values: "900000000x10"
+      - series: 'rail402_sponsor_balance_floor_stroops{network="stellar:testnet"}'
+        values: "250000000x10"
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: Rail402SponsorBalanceLow
+        exp_alerts:
+          - exp_labels:
+              { network: "stellar:pubnet", instance: "10.0.0.2:8080", severity: page, owner: "key custodian" }
+            exp_annotations:
+              summary: "A network's fee sponsor balance is below its readiness floor, or a pubnet sponsor below 100 XLM."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402sponsorbalancelow"
+          - exp_labels:
+              { network: "stellar:pubnet", instance: "10.0.0.3:8080", severity: page, owner: "key custodian" }
+            exp_annotations:
+              summary: "A network's fee sponsor balance is below its readiness floor, or a pubnet sponsor below 100 XLM."
+              runbook_url: "https://docs.rail402.dev/runbook#rail402sponsorbalancelow"
