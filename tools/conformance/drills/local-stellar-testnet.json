@@ -1,0 +1,599 @@
+{
+  "schemaVersion": 1,
+  "kind": "drill",
+  "environment": "local",
+  "network": "stellar:testnet",
+  "startedAt": "2026-10-23T09:31:36.198Z",
+  "finishedAt": "2026-10-23T09:35:28.872Z",
+  "harness": {
+    "commit": "ebeea7a92a115a58041ef9cdd612ab6f5a9d6b87"
+  },
+  "command": "node --conditions=@rail402/source tools/conformance/src/drills-local.ts --write",
+  "stack": {
+    "prometheus": "prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e",
+    "alertmanager": "prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a",
+    "blackbox": "prom/blackbox-exporter:v0.29.0@sha256:9613f2884689b6fad9f1939f6a3b0388c93a022cfaededb19545b329b5c83dea",
+    "service": "Rail402 service in process, Postgres, the private Stellar network behind a fault proxy",
+    "rules": "deploy/monitoring/alerts.ts with every for: 0s, evaluated every 2 s",
+    "sponsorFloorStroops": 5000000000
+  },
+  "summary": {
+    "total": 8,
+    "passed": 7,
+    "failed": 0,
+    "skipped": 1
+  },
+  "cases": [
+    {
+      "id": "rpc-failure",
+      "title": "The RPC stops answering",
+      "status": "passed",
+      "elapsedMs": 37335,
+      "transactions": [
+        {
+          "hash": "edaf4d252813dee4b5dc0930f1378d74664719995d3d34a2d31ae68e4f44edb1",
+          "role": "settlement after recovery"
+        }
+      ],
+      "observations": {
+        "drill": {
+          "exercise": "rpc-failure",
+          "environment": "local",
+          "threats": ["O3"],
+          "fault": {
+            "method": "the RPC proxy answers every request with HTTP 503",
+            "injectedAt": "2026-10-23T09:31:51.825Z",
+            "clearedAt": "2026-10-23T09:32:05.845Z"
+          },
+          "detection": {
+            "alert": "Rail402NotReady",
+            "severity": "page",
+            "source": "alertmanager",
+            "firedAt": "2026-10-23T09:32:05.426Z"
+          },
+          "runbook": {
+            "section": "docs/runbook.mdx#rpc-failure",
+            "steps": [
+              "read /ready: 503; /health warnings: rpc_unhealthy, contract_ttl_critical",
+              "asked the provider directly: HTTP 503",
+              "restored the provider and waited for /ready"
+            ]
+          },
+          "recovery": {
+            "completedAt": "2026-10-23T09:32:29.160Z",
+            "verifiedBy": [
+              "/ready answered 503 during the outage",
+              "the provider answered 503 when asked directly",
+              "/ready answered 200 after the provider returned",
+              "an exact payment settled after recovery"
+            ]
+          },
+          "timings": {
+            "detectSeconds": 13.6,
+            "recoverSeconds": 37.3
+          },
+          "impact": {
+            "failedRequests": 0,
+            "refusedCodes": [],
+            "fundsAtRisk": "none"
+          }
+        },
+        "otherNetwork": null,
+        "checks": [
+          {
+            "name": "/ready answered 503 during the outage",
+            "ok": true
+          },
+          {
+            "name": "the provider answered 503 when asked directly",
+            "ok": true
+          },
+          {
+            "name": "/ready answered 200 after the provider returned",
+            "ok": true
+          },
+          {
+            "name": "an exact payment settled after recovery",
+            "ok": true
+          }
+        ],
+        "notes": [
+          "A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run."
+        ]
+      }
+    },
+    {
+      "id": "sequence-conflict",
+      "title": "A channel's sequence used outside the service",
+      "status": "passed",
+      "elapsedMs": 38324,
+      "transactions": [
+        {
+          "hash": "1d332adc7f082ac11a0a44b19e2685b4377a7e50140e7d7b8df753d4400b7d13",
+          "role": "the conflicting transaction"
+        },
+        {
+          "hash": "efded9a19c1fc716763607baeead20c191f3d885264b3f33aa437793bf064bc6",
+          "role": "settlement after recovery"
+        }
+      ],
+      "observations": {
+        "drill": {
+          "exercise": "sequence-conflict",
+          "environment": "local",
+          "threats": ["O2"],
+          "fault": {
+            "method": "a transaction from the leased channel account, signed with its derived key, submitted outside the service",
+            "injectedAt": "2026-10-23T09:32:34.500Z",
+            "clearedAt": "2026-10-23T09:32:59.736Z"
+          },
+          "detection": {
+            "alert": "Rail402SequenceConflict",
+            "severity": "page",
+            "source": "alertmanager",
+            "firedAt": "2026-10-23T09:32:37.426Z"
+          },
+          "runbook": {
+            "section": "docs/runbook.mdx#sequence-conflicts",
+            "steps": [
+              "looked the transaction the service did not send up by its hash: SUCCESS",
+              "settled a new payment through the service"
+            ]
+          },
+          "recovery": {
+            "completedAt": "2026-10-23T09:33:07.484Z",
+            "verifiedBy": [
+              "the conflicting transaction is on the ledger",
+              "the affected settlement was not reported as settled (answered settlement_pending)",
+              "the next settlement succeeded"
+            ]
+          },
+          "timings": {
+            "detectSeconds": 2.9,
+            "recoverSeconds": 33
+          },
+          "impact": {
+            "failedRequests": 1,
+            "refusedCodes": ["settlement_pending"],
+            "fundsAtRisk": "none"
+          }
+        },
+        "otherNetwork": null,
+        "checks": [
+          {
+            "name": "the conflicting transaction is on the ledger",
+            "ok": true
+          },
+          {
+            "name": "the affected settlement was not reported as settled (answered settlement_pending)",
+            "ok": true
+          },
+          {
+            "name": "the next settlement succeeded",
+            "ok": true
+          }
+        ],
+        "notes": [
+          "A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run."
+        ]
+      }
+    },
+    {
+      "id": "expired-authorization",
+      "title": "A payment settled after its authorization expired",
+      "status": "passed",
+      "elapsedMs": 25556,
+      "transactions": [
+        {
+          "hash": "3f008110456c931af6241bb91ef6f99cd6db9a0008c86d948a83e8725f44ef6e",
+          "role": "fresh payment"
+        }
+      ],
+      "observations": {
+        "drill": {
+          "exercise": "expired-authorization",
+          "environment": "local",
+          "threats": ["E4"],
+          "fault": {
+            "method": "a payment held past its expiration ledger before /settle",
+            "injectedAt": "2026-10-23T09:33:15.487Z",
+            "clearedAt": "2026-10-23T09:33:22.553Z"
+          },
+          "detection": {
+            "alert": "manual",
+            "severity": "page",
+            "source": "manual",
+            "firedAt": null
+          },
+          "runbook": {
+            "section": "docs/runbook.mdx#expired-authorizations",
+            "steps": [
+              "read the refusal code the seller received: invalid_exact_stellar_signature_expired",
+              "paid again with a fresh payment"
+            ]
+          },
+          "recovery": {
+            "completedAt": "2026-10-23T09:33:33.040Z",
+            "verifiedBy": [
+              "the late settle was refused as expired (invalid_exact_stellar_signature_expired)",
+              "a fresh payment settled"
+            ]
+          },
+          "timings": {
+            "detectSeconds": null,
+            "recoverSeconds": 17.6
+          },
+          "impact": {
+            "failedRequests": 1,
+            "refusedCodes": ["invalid_exact_stellar_signature_expired"],
+            "fundsAtRisk": "none"
+          }
+        },
+        "otherNetwork": null,
+        "checks": [
+          {
+            "name": "the late settle was refused as expired (invalid_exact_stellar_signature_expired)",
+            "ok": true
+          },
+          {
+            "name": "a fresh payment settled",
+            "ok": true
+          }
+        ],
+        "notes": [
+          "A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run."
+        ]
+      }
+    },
+    {
+      "id": "signer-rotation",
+      "title": "Rotate the fee sponsor",
+      "status": "passed",
+      "elapsedMs": 26354,
+      "transactions": [
+        {
+          "hash": "cba5c0d0ffa3352ae7c4fcbcda40769754e0cc4d8a677e8544f57c3d5c481eb4",
+          "role": "settlement with the old sponsor"
+        },
+        {
+          "hash": "e0e1b734c42c7ab843c5311217711f585c136e41fe9b8d00e69f3b04ea1e9cf2",
+          "role": "cold signer added to the old sponsor, signed offline"
+        },
+        {
+          "hash": "65a7614c0adbd02eab36f2581b1e9731d1c006bf037afe1028fb47629fb93293",
+          "role": "sequence bump by the leaked key"
+        },
+        {
+          "hash": "b2752c372b7475ee056ce421dd794ff2baceab3dfea28e6840d5f3a75676b634",
+          "role": "freeze by the cold key"
+        },
+        {
+          "hash": "df1beff4b15d4a2e26a5274c612ee024e4d4d7511f548327f64019b2dae49074",
+          "role": "sweep by the cold key"
+        },
+        {
+          "hash": "81f206323cf5e006a4c3e7b61771764859f8f0407a82356849d5fc519cc74185",
+          "role": "settlement with the new sponsor"
+        }
+      ],
+      "observations": {
+        "drill": {
+          "exercise": "signer-rotation",
+          "environment": "local",
+          "threats": ["O6"],
+          "fault": {
+            "method": "a leaked sponsor seed: the cold key locked the old key out and swept, then the service restarted with a new, funded sponsor seed on the same database",
+            "injectedAt": "2026-10-23T09:33:39.413Z",
+            "clearedAt": "2026-10-23T09:33:53.120Z"
+          },
+          "detection": {
+            "alert": "manual",
+            "severity": "page",
+            "source": "manual",
+            "firedAt": null
+          },
+          "runbook": {
+            "section": "docs/runbook.mdx#signer-rotation",
+            "steps": [
+              "added the cold signer to the old sponsor (unsigned setup signed offline by deploy/stellar-keys.ts)",
+              "prepared the cold key's freeze, then bumped the old sponsor's sequence with the leaked key (as an attacker would)",
+              "locked the old key out with the cold key (deploy/keys/cli.ts freeze: master weight 0, from the cold account)",
+              "swept 100 XLM to the treasury in a second cold-signed transaction (deploy/keys/cli.ts sweep)",
+              "funded the new sponsor",
+              "replaced the sponsor secret and restarted",
+              "read /health and settled one payment"
+            ]
+          },
+          "recovery": {
+            "completedAt": "2026-10-23T09:33:59.394Z",
+            "verifiedBy": [
+              "the payment before the rotation was fee-bumped by the old sponsor",
+              "the leaked key bumped the old sponsor's sequence before the freeze",
+              "the cold key's freeze applied: the old key's weight is 0",
+              "the leaked key alone can no longer pay (sendTransaction ERROR: txBadAuth)",
+              "/health names the new sponsor",
+              "the payment after the rotation settled",
+              "the payment after the rotation was fee-bumped by the new sponsor"
+            ]
+          },
+          "timings": {
+            "detectSeconds": null,
+            "recoverSeconds": 20
+          },
+          "impact": {
+            "failedRequests": 0,
+            "refusedCodes": [],
+            "fundsAtRisk": "none"
+          }
+        },
+        "otherNetwork": null,
+        "checks": [
+          {
+            "name": "the payment before the rotation was fee-bumped by the old sponsor",
+            "ok": true
+          },
+          {
+            "name": "the leaked key bumped the old sponsor's sequence before the freeze",
+            "ok": true
+          },
+          {
+            "name": "the cold key's freeze applied: the old key's weight is 0",
+            "ok": true
+          },
+          {
+            "name": "the leaked key alone can no longer pay (sendTransaction ERROR: txBadAuth)",
+            "ok": true
+          },
+          {
+            "name": "/health names the new sponsor",
+            "ok": true
+          },
+          {
+            "name": "the payment after the rotation settled",
+            "ok": true
+          },
+          {
+            "name": "the payment after the rotation was fee-bumped by the new sponsor",
+            "ok": true
+          }
+        ],
+        "notes": [
+          "A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run.",
+          "The old channel accounts were not retired in this drill; the upto authority switch is not part of a local run (upto off)."
+        ]
+      }
+    },
+    {
+      "id": "channel-exhaustion",
+      "title": "More settlements than channel accounts",
+      "status": "passed",
+      "elapsedMs": 16184,
+      "transactions": [
+        {
+          "hash": "e119c77d6fe9bfa3a6ad710ea5c9d8961d96da67d0431436be1b7fe044df63dd",
+          "role": "settlement after recovery"
+        }
+      ],
+      "observations": {
+        "drill": {
+          "exercise": "channel-exhaustion",
+          "environment": "local",
+          "threats": ["O5"],
+          "fault": {
+            "method": "10 settlements at once against 2 channel accounts, with confirmation held back",
+            "injectedAt": "2026-10-23T09:34:10.825Z",
+            "clearedAt": "2026-10-23T09:34:14.853Z"
+          },
+          "detection": {
+            "alert": "Rail402ChannelLeaseTimeouts",
+            "severity": "ticket",
+            "source": "alertmanager",
+            "firedAt": "2026-10-23T09:34:13.426Z"
+          },
+          "runbook": {
+            "section": "docs/runbook.mdx#channel-pool-exhaustion",
+            "steps": [
+              "read the refusals: 8 of 10 (settle_exact_stellar_channel_unavailable)",
+              "let the burst drain; rail402_channels_in_use is 0 afterwards"
+            ]
+          },
+          "recovery": {
+            "completedAt": "2026-10-23T09:34:22.727Z",
+            "verifiedBy": [
+              "every refusal during the burst was the retryable channel_unavailable",
+              "no channel stayed leased after the burst",
+              "the next settlement succeeded"
+            ]
+          },
+          "timings": {
+            "detectSeconds": 2.6,
+            "recoverSeconds": 11.9
+          },
+          "impact": {
+            "failedRequests": 8,
+            "refusedCodes": ["settle_exact_stellar_channel_unavailable"],
+            "fundsAtRisk": "none"
+          }
+        },
+        "otherNetwork": null,
+        "checks": [
+          {
+            "name": "every refusal during the burst was the retryable channel_unavailable",
+            "ok": true
+          },
+          {
+            "name": "no channel stayed leased after the burst",
+            "ok": true
+          },
+          {
+            "name": "the next settlement succeeded",
+            "ok": true
+          }
+        ],
+        "notes": [
+          "A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run."
+        ]
+      }
+    },
+    {
+      "id": "sponsor-depletion",
+      "title": "The fee sponsor runs low and is topped up",
+      "status": "passed",
+      "elapsedMs": 34075,
+      "transactions": [
+        {
+          "hash": "f469405b5cef7af97e9290b571793d12e22d9164763aabc255f78c76100aa534",
+          "role": "the drain"
+        },
+        {
+          "hash": "95bb82d5053db0d288995f20ce076a5b3fd486b843858e5f247444540d95af6b",
+          "role": "the treasury top-up"
+        },
+        {
+          "hash": "5f8e30d6470ddadd0370606182df93a50236771ac8ddac12a2154bc6d43b8a54",
+          "role": "settlement after recovery"
+        }
+      ],
+      "observations": {
+        "drill": {
+          "exercise": "sponsor-depletion",
+          "environment": "local",
+          "threats": ["S5"],
+          "fault": {
+            "method": "the sponsor's balance spent down to about 200 XLM, below its 250 XLM reserve and 300 XLM readiness floor",
+            "injectedAt": "2026-10-23T09:34:31.831Z",
+            "clearedAt": "2026-10-23T09:34:54.213Z"
+          },
+          "detection": {
+            "alert": "Rail402SponsorBalanceLow",
+            "severity": "page",
+            "source": "alertmanager",
+            "firedAt": "2026-10-23T09:34:45.427Z"
+          },
+          "runbook": {
+            "section": "docs/runbook.mdx#sponsor-depletion",
+            "steps": [
+              "checked the spend: one payment out of the sponsor account, not settlement fees",
+              "topped up 5000 XLM from the treasury to the recorded sponsor address (buildTopUp refuses any other destination)",
+              "waited for /ready"
+            ]
+          },
+          "recovery": {
+            "completedAt": "2026-10-23T09:35:05.901Z",
+            "verifiedBy": [
+              "/ready failed while the sponsor was below its floor",
+              "a settlement was refused while the sponsor was below its reserve (settle_exact_stellar_sponsor_unavailable)",
+              "/ready answered 200 after the top-up",
+              "an exact payment settled after the top-up"
+            ]
+          },
+          "timings": {
+            "detectSeconds": 13.6,
+            "recoverSeconds": 34.1
+          },
+          "impact": {
+            "failedRequests": 1,
+            "refusedCodes": ["settle_exact_stellar_sponsor_unavailable"],
+            "fundsAtRisk": "none"
+          }
+        },
+        "otherNetwork": null,
+        "checks": [
+          {
+            "name": "/ready failed while the sponsor was below its floor",
+            "ok": true
+          },
+          {
+            "name": "a settlement was refused while the sponsor was below its reserve (settle_exact_stellar_sponsor_unavailable)",
+            "ok": true
+          },
+          {
+            "name": "/ready answered 200 after the top-up",
+            "ok": true
+          },
+          {
+            "name": "an exact payment settled after the top-up",
+            "ok": true
+          }
+        ],
+        "notes": [
+          "A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run."
+        ]
+      }
+    },
+    {
+      "id": "degraded-indexing-bazaar",
+      "title": "The embedding model is missing at a restart",
+      "status": "passed",
+      "elapsedMs": 13178,
+      "observations": {
+        "drill": {
+          "exercise": "degraded-indexing-bazaar",
+          "environment": "local",
+          "threats": ["O7"],
+          "fault": {
+            "method": "a restart with the embedding model files missing",
+            "injectedAt": "2026-10-23T09:35:15.174Z",
+            "clearedAt": "2026-10-23T09:35:17.780Z"
+          },
+          "detection": {
+            "alert": "Rail402Down",
+            "severity": "page",
+            "source": "alertmanager",
+            "firedAt": "2026-10-23T09:35:17.426Z"
+          },
+          "runbook": {
+            "section": "docs/runbook.mdx#degraded-indexing",
+            "steps": [
+              "the replica refused to start: rail402: startup_failed: embedding model file <model directory>/all-minilm-l6-v2/model.onnx is missing; fetch it or enable downloads",
+              "restarted with lexical search (SEARCH_EMBEDDINGS=false) until the model files are restored"
+            ]
+          },
+          "recovery": {
+            "completedAt": "2026-10-23T09:35:28.332Z",
+            "verifiedBy": [
+              "the replica refused to start without its model files",
+              "search answers HTTP 200 with lexical search (partialResults true)",
+              "an exact payment settled after the restart"
+            ]
+          },
+          "timings": {
+            "detectSeconds": 2.3,
+            "recoverSeconds": 13.2
+          },
+          "impact": {
+            "failedRequests": 0,
+            "refusedCodes": [],
+            "fundsAtRisk": "none"
+          }
+        },
+        "otherNetwork": null,
+        "checks": [
+          {
+            "name": "the replica refused to start without its model files",
+            "ok": true
+          },
+          {
+            "name": "search answers HTTP 200 with lexical search (partialResults true)",
+            "ok": true
+          },
+          {
+            "name": "an exact payment settled after the restart",
+            "ok": true
+          }
+        ],
+        "notes": [
+          "A one-network local stack (testnet only): isolation between two networks served by one process is not exercised by this run.",
+          "With two replicas restarted one at a time, the other replica keeps serving while this one refuses to start."
+        ]
+      }
+    },
+    {
+      "id": "degraded-indexing-explorer",
+      "title": "The Explorer indexer falls behind",
+      "status": "skipped",
+      "skipReason": "the Explorer indexer is not part of this stack yet",
+      "elapsedMs": 0
+    }
+  ]
+}

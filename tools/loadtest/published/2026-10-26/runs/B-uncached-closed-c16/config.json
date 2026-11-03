@@ -1,0 +1,79 @@
+{
+  "started": "2026-10-26T22:36:43.026Z",
+  "args": {
+    "url": "http://127.0.0.1:8795",
+    "out": "tools/loadtest/results/package-VXKo4a/runs/B-uncached-closed-c16",
+    "config-env": "tools/loadtest/results/package-VXKo4a/public.env",
+    "cpus": "2",
+    "memory": "3g",
+    "state": "uncached",
+    "concurrency": "16",
+    "duration": "60",
+    "warmup": "10",
+    "mix": "search",
+    "rate": "25",
+    "catalog": "A",
+    "bump-seconds": "10",
+    "probe-rate": "5",
+    "settle-rate": "1"
+  },
+  "git": {
+    "commit": "0efb605258f5433c74607f7f439706ad71011251",
+    "dirty": false
+  },
+  "node": "v24.19.0",
+  "host": {
+    "cpu": "Intel(R) Core(TM) Ultra 5 225",
+    "cores": 8,
+    "memoryBytes": 50982723584
+  },
+  "limits": {
+    "cpus": "2",
+    "memory": "3g"
+  },
+  "datasets": {
+    "catalogA": {
+      "sha256": "9142d5257446d9956e36c352e0489c91259654ae6fda34d15d74a22d3744b2d1",
+      "count": 500
+    },
+    "catalogB": {
+      "sha256": "74c9dca16deac3885e2c25617f421bc146e22d9cda01942a48c2b700a71cbccd",
+      "count": 5000
+    },
+    "queries": {
+      "sha256": "b6f46ec6325f415a194115e06dd9aec3b393a1ceda652a6e3f2e0cd25e8d5591",
+      "count": 202
+    },
+    "uncachedSample": {
+      "sha256": "a62129ff40d120e58d662926c3a4d39f11bed07b3b8be5059e0d7ef88b34357d",
+      "count": 1000
+    }
+  },
+  "catalog": null,
+  "bumps": 0,
+  "settle": null,
+  "service": {
+    "version": "0.5.0+50e7461",
+    "ranker": {
+      "model": "all-minilm-l6-v2",
+      "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+      "files": {
+        "model": "6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452",
+        "tokenizer": "be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037"
+      },
+      "similarityFloor": 0.3,
+      "depth": 100,
+      "embeddings": true,
+      "searchPackage": "0.5.0",
+      "evalBaseline": "search-eval-v1.1.0"
+    }
+  },
+  "env": {
+    "NETWORKS": "stellar:testnet",
+    "TESTNET_BAZAAR_USD_ASSETS": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "TESTNET_BAZAAR_UNVERIFIED_TTL_HOURS": "87600",
+    "RATE_LIMIT_PER_MINUTE": "0",
+    "SEARCH_RATE_LIMIT_PER_MINUTE": "0"
+  },
+  "httpCache": "none at the origin: discovery responses carry no Cache-Control"
+}
