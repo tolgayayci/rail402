@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "network": "stellar:pubnet",
+  "registryVersion": "2026-10-22.2",
+  "epochs": [
+    {
+      "id": "pubnet",
+      "passphrase": "Public Global Stellar Network ; September 2015",
+      "fromLedger": 1,
+      "dataLakeFolder": "pubnet"
+    }
+  ],
+  "facilitators": [
+    {
+      "id": "rail402-beta",
+      "name": "Rail402 beta (concluded)",
+      "tier": "rail402-beta",
+      "sharedRelayer": false,
+      "note": "The account of the concluded Rail402 beta, which the operator published as the submitter of its beta settlements. Not the current hosted service.",
+      "accounts": [
+        {
+          "address": "GAIWUSSOZMK4PNOUSHVTHEBND5LUSOFYLZDOIDVJBKLFEIND3M7G2ZSE",
+          "role": "sponsor",
+          "epoch": "pubnet",
+          "validFromLedger": 63984840,
+          "validToLedger": 65073805,
+          "evidence": [
+            {
+              "url": "https://horizon.stellar.org/transactions/c70ef99c73e03ba8012e84efb5cffea66a77c9dfb0cc4270479fd0f99db2d607",
+              "sha256": "c43db227ca72d269a4ff6a7b19df4b39f954dfb54c3071e45090f7218ad7f44f",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/c43db227ca72d269a4ff6a7b19df4b39f954dfb54c3071e45090f7218ad7f44f.json"
+            },
+            {
+              "url": "https://horizon.stellar.org/transactions/aa231be98b3f0777e4395fbb65b26febfbf5d70cdd1bc7bf059959fc70270807",
+              "sha256": "b404924a42c863afcedc5bd25eee60c156deb5de3a2370fddd486387ef3b45f2",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/b404924a42c863afcedc5bd25eee60c156deb5de3a2370fddd486387ef3b45f2.json"
+            },
+            {
+              "url": "https://horizon.stellar.org/transactions/21514eeb5bc89316cf6a9369cf6b5d0c5ab125d4c1d1855ee533ece8f8a5cf46",
+              "sha256": "171751f3e8e6c07a61ca08cfe9252e7032d8a5c9939c992a0f22bde77293245d",
+              "archivedAt": "2026-10-22T19:30:00Z",
+              "archive": "registry/evidence/171751f3e8e6c07a61ca08cfe9252e7032d8a5c9939c992a0f22bde77293245d.json"
+            }
+          ],
+          "note": "validToLedger is the ledger of the account's account_merge (the last evidence entry), after which the account no longer exists."
+        }
+      ]
+    },
+    {
+      "id": "built-on-stellar",
+      "name": "Built on Stellar facilitator",
+      "tier": "facilitator",
+      "sharedRelayer": true,
+      "note": "Fee-bump account named by its operators in stellar/x402-stellar issue 17. It is a shared relayer that also submits transactions that are not x402 payments.",
+      "accounts": [
+        {
+          "address": "GA5SXMFJTUPTZRIEKM6XZLCYOZRMUEE6KGAHL3GXDBG64DYOUIWYIF3M",
+          "role": "fee-bump",
+          "epoch": "pubnet",
+          "validFromLedger": 61529276,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://api.github.com/repos/stellar/x402-stellar/issues/17",
+              "sha256": "35caea1e41d9221f7aba2916378b1d9e7d88c54342d157e4c71a725daf0cbdd4",
+              "kind": "extract",
+              "sourceSha256": "09b28e3da3240989201cdf8fb90fa1621e165cae118c4c807ef747dbdd2ba2bf",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/35caea1e41d9221f7aba2916378b1d9e7d88c54342d157e4c71a725daf0cbdd4.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "algovoi",
+      "name": "AlgoVoi facilitator (Stellar)",
+      "tier": "facilitator",
+      "sharedRelayer": false,
+      "note": "Operation-source account its operator declared in a public comment on stellar/x402-stellar issue 17.",
+      "accounts": [
+        {
+          "address": "GCFORVFZ6QDFPFU6LNODLPC63ZZFA5TJD7XK3ZDMUI6NHDOYPLB5UFHY",
+          "role": "relayer",
+          "epoch": "pubnet",
+          "validFromLedger": 62547353,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://api.github.com/repos/stellar/x402-stellar/issues/comments/4467970239",
+              "sha256": "01bed0c8990d7bf18654d667e0283854b8c7be109cde3ba51222746cde8c78e5",
+              "kind": "extract",
+              "sourceSha256": "cd979554f98025c30b109087bf675f43a1655048c188e65b2affa4e24d9c6419",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/01bed0c8990d7bf18654d667e0283854b8c7be109cde3ba51222746cde8c78e5.json"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "uptoContracts": [
+    {
+      "contract": "CCQ3LI76R3EN7MKC7NQOW744BAJPGXWJNDWNORBX6BVFYZUYXUT2WAZJ",
+      "wasmSha256": "a19f563e764dfd52a0d229c063e7ac1a1b36f6a976f552a8e19b91ee8e4ef84a",
+      "epoch": "pubnet",
+      "validFromLedger": 63984840,
+      "validToLedger": 65073805,
+      "rule": "R-UPTO-BETA",
+      "facilitatorId": "rail402-beta",
+      "note": "The concluded beta's settlement contract, an earlier design without the upto_settled event.",
+      "evidence": [
+        {
+          "url": "https://horizon.stellar.org/transactions/aa231be98b3f0777e4395fbb65b26febfbf5d70cdd1bc7bf059959fc70270807",
+          "sha256": "b404924a42c863afcedc5bd25eee60c156deb5de3a2370fddd486387ef3b45f2",
+          "archivedAt": "2026-10-22T16:13:00Z",
+          "archive": "registry/evidence/b404924a42c863afcedc5bd25eee60c156deb5de3a2370fddd486387ef3b45f2.json"
+        }
+      ]
+    }
+  ]
+}

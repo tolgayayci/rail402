@@ -1,0 +1,982 @@
+{
+  "schemaVersion": 1,
+  "network": "stellar:testnet",
+  "registryVersion": "2026-10-23.1",
+  "epochs": [
+    {
+      "id": "2025-12-17",
+      "passphrase": "Test SDF Network ; September 2015",
+      "fromLedger": 2,
+      "dataLakeFolder": "testnet/2025-12-18"
+    }
+  ],
+  "facilitators": [
+    {
+      "id": "rail402",
+      "name": "Rail402 hosted service",
+      "tier": "rail402",
+      "sharedRelayer": false,
+      "urls": ["https://testnet.rail402.dev"],
+      "note": "The sponsor, channel accounts and upto settlement authority the hosted service advertises in /supported. Self-hosted Rail402 instances are not listed.",
+      "accounts": [
+        {
+          "address": "GAX6MVOC5O5VZCSCCY26RM33AKPODAEHAMUS76IT4DBAGED46VIOWEPC",
+          "role": "sponsor",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ],
+          "note": "Previous hosted sponsor, replaced on 2026-10-22."
+        },
+        {
+          "address": "GDZREJ6UXJDL7IMLRMHP4F6RM37TF3WUGRB7GPE5G4IUIXKS6ISZPVEQ",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GB334JRFWHASBTLFWFDE2PUH2BJVVJNWT4TUFESSNH4IPQK5XMPD5HX7",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GBMM3OEFZTPG2JWQTY2RDVNDDDONFZXBEWV6UD3L554RTJGZULR752YJ",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GB64RTLBRKRSTKFEWZU5P25O2WUZBI22WQY3DBWWH2B57Y6BRSOGCYUS",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GBAWKRXQ3NCGQKTW4HMD4THUVOU7F6FYOOVGNPL3V3AH3CWT7W4OA2IM",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GCM75IOHE4X5T4PAWC52JQH2WC2DOCLZQFKVJB7Z7IHOMMPR2CX75EEK",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GDTJKNDIENAI7AVCSIMQLPZGFJSRDRBQ4WWKEVJLP5CZVTTSSM2SV3IN",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GCSBROZRQFRWMTCQYQGU5SHDML24ZVSAOP4M4Z3SJZXYIC55DL6QF2TN",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GDIQHTP3KYYC7UUUEHQ5Q2KFPLMIDDDKN7DMFLLNBC7CHO7IEUCMLAYN",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GDJGN273XHBYIBHBK57E323KWFTSHFES3DZXNZG3B7YGQKCT72BINB5G",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GBOXYFJZEFPTLSYPGCG7QFKUI4DCHATOD6XDO4VJUUJM2YJC5SXWUE3S",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GCU4VZCFCHWSIMBFGAUSRS7UGELI4YBDVDLGA7HWO2RHH65QN5JERO3W",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GDTMBMFVMXC5JA4TJJBK6TQQ36ZPNPQLG6RWHMONLYP7SMFL4I7HX4O7",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GCWVKGUT4W5J5CWF2PHXAAQF5TGG6NWZNSQ3FRBZWHGZGBIUETRNVT6Z",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GBWH6KTFYLTIWL2Y6VOJS2DRCCW65F3ZCCMADMQ6UHSB7CBMHLRNHCT4",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GC65COQZYD3QBDXXPDZP5QIYG2DEDGRANTIG27HEIGCKE6YIIV33XAG2",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GAGUB7N3W5D5U2TMD4IL2ZNH4OSWI2DWJPE65VWV2G3G3BHZ4SFUYBYQ",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GB7MYLE2FJ3B45QCUKSWLDXU7XOX5IB6WP4BRZ23ZBZXGOMT7OCBLZHY",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GCWHGE3VITTC372HNQZ2VHIQO2UQKM6DF463JVIR7JUPNRUUHY7D4KTY",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GAQZVTDNI274EAAFFGJFEUGABDXEL75AYPKYDGN437FVWJRXL3MXNT73",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GB5Z6U43A7IG7XGVGRP27G2A7E2VKEPQQKUZG5NUY2YA7D4QQJ74W4Y3",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GBAUIMDRVA4ZRRKMP23XMO6WVQWN7LCZPA4Q4LOUNYK2QPYKUNGPAMVY",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GBXJKUO4DNWVPY4Z2YY5K5MBDBZJZA6EBOHYKUIKY2QZWNKXU5TF74E4",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GAUNOKFXMYYCCAEN3RAEXJOCOBES2PWEIHMOZVQGTDF3EDDLAE3WRNVA",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4912912,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GDGLLZRNQ72UVPOVKGBH6XR536SHD6YPVDPS6DNPKQJYPVMM3JEDYYQC",
+          "role": "upto-authority",
+          "epoch": "2025-12-17",
+          "validFromLedger": 4986037,
+          "validToLedger": 5315307,
+          "evidence": [
+            {
+              "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/tools/conformance/evidence/canonical-hosted-stellar-testnet.json",
+              "sha256": "744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/744c95eb9c73d3742e5292fb7848afeb8bf44fa9553232dce98d09efdfa2398a.json"
+            }
+          ]
+        },
+        {
+          "address": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "role": "sponsor",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GBELAB7H5MOJQLEZLC4UE4MKKL3K6QDOLHY6UWE3AJOEZXHXI7YJG52A",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GARF3UCQO2RRAMFEAEMWJYYU3SHAAAP57HY5YX5GQ4NXBAWSGF2HIDLZ",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GCZSK2TAJPXVJNPQCCTMAJOQJLCL24JAASCQRUCHHBYJ6VJTXL3KZGHM",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GB2IEXLDAE6W4YGJPWJHFXBSO4T4YQBDMXEBOAPOLBTTFUWTQETFV6SI",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GAJKK6RUBWRBWR3P7BXYMZ3ARY4V7MIA7R6DYS5APG74Q3QEQZXW5H7F",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GBJJN6OD7OXKQHBIT4GSOK2OHSGUGVH73ARQKSBLCRLXB53YK5TLJ7OA",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GBYJEY2I7WWFTFQF5LDGEQVO2QEG74FBEAB3XF4T2PLFNDUXI5LRSK7J",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GBIRIZ4GG3ENX4ZXOYLNEK3LPLX2WBYOQVOVIYVG4KC5YVEIVYL2OQXV",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GCHZZHJS6ECQE3ZLL2GTEAPB2WRDBSIPK6K7LKIU5TD2VEHEPNJVGAB6",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GA3O6DK775F3OWQ35XJ2QOKLVJF52GXX3GMRAKSA5UPDJXMU7HIEOWXM",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GD7NFBCSZC6R6UVHYP4LGYMFXKFZFQZUXORLGKKOHXOXEUTNOSKSQFXN",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GARNQRUPOIG6O5QXZTNGZR2WSILAH4EKWN5GCXK22HJMPISCMPCVALCO",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GBSNDNN3HLXW633VD43LRGH6F4UE576ZYOL7JFUEANYHJ7X6W4V3LFW4",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GCYS6VN4X4WTTWWDNHIUBZFEZBXJX5KJHUVSLRLZZ2DUGIEPAHAHMFM4",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GAYEVWAGRDU537EDK7NAWOHW7NSNND4TUCEAOZJDRQX6VK4VXDKKMLNZ",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GCZFSLFOHITZTMJYA6ZETN6K7GTC6UCM6N6MR4KAP6RSXJRBCZ5XX5UX",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GBI2AUZWQ2GIMRYFSJDIA6HMPLH33CHLCYLSN6AA7X2VXCLKENOXY5OO",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GA7MU3FIE7MSS4K4BMX6PKYCLAMQLONHUFT5XKLC623777KA3UAROCJZ",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GDV2R6IGJSSE4MPDATO7H7NTQ6NNBIB42BGNPQUWQLEZD3HMKHMJ6XDJ",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GDJPZO5EMARR63RF2LPRRORYO4DDIUTSQIKJNPJD4OVAOGCDVE3Y2M4Y",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GB6PPHXE2UOHJGKFFNKRG4SNSRTE3GIJ5R26AZTJW53Y5MQ2JWC67KXL",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GBJTKAOUKF37YKU5MAT4F25HVD55B2NVGCPEDHIBPZJQGZKMQWNV3UDB",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GCEVJHVAWRAVFRWZXMLZBLRSDTQYLEUMGXQ3AUIVYLAWNPAOHEM34BKJ",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GAQYXF2SZAGZ4366PX5GYXKVRBIIY6E5KAVTGAYI5HQAGMCJS6IOXEKQ",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327208,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        },
+        {
+          "address": "GBAQ3BGTI3THOPSLXCAAJNHOH7LGU477RFXOQ6NVECNVOTCABEAEI6SX",
+          "role": "upto-authority",
+          "epoch": "2025-12-17",
+          "validFromLedger": 5327305,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://testnet.rail402.dev/supported",
+              "sha256": "3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/3fc358c1d8acd8bd381ad31eb33231a87e40205e46b680c8bf09636844067571.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "x402-org",
+      "name": "x402.org facilitator",
+      "tier": "facilitator",
+      "sharedRelayer": false,
+      "urls": ["https://www.x402.org/facilitator"],
+      "note": "The Stellar signers its /supported advertises.",
+      "accounts": [
+        {
+          "address": "GC6CSXBV4C6RL3HEDTW57KXYXSSXKAWKGYDEOSATXM3XNKXSR2VRYN3K",
+          "role": "channel",
+          "epoch": "2025-12-17",
+          "validFromLedger": 1420378,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://www.x402.org/facilitator/supported",
+              "sha256": "ff310d048728e7e5feadb6ec3a7859ce0432cbfbcfc6eb67c9540dac066f5d3e",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/ff310d048728e7e5feadb6ec3a7859ce0432cbfbcfc6eb67c9540dac066f5d3e.json"
+            }
+          ]
+        },
+        {
+          "address": "GC5OLUZ4WANPN6VT7YGTK2SRMZG762KOVKJXHWIO4K57UBASO2FMNRET",
+          "role": "fee-bump",
+          "epoch": "2025-12-17",
+          "validFromLedger": 1420382,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://www.x402.org/facilitator/supported",
+              "sha256": "ff310d048728e7e5feadb6ec3a7859ce0432cbfbcfc6eb67c9540dac066f5d3e",
+              "archivedAt": "2026-10-22T16:13:00Z",
+              "archive": "registry/evidence/ff310d048728e7e5feadb6ec3a7859ce0432cbfbcfc6eb67c9540dac066f5d3e.json"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "uptoContracts": [
+    {
+      "contract": "CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U",
+      "wasmSha256": "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
+      "epoch": "2025-12-17",
+      "validFromLedger": 5071399,
+      "validToLedger": null,
+      "rule": "R-UPTO",
+      "deploymentRecord": "contracts/stellar/deployments/testnet.json",
+      "evidence": [
+        {
+          "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/contracts/stellar/deployments/testnet.json",
+          "sha256": "58352cd3895a8623ed271a2d3369f1e54c280ab7e44503d9daa4f99845a7ad7d",
+          "archivedAt": "2026-10-22T16:13:00Z",
+          "archive": "registry/evidence/58352cd3895a8623ed271a2d3369f1e54c280ab7e44503d9daa4f99845a7ad7d.json"
+        }
+      ]
+    },
+    {
+      "contract": "CCNU3CYA6HCLF5HQSPV3UU2FYVGJ4QWKLCJPMCRSSU6ZKF6LJSN5AYPB",
+      "wasmSha256": "40258eb6b66e51016abe13a4cc1b11b18b7d65ac4f9999a38f13fa15448d2435",
+      "epoch": "2025-12-17",
+      "validFromLedger": 4941332,
+      "validToLedger": null,
+      "rule": "R-UPTO",
+      "deploymentRecord": "contracts/stellar/deployments/testnet.json",
+      "note": "The earlier deployment of the same source; immutable and still callable.",
+      "evidence": [
+        {
+          "url": "https://raw.githubusercontent.com/tolgayayci/rail402/a002cfa146c24278c404fd5eb70c9a61c5673163/contracts/stellar/deployments/testnet.json",
+          "sha256": "58352cd3895a8623ed271a2d3369f1e54c280ab7e44503d9daa4f99845a7ad7d",
+          "archivedAt": "2026-10-22T16:13:00Z",
+          "archive": "registry/evidence/58352cd3895a8623ed271a2d3369f1e54c280ab7e44503d9daa4f99845a7ad7d.json"
+        }
+      ]
+    },
+    {
+      "contract": "CB3TWFYYDS74WM2N4RKMKUBUREZ6SR5PV3PI3PGO2JEBPJ6A65PSL342",
+      "wasmSha256": "abc872c2b172293b81586a83c957f063c66f3d515ef9398b166b21f644046ea2",
+      "epoch": "2025-12-17",
+      "validFromLedger": 3880245,
+      "validToLedger": 5326244,
+      "rule": "R-UPTO-BETA",
+      "note": "A settlement contract of the concluded Rail402 beta (the first testnet deployment, without the settlement hook). validToLedger is the last testnet ledger closed before the beta's pubnet account was merged (2026-10-22 07:40:08 UTC), the beta's public end; the contract stays callable, but later calls are not beta history.",
+      "evidence": [
+        {
+          "url": "https://api.stellar.expert/explorer/testnet/contract/CB3TWFYYDS74WM2N4RKMKUBUREZ6SR5PV3PI3PGO2JEBPJ6A65PSL342",
+          "sha256": "b294c1eac8c5a09439bbea8e95985cae68d540c6107c85122cbebc08e7bfecac",
+          "archivedAt": "2026-10-22T18:22:00Z",
+          "archive": "registry/evidence/b294c1eac8c5a09439bbea8e95985cae68d540c6107c85122cbebc08e7bfecac.json"
+        },
+        {
+          "url": "https://horizon.stellar.org/transactions/21514eeb5bc89316cf6a9369cf6b5d0c5ab125d4c1d1855ee533ece8f8a5cf46",
+          "sha256": "171751f3e8e6c07a61ca08cfe9252e7032d8a5c9939c992a0f22bde77293245d",
+          "archivedAt": "2026-10-22T19:30:00Z",
+          "archive": "registry/evidence/171751f3e8e6c07a61ca08cfe9252e7032d8a5c9939c992a0f22bde77293245d.json"
+        },
+        {
+          "url": "https://horizon-testnet.stellar.org/ledgers/5326244",
+          "sha256": "346751cde462204356befb9db1a0d0cc60c2f5b94f3eff57ed385594334b74ff",
+          "archivedAt": "2026-10-23T00:45:00Z",
+          "archive": "registry/evidence/346751cde462204356befb9db1a0d0cc60c2f5b94f3eff57ed385594334b74ff.json"
+        }
+      ]
+    },
+    {
+      "contract": "CBHDZLYADBUEBP3KK4WLPG3TWKSYWQO4MTVKYCRY3Z6WY4QFLNJYBSEU",
+      "wasmSha256": "29ed0e9020423577a839ed54661096355d22313a0eecf5e055e3f7f22059726d",
+      "epoch": "2025-12-17",
+      "validFromLedger": 3900350,
+      "validToLedger": 5326244,
+      "rule": "R-UPTO-BETA",
+      "note": "A settlement contract of the concluded Rail402 beta (a later testnet deployment, without the settlement hook). validToLedger is the last testnet ledger closed before the beta's pubnet account was merged (2026-10-22 07:40:08 UTC), the beta's public end; the contract stays callable, but later calls are not beta history.",
+      "evidence": [
+        {
+          "url": "https://api.stellar.expert/explorer/testnet/contract/CBHDZLYADBUEBP3KK4WLPG3TWKSYWQO4MTVKYCRY3Z6WY4QFLNJYBSEU",
+          "sha256": "89932c9f70959b1ae67574f38fea4b8e6bced5bd0e44e8c8ce9575a0dc045c08",
+          "archivedAt": "2026-10-22T18:22:00Z",
+          "archive": "registry/evidence/89932c9f70959b1ae67574f38fea4b8e6bced5bd0e44e8c8ce9575a0dc045c08.json"
+        },
+        {
+          "url": "https://horizon-testnet.stellar.org/transactions/5ec8b20c06ccf58a7213914baa39a6a863224ec844d031a8fa52c37a90d5b6fe",
+          "sha256": "693feee92a71ddc69405c77a9a2792e2d9a53071475bd58fc8702b7ba3bd0978",
+          "archivedAt": "2026-10-22T18:22:00Z",
+          "archive": "registry/evidence/693feee92a71ddc69405c77a9a2792e2d9a53071475bd58fc8702b7ba3bd0978.json"
+        },
+        {
+          "url": "https://horizon.stellar.org/transactions/21514eeb5bc89316cf6a9369cf6b5d0c5ab125d4c1d1855ee533ece8f8a5cf46",
+          "sha256": "171751f3e8e6c07a61ca08cfe9252e7032d8a5c9939c992a0f22bde77293245d",
+          "archivedAt": "2026-10-22T19:30:00Z",
+          "archive": "registry/evidence/171751f3e8e6c07a61ca08cfe9252e7032d8a5c9939c992a0f22bde77293245d.json"
+        },
+        {
+          "url": "https://horizon-testnet.stellar.org/ledgers/5326244",
+          "sha256": "346751cde462204356befb9db1a0d0cc60c2f5b94f3eff57ed385594334b74ff",
+          "archivedAt": "2026-10-23T00:45:00Z",
+          "archive": "registry/evidence/346751cde462204356befb9db1a0d0cc60c2f5b94f3eff57ed385594334b74ff.json"
+        }
+      ]
+    },
+    {
+      "contract": "CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X",
+      "wasmSha256": "a19f563e764dfd52a0d229c063e7ac1a1b36f6a976f552a8e19b91ee8e4ef84a",
+      "epoch": "2025-12-17",
+      "validFromLedger": 3953518,
+      "validToLedger": 5326244,
+      "rule": "R-UPTO-BETA",
+      "note": "The last testnet settlement contract of the concluded Rail402 beta; the same WASM as the beta's pubnet contract. validToLedger is the last testnet ledger closed before the beta's pubnet account was merged (2026-10-22 07:40:08 UTC), the beta's public end; the contract stays callable, but later calls are not beta history.",
+      "evidence": [
+        {
+          "url": "https://api.stellar.expert/explorer/testnet/contract/CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X",
+          "sha256": "d50c20a1d62424fb6d443af16c73121d3af6331db13237789ded377d005da627",
+          "archivedAt": "2026-10-22T18:22:00Z",
+          "archive": "registry/evidence/d50c20a1d62424fb6d443af16c73121d3af6331db13237789ded377d005da627.json"
+        },
+        {
+          "url": "https://horizon-testnet.stellar.org/transactions/b38c1addac90858868b2b59e68740d26540c393d8733de1349df1dde6358c92f",
+          "sha256": "93b11ad41d7ce94cbb873dc1ff5c7fe4c1ff3e97965b25ce8f4e1ffea444c47c",
+          "archivedAt": "2026-10-22T18:22:00Z",
+          "archive": "registry/evidence/93b11ad41d7ce94cbb873dc1ff5c7fe4c1ff3e97965b25ce8f4e1ffea444c47c.json"
+        },
+        {
+          "url": "https://horizon.stellar.org/transactions/21514eeb5bc89316cf6a9369cf6b5d0c5ab125d4c1d1855ee533ece8f8a5cf46",
+          "sha256": "171751f3e8e6c07a61ca08cfe9252e7032d8a5c9939c992a0f22bde77293245d",
+          "archivedAt": "2026-10-22T19:30:00Z",
+          "archive": "registry/evidence/171751f3e8e6c07a61ca08cfe9252e7032d8a5c9939c992a0f22bde77293245d.json"
+        },
+        {
+          "url": "https://horizon-testnet.stellar.org/ledgers/5326244",
+          "sha256": "346751cde462204356befb9db1a0d0cc60c2f5b94f3eff57ed385594334b74ff",
+          "archivedAt": "2026-10-23T00:45:00Z",
+          "archive": "registry/evidence/346751cde462204356befb9db1a0d0cc60c2f5b94f3eff57ed385594334b74ff.json"
+        }
+      ]
+    }
+  ]
+}

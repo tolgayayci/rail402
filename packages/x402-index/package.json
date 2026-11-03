@@ -1,0 +1,69 @@
+{
+  "name": "@rail402.dev/x402-index",
+  "version": "0.5.1",
+  "description": "Recognises x402 settlements on Stellar from ledger data and attributes them to facilitators, under published, versioned indexing rules.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "x402",
+    "stellar",
+    "soroban",
+    "indexer",
+    "explorer"
+  ],
+  "homepage": "https://docs.rail402.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tolgayayci/rail402.git",
+    "directory": "packages/x402-index"
+  },
+  "bugs": {
+    "url": "https://github.com/tolgayayci/rail402/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./registry": {
+      "@rail402/source": "./src/registry-data.ts",
+      "types": "./dist/registry-data.d.ts",
+      "default": "./dist/registry-data.js"
+    }
+  },
+  "files": [
+    "dist",
+    "registry",
+    "rules"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@rail402.dev/stellar": "workspace:*",
+    "@stellar/stellar-sdk": "catalog:",
+    "buffer": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.11"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./registry": {
+        "types": "./dist/registry-data.d.ts",
+        "default": "./dist/registry-data.js"
+      }
+    }
+  }
+}
