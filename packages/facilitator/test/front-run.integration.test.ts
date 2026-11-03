@@ -13,6 +13,7 @@
  * the sponsor) can land first; Rail402 then answers with it when it settled the same amount, and with
  * `settle_upto_stellar_settled_elsewhere` otherwise.
  */
+import { once } from "node:events";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   FeeBumpTransaction,
@@ -149,9 +150,9 @@ describe.skipIf(!available)("front-running reconciliation for exact payments", (
     return { facilitator, ledger, finalized };
   };
 
-  const pay = async (payer: Keypair) => {
+  const pay = async (payer: Keypair, options: { expirationLedger?: number } = {}) => {
     const terms = requirementsFor(usdc.sac, seller.publicKey(), PRICE, 120);
-    const payload = (await net.payment(payer, terms)) as PaymentPayload;
+    const payload = (await net.payment(payer, terms, options)) as PaymentPayload;
     const inspection = inspectExactTransaction(
       (payload.payload as { transaction: string }).transaction,
       net.passphrase,
@@ -270,6 +271,55 @@ describe.skipIf(!available)("front-running reconciliation for exact payments", (
     ]);
   });
 
+  it("answers success with the attacker's hash when ours lands after the authorization expired", async () => {
+    const { facilitator, ledger } = setup();
+    const [payer] = (await net.holders(usdc, 1, "100")) as [Keypair];
+    const sellerBefore = await net.tokenBalance(usdc.sac, seller.publicKey());
+    // Our transaction's time bound (120 s) outlives the authorization (10 ledgers of 1 s).
+    const expiration = (await net.latestLedger()) + 10;
+    const { payload, requirements, key } = await pay(payer, { expirationLedger: expiration });
+
+    // Our broadcast is held while the attacker lands a copy, and released past the expiration: the
+    // host checks the expiration before the nonce, so ours fails as expired, not on the used nonce.
+    let envelope: string | undefined;
+    proxy.onSendTransaction = (transaction) => {
+      envelope ??= transaction;
+      return "hold";
+    };
+    const held = once(proxy.events, "held");
+    const settling = facilitator.core.settle(payload, requirements);
+    let attackerHash: string;
+    try {
+      await held;
+      if (envelope === undefined) throw new Error("nothing was broadcast");
+      attackerHash = await frontRun(attacker, envelope);
+      await expect
+        .poll(() => net.latestLedger(), { timeout: 60_000, interval: 250 })
+        .toBeGreaterThan(expiration);
+    } finally {
+      proxy.onSendTransaction = undefined;
+      await proxy.releaseHeld();
+    }
+    const result = await settling;
+
+    const attack = await net.server.getTransaction(attackerHash);
+    expect(attack.status).toBe(rpc.Api.GetTransactionStatus.SUCCESS);
+    expect((attack as rpc.Api.GetSuccessfulTransactionResponse).ledger).toBeLessThanOrEqual(expiration);
+    expect(result).toEqual({
+      success: true,
+      transaction: attackerHash,
+      network: NETWORK,
+      payer: payer.publicKey(),
+    });
+    const record = await ledger.find(key);
+    expect(record).toMatchObject({ state: "succeeded", settledBy: "third_party" });
+    const ours = await net.server.getTransaction(record?.transactionHash ?? "");
+    expect(ours.status).toBe(rpc.Api.GetTransactionStatus.FAILED);
+    expect((ours as rpc.Api.GetFailedTransactionResponse).ledger).toBeGreaterThan(expiration);
+    expect(await net.tokenBalance(usdc.sac, payer.publicKey())).toBe(START - PRICE);
+    expect(await net.tokenBalance(usdc.sac, seller.publicKey())).toBe(sellerBefore + PRICE);
+  });
+
   describe("accepts only proof from the chain", () => {
     const record = (): SettlementRecord => {
       if (frontRunRecord === undefined) throw new Error("the front-run case did not record a settlement");
@@ -327,9 +377,11 @@ describe.skipIf(!available)("front-running reconciliation for exact payments", (
         .auth()[0];
       auth?.credentials().address().nonce(xdr.Int64.fromString("12345"));
       const rekeyed = { ...unused, envelopeXdr: envelope.toXDR("base64") };
+      // It names the ledger the nonce was read unused at, which bounds what that read proves.
       expect(await findThirdPartySettlement(net.server, rekeyed, net.passphrase)).toEqual({
         found: false,
         miss: "nonce_not_consumed",
+        nonceReadLedger: expect.any(Number) as number,
       });
     });
   });

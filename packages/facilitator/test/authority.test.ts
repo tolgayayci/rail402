@@ -1,7 +1,9 @@
 import { hkdfSync } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { Keypair, xdr, type rpc } from "@stellar/stellar-sdk";
+import { USDC } from "@rail402.dev/stellar";
 import {
+  acceptedAsset,
   authorityStatus,
   createStellarFacilitator,
   MemorySettlementLedger,
@@ -131,28 +133,47 @@ describe("a facilitator with upto", () => {
     ).toBe(false);
   });
 
-  it("uses an operator's own contract without assuming the canonical WASM", () => {
+  it("uses an operator's own contract only with its WASM hash, never assuming the canonical one", () => {
+    const own = {
+      contract: CONTRACT,
+      zeroSettlement: "offchain" as const,
+      maxTransactionFeeStroops: 700_000,
+    };
+    expect(() =>
+      createStellarFacilitator({
+        networks: [{ ...base, network: "stellar:testnet", ledger: new MemorySettlementLedger(), upto: own }],
+      }),
+    ).toThrow(/contractWasmHash is required/);
     const facilitator = createStellarFacilitator({
       networks: [
         {
           ...base,
           network: "stellar:testnet",
           ledger: new MemorySettlementLedger(),
-          upto: { contract: CONTRACT, zeroSettlement: "offchain", maxTransactionFeeStroops: 700_000 },
+          upto: { ...own, contractWasmHash: "cd".repeat(32) },
         },
       ],
     });
     expect(facilitator.networks.get("stellar:testnet")?.upto?.policy).toMatchObject({
       contract: CONTRACT,
-      contractWasmHash: undefined,
+      contractWasmHash: "cd".repeat(32),
       zeroSettlement: "offchain",
       maxTransactionFeeStroops: 700_000,
     });
   });
 
   it("refuses a network without a canonical contract, and malformed settings", () => {
-    const pubnet = { ...base, network: "stellar:pubnet" as const };
-    expect(() => createStellarFacilitator({ networks: [{ ...pubnet, upto: {} }] })).toThrow(/configure one/);
+    const pubnet = {
+      ...base,
+      network: "stellar:pubnet" as const,
+      rpcUrl: "https://mainnet.example/rpc",
+      unguarded: true,
+      assets: [acceptedAsset(USDC["stellar:pubnet"], { minAmount: 10_000n })],
+      policy: { maxTransactionFeeStroops: 300_000, inclusionFeeStroops: 200 },
+    };
+    expect(() =>
+      createStellarFacilitator({ networks: [{ ...pubnet, upto: { maxTransactionFeeStroops: 500_000 } }] }),
+    ).toThrow(/configure one/);
     expect(() =>
       createStellarFacilitator({
         networks: [{ ...base, network: "stellar:testnet", upto: { contract: "CBAD" } }],

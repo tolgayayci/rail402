@@ -5,13 +5,17 @@
  * These tests show where Rail402 refuses before anything is signed (the fee ceiling, the hourly
  * budget, a balance that moved between verify and settle) and the one race it cannot close: the payer
  * spending the balance after the settle-time simulation and before inclusion, or a smart account
- * changing what its `__check_auth` accepts in that window. That transaction fails on chain, the fee is
- * spent, and the failure is named and counted as wasted.
+ * changing what its `__check_auth` accepts in that window. That transaction fails on chain and the fee
+ * is spent. The failure rolls back, the payer's nonce included, so anyone who holds the payment could
+ * still land it until the authorization expires: the settlement waits until then, and the failure is
+ * named and counted as wasted once the authorization expired unused.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Keypair, Operation, rpc } from "@stellar/stellar-sdk";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
+import { inspectExactTransaction, payerAuthorization } from "@rail402.dev/stellar";
 import {
+  MIN_INCLUSION_FEE_STROOPS,
   MemorySettlementLedger,
   SponsorBudget,
   acceptedAsset,
@@ -86,7 +90,12 @@ describe.skipIf(!available)("fee sponsor exposure for exact payments", () => {
           policy: { maxTransactionFeeStroops: options.maxTransactionFeeStroops ?? CEILING },
           ledger,
           ...(options.guard === undefined ? {} : { guard: options.guard }),
-          timing: { pollIntervalMs: 250 },
+          timing: {
+            pollIntervalMs: 250,
+            confirmTimeoutMs: 3_000,
+            duplicateWaitMs: 500,
+            reconcileIdleMs: 1_000,
+          },
         },
       ],
       observer: {
@@ -102,6 +111,35 @@ describe.skipIf(!available)("fee sponsor exposure for exact payments", () => {
     const terms = requirementsFor(usdc.sac, seller.publicKey(), PRICE, 120);
     const payload = (await net.payment(payer, terms)) as PaymentPayload;
     return { payload, requirements: terms as PaymentRequirements };
+  };
+
+  /**
+   * Waits until the payer's authorization in `payload` expired, then reconciles: a settlement that waited
+   * for it is answered from then on.
+   */
+  const afterExpiration = async (
+    facilitator: ReturnType<typeof setup>["facilitator"],
+    payload: PaymentPayload,
+  ) => {
+    const inspection = inspectExactTransaction(
+      (payload.payload as { transaction: string }).transaction,
+      net.passphrase,
+    );
+    if (!inspection.ok) throw new Error(inspection.code);
+    const expiration = payerAuthorization(inspection.transfer)?.signatureExpirationLedger;
+    if (expiration === undefined) throw new Error("no payer authorization");
+    await expect
+      .poll(() => net.latestLedger(), { timeout: 180_000, interval: 500 })
+      .toBeGreaterThan(expiration);
+    await facilitator.reconcile();
+  };
+
+  /** The network's answer for `hash` once it is in a ledger. */
+  const includedAs = async (hash: string): Promise<rpc.Api.GetTransactionResponse> => {
+    await expect
+      .poll(async () => (await net.server.getTransaction(hash)).status, { timeout: 60_000, interval: 250 })
+      .not.toBe(rpc.Api.GetTransactionStatus.NOT_FOUND);
+    return net.server.getTransaction(hash);
   };
 
   /** Moves the payer's whole balance away with a classic payment the payer signs itself. */
@@ -159,7 +197,9 @@ describe.skipIf(!available)("fee sponsor exposure for exact payments", () => {
       ledger,
       balance: () => undefined,
       minBalanceStroops: 0n,
-      maxSpendPerHourStroops: 1n,
+      // Room for exactly one settlement: admission reserves its worst case against the budget, the
+      // fee ceiling plus the inclusion bid its fee bump pays again.
+      maxSpendPerHourStroops: BigInt(CEILING + MIN_INCLUSION_FEE_STROOPS),
       onRefusal: (limit) => refusals.push(limit),
     });
     const facilitator = createStellarFacilitator({
@@ -252,15 +292,27 @@ describe.skipIf(!available)("fee sponsor exposure for exact payments", () => {
     }
 
     expect(raced).toBe(true);
+    // The payer could top up and anyone holding the payment land it again: it waits for the expiration.
     expect(settled).toMatchObject({
       success: false,
-      errorReason: "insufficient_funds",
+      errorReason: "settlement_pending",
       payer: payer.publicKey(),
     });
     const hash = settled.transaction;
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
-    const onChain = await net.server.getTransaction(hash);
+    // The request may answer before inclusion; the transaction lands and fails within a few ledgers.
+    const onChain = await includedAs(hash);
     expect(onChain.status).toBe(rpc.Api.GetTransactionStatus.FAILED);
+    expect(finalized).toHaveLength(0);
+
+    await afterExpiration(facilitator, payload);
+    const failed = await facilitator.core.settle(payload, requirements);
+    expect(failed).toMatchObject({
+      success: false,
+      errorReason: "insufficient_funds",
+      payer: payer.publicKey(),
+      transaction: hash,
+    });
 
     // Nothing reached the seller; the sponsor paid the fee of the failed transaction, and only that.
     expect(await net.tokenBalance(usdc.sac, seller.publicKey())).toBe(sellerBefore);
@@ -275,14 +327,15 @@ describe.skipIf(!available)("fee sponsor exposure for exact payments", () => {
     // A repeat answers the recorded failure and submits nothing more.
     const sent = proxy.sent.length;
     const { extensionResponses: _marker, ...repeat } = await facilitator.core.settle(payload, requirements);
-    expect(repeat).toEqual(settled);
+    const { extensionResponses: _first, ...recorded } = failed;
+    expect(repeat).toEqual(recorded);
     expect(proxy.sent.length).toBe(sent);
     expect(await ledger.countByState(NETWORK, new Date(0))).toEqual(expect.objectContaining({ failed: 1 }));
     recordOps("balance-race", {
       phase: "between the settle-time simulation and inclusion",
       transaction: hash,
       ledger: onChain.status === rpc.Api.GetTransactionStatus.FAILED ? onChain.ledger : undefined,
-      settle: settled.errorReason,
+      settle: failed.errorReason,
       wastedFeeStroops: fee,
       sponsorDeltaStroops: -fee,
     });
@@ -332,15 +385,25 @@ describe.skipIf(!available)("fee sponsor exposure for exact payments", () => {
     }
 
     expect(raced).toBe(true);
+    // The owner could add the rule back and anyone holding the payment land it: it waits for the expiration.
     expect(settled).toMatchObject({
       success: false,
-      errorReason: "invalid_exact_stellar_payload_smart_account_rejected",
+      errorReason: "settlement_pending",
       payer: account.address,
     });
     const hash = settled.transaction;
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
-    const onChain = await net.server.getTransaction(hash);
+    // The request may answer before inclusion; the transaction lands and fails within a few ledgers.
+    const onChain = await includedAs(hash);
     expect(onChain.status).toBe(rpc.Api.GetTransactionStatus.FAILED);
+    await afterExpiration(facilitator, payload);
+    const failed = await facilitator.core.settle(payload, requirements);
+    expect(failed).toMatchObject({
+      success: false,
+      errorReason: "invalid_exact_stellar_payload_smart_account_rejected",
+      payer: account.address,
+      transaction: hash,
+    });
 
     // Nothing moved; the sponsor paid the failed transaction's fee, and only that, counted as wasted.
     expect(await net.tokenBalance(usdc.sac, account.address)).toBe(accountBefore);
@@ -357,7 +420,7 @@ describe.skipIf(!available)("fee sponsor exposure for exact payments", () => {
       phase: "between the settle-time simulation and inclusion",
       transaction: hash,
       ledger: onChain.status === rpc.Api.GetTransactionStatus.FAILED ? onChain.ledger : undefined,
-      settle: settled.errorReason,
+      settle: failed.errorReason,
       wastedFeeStroops: fee,
       sponsorDeltaStroops: -fee,
     });

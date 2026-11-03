@@ -55,6 +55,7 @@ describe("settlement timing defaults", () => {
       duplicateWaitMs: 25_000,
       pollIntervalMs: 1_000,
       reconcileIdleMs: 30_000,
+      channelQuarantineMs: 60_000,
     });
   });
 

@@ -1,5 +1,5 @@
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
-import type { UptoResponseCode } from "@rail402.dev/stellar";
+import { PUBNET, type UptoResponseCode } from "@rail402.dev/stellar";
 import { parseAtomicAmount } from "@rail402.dev/upto";
 import { checkUptoPayment, type CheckedUptoPayment, type UptoPhase } from "@rail402.dev/upto/facilitator";
 import { uptoTimeoutSeconds, type NetworkPolicy, type UptoPolicy } from "./policy.ts";
@@ -42,7 +42,7 @@ export function uptoPreflight(
   context: UptoPreflightContext,
 ): UptoPreflight {
   const { policy } = context;
-  const policyViolation = checkPolicy(payload, requirements, policy);
+  const policyViolation = checkPolicy(payload, requirements, policy, context.phase);
   if (policyViolation !== undefined) return policyViolation;
 
   const timeoutSeconds = uptoTimeoutSeconds(policy);
@@ -72,6 +72,7 @@ function checkPolicy(
   payload: PaymentPayload,
   requirements: PaymentRequirements,
   policy: NetworkPolicy,
+  phase: UptoPhase,
 ): UptoPreflight | undefined {
   // A malformed `accepted` block is the scheme's rules' to name.
   const accepted = payload.accepted as Partial<PaymentRequirements> | null;
@@ -92,6 +93,23 @@ function checkPolicy(
     return reject(
       "invalid_upto_stellar_requirements_amount_out_of_range",
       `The cap must be between ${asset.minAmount} and ${asset.maxAmount} base units of ${asset.symbol}.`,
+    );
+  }
+  // On pubnet every on-chain settlement is held to the asset's minimum, as an exact amount is: a
+  // non-zero settlement of a few base units would cost the sponsor a full fee for a dust payment.
+  // A zero settles off-chain there and costs nothing, so it stays allowed.
+  const amount = parseAtomicAmount(requirements.amount);
+  if (
+    phase === "settle" &&
+    policy.network === PUBNET &&
+    asset !== undefined &&
+    amount !== undefined &&
+    amount > 0n &&
+    amount < asset.minAmount
+  ) {
+    return reject(
+      "invalid_upto_stellar_requirements_amount_out_of_range",
+      `A non-zero settlement on ${PUBNET} must be at least ${asset.minAmount} base units of ${asset.symbol}; settle 0 to charge nothing.`,
     );
   }
   return undefined;

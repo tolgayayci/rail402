@@ -72,6 +72,14 @@ export function preflight(
   if (facilitator.has(transfer.sourceAccount) || facilitator.has(transfer.operationSource ?? "")) {
     return reject("invalid_exact_stellar_payload_unsafe_tx_or_op_source", undefined, payer);
   }
+  // Upstream settlement rebuilds the transaction from the channel but keeps the operation's source.
+  // No account but the facilitator's can sign that rebuilt transaction, so an operation source would
+  // only be refused by the network after the envelope is recorded: it never settles, yet it would
+  // hold a channel and fee reservation. The payer's authorization does not cover the operation
+  // source, so any party holding a signed payment could set one; refuse every one up front.
+  if (transfer.operationSource !== undefined) {
+    return reject("invalid_exact_stellar_payload_operation_source_set", undefined, payer);
+  }
   if (facilitator.has(payer)) return reject("invalid_exact_stellar_payload_facilitator_is_payer");
   if (transfer.asset !== requirements.asset) {
     return reject("invalid_exact_stellar_payload_wrong_asset", undefined, payer);

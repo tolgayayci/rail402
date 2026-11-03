@@ -12,6 +12,7 @@ import {
   repeatOf,
   requestHash,
   sameRequest,
+  settleAttemptOf,
   settleSucceeded,
   silentLogger,
   type NetworkPolicy,
@@ -52,6 +53,7 @@ function recordingObserver() {
     unresolvable: (...args) => events.push(["unresolvable", ...args]),
     repeat: (...args) => events.push(["repeat", ...args]),
     ledgerReadFailed: (...args) => events.push(["ledgerReadFailed", ...args]),
+    sequenceConflict: (...args) => events.push(["sequenceConflict", ...args]),
   };
   return { observer, events };
 }
@@ -82,7 +84,12 @@ function engineWith(server: Partial<rpc.Server> = {}) {
 async function recorded(
   ledger: MemorySettlementLedger,
   channel: string,
-  options: { transaction?: string; requirements?: PaymentRequirements; finish?: boolean } = {},
+  options: {
+    transaction?: string;
+    requirements?: PaymentRequirements;
+    finish?: boolean;
+    attempt?: string;
+  } = {},
 ) {
   const payer = Keypair.random().publicKey();
   const key = { network: NETWORK, payer, nonce: "42" };
@@ -90,7 +97,13 @@ async function recorded(
     payloadOf(options.transaction ?? "AAAA"),
     options.requirements ?? requirementsOf(),
   );
-  const { record } = await ledger.claim(key, fingerprint, "original", 60_000);
+  const { record } = await ledger.claim(
+    key,
+    fingerprint,
+    "original",
+    60_000,
+    options.attempt === undefined ? {} : { attempt: options.attempt },
+  );
   const hash = "c".repeat(64);
   await ledger.recordEnvelope(record.id, "original", {
     channel,
@@ -156,6 +169,65 @@ describe("repeat marker", () => {
     expect(repeatOf(marked)).toEqual({ repeat: true, settledBy: "rail402" });
     expect(repeatOf(response)).toBeUndefined();
     expect(repeatOf(markRepeat(response, "third_party"))?.settledBy).toBe("third_party");
+  });
+});
+
+describe("settle attempt ids", () => {
+  const attempt = "Zq3-x_9aB2cD4eF6gH8iJk";
+  const withAttempt = (value: unknown) =>
+    ({ ...payloadOf("AAAA"), extensions: { rail402: { settlement: { attempt: value } } } }) as PaymentPayload;
+
+  it("reads a resource server's attempt id, and ignores a malformed one", () => {
+    expect(settleAttemptOf(withAttempt(attempt))).toBe(attempt);
+    for (const malformed of ["short", "x".repeat(65), "has spaces in it ok", 42, null, { id: attempt }]) {
+      expect(settleAttemptOf(withAttempt(malformed))).toBeUndefined();
+    }
+    expect(settleAttemptOf(payloadOf("AAAA"))).toBeUndefined();
+    // The id is the resource server's own, and never part of the request's fingerprint.
+    expect(fingerprintOf(withAttempt(attempt), requirementsOf())).toEqual(
+      fingerprintOf(payloadOf("AAAA"), requirementsOf()),
+    );
+  });
+
+  it("records the id of the request that starts a settlement, and echoes it in every repeat", async () => {
+    const { engine, ledger, channel } = engineWith();
+    const payer = Keypair.random().publicKey();
+    const payment = {
+      transfer: { from: payer },
+      authorization: { nonce: 7n },
+    } as unknown as PreflightedPayment;
+    // The engine records the id with its claim (this engine cannot reach a network, so it settles nothing).
+    const claim = vi.spyOn(ledger, "claim");
+    await engine.settle(withAttempt(attempt), requirementsOf(), payment).catch(() => undefined);
+    expect(claim.mock.calls[0]?.[4]).toMatchObject({ attempt });
+    claim.mockRestore();
+
+    // A settlement recorded with an id: every repeat echoes it, whatever id the repeat carries.
+    const { key, fingerprint } = await recorded(ledger, channel, { attempt });
+    const repeat = await engine.answerRepeat("exact", key, fingerprint);
+    expect(repeat?.extensionResponses).toEqual({
+      rail402: { settlement: { repeat: true, settledBy: "rail402", attempt } },
+    });
+    const again = await engine.settle(withAttempt("another-attempt-id-123"), requirementsOf(), {
+      transfer: { from: key.payer },
+      authorization: { nonce: 42n },
+    } as unknown as PreflightedPayment);
+    expect(again.extensionResponses).toEqual({
+      rail402: { settlement: { repeat: true, settledBy: "rail402", attempt } },
+    });
+  });
+
+  it("leaves the attempt out of the marker when the first request carried none", async () => {
+    const { engine, ledger, channel } = engineWith();
+    const { key, fingerprint } = await recorded(ledger, channel);
+    expect((await engine.answerRepeat("exact", key, fingerprint))?.extensionResponses).toEqual({
+      rail402: { settlement: { repeat: true, settledBy: "rail402" } },
+    });
+    expect(
+      markRepeat(settleSucceeded(NETWORK, "e".repeat(64), "GPAYER"), "rail402", attempt).extensionResponses,
+    ).toEqual({
+      rail402: { settlement: { repeat: true, settledBy: "rail402", attempt } },
+    });
   });
 });
 
@@ -267,6 +339,7 @@ describe("settlement observer", () => {
     const getTransaction = vi.fn(() =>
       Promise.resolve({
         status: rpc.Api.GetTransactionStatus.NOT_FOUND,
+        latestLedger: 2_000,
         latestLedgerCloseTime: 1_800_000_000,
         oldestLedgerCloseTime: 1_600_000_000,
       } as rpc.Api.GetTransactionResponse),
@@ -312,6 +385,9 @@ describe("settlement observer", () => {
           throw new Error("boom");
         },
         ledgerReadFailed: () => {
+          throw new Error("boom");
+        },
+        sequenceConflict: () => {
           throw new Error("boom");
         },
       },

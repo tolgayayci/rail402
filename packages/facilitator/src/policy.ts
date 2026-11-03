@@ -46,6 +46,12 @@ export const DEFAULT_EXPIRATION_MARGIN_LEDGERS = 1;
 export const DEFAULT_MAX_TRANSACTION_FEE_STROOPS = 300_000;
 /** The spec minimum. Pubnet surge pricing needs more; operators raise it per network. */
 export const MIN_INCLUSION_FEE_STROOPS = 100;
+/**
+ * The lowest inclusion-fee floor accepted on pubnet unless an operator overrides it explicitly.
+ * Mainnet's Soroban inclusion fees have sat at 200 stroops from the 10th to the 99th percentile, so a
+ * floor of 100 (also the bid while fee stats cannot be read) may never be included.
+ */
+export const PUBNET_MIN_INCLUSION_FEE_STROOPS = 200;
 
 export function acceptedAsset(
   token: TokenInfo,

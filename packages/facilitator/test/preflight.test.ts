@@ -186,6 +186,24 @@ describe("preflight", () => {
     });
   });
 
+  it("refuses any operation source, which settlement keeps but cannot sign for", async () => {
+    const payer = Keypair.random();
+    for (const source of [payer.publicKey(), Keypair.random().publicKey()]) {
+      const { payload } = await payment({ payer, operationSource: source });
+      expect(preflight(payload, requirements(), context())).toMatchObject({
+        ok: false,
+        code: "invalid_exact_stellar_payload_operation_source_set",
+        payer: payer.publicKey(),
+      });
+    }
+    // A facilitator account as operation source keeps its more specific code.
+    const facilitator = Keypair.random().publicKey();
+    const { payload } = await payment({ operationSource: facilitator });
+    expect(
+      preflight(payload, requirements(), context({ facilitatorAddresses: new Set([facilitator]) })),
+    ).toMatchObject({ code: "invalid_exact_stellar_payload_unsafe_tx_or_op_source" });
+  });
+
   it("rejects a facilitator account as payer or co-signer", async () => {
     const facilitatorKey = Keypair.random();
     const facilitator = context({ facilitatorAddresses: new Set([facilitatorKey.publicKey()]) });

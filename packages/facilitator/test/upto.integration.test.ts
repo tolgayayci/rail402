@@ -207,6 +207,45 @@ describe.skipIf(!available)("upto through the Rail402 facilitator", () => {
     });
   });
 
+  it("answers a retryable code when the RPC fails a simulation without running it, and settles on retry", async () => {
+    const { core, ledger } = facilitator();
+    const payer = await net.holder(usdc, "1");
+    const payload = await pay(payer);
+    const before = await balances(payer);
+    const sent = proxy.sent.length;
+    // What a loaded local RPC answers when its ledger snapshot is incomplete: no host ran, nothing
+    // about the payment was checked.
+    proxy.answerResult("simulateTransaction", () => ({
+      error: "setting ContractComputeV0 is not present in the snapshot",
+      latestLedger: 1,
+    }));
+    try {
+      expect(await core.verify(payload, requirements())).toMatchObject({
+        isValid: false,
+        invalidReason: "unexpected_verify_error",
+        invalidMessage: expect.stringContaining("not present in the snapshot") as string,
+      });
+      const refused = await core.settle(payload, requirements(250_000n));
+      expect(refused).toMatchObject({
+        success: false,
+        errorReason: "unexpected_settle_error",
+        errorMessage: expect.stringContaining("can be retried") as string,
+        transaction: "",
+      });
+    } finally {
+      proxy.answerResult("simulateTransaction", undefined);
+    }
+    expect(proxy.sent.length).toBe(sent);
+    expect(await ledger.find(keyOf(payload, payer))).toBeUndefined();
+    expect((await balances(payer)).payer).toBe(before.payer);
+
+    expect(await core.settle(payload, requirements(250_000n))).toMatchObject({
+      success: true,
+      amount: "250000",
+    });
+    expect((await balances(payer)).payer).toBe(before.payer - 250_000n);
+  });
+
   it("settles zero on-chain: the nonce is consumed and no funds move", async () => {
     const { core } = facilitator();
     const payer = await net.holder(usdc, "1");

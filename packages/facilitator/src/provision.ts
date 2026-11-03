@@ -90,6 +90,15 @@ function checkedBatchSize(batchSize = MAX_CHANNELS_PER_TRANSACTION): number {
   return batchSize;
 }
 
+/**
+ * The network refused a provisioning transaction (`sendTransaction` answered `ERROR`, or it landed and
+ * failed), for example because the sponsor cannot pay for the accounts. Unlike an RPC that does not
+ * answer, retrying the same transaction cannot help until something on the chain changes.
+ */
+export class ProvisionRefusedError extends Error {
+  override readonly name = "ProvisionRefusedError";
+}
+
 /** One sponsor-sourced transaction with operations per channel, signed by the sponsor and every channel. */
 async function submit(
   options: ProvisionOptions,
@@ -107,8 +116,12 @@ async function submit(
   transaction.sign(options.sponsor, ...channels);
 
   const sent = await options.server.sendTransaction(transaction);
+  if (sent.status === "ERROR") throw new ProvisionRefusedError(`${purpose} was not accepted: ${sent.status}`);
   if (sent.status !== "PENDING") throw new Error(`${purpose} was not accepted: ${sent.status}`);
   const result = await options.server.pollTransaction(sent.hash, { attempts: 60 });
+  if (result.status === rpc.Api.GetTransactionStatus.FAILED) {
+    throw new ProvisionRefusedError(`${purpose} transaction ${sent.hash} ended ${result.status}`);
+  }
   if (result.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
     throw new Error(`${purpose} transaction ${sent.hash} ended ${result.status}`);
   }

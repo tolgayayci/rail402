@@ -1,4 +1,4 @@
-import type { SettleResponse, VerifyResponse } from "@x402/core/types";
+import type { PaymentPayload, SettleResponse, VerifyResponse } from "@x402/core/types";
 import { reportCode } from "@rail402.dev/errors";
 import {
   exactStellarCodes,
@@ -98,15 +98,46 @@ export const RAIL402_EXTENSION = "rail402";
 export interface SettlementRepeat {
   readonly repeat: true;
   readonly settledBy: SettledBy;
+  /**
+   * The settle attempt id (`extensions.rail402.settlement.attempt`) of the request that holds the
+   * settlement's claim as the repeat is answered: the one that started it, or the one that took a stale
+   * claim over. A resource server that tags each of its `/settle` attempts can tell the answer to its own
+   * lost or pending attempt from a payment that someone else settled.
+   */
+  readonly attempt?: string;
+}
+
+/** A settle attempt id: 16-64 letters, digits, `-` or `_`, chosen at random by the resource server. */
+const SETTLE_ATTEMPT = /^[A-Za-z0-9_-]{16,64}$/;
+
+/**
+ * The settle attempt id a resource server put in a settle request's
+ * `extensions.rail402.settlement.attempt`; undefined when there is none or it is malformed. The id is
+ * the resource server's own: it is never part of the request's fingerprint and never checked.
+ */
+export function settleAttemptOf(payload: PaymentPayload): string | undefined {
+  const settlement = (
+    payload.extensions?.[RAIL402_EXTENSION] as { settlement?: { attempt?: unknown } } | undefined
+  )?.settlement;
+  const attempt = settlement?.attempt;
+  return typeof attempt === "string" && SETTLE_ATTEMPT.test(attempt) ? attempt : undefined;
+}
+
+/** A settlement intent's `attempt` field: the request's settle attempt id, when it is well formed. */
+export function attemptOf(payload: PaymentPayload): { readonly attempt?: string } {
+  const attempt = settleAttemptOf(payload);
+  return attempt === undefined ? {} : { attempt };
 }
 
 /**
  * The recorded response with the repeat marker in its server-internal `extensionResponses`. The
  * HTTP service moves `extensionResponses` into the `EXTENSION-RESPONSES` header, so the marker reaches
- * the resource server and never the buyer, and the body stays the recorded response.
+ * the resource server and never the buyer, and the body stays the recorded response. `attempt` is the
+ * settle attempt id the settlement was started with.
  */
-export function markRepeat(response: SettleResponse, settledBy: SettledBy): SettleResponse {
-  const settlement: SettlementRepeat = { repeat: true, settledBy };
+export function markRepeat(response: SettleResponse, settledBy: SettledBy, attempt?: string): SettleResponse {
+  const settlement: SettlementRepeat =
+    attempt === undefined ? { repeat: true, settledBy } : { repeat: true, settledBy, attempt };
   return {
     ...response,
     extensionResponses: { ...response.extensionResponses, [RAIL402_EXTENSION]: { settlement } },

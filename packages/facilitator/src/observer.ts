@@ -31,6 +31,43 @@ export interface FinalizedEvent {
   readonly settledBy: SettledBy;
 }
 
+/**
+ * Why a sequence conflict (`txBadSeq` with the channel's sequence number taken) finished its settlement
+ * early, or why it did not. A short, fixed set, so it can label a metric.
+ * - finished: `never_accepted` (no send was accepted; the payer's nonce is unused), `authorization_unused`
+ *   (a send may have been accepted, but only the settlement authority could carry the authorization and
+ *   its nonce is unused), `landed` (the transaction was found in a ledger after all), `settled_elsewhere`
+ *   (another transaction carried the authorization);
+ * - declined: `sequence_not_reached`, `transaction_found`, `rpc_behind`, `history_not_retained` and
+ *   `check_failed` (the conflict is not proven final), `may_be_public` (another transaction can still
+ *   carry the authorization until it expires), `unproven` (its fate cannot be proven), `nonce_unreadable`,
+ *   `ledger_unreadable`.
+ */
+export const SEQUENCE_CONFLICT_REASONS = {
+  finished_early: ["never_accepted", "authorization_unused", "landed", "settled_elsewhere"],
+  declined: [
+    "sequence_not_reached",
+    "transaction_found",
+    "rpc_behind",
+    "history_not_retained",
+    "check_failed",
+    "may_be_public",
+    "unproven",
+    "nonce_unreadable",
+    "ledger_unreadable",
+  ],
+} as const;
+
+export type SequenceConflictReason =
+  | (typeof SEQUENCE_CONFLICT_REASONS.finished_early)[number]
+  | (typeof SEQUENCE_CONFLICT_REASONS.declined)[number];
+
+export interface SequenceConflictEvent {
+  /** `finished_early`: the settlement finished at the conflict; `declined`: it keeps waiting. */
+  readonly outcome: "finished_early" | "declined";
+  readonly reason: SequenceConflictReason;
+}
+
 /** The outcome of one reconciliation attempt of a recorded, unfinished settlement. */
 export type ReconcileOutcome = FinalState | "pending" | "unresolvable";
 
@@ -56,6 +93,11 @@ export interface SettlementObserver {
   repeat(network: string, scheme: string): void;
   /** Verify could not read the settlement ledger and skipped its replay check. */
   ledgerReadFailed(network: string): void;
+  /**
+   * A sequence conflict was judged: once per settlement and replica for each new decision (the
+   * rebroadcasts that repeat a decline are not reported again).
+   */
+  sequenceConflict(network: string, event: SequenceConflictEvent): void;
 }
 
 export const silentObserver: SettlementObserver = {
@@ -66,6 +108,7 @@ export const silentObserver: SettlementObserver = {
   unresolvable: () => undefined,
   repeat: () => undefined,
   ledgerReadFailed: () => undefined,
+  sequenceConflict: () => undefined,
 };
 
 /** Wraps an observer so that nothing it throws can reach the settlement path. */
@@ -100,6 +143,9 @@ export function containedObserver(observer: SettlementObserver, log: Logger): Se
     }),
     ledgerReadFailed: contain("ledgerReadFailed", (...args) => {
       observer.ledgerReadFailed(...args);
+    }),
+    sequenceConflict: contain("sequenceConflict", (...args) => {
+      observer.sequenceConflict(...args);
     }),
   };
 }

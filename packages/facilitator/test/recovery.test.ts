@@ -27,6 +27,7 @@ function recordingObserver() {
     unresolvable: (...args) => events.push(["unresolvable", ...args]),
     repeat: (...args) => events.push(["repeat", ...args]),
     ledgerReadFailed: (...args) => events.push(["ledgerReadFailed", ...args]),
+    sequenceConflict: (...args) => events.push(["sequenceConflict", ...args]),
   };
   return { observer, events };
 }
@@ -74,6 +75,7 @@ async function setup(getTransaction: (hash: string) => Promise<rpc.Api.GetTransa
 const notFound = (oldestLedgerCloseTime: number) =>
   ({
     status: rpc.Api.GetTransactionStatus.NOT_FOUND,
+    latestLedger: 2_000,
     latestLedgerCloseTime: VALID_UNTIL + 600,
     oldestLedgerCloseTime,
   }) as rpc.Api.GetTransactionResponse;

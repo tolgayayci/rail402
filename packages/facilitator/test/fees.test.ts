@@ -45,6 +45,30 @@ describe("InclusionFeeOracle", () => {
     ).toBe(200);
   });
 
+  it("reports when the bid is pinned at the cap or fee stats are unreadable", async () => {
+    const readings: unknown[] = [];
+    const options = {
+      floor: 200,
+      cap: 1_000,
+      percentile: "p90" as const,
+      onReading: (r: unknown) => readings.push(r),
+    };
+    await new InclusionFeeOracle(server("250").server, options).bid();
+    await new InclusionFeeOracle(server("90000").server, options).bid();
+    await new InclusionFeeOracle(server(new Error("rpc down")).server, options).bid();
+    await new InclusionFeeOracle(server("250").server, {
+      ...options,
+      onReading: () => {
+        throw new Error("a failing hook never changes the bid");
+      },
+    }).bid();
+    expect(readings).toEqual([
+      { bid: 250, pinned: undefined },
+      { bid: 1_000, pinned: "cap" },
+      { bid: 200, pinned: "stats_unavailable" },
+    ]);
+  });
+
   it("reuses a reading within its cache window", async () => {
     const fake = server("300");
     const oracle = new InclusionFeeOracle(fake.server, {
@@ -128,6 +152,25 @@ describe("SponsorBudget", () => {
     expect(await guard.admit()).toEqual({ ok: true });
     balance = undefined;
     expect(await guard.admit()).toEqual({ ok: true });
+  });
+
+  it("refuses on pubnet while the sponsor balance is unknown", async () => {
+    const sponsor: { balance?: bigint } = {};
+    const refusals: string[] = [];
+    const guard = new SponsorBudget({
+      network: "stellar:pubnet",
+      ledger: new MemorySettlementLedger(),
+      balance: () => sponsor.balance,
+      minBalanceStroops: 100n,
+      refuseWhileUnknown: true,
+      onRefusal: (limit) => refusals.push(limit),
+    });
+    const refused = await guard.admit();
+    expect(refused).toMatchObject({ ok: false });
+    expect(refused.ok ? "" : refused.reason).toMatch(/has not been read yet/);
+    sponsor.balance = 1_000n;
+    expect(await guard.admit()).toEqual({ ok: true });
+    expect(refusals).toEqual(["balance_unknown"]);
   });
 
   it("refuses once the hourly fee budget is committed", async () => {

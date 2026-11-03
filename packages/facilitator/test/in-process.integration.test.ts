@@ -1,9 +1,10 @@
 /**
  * Self-facilitation: a stock x402ResourceServer uses the facilitator in-process, with no HTTP hop,
- * for `exact` and for `upto` (the settlement contract deployed per run). Needs
+ * for `exact` and for `upto` (the settlement contract deployed per run), with every request to a
+ * Rail402 host refused: nothing here depends on Rail402's hosted service. Needs
  * `docker compose --profile stellar up -d`.
  */
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
 import { x402ResourceServer } from "@x402/core/server";
 import type { PaymentPayload } from "@x402/core/types";
@@ -23,7 +24,9 @@ import {
 import {
   LocalNetwork,
   deployUpto,
+  guardEgress,
   requirementsFor,
+  type EgressGuard,
   type IssuedAsset,
   type LocalUptoContract,
 } from "@rail402.dev/testkit";
@@ -37,8 +40,10 @@ describe.skipIf(!available)("in-process facilitator inside a stock resource serv
   let resourceServer: x402ResourceServer;
   let contract: LocalUptoContract;
   let authority: string;
+  let guard: EgressGuard;
 
   beforeAll(async () => {
+    guard = guardEgress();
     [usdc, contract] = await Promise.all([net.issueAsset("USDC"), deployUpto(net)]);
     const sponsor = Keypair.random();
     await net.fund(sponsor);
@@ -76,6 +81,12 @@ describe.skipIf(!available)("in-process facilitator inside a stock resource serv
       .register("stellar:testnet", new UptoServer());
     await resourceServer.initialize();
   }, 180_000);
+
+  afterAll(() => {
+    guard.restore();
+    // Set up, verified and settled exact and upto without asking any Rail402 host.
+    expect(guard.attempts).toEqual([]);
+  });
 
   it("builds requirements, verifies and settles without an HTTP facilitator", async () => {
     const [requirements] = await resourceServer.buildPaymentRequirements({

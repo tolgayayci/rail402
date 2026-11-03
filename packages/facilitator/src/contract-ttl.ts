@@ -136,11 +136,24 @@ export interface TtlMaintenanceOptions extends KeptContract {
 /** A refusal or failure while extending or restoring a contract. */
 export class ContractTtlError extends Error {
   override readonly name = "ContractTtlError";
-  /** The submitted transaction, when it got that far. */
+  /** The signed transaction's hash, when it got that far. */
   readonly transaction: string | undefined;
-  constructor(message: string, transaction?: string) {
+  /**
+   * Whether the transaction may be on the network and charge the sponsor: it was handed to the RPC and
+   * not refused outright. A transaction that failed on chain, or whose fate is unknown, is submitted.
+   */
+  readonly submitted: boolean;
+  /** What the sponsor was charged, when the transaction was included and failed. */
+  readonly feeChargedStroops: bigint | undefined;
+  constructor(
+    message: string,
+    transaction?: string,
+    details: { readonly submitted?: boolean; readonly feeChargedStroops?: bigint } = {},
+  ) {
     super(message);
     this.transaction = transaction;
+    this.submitted = details.submitted ?? false;
+    this.feeChargedStroops = details.feeChargedStroops;
   }
 }
 
@@ -236,13 +249,37 @@ async function run(
   prepared.sign(sponsor);
 
   const hash = prepared.hash().toString("hex");
-  const sent = await server.sendTransaction(prepared);
-  if (sent.status !== "PENDING" && sent.status !== "DUPLICATE") {
-    throw new ContractTtlError(`the contract ${purpose} was not accepted: ${sent.status}`, hash);
+  let outcome:
+    | { readonly accepted: false; readonly status: string }
+    | { readonly accepted: true; readonly result: rpc.Api.GetTransactionResponse };
+  try {
+    const sent = await server.sendTransaction(prepared);
+    outcome =
+      sent.status === "PENDING" || sent.status === "DUPLICATE"
+        ? {
+            accepted: true,
+            result: await server.pollTransaction(hash, { attempts: options.confirmAttempts ?? 60 }),
+          }
+        : { accepted: false, status: sent.status };
+  } catch (error) {
+    // The RPC may have taken the transaction before the call failed: it may still land.
+    throw new ContractTtlError(
+      `the contract ${purpose} transaction ${hash} has an unknown outcome: ${error instanceof Error ? error.message : String(error)}`,
+      hash,
+      { submitted: true },
+    );
   }
-  const result = await server.pollTransaction(hash, { attempts: options.confirmAttempts ?? 60 });
+  if (!outcome.accepted) {
+    throw new ContractTtlError(`the contract ${purpose} was not accepted: ${outcome.status}`, hash);
+  }
+  const { result } = outcome;
   if (result.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
-    throw new ContractTtlError(`the contract ${purpose} transaction ${hash} ended ${result.status}`, hash);
+    throw new ContractTtlError(`the contract ${purpose} transaction ${hash} ended ${result.status}`, hash, {
+      submitted: true,
+      ...(result.status === rpc.Api.GetTransactionStatus.FAILED
+        ? { feeChargedStroops: result.resultXdr.feeCharged().toBigInt() }
+        : {}),
+    });
   }
   return {
     hash,

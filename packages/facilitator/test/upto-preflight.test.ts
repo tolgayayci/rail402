@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { Keypair, StrKey, hash, nativeToScVal, xdr } from "@stellar/stellar-sdk";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
-import { uptoPreflight, type UptoPreflightContext } from "@rail402.dev/facilitator";
+import { acceptedAsset, uptoPreflight, type UptoPreflightContext } from "@rail402.dev/facilitator";
+import { PUBNET } from "@rail402.dev/stellar";
 import { encodeAuthorizationEntry } from "@rail402.dev/upto";
 import {
   CAP,
   CONTRACT,
   LEDGER,
   LEDGER_SECONDS,
+  TOKEN,
   authority,
   channel,
   entry,
@@ -64,6 +66,45 @@ describe("upto preflight", () => {
       const settled = check(payment(), requirements({ amount: amount.toString() }), { phase: "settle" });
       expect(settled, amount.toString()).toMatchObject({ ok: true, payment: { amount, maxAmount: CAP } });
     }
+  });
+
+  it("holds a non-zero pubnet settlement to the asset's minimum; zero and testnet amounts pass", () => {
+    const pubnet = {
+      ...policy,
+      network: PUBNET,
+      assets: new Map([
+        [
+          TOKEN,
+          acceptedAsset(
+            { contract: TOKEN, symbol: "USDC", decimals: 7 },
+            { minAmount: 100_000n, maxAmount: 100_000_000n },
+          ),
+        ],
+      ]),
+    } as const;
+    const onPubnet = (amount: bigint) => {
+      const accepted = requirements({ network: PUBNET });
+      return check(payment({ accepted }), requirements({ network: PUBNET, amount: amount.toString() }), {
+        phase: "settle",
+        policy: pubnet,
+      });
+    };
+    expect(onPubnet(1n)).toMatchObject({
+      ok: false,
+      code: "invalid_upto_stellar_requirements_amount_out_of_range",
+      reason: expect.stringMatching(/at least 100000 base units/) as string,
+    });
+    expect(onPubnet(99_999n)).toMatchObject({
+      code: "invalid_upto_stellar_requirements_amount_out_of_range",
+    });
+    for (const amount of [0n, 100_000n]) {
+      const result = onPubnet(amount);
+      expect(!result.ok && result.code, amount.toString()).not.toBe(
+        "invalid_upto_stellar_requirements_amount_out_of_range",
+      );
+    }
+    // Testnet keeps its own policy: a one-unit settlement under a valid cap is accepted.
+    expect(check(payment(), requirements({ amount: "1" }), { phase: "settle" }).ok).toBe(true);
   });
 
   it("accepts both credential arms", () => {

@@ -19,13 +19,39 @@ export interface FailureCause {
 }
 
 /**
+ * Whether a failed simulation ran on the host at all. An RPC that fails inside itself (a ledger
+ * snapshot it cannot read under load, an internal error) answers with an error that carries no
+ * diagnostic event and no host error such as `Error(Contract, #10)`: nothing about the payment was
+ * checked, so the failure says nothing about it.
+ */
+export function simulationRanOnHost(simulation: {
+  readonly error: string;
+  readonly events?: readonly xdr.DiagnosticEvent[];
+}): boolean {
+  return hostErrors(simulation.events ?? []).length > 0 || HOST_ERROR.test(simulation.error);
+}
+
+/** A host error as Stellar RPCs print it, e.g. `Error(Auth, InvalidAction)` or `Error(Contract, #10)`. */
+export const HOST_ERROR = /Error\(\w+, #?\w+\)/;
+
+/**
+ * The reason given when a payment could not be simulated because the RPC failed, not the payment.
+ * Nothing was signed or submitted, so the same payment may be sent again.
+ */
+export function rpcSimulationReason(detail: string | undefined): string {
+  const said = detail === undefined || detail.trim() === "" ? "" : ` (${detail.trim()})`;
+  return `The facilitator's RPC could not simulate the payment${said}; the payment itself was not judged, nothing was signed or submitted, and it can be retried.`;
+}
+
+/**
  * Re-simulates a rejected payment in enforcing auth mode to name its on-chain cause. Upstream reports
  * every simulation failure as `invalid_exact_stellar_payload_simulation_failed`; this recovers the
  * specific reason (replayed nonce, bad signature, missing trustline, insufficient funds, …).
  * `assetKind` says whether the token is a Stellar Asset Contract, whose error numbers are known; a
  * custom SEP-41 token's own errors are told apart only by reading the payer's balance, so a balance
  * below the amount is `insufficient_funds` and anything else is `token_rejected`.
- * Returns `undefined` when the payment now simulates cleanly.
+ * Returns `undefined` when the payment now simulates cleanly, or when the RPC failed the simulation
+ * without running it (`simulationRanOnHost`): neither names a fault of the payment.
  */
 export async function explainSimulation(
   server: rpc.Server,
@@ -34,6 +60,7 @@ export async function explainSimulation(
 ): Promise<Classification | undefined> {
   const simulation = await server.simulateTransaction(transfer.transaction, undefined, "enforce");
   if (rpc.Api.isSimulationError(simulation)) {
+    if (!simulationRanOnHost(simulation)) return undefined;
     const classified = classifyTransferFailure(hostErrors(simulation.events), {
       ...contextOf(transfer),
       assetKind,

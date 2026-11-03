@@ -277,12 +277,18 @@ export class FakeServer {
   nonceConsumedIn: number | undefined;
   /** The latest ledger `getLedgerEntries` reports; `ledger` when undefined (an RPC behind a balancer can differ). */
   entriesLedger: number | undefined;
+  /** The latest ledger `getLedgerEntries` reports when it reads a payer's nonce; `entriesLedger` when undefined. */
+  nonceEntriesLedger: number | undefined;
   /** What `getTransactions` lists. */
   transactions: rpc.Api.TransactionInfo[] = [];
+  /** The latest ledger `getTransactions` reports; `ledger` when undefined. */
+  transactionsLedger: number | undefined;
   /** `getTransaction` answers for particular hashes; every other hash answers from `status`. */
   readonly byHash = new Map<string, rpc.Api.GetTransactionResponse>();
   /** Close time (unix seconds) of the oldest ledger the RPC retains, as `getTransaction` reports it. */
   oldestLedgerCloseTime = 0;
+  /** The sequence number of every account `getLedgerEntries` returns. */
+  accountSequence = "1";
   /** What `sendTransaction` answers; `PENDING` when undefined. */
   sendResult: rpc.Api.SendTransactionResponse | undefined;
 
@@ -332,7 +338,7 @@ export class FakeServer {
   getTransactions(_request: unknown) {
     return Promise.resolve({
       transactions: this.transactions,
-      latestLedger: this.ledger,
+      latestLedger: this.transactionsLedger ?? this.ledger,
       latestLedgerCloseTimestamp: 0,
       oldestLedger: 1,
       oldestLedgerCloseTimestamp: 0,
@@ -370,7 +376,7 @@ export class FakeServer {
           new xdr.AccountEntry({
             accountId: Keypair.fromPublicKey(account).xdrAccountId(),
             balance: xdr.Int64.fromString("0"),
-            seqNum: xdr.Int64.fromString("1"),
+            seqNum: xdr.Int64.fromString(this.accountSequence),
             numSubEntries: 0,
             inflationDest: null,
             flags: 0,
@@ -381,9 +387,10 @@ export class FakeServer {
           }),
         ),
       }));
+    const readsNonce = keys.some((key) => key.switch() === xdr.LedgerEntryType.contractData());
     return Promise.resolve({
       entries: [...nonces, ...entries],
-      latestLedger: this.entriesLedger ?? this.ledger,
+      latestLedger: (readsNonce ? this.nonceEntriesLedger : undefined) ?? this.entriesLedger ?? this.ledger,
     });
   }
 

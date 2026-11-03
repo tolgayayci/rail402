@@ -1,4 +1,4 @@
-import { Keypair, rpc } from "@stellar/stellar-sdk";
+import { Keypair, type rpc } from "@stellar/stellar-sdk";
 import { x402Facilitator } from "@x402/core/facilitator";
 import { PUBNET, USDC, networkPassphrase, type StellarNetwork } from "@rail402.dev/stellar";
 import {
@@ -11,9 +11,10 @@ import { deriveAuthorityKeypair } from "./authority.ts";
 import { MemoryChannelPool, type ChannelPool } from "./channels.ts";
 import { SettlementEngine, type SettlementTiming, type SponsorGuard } from "./engine.ts";
 import { InclusionFeeOracle, type InclusionFeeOptions } from "./fees.ts";
-import { deriveChannelKeypairs } from "./keys.ts";
+import { deriveChannelKeypairs, keypairSigner } from "./keys.ts";
 import type { SettlementLedger } from "./ledger.ts";
 import { RpcLedgerSeconds } from "./ledger-seconds.ts";
+import { RpcPool } from "./rpc-pool.ts";
 import { silentLogger, type Logger } from "./logger.ts";
 import { MemorySettlementLedger } from "./memory-ledger.ts";
 import type { SettlementObserver } from "./observer.ts";
@@ -23,12 +24,14 @@ import {
   DEFAULT_TIMEOUT_SECONDS,
   DEFAULT_UPTO_MAX_TRANSACTION_FEE_STROOPS,
   MIN_INCLUSION_FEE_STROOPS,
+  PUBNET_MIN_INCLUSION_FEE_STROOPS,
   acceptedAsset,
   type AcceptedAsset,
   type NetworkPolicy,
   type UptoPolicy,
 } from "./policy.ts";
 import { StellarExactScheme } from "./scheme.ts";
+import { FacilitatorSetupError } from "./setup-error.ts";
 import { StellarUptoScheme } from "./upto-scheme.ts";
 
 export interface NetworkSetup {
@@ -37,7 +40,10 @@ export interface NetworkSetup {
   /** Secret seed (S…) of the sponsor account. Channel keys are derived from it. */
   readonly sponsorSecret: string;
   readonly channelCount: number;
-  /** Accepted assets; defaults to USDC for the network. */
+  /**
+   * Accepted assets. Testnet defaults to Circle's USDC; pubnet has no default and refuses to start
+   * without at least one (`config_pubnet_assets_missing`).
+   */
   readonly assets?: readonly AcceptedAsset[];
   readonly policy?: Partial<Omit<NetworkPolicy, "network" | "assets">>;
   /** Durable stores. The in-memory defaults suit a single in-process facilitator only. */
@@ -46,8 +52,17 @@ export interface NetworkSetup {
   readonly timing?: Partial<SettlementTiming>;
   /** Bid inclusion fees from the network's fee stats; the policy's fixed bid is used otherwise. */
   readonly inclusionFee?: InclusionFeeOptions;
-  /** Refuses settlements while the sponsor cannot safely pay for them. */
+  /** Refuses settlements while the sponsor cannot safely pay for them. Required on pubnet unless `unguarded`. */
   readonly guard?: SponsorGuard;
+  /** Pubnet only: run without a `guard`, accepting that nothing bounds what the sponsor spends. */
+  readonly unguarded?: boolean;
+  /** Pubnet only: accept an inclusion-fee floor below 200 stroops, whose bids may never be included. */
+  readonly allowInclusionFeeBelowFloor?: boolean;
+  /**
+   * The network's RPC providers, when there are several (`rpcUrl` is then the first's URL). Each
+   * settlement uses the provider active when it was claimed; see `RpcPool`.
+   */
+  readonly rpc?: RpcPool;
   /**
    * Answer a payment another party's transaction landed first, with the payer's authorization exactly
    * as signed, as settled in that transaction. Default true.
@@ -90,6 +105,12 @@ export interface UptoSetup {
    * instead of failing at submission. Assumed ready when absent.
    */
   readonly authorityReady?: () => boolean;
+  /**
+   * After a sponsor rotation: the previous settlement authority (derived from the previous sponsor),
+   * still accepted for settlement until `validUntil`, so payloads signed before the rotation can be
+   * settled while they are valid. `/supported` names only the current authority.
+   */
+  readonly previousAuthority?: { readonly keypair: Keypair; readonly validUntil: Date };
 }
 
 export interface FacilitatorOptions {
@@ -103,6 +124,8 @@ export interface NetworkRuntime {
   readonly network: StellarNetwork;
   readonly policy: NetworkPolicy;
   readonly server: rpc.Server;
+  /** The network's RPC providers (one, unless several were configured). */
+  readonly rpc: RpcPool;
   readonly engine: SettlementEngine;
   readonly channels: ChannelPool;
   readonly sponsorAddress: string;
@@ -114,8 +137,14 @@ export interface StellarFacilitator {
   /** The upstream facilitator: `verify`, `settle` and `getSupported` with hooks and extensions. */
   readonly core: x402Facilitator;
   readonly networks: ReadonlyMap<StellarNetwork, NetworkRuntime>;
-  /** Finishes recorded settlements whose outcome is still open. Run at startup and periodically. */
+  /**
+   * Finishes recorded settlements whose outcome is still open, on every network at once and each on
+   * its own: a network whose ledger or RPC fails is logged and skipped, never holding up another.
+   * Run at startup and periodically.
+   */
   reconcile(): Promise<number>;
+  /** `reconcile` for one network; rejects when that network's round fails. */
+  reconcileNetwork(network: StellarNetwork): Promise<number>;
 }
 
 /**
@@ -136,8 +165,9 @@ export function createStellarFacilitator(options: FacilitatorOptions): StellarFa
       new StellarExactScheme({
         network: setup.network,
         passphrase: networkPassphrase(setup.network),
-        rpcUrl: setup.rpcUrl,
+        rpcUrl: () => runtime.rpc.active.url,
         server: runtime.server,
+        verifyTimeoutMs: runtime.rpc.timeoutMs,
         policy: runtime.policy,
         engine: runtime.engine,
         log,
@@ -154,6 +184,17 @@ export function createStellarFacilitator(options: FacilitatorOptions): StellarFa
           upto: runtime.upto.policy,
           engine: runtime.engine,
           ...(setup.upto?.authorityReady === undefined ? {} : { authorityReady: setup.upto.authorityReady }),
+          ...(setup.upto?.previousAuthority === undefined
+            ? {}
+            : {
+                previousAuthority: {
+                  signer: keypairSigner(
+                    setup.upto.previousAuthority.keypair,
+                    networkPassphrase(setup.network),
+                  ),
+                  validUntil: setup.upto.previousAuthority.validUntil,
+                },
+              }),
           log,
         }),
       );
@@ -164,20 +205,48 @@ export function createStellarFacilitator(options: FacilitatorOptions): StellarFa
     core,
     networks,
     async reconcile() {
+      const rounds = await Promise.allSettled(
+        [...networks.values()].map((runtime) => runtime.engine.reconcile()),
+      );
       let finished = 0;
-      for (const runtime of networks.values()) finished += await runtime.engine.reconcile();
+      for (const [index, round] of rounds.entries()) {
+        if (round.status === "fulfilled") finished += round.value;
+        else {
+          const network = [...networks.keys()][index];
+          log.error({ err: round.reason, network }, "reconciliation failed for a network");
+        }
+      }
       return finished;
+    },
+    async reconcileNetwork(network) {
+      const runtime = networks.get(network);
+      if (runtime === undefined) throw new Error(`network ${network} is not configured`);
+      return runtime.engine.reconcile();
     },
   };
 }
 
 function buildNetwork(setup: NetworkSetup, log: Logger, observer?: SettlementObserver): NetworkRuntime {
   const { network } = setup;
-  const url = new URL(setup.rpcUrl);
-  if (network === PUBNET && url.protocol !== "https:") throw new Error("pubnet RPC must use https");
+  if (setup.rpc === undefined && (typeof setup.rpcUrl !== "string" || setup.rpcUrl === "")) {
+    throw new FacilitatorSetupError("config_rpc_missing", `${network}: rpcUrl (or rpc) is required`);
+  }
+  if (typeof setup.sponsorSecret !== "string" || setup.sponsorSecret === "") {
+    throw new FacilitatorSetupError(
+      "config_sponsor_secret_missing",
+      `${network}: sponsorSecret is required: the fee sponsor's S… seed`,
+    );
+  }
+  const pool = setup.rpc ?? new RpcPool([{ alias: "primary", url: setup.rpcUrl }]);
+  for (const provider of pool.providers) {
+    if (network === PUBNET && new URL(provider.url).protocol !== "https:")
+      throw new FacilitatorSetupError("config_pubnet_rpc_insecure", "pubnet RPC must use https");
+  }
   if (!Number.isInteger(setup.channelCount) || setup.channelCount < 1) {
     throw new Error(`channelCount must be a positive integer, got ${setup.channelCount}`);
   }
+
+  if (network === PUBNET) assertPubnetSetup(setup);
 
   const sponsor = Keypair.fromSecret(setup.sponsorSecret);
   const channelKeys = deriveChannelKeypairs(sponsor, network, setup.channelCount);
@@ -188,15 +257,16 @@ function buildNetwork(setup: NetworkSetup, log: Logger, observer?: SettlementObs
     throw new Error(`channel pool holds accounts not derived from the sponsor: ${unknown.join(", ")}`);
 
   const policy = resolvePolicy(setup);
-  const server = new rpc.Server(setup.rpcUrl, { allowHttp: url.protocol === "http:" });
+  const server = pool.server;
   const upto =
     setup.upto === undefined ? undefined : resolveUptoPolicy(setup, setup.upto, policy, server, log);
   const authority = upto === undefined ? undefined : deriveAuthorityKeypair(sponsor, network);
   const engine = new SettlementEngine({
     network,
     passphrase: networkPassphrase(network),
-    rpcUrl: setup.rpcUrl,
+    rpcUrl: pool.active.url,
     server,
+    rpc: pool,
     policy,
     ledger: setup.ledger ?? new MemorySettlementLedger(),
     channels,
@@ -216,6 +286,7 @@ function buildNetwork(setup: NetworkSetup, log: Logger, observer?: SettlementObs
     network,
     policy,
     server,
+    rpc: pool,
     engine,
     channels,
     sponsorAddress: sponsor.publicKey(),
@@ -247,7 +318,11 @@ function resolveUptoPolicy(
   }
   const contractWasmHash =
     upto.contractWasmHash ?? (contract === canonical?.address ? canonical.wasmHash : undefined);
-  if (contractWasmHash !== undefined && !/^[0-9a-f]{64}$/.test(contractWasmHash)) {
+  if (contractWasmHash === undefined) {
+    // Without the hash nobody checks which code a non-canonical contract runs.
+    throw new Error(`${setup.network}: upto contractWasmHash is required for a non-canonical contract`);
+  }
+  if (!/^[0-9a-f]{64}$/.test(contractWasmHash)) {
     throw new Error(`${setup.network}: upto contractWasmHash must be 64 lower-case hex characters`);
   }
   const maxTransactionFeeStroops = upto.maxTransactionFeeStroops ?? DEFAULT_UPTO_MAX_TRANSACTION_FEE_STROOPS;
@@ -265,12 +340,67 @@ function resolveUptoPolicy(
   };
 }
 
+/**
+ * Pubnet spends real XLM on every settlement, so nothing money-relevant is left to a default there:
+ * a sponsor guard (or an explicit `unguarded`), the fee ceilings, an inclusion floor of at least
+ * 200 stroops (unless explicitly allowed lower) and the accepted assets.
+ */
+function assertPubnetSetup(setup: NetworkSetup): void {
+  const name = setup.network;
+  if (setup.guard === undefined && setup.unguarded !== true) {
+    throw new FacilitatorSetupError(
+      "config_pubnet_guard_missing",
+      `${name}: a guard (e.g. SponsorBudget) is required, or unguarded: true to run without one`,
+    );
+  }
+  // The token a payment is in is real money on pubnet: which ones are settled is an explicit choice.
+  if (setup.assets === undefined || setup.assets.length === 0) {
+    throw new FacilitatorSetupError(
+      "config_pubnet_assets_missing",
+      `${name}: assets is required: list each accepted token with acceptedAsset(), with a minAmount that bounds dust payments`,
+    );
+  }
+  const policy = setup.policy;
+  if (policy?.maxTransactionFeeStroops === undefined) {
+    throw new FacilitatorSetupError(
+      "config_pubnet_fee_ceiling_missing",
+      `${name}: policy.maxTransactionFeeStroops is required: it bounds what one settlement may cost the sponsor`,
+    );
+  }
+  if (policy.inclusionFeeStroops === undefined) {
+    throw new FacilitatorSetupError(
+      "config_pubnet_fee_ceiling_missing",
+      `${name}: policy.inclusionFeeStroops is required (at least ${String(PUBNET_MIN_INCLUSION_FEE_STROOPS)})`,
+    );
+  }
+  const floors = [
+    policy.inclusionFeeStroops,
+    ...(setup.inclusionFee === undefined ? [] : [setup.inclusionFee.floor]),
+  ];
+  if (
+    floors.some((floor) => floor < PUBNET_MIN_INCLUSION_FEE_STROOPS) &&
+    setup.allowInclusionFeeBelowFloor !== true
+  ) {
+    throw new FacilitatorSetupError(
+      "config_pubnet_inclusion_floor_too_low",
+      `${name}: the inclusion fee is below ${String(PUBNET_MIN_INCLUSION_FEE_STROOPS)} stroops; set allowInclusionFeeBelowFloor: true to accept that`,
+    );
+  }
+  if (setup.upto !== undefined && setup.upto.maxTransactionFeeStroops === undefined) {
+    throw new FacilitatorSetupError(
+      "config_pubnet_fee_ceiling_missing",
+      `${name}: upto.maxTransactionFeeStroops is required`,
+    );
+  }
+}
+
 /** A ledger-seconds source read from the network's own RPC, cached (see `RpcLedgerSeconds`). */
 function ledgerSecondsFrom(estimate: RpcLedgerSeconds): LedgerSecondsSource {
   return () => estimate.seconds();
 }
 
 function resolvePolicy(setup: NetworkSetup): NetworkPolicy {
+  // Pubnet never reaches the default: `assertPubnetSetup` requires explicit assets there.
   const assets = setup.assets ?? [acceptedAsset(USDC[setup.network])];
   const policy: NetworkPolicy = {
     network: setup.network,

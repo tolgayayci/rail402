@@ -30,7 +30,10 @@ import type { SettlementRecord } from "./ledger.ts";
  *    one the payer signed;
  * 3. that transaction emitted the matching `transfer` event from the asset contract (`exact`), or
  *    the settlement contract's `upto_settled` event for the payer, payTo and asset (`upto`).
- * Anything short of all three leaves the settlement failed.
+ * Anything short of all three leaves the settlement failed, but only when the reads that fell short
+ * came from an RPC that had ingested the ledgers they speak for: an unconsumed nonce read below the
+ * caller's `floor`, or a scan of the consuming ledger by an RPC that has not reached it, is
+ * `rpc_behind` and proves nothing.
  *
  * An `upto` authorization leaves the amount to the settlement authority, so the transaction found may
  * have settled a different amount than Rail402's own; the amount it settled is reported.
@@ -64,11 +67,18 @@ export type ThirdPartyMiss =
   | "nonce_not_consumed"
   | "consumed_before_request"
   | "ledger_not_retained"
-  | "no_matching_transaction";
+  | "no_matching_transaction"
+  /** A read that fell short came from an RPC behind the ledger it had to cover: nothing is proven. */
+  | "rpc_behind";
 
 export type ThirdPartyResult =
   | { readonly found: true; readonly settlement: ThirdPartySettlement }
-  | { readonly found: false; readonly miss: ThirdPartyMiss };
+  | {
+      readonly found: false;
+      readonly miss: ThirdPartyMiss;
+      /** The latest ledger of the RPC that read the payer's nonce unused, when the search ended there. */
+      readonly nonceReadLedger?: number;
+    };
 
 /** Transactions requested per `getTransactions` page while scanning one ledger. */
 const PAGE_LIMIT = 200;
@@ -144,19 +154,29 @@ export function nonceLedgerKey(payer: string, nonce: bigint): xdr.LedgerKey {
  * Looks for the successful transaction that consumed the payer's authorization of `record`, exactly
  * as signed. See the module comment for what counts as proof. It can be Rail402's own envelope
  * (`record.transactionHash`) when the RPC that answered NOT_FOUND for it lagged: callers tell the two
- * apart.
+ * apart. `floor` is the ledger by which the nonce must have been consumed if it ever was (for a failed
+ * settlement, the ledger it failed in): an unconsumed nonce read below it is `rpc_behind`.
  */
 export async function findThirdPartySettlement(
   server: rpc.Server,
   record: SettlementRecord,
   passphrase: string,
+  floor?: number,
 ): Promise<ThirdPartyResult> {
   const signed = signedAuthorizationOf(record, passphrase);
   if (signed === undefined) return { found: false, miss: "no_authorization" };
 
-  const { entries } = await server.getLedgerEntries(nonceLedgerKey(signed.payer, signed.nonce));
+  const { entries, latestLedger } = await server.getLedgerEntries(nonceLedgerKey(signed.payer, signed.nonce));
   const consumedIn = entries[0]?.lastModifiedLedgerSeq;
-  if (consumedIn === undefined) return { found: false, miss: "nonce_not_consumed" };
+  if (consumedIn === undefined) {
+    // Unconsumed at this read's ledger says nothing about the ledgers after it.
+    const behind = floor !== undefined && !(latestLedger >= floor);
+    return {
+      found: false,
+      miss: behind ? "rpc_behind" : "nonce_not_consumed",
+      nonceReadLedger: latestLedger,
+    };
+  }
 
   const requestedAt = Math.floor(record.createdAt / 1_000);
   let cursor: string | undefined;
@@ -172,6 +192,8 @@ export async function findThirdPartySettlement(
       if (consumedIn < (await oldestLedger(server))) return { found: false, miss: "ledger_not_retained" };
       throw error;
     }
+    // An RPC that has not ingested the consuming ledger lists none of its transactions.
+    if (!(response.latestLedger >= consumedIn)) return { found: false, miss: "rpc_behind" };
     for (const transaction of response.transactions) {
       if (transaction.ledger > consumedIn) return { found: false, miss: "no_matching_transaction" };
       if (transaction.ledger < consumedIn) continue;

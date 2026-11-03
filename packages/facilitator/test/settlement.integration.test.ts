@@ -191,6 +191,38 @@ describe.skipIf(!available)("exact settlement on a live network", () => {
     expect(await net.tokenBalance(usdc.sac, payer.publicKey())).toBe(1_000_000_000n - 1_000_000n);
   });
 
+  it("answers a retryable code when the RPC fails a simulation without running it, and settles on retry", async () => {
+    const proxy = await startRpcProxy(net.rpcUrl);
+    try {
+      const faulty = setup({ rpcUrl: proxy.url });
+      const [payer] = (await net.holders(usdc, 1, "100")) as [Keypair];
+      const { payload, requirements } = await pay(payer, 1_000_000n);
+      // What a loaded local RPC answers when its ledger snapshot is incomplete: no host ran.
+      proxy.answerResult("simulateTransaction", () => ({
+        error: "setting ContractComputeV0 is not present in the snapshot",
+        latestLedger: 1,
+      }));
+      expect(await faulty.core.verify(payload, requirements)).toMatchObject({
+        isValid: false,
+        invalidReason: "unexpected_verify_error",
+      });
+      expect(await faulty.core.settle(payload, requirements)).toMatchObject({
+        success: false,
+        errorReason: "unexpected_settle_error",
+        errorMessage: expect.stringContaining("can be retried") as string,
+        transaction: "",
+      });
+      expect(proxy.sent).toEqual([]);
+      expect(await net.tokenBalance(usdc.sac, payer.publicKey())).toBe(1_000_000_000n);
+
+      proxy.answerResult("simulateTransaction", undefined);
+      expect((await faulty.core.settle(payload, requirements)).success).toBe(true);
+      expect(await net.tokenBalance(usdc.sac, payer.publicKey())).toBe(1_000_000_000n - 1_000_000n);
+    } finally {
+      await proxy.close();
+    }
+  });
+
   it("settles concurrent duplicates exactly once, all callers getting the same result", async () => {
     const [payer] = (await net.holders(usdc, 1, "100")) as [Keypair];
     const { payload, requirements } = await pay(payer, 2_000_000n);

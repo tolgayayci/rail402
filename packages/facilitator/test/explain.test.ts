@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { Address, Keypair, SorobanDataBuilder, nativeToScVal, rpc, xdr } from "@stellar/stellar-sdk";
-import { explainFailedTransaction, explainSimulation } from "@rail402.dev/facilitator";
+import {
+  explainFailedTransaction,
+  explainSimulation,
+  rpcSimulationReason,
+  simulationRanOnHost,
+} from "@rail402.dev/facilitator";
 import { inspectExactTransaction } from "@rail402.dev/stellar";
 import {
   PASSPHRASE,
@@ -33,6 +38,25 @@ describe("explainSimulation", () => {
     expect(await explainSimulation(server, await transfer())).toMatchObject({
       code: "invalid_exact_stellar_payload_archived_state",
     });
+  });
+
+  it("returns nothing when the RPC failed the simulation without running the host", async () => {
+    const server = simulating({
+      latestLedger: 1,
+      events: [],
+      error: "setting ContractComputeV0 is not present in the snapshot",
+    });
+    expect(await explainSimulation(server, await transfer())).toBeUndefined();
+  });
+
+  it("tells a host error from an RPC's own failure", () => {
+    expect(simulationRanOnHost({ error: "HostError: Error(Contract, #10)", events: [] })).toBe(true);
+    expect(simulationRanOnHost({ error: "Error(Auth, InvalidAction)" })).toBe(true);
+    expect(simulationRanOnHost({ error: "setting ContractComputeV0 is not present in the snapshot" })).toBe(
+      false,
+    );
+    expect(rpcSimulationReason("snapshot incomplete")).toContain("(snapshot incomplete)");
+    expect(rpcSimulationReason(undefined)).toContain("can be retried");
   });
 
   it("returns nothing when the payment now simulates cleanly", async () => {

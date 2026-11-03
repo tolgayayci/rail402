@@ -15,7 +15,9 @@ import {
   type UptoResponseCode,
 } from "@rail402.dev/stellar";
 import {
+  EXPIRATION_LEDGER_TOLERANCE,
   UPTO_SCHEME,
+  ledgersFor,
   parseAtomicAmount,
   resolveLedgerSeconds,
   uptoStandardCodes,
@@ -26,6 +28,7 @@ import {
   type UptoRpc,
   type UptoStellarFacilitatorOptions,
 } from "@rail402.dev/upto/facilitator";
+import { HOST_ERROR, rpcSimulationReason } from "./explain.ts";
 import type { SettlementEngine, SubmissionContext } from "./engine.ts";
 import { uptoFingerprintOf } from "./fingerprint.ts";
 import type { SettlementKey } from "./ledger.ts";
@@ -33,7 +36,7 @@ import { LEDGER_FRESH_MS, LatestLedger } from "./latest-ledger.ts";
 import { silentLogger, type Logger } from "./logger.ts";
 import { uptoTimeoutSeconds, type NetworkPolicy, type UptoPolicy } from "./policy.ts";
 import { existingAccounts } from "./provision.ts";
-import { reasonFor, settleFailed, verifyAccepted, verifyRejected } from "./responses.ts";
+import { attemptOf, reasonFor, settleFailed, verifyAccepted, verifyRejected } from "./responses.ts";
 import { uptoPreflight, type UptoPreflight } from "./upto-preflight.ts";
 
 /** See scheme.ts: verify may answer from a ledger reading one ledger close old, settle may not. */
@@ -49,6 +52,34 @@ const AHEAD_OF_THE_LEDGER: ReadonlySet<UptoResponseCode> = new Set([
 /** Longest human-readable reason a response carries. */
 const MAX_REASON_LENGTH = 300;
 
+/**
+ * The shortest ledger time rule 7 counts with: an estimate or a setting below it is raised to it. It
+ * bounds the longest window any authorization could have been accepted with, whatever ledger time was
+ * in force then, so the hold after a restore does not depend on the one in force now.
+ */
+export const SHORTEST_LEDGER_SECONDS = 1;
+
+/** Ledgers a reading up to `VERIFY_LEDGER_MAX_AGE_MS` old can lag behind, at the shortest ledger time. */
+const STALE_READING_LEDGERS = Math.ceil(VERIFY_LEDGER_MAX_AGE_MS / 1_000 / SHORTEST_LEDGER_SECONDS);
+
+/**
+ * Ledgers `upto` settlement stays held after the settlement ledger was restored to an earlier state, on
+ * a network whose largest `maxTimeoutSeconds` is `timeoutMaxSeconds`: the longest window rule 7 can
+ * accept at all (at the shortest ledger time it counts, plus the tolerance), and a few ledgers for a
+ * reading that lagged. It depends on neither the ledger time in force now nor the one in force when an
+ * authorization was accepted.
+ *
+ * @param timeoutMaxSeconds - The network's largest accepted `maxTimeoutSeconds`
+ * @returns The ledgers the hold lasts
+ */
+export function restoreHoldLedgers(timeoutMaxSeconds: number): number {
+  return (
+    ledgersFor(timeoutMaxSeconds, SHORTEST_LEDGER_SECONDS) +
+    EXPIRATION_LEDGER_TOLERANCE +
+    STALE_READING_LEDGERS
+  );
+}
+
 export interface UptoSchemeOptions {
   readonly network: StellarNetwork;
   readonly passphrase: string;
@@ -59,6 +90,10 @@ export interface UptoSchemeOptions {
   readonly engine: SettlementEngine;
   /** Whether the settlement authority account exists now; see `UptoSetup.authorityReady`. */
   readonly authorityReady?: () => boolean;
+  /** The authority before a sponsor rotation, accepted until `validUntil`; see `UptoSetup.previousAuthority`. */
+  readonly previousAuthority?: { readonly signer: FacilitatorStellarSigner; readonly validUntil: Date };
+  /** The clock the previous authority's grace is judged by; `Date.now` by default. */
+  readonly now?: () => number;
   readonly log?: Logger;
 }
 
@@ -69,6 +104,8 @@ interface Prepared {
   readonly checked: UptoPreflight;
   readonly currentLedger: number;
   readonly ledgerSeconds: number;
+  /** The settlement authority the request is checked and settled under. */
+  readonly authority: FacilitatorStellarSigner;
 }
 
 /**
@@ -104,6 +141,32 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
     this.latestLedger = new LatestLedger(options.server, this.log);
   }
 
+  /**
+   * The authority a request is settled under: the previous one while its grace lasts and the request
+   * names it (`extra.facilitatorAddress`), otherwise the current one. A request naming the previous
+   * authority after the grace is checked against the current one, and refused.
+   */
+  private authorityFor(requirements: PaymentRequirements): FacilitatorStellarSigner {
+    const previous = this.options.previousAuthority;
+    const named = (requirements.extra as Record<string, unknown> | undefined)?.["facilitatorAddress"];
+    if (
+      previous !== undefined &&
+      named === previous.signer.address &&
+      (this.options.now ?? Date.now)() < previous.validUntil.getTime()
+    ) {
+      return previous.signer;
+    }
+    return this.authority;
+  }
+
+  /** Every facilitator account, the previous authority included, so no payer can be one of them. */
+  private facilitatorAddresses(): ReadonlySet<string> {
+    const previous = this.options.previousAuthority;
+    const addresses = new Set(this.options.engine.facilitatorAddresses);
+    if (previous !== undefined) addresses.add(previous.signer.address);
+    return addresses;
+  }
+
   /** The settlement authority clients name in their terms. */
   get authorityAddress(): string {
     return this.authority.address;
@@ -125,6 +188,8 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
       if (!checked.ok) return verifyRejected(checked.code, checked.reason, checked.payer);
       payer = checked.payment.payer;
       if (!this.authorityReady()) return verifyRejected(AUTHORITY_UNAVAILABLE, undefined, payer);
+      const held = await this.restoreHold(prepared);
+      if (held !== undefined) return verifyRejected(AUTHORITY_UNAVAILABLE, held, payer);
       const submitted = await this.alreadySubmitted(
         this.options.engine.keyOf(payer, checked.payment.authorization.nonce),
       );
@@ -177,6 +242,17 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
           amount,
         });
       }
+      // A settlement that moves funds waits after a restore; a zero moves nothing, on chain or off.
+      const held = payment.amount > 0n ? await this.restoreHold(prepared) : undefined;
+      if (held !== undefined) {
+        return settleFailed({
+          code: AUTHORITY_UNAVAILABLE,
+          reason: held,
+          network: requirements.network,
+          payer: payment.payer,
+          amount,
+        });
+      }
 
       return await engine.execute(
         {
@@ -185,6 +261,10 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
           fingerprint: uptoFingerprintOf(payload, requirements),
           payer: payment.payer,
           amount: settled,
+          // The upto ceiling already bounds the whole fee bump (resource fee plus both inclusion bids).
+          reserveFeeStroops: BigInt(this.options.upto.maxTransactionFeeStroops),
+          payTo: requirements.payTo,
+          ...attemptOf(payload),
         },
         {
           submit: async (context) =>
@@ -222,6 +302,34 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
 
   private authorityReady(): boolean {
     return this.options.authorityReady?.() ?? true;
+  }
+
+  /**
+   * Why upto payments do not settle on chain yet after the settlement ledger was restored to an earlier
+   * state, or `undefined` when they may. An authorization settled at zero off-chain is used up only by
+   * its ledger record, which a restore discards when it was written after the backup, while the
+   * authorization itself stays valid on chain: settled on chain now, it would pay up to its cap. So
+   * nothing settles on chain until every authorization accepted before the restore has expired, counted
+   * in ledgers (`restoreHoldLedgers`) from the first one a replica read after the restore was recorded.
+   * Counting ledgers keeps a slow chain from ending it early. It holds whatever `zeroSettlement` says
+   * now: zeros settled off-chain before the restore spent no nonce, even when zeros settle on chain
+   * since. A request never records or moves the ledger the hold counts from: one provider that lags,
+   * serves another network or lies would otherwise set it too low for every replica. `recordRestoreHold`
+   * does, with checks a single reading cannot pass. Until it has, the hold counts from the request's own
+   * reading, so a request can only make it longer.
+   */
+  private async restoreHold(prepared: Prepared): Promise<string | undefined> {
+    const { currentLedger, ledgerSeconds } = prepared;
+    const holdLedgers = restoreHoldLedgers(uptoTimeoutSeconds(this.options.policy).max);
+    const recorded = await this.options.engine.rewindAnchor();
+    if (recorded === undefined) return undefined;
+    if (recorded === null) {
+      return `The settlement records were restored to an earlier state: upto payments settle on chain again only once the ledger the hold counts from is recorded and the chain is ${String(holdLedgers)} ledgers past it.`;
+    }
+    const last = recorded + holdLedgers;
+    if (currentLedger > last) return undefined;
+    const minutes = Math.max(1, Math.ceil(((last + 1 - currentLedger) * ledgerSeconds) / 60));
+    return `The settlement records were restored to an earlier state: upto payments settle on chain again after ledger ${String(last)} (about ${String(minutes)} min), once every authorization from before the restore has expired.`;
   }
 
   /**
@@ -300,22 +408,25 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
     ledgerMaxAgeMs: number,
   ): Promise<Prepared> {
     const { network, upto } = this.options;
-    const [currentLedger, ledgerSeconds] = await Promise.all([
+    const authority = this.authorityFor(requirements);
+    const [currentLedger, resolvedSeconds] = await Promise.all([
       this.latestLedger.read(ledgerMaxAgeMs),
       resolveLedgerSeconds(network, upto.ledgerSeconds),
     ]);
-    const checked = this.preflight(payload, requirements, phase, currentLedger, ledgerSeconds);
+    const ledgerSeconds = Math.max(resolvedSeconds, SHORTEST_LEDGER_SECONDS);
+    const checked = this.preflight(payload, requirements, phase, currentLedger, ledgerSeconds, authority);
     if (!checked.ok && AHEAD_OF_THE_LEDGER.has(checked.code) && ledgerMaxAgeMs > LEDGER_FRESH_MS) {
       const fresh = await this.latestLedger.read(LEDGER_FRESH_MS);
       if (fresh > currentLedger) {
         return {
-          checked: this.preflight(payload, requirements, phase, fresh, ledgerSeconds),
+          checked: this.preflight(payload, requirements, phase, fresh, ledgerSeconds, authority),
           currentLedger: fresh,
           ledgerSeconds,
+          authority,
         };
       }
     }
-    return { checked, currentLedger, ledgerSeconds };
+    return { checked, currentLedger, ledgerSeconds, authority };
   }
 
   private preflight(
@@ -324,14 +435,15 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
     phase: "verify" | "settle",
     currentLedger: number,
     ledgerSeconds: number,
+    authority: FacilitatorStellarSigner,
   ): UptoPreflight {
-    const { engine, policy, upto } = this.options;
+    const { policy, upto } = this.options;
     return uptoPreflight(payload, requirements, {
       phase,
       policy,
       upto,
-      authority: this.authority.address,
-      facilitatorAddresses: engine.facilitatorAddresses,
+      authority: authority.address,
+      facilitatorAddresses: this.facilitatorAddresses(),
       currentLedger,
       ledgerSeconds,
     });
@@ -349,7 +461,9 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
     context?: SubmissionContext,
     zeroSettlement: "onchain" | "offchain" = "onchain",
   ): UptoMechanism {
-    const { engine, policy, upto, server } = this.options;
+    const { engine, policy, upto } = this.options;
+    // A settlement simulates and submits through the provider pinned when it was claimed.
+    const server = context?.server ?? this.options.server;
     const client: UptoRpc = {
       getLatestLedger: () => Promise.resolve({ sequence: prepared.currentLedger }),
       getAccount: (address) => server.getAccount(address),
@@ -361,7 +475,7 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
     const options: UptoStellarFacilitatorOptions = {
       rpc: () => client,
       settlementAuthority:
-        context === undefined ? verificationOnlySigner(this.authority.address) : this.authority,
+        context === undefined ? verificationOnlySigner(prepared.authority.address) : prepared.authority,
       zeroSettlement,
       contract: upto.contract,
       contractWasmHash: upto.contractWasmHash,
@@ -372,7 +486,7 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
       minTimeoutSeconds: uptoTimeoutSeconds(policy).min,
       expirationMarginLedgers: policy.expirationMarginLedgers,
       isAssetAccepted: (asset) => policy.assets.has(asset),
-      facilitatorAddresses: [...engine.facilitatorAddresses],
+      facilitatorAddresses: [...this.facilitatorAddresses()],
       feeBumpSigner: context?.feeBumpSigner ?? verificationOnlySigner(engine.sponsorAddress),
       // The engine records every envelope before broadcast and answers a refused one itself; a
       // rebuilt envelope would be a second record.
@@ -428,6 +542,14 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
     fallback: "unexpected_verify_error" | "unexpected_settle_error",
   ): Promise<{ code: UptoResponseCode; reason: string | undefined }> {
     const registered = registeredCode(code, fallback);
+    // A simulation the RPC failed without running the host names no host error: the payment was not
+    // judged, nothing was signed, and the same payment may be retried.
+    if (
+      registered === "invalid_upto_stellar_payload_simulation_failed" &&
+      (reason === undefined || !HOST_ERROR.test(reason))
+    ) {
+      return { code: fallback, reason: rpcSimulationReason(simulationDetail(reason)) };
+    }
     if (registered === "invalid_upto_stellar_payload_invalid_signature" && payer.startsWith("G")) {
       try {
         const existing = await existingAccounts(this.options.server, [payer]);
@@ -443,6 +565,11 @@ export class StellarUptoScheme implements SchemeNetworkFacilitator {
     }
     return { code: registered, reason: registered === code ? reason : reasonFor(registered) };
   }
+}
+
+/** What the RPC said, from the mechanism's "Simulating the settlement failed with …." reason. */
+function simulationDetail(reason: string | undefined): string | undefined {
+  return reason === undefined ? undefined : (/failed with (.*?)\.?$/.exec(reason)?.[1] ?? reason);
 }
 
 /** A code from the mechanism when it is registered, otherwise the phase's unexpected-error code. */

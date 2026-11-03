@@ -15,7 +15,7 @@ import {
   type StellarNetwork,
 } from "@rail402.dev/stellar";
 import type { SettlementEngine } from "./engine.ts";
-import { explainSimulation } from "./explain.ts";
+import { explainSimulation, rpcSimulationReason } from "./explain.ts";
 import { fingerprintOf } from "./fingerprint.ts";
 import type { SettlementKey } from "./ledger.ts";
 import { LEDGER_FRESH_MS, LatestLedger } from "./latest-ledger.ts";
@@ -23,6 +23,7 @@ import { silentLogger, type Logger } from "./logger.ts";
 import type { NetworkPolicy } from "./policy.ts";
 import { preflight, type Preflight } from "./preflight.ts";
 import { normalizeVerify, settleFailed, verifyRejected } from "./responses.ts";
+import { DEFAULT_RPC_TIMEOUT_MS } from "./rpc-pool.ts";
 
 /**
  * Verify may answer from a ledger reading up to one ledger close old: it is advisory, and the upstream
@@ -38,11 +39,19 @@ const MAX_REASON_LENGTH = 300;
 export interface ExactSchemeOptions {
   readonly network: StellarNetwork;
   readonly passphrase: string;
-  readonly rpcUrl: string;
+  /** The RPC URL verification uses: fixed, or the active provider's when a function. */
+  readonly rpcUrl: string | (() => string);
   readonly server: rpc.Server;
   readonly policy: NetworkPolicy;
   readonly engine: SettlementEngine;
   readonly log?: Logger;
+  /**
+   * How long the upstream verifier may take, in milliseconds; default `DEFAULT_RPC_TIMEOUT_MS`. It
+   * builds its own RPC client from the URL alone, without the call timeout of Rail402's clients, so
+   * verification is bounded here instead: past the deadline it answers `unexpected_verify_error`
+   * (retryable) rather than holding the request while a provider does not answer.
+   */
+  readonly verifyTimeoutMs?: number;
 }
 
 /**
@@ -61,7 +70,8 @@ export class StellarExactScheme implements SchemeNetworkFacilitator {
   readonly scheme = "exact";
   readonly caipFamily = "stellar:*";
 
-  private verifier: { readonly bid: number; readonly scheme: ExactStellarScheme } | undefined;
+  private verifier:
+    { readonly bid: number; readonly url: string; readonly scheme: ExactStellarScheme } | undefined;
   private readonly log: Logger;
   private readonly facilitatorAddresses: ReadonlySet<string>;
   private readonly latestLedger: LatestLedger;
@@ -92,16 +102,39 @@ export class StellarExactScheme implements SchemeNetworkFacilitator {
       if (submitted !== undefined) return submitted;
 
       const verifier = this.verifierFor(await this.options.engine.inclusionFeeBid());
-      const upstream = normalizeVerify(await verifier.verify(payload, requirements));
+      const timeoutMs = this.options.verifyTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS;
+      const answered = await withinDeadline(verifier.verify(payload, requirements), timeoutMs);
+      if (answered === undefined) {
+        this.log.warn({ network: this.options.network, timeoutMs }, "upstream verification timed out");
+        return verifyRejected(
+          "unexpected_verify_error",
+          `The RPC did not answer verification within ${String(timeoutMs / 1000)} seconds; retry.`,
+          checked.transfer.from,
+        );
+      }
+      const upstream = normalizeVerify(answered);
       if (upstream.isValid || upstream.invalidReason !== "invalid_exact_stellar_payload_simulation_failed") {
         return upstream;
       }
-      const cause = await explainSimulation(
-        this.options.server,
-        checked.transfer,
-        await this.options.engine.assetKinds.of(checked.transfer.asset),
-      );
-      return cause === undefined ? upstream : verifyRejected(cause.code, cause.reason, checked.transfer.from);
+      let cause;
+      try {
+        cause = await explainSimulation(
+          this.options.server,
+          checked.transfer,
+          await this.options.engine.assetKinds.of(checked.transfer.asset),
+        );
+      } catch (error) {
+        this.log.warn({ err: error, network: this.options.network }, "could not explain simulation failure");
+      }
+      // Nothing named a fault of the payment: the RPC failed, or the payment simulates cleanly now.
+      if (cause === undefined) {
+        return verifyRejected(
+          "unexpected_verify_error",
+          rpcSimulationReason(upstream.invalidMessage),
+          checked.transfer.from,
+        );
+      }
+      return verifyRejected(cause.code, cause.reason, checked.transfer.from);
     } catch (error) {
       this.log.error({ err: error, network: this.options.network }, "verify failed unexpectedly");
       return verifyRejected("unexpected_verify_error");
@@ -207,12 +240,14 @@ export class StellarExactScheme implements SchemeNetworkFacilitator {
    * as facilitator accounts.
    */
   private verifierFor(bid: number): ExactStellarScheme {
-    if (this.verifier?.bid !== bid) {
-      const { engine, policy, rpcUrl } = this.options;
+    const { engine, policy } = this.options;
+    const url = typeof this.options.rpcUrl === "function" ? this.options.rpcUrl() : this.options.rpcUrl;
+    if (this.verifier?.bid !== bid || this.verifier.url !== url) {
       this.verifier = {
         bid,
+        url,
         scheme: new ExactStellarScheme(engine.channelAddresses.map(verificationOnlySigner), {
-          rpcConfig: { url: rpcUrl },
+          rpcConfig: { url },
           areFeesSponsored: true,
           maxTransactionFeeStroops: policy.maxTransactionFeeStroops,
           inclusionFeeStroops: bid,
@@ -232,6 +267,25 @@ export class StellarExactScheme implements SchemeNetworkFacilitator {
 function settledIn(record: { response?: SettleResponse; transactionHash?: string }): string {
   const hash = record.response?.transaction ?? record.transactionHash ?? "";
   return hash === "" ? "(unknown)" : hash;
+}
+
+/**
+ * The promise's value, or `undefined` once `timeoutMs` has passed. A late rejection of the promise is
+ * swallowed: its caller has already answered.
+ */
+async function withinDeadline<T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => {
+      resolve(undefined);
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([promise, deadline]);
+  } finally {
+    clearTimeout(timer);
+    promise.catch(() => undefined);
+  }
 }
 
 /** A signer that refuses to sign: verification never needs a signature. */
