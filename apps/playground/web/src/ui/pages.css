@@ -1,8 +1,9 @@
-/* Page layouts: titles, dark surfaces, and the Lab's mode tiles and dark stage. */
+/* Page layouts: titles, and the Lab's head (title and mode toggles) over its dark stage. */
 
 .page-title {
-  font-size: 24px;
-  line-height: 30px;
+  font: 600 24px/30px var(--font-head);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 .page-title-large {
@@ -13,21 +14,17 @@
 
 .page-lede {
   color: var(--muted);
-  font-size: 15px;
-  line-height: 22px;
+  font-size: 16px;
+  line-height: 24px;
 }
 
-/* A dark surface: the stage, the panels. */
-.on-dark {
-  color: var(--stage-text);
+/* Links on a stage keep the system's link colour for that theme. */
+[data-theme="dark"] a:not(.r4-button) {
+  color: var(--accent-ink);
 }
 
-.on-dark a {
-  color: var(--mode-dark, var(--accent-dark));
-}
-
-.on-dark a:hover {
-  color: var(--on-ink);
+[data-theme="dark"] a:not(.r4-button):hover {
+  color: var(--accent-ink-hover);
 }
 
 /* Lab */
@@ -37,61 +34,62 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  padding: 18px var(--gutter) 24px;
-  gap: 14px;
+  padding: var(--space-6) var(--inline) var(--space-5);
+  gap: var(--space-4);
 }
 
 .lab-top {
   display: flex;
   flex: none;
-  align-items: center;
-  gap: 24px;
+  align-items: flex-end;
+  gap: var(--space-5);
 }
 
 .lab-title {
   display: flex;
   flex: none;
   flex-direction: column;
-  gap: 4px;
-  width: 380px;
+  gap: var(--space-2);
 }
 
 .lab-title h1 {
-  font-size: 24px;
-  line-height: 30px;
+  font-size: 40px;
+  line-height: 44px;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
 }
 
+/* The mode toggles: one per scheme, the pressed one ringed in ink. */
 .mode-tiles {
-  display: flex;
+  display: grid;
   flex: 1;
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
   min-width: 0;
 }
 
 .mode-tile {
   display: flex;
-  flex: 1;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 3px;
+  gap: 6px;
   min-width: 0;
   min-height: 64px;
-  padding: 8px 16px;
-  border: 1px solid var(--line);
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-l);
   background: var(--surface);
   color: var(--ink);
   text-align: left;
   transition:
-    background-color var(--duration) ease,
-    border-color var(--duration) ease,
-    color var(--duration) ease,
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease,
     transform var(--duration-fast) ease;
 }
 
 .mode-tile:hover {
-  border-color: var(--mode);
+  border-color: var(--line-strong);
 }
 
 .mode-tile:active {
@@ -99,41 +97,13 @@
 }
 
 .mode-tile[aria-pressed="true"] {
-  border-color: var(--mode);
-  background: var(--mode);
-  color: var(--on-ink);
-}
-
-.mode-tile-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--mode-ink);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.mode-tile[aria-pressed="true"] .mode-tile-name {
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.mode-swatch {
-  width: 8px;
-  height: 8px;
-  background: var(--mode);
-}
-
-.mode-tile[aria-pressed="true"] .mode-swatch {
-  display: none;
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
 }
 
 .mode-tile-title {
-  font-family: var(--font-head);
-  font-size: 16px;
-  font-weight: 600;
+  font: 600 15px/20px var(--font-head);
+  letter-spacing: -0.01em;
 }
 
 .stage {
@@ -141,35 +111,38 @@
   flex: 1;
   flex-direction: column;
   min-height: 420px;
-  padding: 18px;
-  border-radius: var(--radius-xl);
-  background: var(--stage);
 }
 
 @media (max-width: 1180px) {
   .lab-top {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: var(--space-3);
   }
 
-  .lab-title {
-    width: auto;
+  .lab-title h1 {
+    white-space: normal;
+    text-wrap: balance;
   }
 
   .mode-tile {
-    min-height: 52px;
-    padding: 6px 14px;
+    min-height: 56px;
   }
 }
 
 @media (max-width: 640px) {
   .mode-tiles {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .page-title-large {
-    font-size: 32px;
-    line-height: 36px;
+  .page-title-large,
+  .lab-title h1 {
+    font-size: 30px;
+    line-height: 34px;
+  }
+
+  .stage.r4-stage {
+    padding: var(--space-3);
+    border-radius: var(--radius-l);
   }
 }

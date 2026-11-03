@@ -38,6 +38,7 @@ export const DOCS = Object.freeze({
   listing: { label: "How listing works", path: "/bazaar/cataloging" },
   listingTrust: { label: "Listing trust", path: "/bazaar/cataloging" },
   search: { label: "Bazaar search", path: "/bazaar/search" },
+  codingAgents: { label: "Agent instructions", path: "/coding-agents/overview" },
 } satisfies Record<string, DocRef>);
 
 /** The link for a doc reference on the configured docs site. */

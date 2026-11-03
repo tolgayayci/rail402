@@ -4,7 +4,7 @@
  * text is the seller's: shown as text only.
  */
 import type { JsonValue, ListingField, ListingView } from "../engine/events.ts";
-import { displayUrl, toAtomic } from "./format.ts";
+import { displayAmount, displayUrl, toAtomic } from "./format.ts";
 
 export type BazaarFilter = "all" | "http" | "mcp" | "exact" | "upto" | "verified";
 
@@ -84,7 +84,7 @@ export function listingPrice(listing: ListingView, fallbackSymbol: string): List
   const price = listing.price;
   if (price === null) return null;
   return {
-    amount: price.decimal ?? price.amount,
+    amount: price.decimal === null ? price.amount : displayAmount(price.decimal),
     symbol: price.decimal === null ? "base units" : (price.symbol ?? fallbackSymbol),
     upto: price.scheme === "upto",
     decimal: price.decimal,

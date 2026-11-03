@@ -50,7 +50,7 @@ export function CopyButton({
     <>
       <button
         type="button"
-        className={`icon-button copy-button${className === undefined ? "" : ` ${className}`}`}
+        className={`r4-icon-button copy-button${className === undefined ? "" : ` ${className}`}`}
         aria-label={label}
         data-state={state}
         onClick={copy}

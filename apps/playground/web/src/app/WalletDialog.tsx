@@ -96,7 +96,9 @@ function SetupDialog({
         }}
       >
         <div className="wallet-dialog-top">
-          <span className="eyebrow eyebrow-accent">{task.createsKey ? "First visit" : "Test funds"}</span>
+          <span className="r4-eyebrow" data-tone="accent">
+            {task.createsKey ? "First visit" : "Test funds"}
+          </span>
           {task.status === "running" ? <span className="wallet-dialog-eta">about 30 s</span> : null}
         </div>
         <div className="wallet-dialog-heading">
@@ -122,10 +124,10 @@ function SetupDialog({
         ) : null}
         {task.status === "failed" ? (
           <div className="wallet-dialog-actions">
-            <button type="button" className="button button-dark" onClick={onRetry}>
+            <button type="button" className="r4-button" onClick={onRetry}>
               Try again
             </button>
-            <button type="button" className="button button-outline" onClick={onClose}>
+            <button type="button" className="r4-button" data-variant="outline" onClick={onClose}>
               Close
             </button>
           </div>
@@ -178,7 +180,12 @@ function StepItem({ step, template }: { readonly step: SetupStep; readonly templ
 export function FinishSetup(): ReactElement {
   const setup = useWalletSetup();
   return (
-    <button type="button" className="notice-action" disabled={setup.busy} onClick={setup.retry}>
+    <button
+      type="button"
+      className="r4-text-button notice-action"
+      disabled={setup.busy}
+      onClick={setup.retry}
+    >
       {setup.busy ? "Setting up…" : "Finish setup"}
     </button>
   );

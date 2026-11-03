@@ -64,7 +64,8 @@ export function RefusalMenu({
       <button
         ref={button}
         type="button"
-        className="stage-button stage-button-ghost"
+        className="r4-button refusal-toggle"
+        data-variant="outline"
         aria-expanded={open}
         aria-controls={id}
         disabled={disabled}
@@ -78,7 +79,7 @@ export function RefusalMenu({
         <div id={id} className="refusal-popover" role="group" aria-label="Payments that must be refused">
           {before.length > 0 ? (
             <section aria-labelledby={`${id}-before`}>
-              <h3 id={`${id}-before`} className="eyebrow">
+              <h3 id={`${id}-before`} className="r4-eyebrow">
                 Refused before signing
               </h3>
               <ul>{before.map(item)}</ul>
@@ -86,7 +87,7 @@ export function RefusalMenu({
           ) : null}
           {after.length > 0 ? (
             <section aria-labelledby={`${id}-after`}>
-              <h3 id={`${id}-after`} className="eyebrow">
+              <h3 id={`${id}-after`} className="r4-eyebrow">
                 Refused after signing
               </h3>
               <ul>{after.map(item)}</ul>

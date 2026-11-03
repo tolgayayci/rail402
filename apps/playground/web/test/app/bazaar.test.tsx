@@ -46,14 +46,20 @@ describe("the Bazaar", () => {
   it("shows every listing on one page with real counts, the first one chosen", async () => {
     open("/bazaar");
     await wait(10);
-    expect(screen.getByText("Bazaar · 6 listings")).toBeTruthy();
+    expect(screen.getByText("Bazaar · 6 listings · stellar:testnet")).toBeTruthy();
     expect(rows()).toHaveLength(6);
     const filters = screen.getByRole("group", { name: "Filters" });
-    expect(within(filters).getByRole("button", { pressed: true }).textContent).toBe("All · 6");
-    expect(within(filters).getByRole("button", { name: /MCP tools/ }).textContent).toBe("MCP tools · 2");
+    expect(within(filters).getByRole("button", { pressed: true }).textContent).toBe("All 6");
+    expect(within(filters).getByRole("button", { name: /MCP tools/ }).textContent).toBe("MCP tools 2");
     expect(within(listingPanel()).getByRole("heading", { name: "Current weather for a city" })).toBeTruthy();
     expect(within(listingPanel()).getByText("0.001 USDC per call")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /^(Next|Previous)$/ })).toBeNull();
+    // One page: the pager says so, and its buttons cannot move.
+    const pager = within(screen.getByRole("navigation", { name: "Listing pages" }));
+    expect(pager.getByText(/^Showing 1–6 of 6 listings/)).toBeTruthy();
+    expect(pager.getByText("Page 1 of 1")).toBeTruthy();
+    for (const name of ["First page", "Previous page", "Next page", "Last page"]) {
+      expect(pager.getByRole("button", { name }).hasAttribute("disabled")).toBe(true);
+    }
   });
 
   it("narrows the list with a filter and keeps it in the address", async () => {

@@ -23,7 +23,7 @@ import {
   settlementTx,
   type RunFacts,
 } from "./facts.ts";
-import { decimalDelta, short, toAtomic, toDecimal } from "./format.ts";
+import { decimalDelta, displayAmount, short, toAtomic, toDecimal } from "./format.ts";
 import { str } from "./json.ts";
 import { projectCheck } from "./checks.ts";
 import { addressLink, layerText, summarize, type ResultAsset, type StageFact } from "./stage.ts";
@@ -73,7 +73,10 @@ export function projectProof(events: readonly LabEvent[], context: ProofContext)
   const provenLater = end.status === "info" && end.code === "payment_settlement_unconfirmed";
   if (end.status !== "ok" && !provenLater) return undefined;
   const { symbol, decimals } = context.config.asset;
-  const decimal = (atomic: string): string => toDecimal(atomic, decimals) ?? atomic;
+  const decimal = (atomic: string): string => {
+    const exact = toDecimal(atomic, decimals);
+    return exact === undefined ? atomic : displayAmount(exact);
+  };
   const link = (address: string): string | undefined => addressLink(context.config.explorerTemplate, address);
   const payer = auth.scheme === "exact" ? auth.transfer.from : auth.address;
   const seller = auth.scheme === "exact" ? auth.transfer.to : auth.terms.recipient;

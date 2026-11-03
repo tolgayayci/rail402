@@ -24,6 +24,23 @@ export function toDecimal(atomic: string, decimals: number): string | undefined 
   return negative && text !== "0" ? `-${text}` : text;
 }
 
+/**
+ * A whole-unit amount for reading: at most `digits` decimals, rounded half up, trailing zeros
+ * dropped (`0.00213` is `0.0021`, `0.0100000` is `0.01`). An amount that would round to zero keeps
+ * its exact digits, so a tiny payment never reads as nothing.
+ */
+export function displayAmount(decimal: string, digits = 4): string {
+  const match = DECIMAL.exec(decimal.trim());
+  if (match === null) return decimal;
+  const [, sign = "", whole = "0", fraction = ""] = match;
+  if (fraction.length <= digits) return toDecimal(`${sign}${whole}${fraction}`, fraction.length) ?? decimal;
+  const exact = BigInt(whole + fraction);
+  const scale = 10n ** BigInt(fraction.length - digits);
+  const rounded = (exact + scale / 2n) / scale;
+  if (rounded === 0n) return toDecimal(`${sign}${exact.toString()}`, fraction.length) ?? decimal;
+  return toDecimal(`${sign}${rounded.toString()}`, digits) ?? decimal;
+}
+
 /** Whole units to base units: `toAtomic("0.001", 7)` is `10000n`. Undefined for malformed input or too many decimals. */
 export function toAtomic(decimal: string, decimals: number): bigint | undefined {
   const match = DECIMAL.exec(decimal.trim());

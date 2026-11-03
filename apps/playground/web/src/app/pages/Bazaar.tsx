@@ -17,11 +17,12 @@ import {
   type BazaarFilter,
 } from "../../projection/listings.ts";
 import { displayUrl } from "../../projection/format.ts";
-import { Spinner } from "../../ui/icons.tsx";
+import { PagerIcon, Spinner } from "../../ui/icons.tsx";
 import { DocLink } from "../../ui/links.tsx";
 import { Notice } from "../../ui/Notice.tsx";
 import { useAllListings, useSearch } from "../bazaar/data.ts";
 import { ListingPanel } from "../bazaar/ListingPanel.tsx";
+import { pageCount, pageOf, pageRange, usePageSize } from "../bazaar/pages.ts";
 import type { FocusRequest } from "../bazaar/TryIt.tsx";
 import { toCodedError, useEngine } from "../engine.tsx";
 import { navigate, useLocation } from "../router.tsx";
@@ -95,15 +96,39 @@ export function BazaarPage(): ReactElement {
     };
   }, [engine, missingId]);
 
+  // The list is paged: as many rows as fit, and a listing opened by a link shows on its page.
+  const listBox = useRef<HTMLDivElement>(null);
+  const pageSize = usePageSize(listBox);
+  const pages = pageCount(shown.length, pageSize);
+  const [page, setPage] = useState(0);
+  const view = `${searching ? query.trim() : ""}:${filter}`;
+  const [shownView, setShownView] = useState(view);
+  if (shownView !== view) {
+    setShownView(view);
+    setPage(0);
+  }
+  const linkedIndex = linkedId === null ? -1 : shown.findIndex((item) => item.id === linkedId);
+  const [placed, setPlaced] = useState<string | null>(null);
+  const placeKey = linkedIndex < 0 ? null : `${linkedId ?? ""}:${String(pageSize)}:${view}`;
+  if (placeKey !== null && placed !== placeKey) {
+    setPlaced(placeKey);
+    setPage(pageOf(linkedIndex, pageSize));
+  }
+  const current = Math.min(page, pages - 1);
+  const pageItems = shown.slice(current * pageSize, (current + 1) * pageSize);
+  const range = pageRange(current, pageSize, shown.length);
+  const one = shown.length === 1;
+  const noun = searching ? (one ? "result" : "results") : one ? "listing" : "listings";
+  const rankedBy = searching && found.data !== null ? found.data.method : null;
+
   const selected: ListingView | undefined =
-    linkedId !== null ? (inList(linkedId) ?? linked ?? undefined) : shown[0];
+    linkedId !== null ? (inList(linkedId) ?? linked ?? undefined) : pageItems[0];
 
   const panelRef = useRef<HTMLElement>(null);
   const [focusForm, setFocusForm] = useState<FocusRequest | null>(null);
   const choose = (listing: ListingView, tryIt: boolean): void => {
     writeAddress({ listing: listing.id });
-    if (!tryIt) return;
-    setFocusForm((current) => ({ id: listing.id, n: (current?.n ?? 0) + 1 }));
+    if (tryIt) setFocusForm((current) => ({ id: listing.id, n: (current?.n ?? 0) + 1 }));
     // Beside the list the panel is in view; below it (narrow screens), bring it up.
     const panel = panelRef.current;
     if (panel !== null && window.matchMedia("(max-width: 1023px)").matches) {
@@ -120,12 +145,14 @@ export function BazaarPage(): ReactElement {
     <div className="bazaar">
       <div className="bazaar-top">
         <div className="bazaar-title">
-          <span className="eyebrow">Bazaar{total === undefined ? "" : ` · ${String(total)} listings`}</span>
-          <h1>Find paid APIs and tools on Stellar, and try them</h1>
+          <span className="r4-eyebrow">
+            Bazaar{total === undefined ? "" : ` · ${String(total)} listings`} · {config.network}
+          </span>
+          <h1 className="page-title page-title-large">Find paid APIs and tools on Stellar, and try them</h1>
+          <p className="page-lede">
+            Listed only after a real payment. Try any of them with your test wallet.
+          </p>
         </div>
-        <p className="bazaar-lede">
-          Listed only after a real payment. Try any of them with your test wallet.
-        </p>
       </div>
 
       <div className="bazaar-body">
@@ -167,7 +194,7 @@ export function BazaarPage(): ReactElement {
               <button
                 key={item.id}
                 type="button"
-                className="chip"
+                className="r4-chip"
                 aria-pressed={item.id === filter}
                 onClick={() => {
                   setFilter(item.id);
@@ -175,14 +202,18 @@ export function BazaarPage(): ReactElement {
                 }}
               >
                 {item.label}{" "}
-                <span className="chip-count">· {base === null ? "…" : String(counts[item.id])}</span>
+                <span className="r4-chip-count">{base === null ? "…" : String(counts[item.id])}</span>
               </button>
             ))}
           </div>
 
           {error !== null ? (
             <Notice error={error}>
-              <button type="button" className="text-button" onClick={searching ? found.reload : all.reload}>
+              <button
+                type="button"
+                className="r4-text-button"
+                onClick={searching ? found.reload : all.reload}
+              >
                 Try again
               </button>
             </Notice>
@@ -200,7 +231,7 @@ export function BazaarPage(): ReactElement {
             <span className="listing-head-price">Price</span>
             <span />
           </div>
-          <div className="listing-scroll" aria-busy={loading}>
+          <div className="listing-scroll" ref={listBox} aria-busy={loading}>
             {loading ? (
               <ol className="listing-rows" aria-label="Loading listings">
                 {[0, 1, 2, 3, 4].map((index) => (
@@ -211,9 +242,9 @@ export function BazaarPage(): ReactElement {
               <ol
                 className="listing-rows"
                 aria-label={searching ? `Results for ${query.trim()}` : "Listings"}
-                key={`${searching ? query.trim() : ""}:${filter}`}
+                key={`${view}:${String(current)}`}
               >
-                {shown.map((item, index) => (
+                {pageItems.map((item, index) => (
                   <ListingRow
                     key={item.id}
                     listing={item}
@@ -232,13 +263,37 @@ export function BazaarPage(): ReactElement {
                   : "No listing matches this filter yet."}
               </p>
             ) : null}
-            {searching && found.data !== null && shown.length > 0 ? (
-              <p className="bazaar-foot muted">
-                {String(shown.length)} {shown.length === 1 ? "result" : "results"}
-                {found.data.method === null ? "" : `, ranked by ${found.data.method} search`}.
-              </p>
-            ) : null}
           </div>
+          {!loading && shown.length > 0 ? (
+            <nav className="listing-pager" aria-label="Listing pages">
+              <p className="listing-pager-range" aria-live="polite">
+                Showing {String(range.from)}–{String(range.to)} of {String(shown.length)} {noun}
+                {rankedBy === null ? "" : `, ranked by ${rankedBy} search`}
+              </p>
+              <div className="listing-pager-controls">
+                <span className="listing-pager-page">
+                  Page {String(current + 1)} of {String(pages)}
+                </span>
+                <PagerButton label="First page" to={0} disabled={current === 0} onGo={setPage}>
+                  <PagerIcon direction="left" double />
+                </PagerButton>
+                <PagerButton label="Previous page" to={current - 1} disabled={current === 0} onGo={setPage}>
+                  <PagerIcon direction="left" />
+                </PagerButton>
+                <PagerButton
+                  label="Next page"
+                  to={current + 1}
+                  disabled={current >= pages - 1}
+                  onGo={setPage}
+                >
+                  <PagerIcon direction="right" />
+                </PagerButton>
+                <PagerButton label="Last page" to={pages - 1} disabled={current >= pages - 1} onGo={setPage}>
+                  <PagerIcon direction="right" double />
+                </PagerButton>
+              </div>
+            </nav>
+          ) : null}
         </div>
 
         <ListingPanel
@@ -250,6 +305,37 @@ export function BazaarPage(): ReactElement {
         />
       </div>
     </div>
+  );
+}
+
+function PagerButton({
+  label,
+  to,
+  disabled,
+  onGo,
+  children,
+}: {
+  readonly label: string;
+  /** The page (from 0) the button goes to. */
+  readonly to: number;
+  readonly disabled: boolean;
+  readonly onGo: (page: number) => void;
+  readonly children: ReactElement;
+}): ReactElement {
+  return (
+    <button
+      type="button"
+      className="r4-button"
+      data-variant="outline"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={() => {
+        onGo(to);
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -290,8 +376,14 @@ function ListingRow({
         <span className="listing-url mono">{displayUrl(listing.resource)}</span>
       </span>
       <span className="listing-type">{listing.type === "mcp" ? "MCP" : "HTTP"}</span>
-      <span className="scheme-badge mono" data-mode={scheme ?? undefined}>
-        {listing.price?.scheme.toUpperCase() ?? "—"}
+      <span className="listing-scheme">
+        {listing.price === null ? (
+          "—"
+        ) : (
+          <span className="r4-badge" data-scheme={scheme ?? undefined}>
+            {listing.price.scheme}
+          </span>
+        )}
       </span>
       <span className="listing-price">
         {price === null ? (
@@ -305,7 +397,8 @@ function ListingRow({
       </span>
       <button
         type="button"
-        className="listing-try"
+        className="r4-button listing-try"
+        data-variant="outline"
         aria-label={`Try ${title}`}
         onClick={() => {
           onChoose(listing, true);

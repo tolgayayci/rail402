@@ -4,6 +4,7 @@ import {
   atomicWithDecimal,
   compareDecimal,
   decimalDelta,
+  displayAmount,
   displayUrl,
   groupedAmount,
   safeHttpsUrl,
@@ -42,6 +43,19 @@ describe("amounts", () => {
     expect(groupedAmount("0.5", 4)).toBe("0.5");
     expect(groupedAmount("0.99749", 4)).toBe("0.9974");
     expect(groupedAmount("junk")).toBe("junk");
+  });
+
+  it("shows an amount with at most four decimals, rounded half up", () => {
+    expect(displayAmount("0.0010000")).toBe("0.001");
+    expect(displayAmount("0.0021")).toBe("0.0021");
+    expect(displayAmount("0.00213")).toBe("0.0021");
+    expect(displayAmount("0.00215")).toBe("0.0022");
+    expect(displayAmount("0.99995")).toBe("1");
+    expect(displayAmount("12.5")).toBe("12.5");
+    expect(displayAmount("-0.00105")).toBe("-0.0011");
+    // A tiny amount keeps its digits rather than reading as zero.
+    expect(displayAmount("0.0000003")).toBe("0.0000003");
+    expect(displayAmount("junk")).toBe("junk");
   });
 
   it("shortens ids and shows URLs", () => {

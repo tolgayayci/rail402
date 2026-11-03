@@ -145,7 +145,7 @@ export function TryIt({
   return (
     <>
       <div className="try-it">
-        <span className="eyebrow try-eyebrow">Try it with your wallet</span>
+        <span className="r4-eyebrow try-eyebrow">Try it with your wallet</span>
         {!payable ? (
           <Notice
             tone="info"
@@ -207,7 +207,7 @@ export function TryIt({
                 </span>
               </span>
             </div>
-            <button type="submit" className="try-pay" disabled={!ready} aria-busy={running}>
+            <button type="submit" className="r4-button try-pay" disabled={!ready} aria-busy={running}>
               {running ? <Spinner /> : null}
               {label}
             </button>

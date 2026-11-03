@@ -11,15 +11,18 @@ export function ExternalLink({
   href,
   children,
   className,
+  variant,
 }: {
   readonly href: string | null | undefined;
   readonly children: ReactNode;
   readonly className?: string;
+  /** A button look (`r4-button` with `data-variant`), for links styled as buttons. */
+  readonly variant?: "outline";
 }): ReactElement {
   const safe = safeHttpsUrl(href);
   if (safe === undefined) return <span className={className}>{children}</span>;
   return (
-    <a className={className} href={safe} target="_blank" rel="noopener noreferrer">
+    <a className={className} data-variant={variant} href={safe} target="_blank" rel="noopener noreferrer">
       {children}
     </a>
   );

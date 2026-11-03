@@ -59,8 +59,8 @@ export function ListingPanel({
   }
   if (listing === undefined) {
     return (
-      <section ref={ref} className="listing-panel on-dark" aria-label="Listing" aria-busy={loading}>
-        <span className="eyebrow listing-panel-eyebrow">Listing</span>
+      <section ref={ref} className="listing-panel" aria-label="Listing" aria-busy={loading}>
+        <span className="r4-eyebrow listing-panel-eyebrow">Listing</span>
         {error !== null ? (
           <Notice error={error} />
         ) : loading ? (
@@ -80,18 +80,26 @@ export function ListingPanel({
   return (
     <section
       ref={ref}
-      className="listing-panel on-dark"
+      className="listing-panel"
       data-mode={scheme ?? "exact"}
       aria-labelledby="listing-panel-title"
     >
       <div className="listing-panel-scroll" key={listing.id}>
         <div className="listing-panel-head">
-          <span className="eyebrow listing-panel-eyebrow">Listing</span>
+          <span className="r4-eyebrow listing-panel-eyebrow" data-tone="accent">
+            Listing
+          </span>
           <span className="listing-panel-badges">
-            <span className="scheme-badge scheme-badge-dark mono" data-mode={scheme ?? undefined}>
-              {listing.price?.scheme.toUpperCase() ?? "—"}
-            </span>
-            <span className="trust-badge" data-trust={listing.trust}>
+            {listing.price === null ? null : (
+              <span className="r4-badge" data-scheme={scheme ?? undefined}>
+                {listing.price.scheme}
+              </span>
+            )}
+            <span
+              className="r4-badge trust-badge"
+              data-trust={listing.trust}
+              data-status={listing.trust === "domain_verified" ? "settled" : undefined}
+            >
               {trustLabel(listing.trust)}
             </span>
           </span>
@@ -133,7 +141,7 @@ export function ListingPanel({
           footerEnd={
             <button
               type="button"
-              className="stage-text-button listing-history-toggle"
+              className="r4-text-button listing-history-toggle"
               aria-expanded={history}
               aria-controls="listing-versions"
               onClick={() => {
@@ -178,7 +186,7 @@ function VersionList({ listingId }: { readonly listingId: string }): ReactElemen
   }, [engine, listingId]);
   return (
     <section ref={section} id="listing-versions" className="listing-versions" aria-label="Version history">
-      <span className="eyebrow try-eyebrow">Version history</span>
+      <span className="r4-eyebrow try-eyebrow">Version history</span>
       {error !== null ? (
         <Notice error={error} />
       ) : versions === null ? (

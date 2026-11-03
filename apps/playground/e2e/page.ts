@@ -100,7 +100,7 @@ export async function followSetup(page: Page, timeoutMs = SETUP_TIMEOUT_MS): Pro
     if (status === "failed") {
       const notice = (
         (await dialog
-          .locator(".notice")
+          .locator(".r4-notice")
           .textContent({ timeout: 1_000 })
           .catch(() => "")) ?? ""
       ).trim();
@@ -306,9 +306,38 @@ export interface BazaarPayment {
   readonly code: string | undefined;
 }
 
-/** A listing's row in the Bazaar, by a text it shows (its name or URL). */
+/** A listing's row in the Bazaar's current page, by a text it shows (its name or URL). */
 export function listingRow(page: Page, shows: string | RegExp): Locator {
   return page.locator("li.listing-row").filter({ hasText: shows }).first();
+}
+
+/** The Bazaar's pager under the list. */
+export const listingPager = (page: Page): Locator => page.getByRole("navigation", { name: "Listing pages" });
+
+/** The number of listings the pager says the list holds ("Showing 1–7 of 12 listings"). */
+export async function listingTotal(page: Page): Promise<number> {
+  const range = await text(listingPager(page).locator(".listing-pager-range"));
+  const total = /of (\d+) /.exec(range)?.[1];
+  if (total === undefined) throw new Error(`the pager does not say how many listings there are: ${range}`);
+  return Number(total);
+}
+
+/**
+ * A listing's row, paging forward from the first page until a page shows it. Throws when no page
+ * does.
+ */
+export async function findListing(page: Page, shows: string | RegExp): Promise<Locator> {
+  const pager = listingPager(page);
+  await pager.waitFor({ state: "visible", timeout: 60_000 });
+  const first = pager.getByRole("button", { name: "First page" });
+  if (await first.isEnabled()) await first.click();
+  const next = pager.getByRole("button", { name: "Next page" });
+  for (;;) {
+    const row = listingRow(page, shows);
+    if ((await row.count()) > 0) return row;
+    if (!(await next.isEnabled())) throw new Error(`no page of the Bazaar shows ${String(shows)}`);
+    await next.click();
+  }
 }
 
 /**
@@ -327,8 +356,11 @@ export async function payListing(
   await page.goto("/bazaar");
   await walletAddress(page);
   await page.getByRole("searchbox", { name: "Search the Bazaar" }).fill(options.query);
-  const row = listingRow(page, options.shows);
-  await row.waitFor({ state: "visible", timeout: 60_000 });
+  await listingRow(page, options.shows)
+    .or(page.locator(".bazaar-empty"))
+    .first()
+    .waitFor({ state: "visible", timeout: 60_000 });
+  const row = await findListing(page, options.shows);
   await row.getByRole("button", { name: /^Try / }).click();
   const panel = page.locator(".listing-panel");
   for (const [name, value] of Object.entries(options.fields)) {

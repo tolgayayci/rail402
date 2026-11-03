@@ -225,9 +225,10 @@ describe("the Lab", () => {
     open();
     run();
     await play(STEP_MS * 10);
-    fireEvent.click(screen.getByRole("link", { name: "Bazaar" }));
+    const pages = within(screen.getByRole("navigation", { name: "Pages" }));
+    fireEvent.click(pages.getByRole("link", { name: "Bazaar" }));
     await play(0);
-    fireEvent.click(screen.getByRole("link", { name: "Lab" }));
+    fireEvent.click(pages.getByRole("link", { name: "Lab" }));
     await play(0);
     expect(within(inspector()).getByRole("region", { name: /Proof/ })).toBeTruthy();
   });

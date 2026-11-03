@@ -1,307 +1,702 @@
 /*
- * The Sell and Agents pages: a headline with a few facts on the paper, and beside it a dark panel of
- * numbered setup steps with code to copy. `data-mode` on the page picks the accent: exact orange for
- * selling, agent violet for agents.
+ * The Sell and Agents pages: a headline, a box that hands the job to a coding agent, then numbered
+ * sections that teach by doing (picks on the left, what they produce on the right), a story told in
+ * steps, and the commands to go live. White cards on the page ground; code on dark panels.
  */
 
 .guide-page {
   display: flex;
-  flex: 1;
-  gap: 40px;
-  min-height: 0;
-  padding: 24px var(--gutter);
-}
-
-.guide-intro {
-  display: flex;
-  flex: none;
   flex-direction: column;
-  justify-content: center;
-  gap: 22px;
-  width: 400px;
-}
-
-[data-mode="agent"] .guide-intro {
-  width: 420px;
-}
-
-.guide-heading {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  animation: rise var(--duration-slow) var(--ease-out) both;
-}
-
-.guide-heading .page-lede {
-  margin: 0;
-}
-
-.guide-facts,
-.guide-stats {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.guide-facts li {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 13px 0;
-  border-top: 1px solid var(--line);
-  animation: rise var(--duration-slow) var(--ease-out) both;
-}
-
-.guide-facts li:nth-child(2),
-.guide-stats div:nth-child(2) {
-  animation-delay: 60ms;
-}
-
-.guide-facts li:nth-child(3),
-.guide-stats div:nth-child(3) {
-  animation-delay: 120ms;
-}
-
-.guide-facts b {
-  font-family: var(--font-head);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.guide-facts span {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.guide-stats div {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 14px 0;
-  border-top: 1px solid var(--line);
-  animation: rise var(--duration-slow) var(--ease-out) both;
-}
-
-.guide-stats dt {
-  order: 2;
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.guide-stats dd {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin: 0;
-}
-
-.guide-stats b {
-  color: var(--mode-ink);
-  font-family: var(--font-head);
-  font-size: 34px;
-  font-weight: 600;
-  line-height: 38px;
-  letter-spacing: -0.02em;
-}
-
-.guide-stats dd span {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.guide-cta {
-  align-self: flex-start;
-  min-height: 46px;
-  padding: 0 20px;
-  border-radius: 11px;
-  background: var(--mode);
-  color: var(--on-ink);
+  gap: var(--space-6);
+  padding: var(--space-6) var(--inline) var(--space-8);
   font-size: 15px;
+  line-height: 23px;
 }
 
-.guide-cta:hover {
-  background: var(--mode-ink);
-  color: var(--on-ink);
+/* On a wide screen the shell is one viewport tall; these pages scroll inside it. */
+@media (min-width: 1024px) and (min-height: 640px) {
+  .guide-page {
+    overflow-y: auto;
+  }
 }
 
-.guide-cta span {
-  transition: transform var(--duration-fast) ease;
-}
-
-.guide-cta:hover span {
-  transform: translateX(3px);
-}
-
-.guide-links {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 13px;
-}
-
-/* The dark panel */
-
-.guide-panel {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-  padding: 20px 36px;
-  overflow-y: auto;
-  border-radius: 20px;
-  background: var(--stage);
-  animation: fade var(--duration-slow) ease both;
-}
-
-/* Centred when it fits, scrolled from the top when it does not. */
-.guide-panel > :first-child {
-  margin-top: auto;
-}
-
-.guide-panel > :last-child {
-  margin-bottom: auto;
-}
-
-.guide-panel-head {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.guide-eyebrow {
-  color: var(--mode-dark);
-}
-
-.guide-panel-head h2 {
-  font-size: 26px;
-  line-height: 30px;
-}
-
-.guide-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.guide-step {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.guide-head {
+  display: grid;
+  gap: var(--space-2);
   animation: rise var(--duration-slow) var(--ease-out) both;
-  animation-delay: calc(var(--step, 1) * 70ms);
 }
 
-.guide-step-head {
+.guide-head .page-lede {
+  font-size: 17px;
+  line-height: 26px;
+}
+
+.guide-page code:not(pre code) {
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface-soft);
+  font-size: 0.9em;
+}
+
+/* The coding-agent box */
+
+.coding-agent {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
-  min-height: 24px;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-l);
+  background: var(--surface);
 }
 
-.guide-step-head h3 {
-  font-family: var(--font-sans);
-  letter-spacing: 0;
-  font-size: 15px;
-  font-weight: 600;
+.coding-agent-text {
+  display: grid;
+  flex: 999 1 420px;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
-.guide-step-number {
+.coding-agent h2 {
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.coding-agent p {
+  color: var(--muted);
+}
+
+.coding-agent-cta {
   display: inline-flex;
-  flex: none;
+  flex: 1 1 auto;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  font-family: var(--font-head);
-  font-size: 12px;
-  font-weight: 700;
+  gap: 8px;
+  max-width: 280px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--radius-m);
+  background: var(--accent);
+  color: var(--on-ink);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color var(--duration-fast) ease;
 }
 
-[data-mode="exact"] .guide-step-number {
-  background: var(--accent-bright);
-  color: var(--ink);
-}
-
-[data-mode="agent"] .guide-step-number {
-  border-radius: 50%;
-  background: var(--mode);
+.coding-agent-cta:hover {
+  background: var(--accent-ink);
   color: var(--on-ink);
 }
 
-.on-dark .guide-step-doc,
-.guide-step-head > [role="tablist"] {
-  margin-left: auto;
+/* Sections */
+
+.guide-section {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
 }
 
-.guide-step-doc {
-  display: inline-flex;
-  align-items: center;
+.guide-section-head {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.guide-label {
+  color: var(--ink);
+  font: 500 12px/16px var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.guide-hint {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+/* Picks on the left, what they produce on the right */
+
+.guide-builder {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.guide-controls {
+  display: grid;
+  align-content: start;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border-right: 1px solid var(--line-strong);
+  background: var(--surface-soft);
+}
+
+.guide-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.guide-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.guide-option {
+  display: grid;
+  align-content: start;
+  justify-items: start;
   gap: 4px;
-  font-size: 12.5px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  text-align: left;
+  transition: border-color var(--duration-fast) ease;
 }
 
-.guide-note,
-.guide-where {
+.guide-option:hover {
+  border-color: var(--muted);
+}
+
+.guide-option[aria-pressed="true"],
+.guide-chip[aria-pressed="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.guide-option-title {
+  font: 600 14px/18px var(--font-head);
+}
+
+.guide-option-detail {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.guide-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.guide-chip {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font: 500 13px/1 var(--font-mono);
+}
+
+.guide-chip[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.guide-preview {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+}
+
+.guide-preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--line);
+}
+
+.guide-preview-body {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-5);
+  animation: fade var(--duration) ease both;
+}
+
+.guide-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink);
+  font: 500 13px/18px var(--font-mono);
+}
+
+/* The 402's fields: name, value, and what it means */
+.guide-fields {
+  display: grid;
   margin: 0;
-  color: var(--stage-muted);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+}
+
+.guide-fields > div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 190px) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.guide-fields > div:first-child {
+  border-top: 0;
+}
+
+.guide-fields dt {
+  font: 500 14px/20px var(--font-mono);
+}
+
+.guide-fields dd {
+  margin: 0;
+}
+
+.guide-field-value {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font: 500 14px/20px var(--font-mono);
+}
+
+.guide-field-value[data-picked] {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.guide-field-why {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.guide-listing {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 460px;
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.guide-listing-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.guide-listing h3 {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.guide-listing p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.guide-listing .guide-listing-url {
+  overflow-wrap: anywhere;
+  font: 500 13px/18px var(--font-mono);
+}
+
+.guide-listing-price {
+  font: 600 15px/20px var(--font-mono);
+}
+
+/* Listings tried against the agent's limits */
+.guide-tried {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  list-style: none;
+}
+
+.guide-tried li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.guide-tried li:first-child {
+  border-top: 0;
+}
+
+.guide-tried-name {
+  display: block;
+  overflow-wrap: anywhere;
+  font: 600 14px/20px var(--font-head);
+}
+
+.guide-tried-detail {
+  display: block;
+  color: var(--muted);
   font-size: 13px;
   line-height: 19px;
 }
 
-.guide-where {
-  margin-top: 8px;
-  font-size: 12.5px;
+.guide-tried-price {
+  font: 500 14px/18px var(--font-mono);
+  white-space: nowrap;
 }
 
-/* Code */
+.guide-tried .r4-badge {
+  justify-self: end;
+}
+
+.guide-client-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.guide-tabpanel {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Segmented tabs */
+
+.guide-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  background: var(--surface-soft);
+}
+
+.guide-tabs [role="tab"] {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.guide-tabs [role="tab"]:hover {
+  color: var(--ink);
+}
+
+.guide-tabs [role="tab"][aria-selected="true"] {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* A story in steps */
+
+.guide-story {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.guide-beats {
+  display: grid;
+  grid-template-columns: repeat(var(--beats), minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--line-strong);
+  list-style: none;
+}
+
+.guide-beats li + li .guide-beat {
+  border-left: 1px solid var(--line);
+}
+
+.guide-beat {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  min-height: 112px;
+  padding: var(--space-4);
+  border: 0;
+  background: none;
+  text-align: left;
+  transition: background-color var(--duration-fast) ease;
+}
+
+.guide-beat:hover,
+.guide-beat[aria-pressed="true"] {
+  background: var(--surface-soft);
+}
+
+.guide-beat[aria-pressed="true"] {
+  box-shadow: inset 0 -3px 0 var(--run, var(--accent));
+}
+
+.guide-beat-number {
+  color: var(--ink);
+  font: 500 12px/16px var(--font-mono);
+}
+
+.guide-beat-title {
+  overflow-wrap: anywhere;
+  font: 600 15px/20px var(--font-head);
+}
+
+.guide-beat-title[data-mono] {
+  font: 600 14px/20px var(--font-mono);
+}
+
+.guide-party {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font: 500 12px/16px var(--font-mono);
+}
+
+.guide-party[data-party]::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.guide-party[data-party="Agent"]::before {
+  background: var(--scheme-agent);
+}
+
+.guide-party[data-party="Rail402"]::before {
+  background: var(--accent);
+}
+
+.guide-party[data-party="Stellar"]::before {
+  background: var(--chain);
+}
+
+.guide-beat-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-6);
+  padding: var(--space-5);
+}
+
+.guide-beat-detail h3 {
+  margin-bottom: var(--space-2);
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.guide-beat-detail p {
+  color: var(--muted);
+}
+
+/* Check a route */
+
+.guide-check {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.guide-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.guide-check-row .r4-input {
+  flex: 1 1 320px;
+  min-width: 0;
+  min-height: 44px;
+}
+
+.guide-check-row .r4-button {
+  min-height: 44px;
+}
+
+/* The prompt to try */
+
+.guide-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.guide-prompt p {
+  flex: 999 1 480px;
+  min-width: 0;
+  font-size: 18px;
+  line-height: 27px;
+}
+
+.guide-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.guide-prompt-copy {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-strong);
+}
+
+/* Commands to go live, in cards of one height */
+
+.guide-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: var(--space-4);
+}
+
+.guide-card {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.guide-card > a {
+  justify-self: start;
+}
+
+/* Code panels: dark, with a title bar, a gutter of line numbers or prompts, and coloured tokens */
 
 .code-block {
   position: relative;
-  border: 1px solid var(--stage-line);
-  border-radius: var(--radius-l);
-  background: var(--stage-field);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--ground);
+  color: var(--ink);
 }
 
-/* A long line wraps instead of running out of sight. */
+.code-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 6px 0 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.code-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font: 500 12px/16px var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-language {
+  flex: none;
+  padding: 2px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  color: var(--muted);
+  font: 500 11px/14px var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.code-copy[data-state="copied"] {
+  color: var(--ok-ink);
+  animation: pop var(--duration) var(--ease-out) both;
+}
+
 .code-block pre {
+  flex: 1;
   margin: 0;
-  padding: 10px 52px 10px 16px;
-  border-radius: inherit;
-  color: var(--stage-text);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  line-height: 19px;
+  padding: 12px 16px 12px 0;
+  overflow-x: auto;
+  font: 400 13px/21px var(--font-mono);
+}
+
+.code-line {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  min-height: 21px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.code-line::before {
+  content: attr(data-gutter);
+  padding-right: 14px;
+  color: var(--muted);
+  text-align: right;
+  user-select: none;
+}
+
+pre[data-language="shell"] .code-line::before {
+  color: var(--accent-ink);
 }
 
 .code-fold {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 8px 52px 0 10px;
+  margin: 8px 12px 0;
   padding: 4px 6px;
   border: 0;
   border-radius: var(--radius-s);
   background: transparent;
-  color: var(--stage-faint);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
+  color: var(--muted);
+  font: 400 12px/16px var(--font-mono);
   transition:
     background-color var(--duration-fast) ease,
     color var(--duration-fast) ease;
 }
 
 .code-fold:hover {
-  background: var(--stage-chip);
-  color: var(--stage-text);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .code-fold svg {
@@ -317,196 +712,204 @@
   padding-top: 4px;
 }
 
-.code-block-small pre {
-  font-size: 11.5px;
-  line-height: 17px;
-}
-
 .code-string {
   color: var(--code-string);
 }
 
 .code-comment {
-  color: var(--stage-faint);
+  color: var(--muted);
+  font-style: italic;
 }
 
 .code-keyword {
+  color: var(--scheme-agent-ink);
+}
+
+.code-key {
   color: var(--code-keyword);
 }
 
-.on-dark .code-copy {
-  position: absolute;
-  top: 9px;
-  right: 10px;
-  background: var(--stage-raised);
-  color: var(--stage-muted);
-  border-radius: 7px;
+.code-number {
+  color: var(--scheme-upto-ink);
 }
 
-.on-dark .code-copy:hover {
-  background: var(--stage-line-strong);
-  color: var(--stage-text);
-}
-
-.on-dark .code-copy[data-state="copied"] {
-  color: var(--stage-ok);
-  animation: pop var(--duration) var(--ease-out) both;
-}
-
-/* Client tabs */
-
-.guide-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 3px;
-  border-radius: 10px;
-  background: var(--stage-field);
-}
-
-.guide-tabs [role="tab"] {
-  height: 32px;
-  white-space: nowrap;
-  padding: 0 14px;
-  border: 0;
-  border-radius: var(--radius-m);
-  background: transparent;
-  color: var(--stage-muted);
-  font-size: 13px;
-  transition:
-    background-color var(--duration-fast) ease,
-    color var(--duration-fast) ease;
-}
-
-.guide-tabs [role="tab"]:hover {
-  color: var(--stage-text);
-}
-
-.guide-tabs [role="tab"][aria-selected="true"] {
-  background: var(--stage-line);
-  color: var(--stage-text);
+.code-function {
   font-weight: 600;
 }
 
-.guide-tabpanel {
-  animation: fade var(--duration) ease both;
+.code-flag {
+  color: var(--code-keyword);
 }
 
-/* The prompt to try */
-
-.guide-prompt {
-  position: relative;
-  padding: 14px 52px 14px 18px;
-  border: 1px solid var(--agent-dark-line);
-  border-radius: var(--radius-l);
-  background: var(--agent-dark-tint);
-  font-size: 14px;
-  line-height: 21px;
-}
-
-.guide-prompt p {
-  margin: 0;
-}
-
-.on-dark .guide-prompt .code-copy {
-  background: var(--agent-dark-tint-strong);
-}
-
-.guide-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding-top: 4px;
-  color: var(--stage-muted);
-  font-size: 13px;
-}
-
-.guide-tools ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.guide-tools code {
-  display: inline-block;
-  padding: 6px 10px;
-  border-radius: var(--radius-m);
-  background: var(--stage-raised);
-  color: var(--mode-dark);
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-
-.guide-tools-doc {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-}
-
-@media (max-width: 1180px) {
-  .guide-page {
-    gap: 28px;
-  }
-
-  .guide-intro,
-  [data-mode="agent"] .guide-intro {
-    width: 330px;
-  }
-
-  .guide-panel {
-    padding: 24px 26px;
-  }
-}
-
-/* On a short screen the page grows and scrolls as a whole, so no step hides inside the panel. */
-@media (max-height: 860px) {
-  .app:has(.guide-page) {
-    height: auto;
-  }
-
-  .guide-panel {
-    overflow: visible;
-  }
-}
-
+/* Tablet: picks above what they produce, the story in two columns */
 @media (max-width: 1023px) {
-  .guide-page {
-    flex-direction: column;
-    gap: 24px;
+  .guide-builder {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .guide-intro,
-  [data-mode="agent"] .guide-intro {
-    width: auto;
+  .guide-controls {
+    border-right: 0;
+    border-bottom: 1px solid var(--line-strong);
   }
 
-  .guide-panel {
-    flex: none;
-    overflow: visible;
+  .guide-fields > div {
+    grid-template-columns: 130px minmax(0, 1fr);
+  }
+
+  .guide-field-why {
+    grid-column: 1 / -1;
+  }
+
+  .guide-beats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .guide-beats li .guide-beat {
+    border-top: 1px solid var(--line);
+  }
+
+  .guide-beat-detail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
   }
 }
 
-@media (max-width: 560px) {
-  .guide-panel {
-    padding: 20px 16px;
-    border-radius: var(--radius-xl);
+/* Phone */
+@media (max-width: 640px) {
+  .guide-page {
+    gap: var(--space-5);
+    padding-top: var(--space-5);
   }
 
-  .guide-step-head > [role="tablist"] {
+  .coding-agent,
+  .guide-controls,
+  .guide-preview-body,
+  .guide-beat-detail,
+  .guide-prompt,
+  .guide-card {
+    padding: var(--space-4);
+  }
+
+  .coding-agent-cta {
+    max-width: none;
     width: 100%;
-    margin-left: 0;
+  }
+
+  .guide-preview-bar {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .guide-preview-bar .guide-tabs,
+  .guide-client-bar .guide-tabs {
+    width: 100%;
+  }
+
+  /* The tabs share the row; a long name takes two lines rather than pushing a tab to a row of its own. */
+  .guide-tabs {
+    flex-wrap: nowrap;
   }
 
   .guide-tabs [role="tab"] {
-    flex: 1;
-    padding: 0 8px;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    padding: 4px 8px;
+    font-size: 13px;
+    line-height: 16px;
+    white-space: normal;
   }
 
-  .guide-tools-doc {
-    margin-left: 0;
+  .guide-fields > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .guide-beats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .guide-beats li .guide-beat {
+    min-height: 96px;
+    padding: var(--space-3);
+  }
+
+  .guide-beats li:nth-child(odd) .guide-beat {
+    border-left: 0;
+  }
+
+  /* An odd number of steps (the three tools) would leave one alone on a row: they stack as a list. */
+  .guide-beats:has(> li:last-child:nth-child(odd)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .guide-beats:has(> li:last-child:nth-child(odd)) li .guide-beat {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 2px var(--space-2);
+    min-height: 0;
+    border-left: 0;
+  }
+
+  .guide-beats:has(> li:last-child:nth-child(odd)) .guide-beat-number {
+    grid-row: 1 / span 2;
+    line-height: 20px;
+  }
+
+  .guide-beats:has(> li:last-child:nth-child(odd)) li:first-child .guide-beat {
+    border-top: 0;
+  }
+
+  .guide-tried li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px var(--space-3);
+  }
+
+  .guide-tried-price {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .guide-tried .r4-badge {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+  }
+
+  .guide-prompt p {
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  .guide-prompt-actions {
+    width: 100%;
+  }
+
+  .guide-prompt-actions .r4-button {
+    flex: 1;
+  }
+
+  .guide-check-row .r4-button {
+    width: 100%;
+  }
+
+  .guide-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .code-block pre {
+    font-size: 12px;
+    line-height: 19px;
+  }
+
+  .code-line {
+    grid-template-columns: 34px minmax(0, 1fr);
+    min-height: 19px;
+  }
+
+  .code-line::before {
+    padding-right: 10px;
+  }
+
+  /* A comment after a command goes under it rather than wrapping beside it. */
+  pre[data-language="shell"] .code-comment {
+    display: block;
   }
 }

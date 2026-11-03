@@ -90,7 +90,7 @@ export function StepDetail({
   return (
     <div className="step-detail" key={step.id}>
       <div className="step-detail-head">
-        <span className="eyebrow step-count">
+        <span className="r4-eyebrow step-count">
           Step {two(index + 1)} / {two(total)}
           {now ? " · now" : step.planned ? " · to come" : ""}
         </span>
@@ -102,7 +102,7 @@ export function StepDetail({
       <FactList facts={step.facts} />
       {step.result.length > 0 ? (
         <div className="result-card">
-          <span className="eyebrow">What came back</span>
+          <span className="r4-eyebrow">What came back</span>
           <FactList facts={step.result} className="fact-list fact-list-compact" />
         </div>
       ) : null}

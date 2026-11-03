@@ -1,11 +1,58 @@
 /*
- * Base styles: the page ground, type, links, buttons, fields, the coded-error notice, and the motion
- * every component shares. Animations only clarify what changed; prefers-reduced-motion turns them off.
+ * Base styles over the Rail402 design system (design/tokens.css, design/rail402.css): the page, type,
+ * links, the scheme each payment mode is drawn in, and the motion every component shares. Animations
+ * only clarify what changed; prefers-reduced-motion turns them off.
  */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+:root {
+  --gutter: var(--space-6);
+  --header-height: 60px;
+  /* Pages, the header and the page tabs share one column, centred on a wide screen. */
+  --page-max: 1600px;
+  --inline: max(var(--gutter), calc((100% - var(--page-max)) / 2 + var(--gutter)));
+}
+
+@media (max-width: 900px) {
+  :root {
+    --gutter: var(--space-4);
+  }
+}
+
+/*
+ * The exact scheme is the accent. tokens.css declares it from the accent on :root only, so a stage
+ * would keep the paper shade; declaring it again wherever a theme is set takes that theme's accent.
+ */
+[data-theme] {
+  --scheme-exact: var(--accent);
+  --scheme-exact-ink: var(--accent-ink);
+  --scheme-exact-tint: var(--accent-tint);
+}
+
+/*
+ * A payment mode's scheme colour: --run on paper or the stage, --run-ink for text and --run-tint
+ * behind it. Declared where data-mode is set, so a dark stage gets the stage shades.
+ */
+[data-mode="exact"] {
+  --run: var(--scheme-exact);
+  --run-ink: var(--scheme-exact-ink);
+  --run-tint: var(--scheme-exact-tint);
+}
+
+[data-mode="upto"] {
+  --run: var(--scheme-upto);
+  --run-ink: var(--scheme-upto-ink);
+  --run-tint: var(--scheme-upto-tint);
+}
+
+[data-mode="agent"] {
+  --run: var(--scheme-agent);
+  --run-ink: var(--scheme-agent-ink);
+  --run-tint: var(--scheme-agent-tint);
 }
 
 html {
@@ -16,17 +63,11 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
-  background-color: var(--ground);
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 32px 32px;
-  background-attachment: fixed;
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
+}
+
+/* A plain page: the paper grid behind dense text and cards made both harder to read. */
+body.r4-page {
+  background-image: none;
 }
 
 h1,
@@ -79,23 +120,9 @@ button:disabled {
   outline-offset: 2px;
 }
 
-.on-dark :focus-visible {
-  outline-color: var(--focus-on-dark);
-}
-
 /* Containers focused by the page (the main content after a page change) need no ring. */
 [tabindex="-1"]:focus {
   outline: none;
-}
-
-/* Small uppercase labels: the documentation's mono voice. */
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
 }
 
 .muted {
@@ -114,104 +141,6 @@ button:disabled {
   border: 0;
 }
 
-/* Buttons */
-
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-m);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
-  text-decoration: none;
-  white-space: nowrap;
-  transition:
-    background-color var(--duration-fast) ease,
-    border-color var(--duration-fast) ease,
-    color var(--duration-fast) ease,
-    transform var(--duration-fast) ease;
-}
-
-.button:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.button-dark {
-  background: var(--ink);
-  color: var(--on-ink);
-}
-
-.button-dark:hover:not(:disabled) {
-  background: var(--ink-hover);
-  color: var(--on-ink);
-}
-
-.button-outline {
-  background: var(--surface);
-  border-color: var(--line);
-  color: var(--ink);
-}
-
-.button-outline:hover:not(:disabled) {
-  border-color: var(--line-strong);
-  background: var(--surface-soft);
-  color: var(--ink);
-}
-
-.button-danger {
-  background: var(--danger-tint);
-  border-color: var(--danger-line);
-  color: var(--danger);
-}
-
-.button-danger:hover:not(:disabled) {
-  background: var(--danger-tint-hover);
-  color: var(--danger);
-}
-
-.button:disabled {
-  opacity: 0.55;
-}
-
-.text-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--accent-ink);
-  font-size: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.text-button:hover {
-  color: var(--accent-ink-hover);
-}
-
-.icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-s);
-  background: transparent;
-  color: var(--muted);
-  transition: background-color var(--duration-fast) ease;
-}
-
-.icon-button:hover {
-  background: var(--surface-pressed);
-  color: var(--ink);
-}
-
 /* Links that open elsewhere carry a small arrow. */
 .external-icon {
   display: inline-block;
@@ -219,59 +148,30 @@ button:disabled {
   vertical-align: -1px;
 }
 
-/* A coded error or note: the stable code, then its reason. */
-.notice {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--danger-line);
-  border-radius: var(--radius-m);
-  background: var(--danger-tint);
-  color: var(--ink);
-  font-size: 13px;
+/* Notices rise in; an action inside one sits at its end. */
+.r4-notice {
   animation: rise var(--duration) var(--ease-out) both;
-}
-
-.notice[data-kind="info"] {
-  border-color: var(--info-line);
-  background: var(--info-tint);
-}
-
-.notice-code {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--danger);
-}
-
-.notice[data-kind="info"] .notice-code {
-  color: var(--info-ink);
-}
-
-.notice-reason {
-  flex: 1 1 220px;
 }
 
 .notice-action {
   align-self: center;
-  padding: 5px 10px;
-  border: 1px solid currentColor;
-  border-radius: var(--radius-s);
-  background: transparent;
-  color: var(--info-ink);
-  font: 600 12px/16px var(--font-sans);
-  cursor: pointer;
-  transition: background var(--duration-fast) ease;
-}
-
-.notice-action:hover:not(:disabled) {
-  background: var(--surface);
+  font-size: 12px;
 }
 
 .notice-action:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* A link styled as a button: the component's colours win over the page's link colours. */
+a.r4-button,
+a.r4-button:hover {
+  color: var(--on-ink);
+}
+
+a.r4-button[data-variant="outline"],
+a.r4-button[data-variant="outline"]:hover {
+  color: var(--ink);
 }
 
 /* Spinner */
@@ -323,7 +223,7 @@ button:disabled {
 @keyframes glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 var(--mode-glow, rgba(255, 122, 71, 0.45));
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--run, var(--accent)) 45%, transparent);
   }
   50% {
     box-shadow: 0 0 0 8px transparent;

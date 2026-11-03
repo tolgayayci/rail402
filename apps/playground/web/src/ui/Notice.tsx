@@ -12,9 +12,9 @@ export function Notice({
   readonly children?: ReactNode;
 }): ReactElement {
   return (
-    <div className="notice" data-kind={tone} role={tone === "error" ? "alert" : "status"}>
-      <code className="notice-code">{error.code}</code>
-      <span className="notice-reason">{error.reason}</span>
+    <div className="r4-notice" data-kind={tone} role={tone === "error" ? "alert" : "status"}>
+      <code className="r4-notice-code">{error.code}</code>
+      <span className="r4-notice-reason">{error.reason}</span>
       {children}
     </div>
   );

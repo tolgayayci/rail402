@@ -44,9 +44,9 @@ import { bazaarRunKey, useRuns } from "../runs.tsx";
 import { FinishSetup } from "../WalletDialog.tsx";
 
 const MODE_TILES: Readonly<Record<LabMode, { readonly name: string; readonly title: string }>> = {
-  exact: { name: "Exact", title: "Pay a fixed price" },
-  upto: { name: "Upto", title: "Pay for what you use" },
-  agent: { name: "Agent · MCP", title: "Let an agent pay" },
+  exact: { name: "exact", title: "Pay a fixed price" },
+  upto: { name: "upto", title: "Pay for what you use" },
+  agent: { name: "agent · MCP", title: "Let an agent pay" },
 };
 
 const IDLE: Readonly<Record<LabMode, { readonly title: string; readonly text: string }>> = {
@@ -194,9 +194,19 @@ export function LabPage(): ReactElement {
     return step.state === "error" ? "error" : "done";
   };
 
+  // Where the page stacks (a phone, a tablet, a short window) the stage may sit below the fold: a
+  // run brings it up so the steps play in sight.
+  const stageRef = useRef<HTMLElement>(null);
+  const showStage = (): void => {
+    if (!window.matchMedia("(max-width: 1023px), (max-height: 639px)").matches) return;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    stageRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  };
+
   const start = (entry: RefusalEntry | undefined): void => {
     setStartError(null);
     setSelected(null);
+    showStage();
     try {
       let next: RunHandle;
       if (entry !== undefined) {
@@ -269,7 +279,7 @@ export function LabPage(): ReactElement {
   const backButton = (label: string) => (
     <button
       type="button"
-      className="stage-text-button"
+      className="r4-text-button"
       onClick={() => {
         setSelected(null);
       }}
@@ -280,7 +290,7 @@ export function LabPage(): ReactElement {
   const seeSteps = (
     <button
       type="button"
-      className="stage-text-button"
+      className="r4-text-button"
       onClick={() => {
         setSelected(steps[0]?.id ?? null);
       }}
@@ -293,7 +303,7 @@ export function LabPage(): ReactElement {
     view.runId === null ? null : (
       <button
         type="button"
-        className="stage-text-button"
+        className="r4-text-button"
         title="A JSON file built from this run's events only: no key, signature or payment header"
         onClick={() => {
           const report = view.runId === null ? undefined : engine.exportRun(view.runId);
@@ -378,7 +388,7 @@ export function LabPage(): ReactElement {
     <div className="lab">
       <div className="lab-top">
         <div className="lab-title">
-          <span className="eyebrow">Stellar testnet · x402</span>
+          <span className="r4-eyebrow">Lab · {config.network}</span>
           <h1>Watch a payment, step by step</h1>
         </div>
         <div className="mode-tiles" role="group" aria-label="Payment mode">
@@ -393,8 +403,7 @@ export function LabPage(): ReactElement {
                 chooseMode(id);
               }}
             >
-              <span className="mode-tile-name">
-                <span className="mode-swatch" aria-hidden="true" />
+              <span className="r4-badge" data-scheme={id}>
                 {MODE_TILES[id].name}
               </span>
               <span className="mode-tile-title">{MODE_TILES[id].title}</span>
@@ -403,7 +412,13 @@ export function LabPage(): ReactElement {
         </div>
       </div>
 
-      <section className="stage on-dark" data-mode={stage.mode} aria-label="Run">
+      <section
+        ref={stageRef}
+        className="r4-stage stage"
+        data-theme="dark"
+        data-mode={stage.mode}
+        aria-label="Run"
+      >
         <RunBar
           method={refusal !== undefined ? "TRY" : mode === "agent" ? "MCP" : watching ? watchedMethod : "GET"}
           target={barTarget}
@@ -421,6 +436,7 @@ export function LabPage(): ReactElement {
           }
           leaveLabel={`Back to ${MODE_TILES[mode].title.toLowerCase()}`}
           cap={refusal === undefined && !watching ? cap : null}
+          scheme={stage.mode}
           onCap={(value) => {
             setCaps((current) => ({ ...current, [mode]: value }));
           }}
@@ -437,6 +453,7 @@ export function LabPage(): ReactElement {
             if (watching) {
               setSelected(null);
               setReplays((current) => current + 1);
+              showStage();
             } else start(refusal);
           }}
         />
@@ -485,7 +502,7 @@ export function LabPage(): ReactElement {
             </p>
             {stage.mode === "agent" && !(playback.finished && selectedStep === undefined) ? (
               <div className="prompt-card">
-                <span className="eyebrow">Prompt</span>
+                <span className="r4-eyebrow">Prompt</span>
                 <p>{agentPrompt(capCheck.valid ? capCheck.effective : cap, config.asset.symbol)}</p>
               </div>
             ) : null}
@@ -535,7 +552,7 @@ export function LabPage(): ReactElement {
               />
             ) : (
               <div className="step-detail">
-                <span className="eyebrow step-count">
+                <span className="r4-eyebrow step-count">
                   {running ? "Starting" : "Ready"} · {String(steps.length)} steps
                 </span>
                 <h2 className="step-title">{idle.title}</h2>

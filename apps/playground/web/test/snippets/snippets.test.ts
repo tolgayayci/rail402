@@ -14,7 +14,10 @@ import {
   AGENT_PROMPT,
   AGENT_TOOLS,
   CLIENTS,
+  SELL_PRICES,
+  SELL_SNIPPETS,
   SNIPPET_SOURCES,
+  sellCode,
   snippetText,
 } from "../../src/app/guide/snippets.ts";
 
@@ -102,9 +105,44 @@ describe("seller code", () => {
   });
 });
 
+describe("the Sell page's code for each pick", () => {
+  const picks = (["http", "mcp"] as const).flatMap((kind) =>
+    (["exact", "upto"] as const).map((scheme) => [kind, scheme] as const),
+  );
+
+  it.each(picks)("%s %s shows the real seller helpers, never the scaffolding", (kind, scheme) => {
+    const code = text(SELL_SNIPPETS[kind][scheme]);
+    expect(code).not.toMatch(/@hide|declare |\{\{|Sell page snippet/);
+    expect(code).toContain(`${kind === "http" ? "httpRoute" : "mcpTool"}({`);
+    expect(code).toContain(`payment: ${scheme}({`);
+    expect(code).toMatch(/from "@rail402\.dev\/sdk\/seller";/);
+    expect(code).not.toMatch(/\n\n\n/);
+  });
+
+  it.each(picks)("%s %s takes the picked price in place of the written one", (kind, scheme) => {
+    for (const price of SELL_PRICES) {
+      const code = sellCode(kind, scheme, price, VALUES);
+      expect(code).toContain(`${scheme === "upto" ? "maxPrice" : "price"}: "$${price}"`);
+      expect(code.match(/"\$[\d.]+"/g)).toEqual([`"$${price}"`]);
+    }
+  });
+
+  it("charges an upto call what it used, at most the cap", () => {
+    expect(text(SELL_SNIPPETS.http.upto)).toContain("new UptoStellarServerScheme()");
+    expect(text(SELL_SNIPPETS.http.upto)).toContain('setUptoCharge(res, "40%")');
+    expect(text(SELL_SNIPPETS.mcp.upto)).toContain("chargeUpto(");
+  });
+});
+
 describe("MCP client setup", () => {
   it("offers Claude Desktop, Cursor and Claude Code", () => {
     expect(CLIENTS.map((client) => client.label)).toEqual(["Claude Desktop", "Cursor", "Claude Code"]);
+  });
+
+  it("fills the limits a visitor picks", () => {
+    const config = snippetText(SNIPPET_SOURCES.mcpConfig, { ...VALUES, perCall: "0.10", total: "1.00" });
+    expect(config).toContain('"RAIL402_MAX_PER_CALL": "0.10 USDC"');
+    expect(config).toContain('"RAIL402_MAX_TOTAL": "1.00 USDC"');
   });
 
   it("configures the server with settings it reads and the suggested limits", () => {

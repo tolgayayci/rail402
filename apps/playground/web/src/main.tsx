@@ -1,6 +1,6 @@
 import "./polyfills.ts";
-import "./ui/fonts.css";
-import "./ui/tokens.css";
+import "./design/tokens.css";
+import "./design/rail402.css";
 import "./ui/base.css";
 import "./ui/shell.css";
 import "./ui/wallet.css";

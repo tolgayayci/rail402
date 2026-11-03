@@ -27,7 +27,9 @@ import {
   followSetup,
   labEnd,
   labSteps,
-  listingRow,
+  findListing,
+  listingPager,
+  listingTotal,
   openWalletMenu,
   payListing,
   runButton,
@@ -163,7 +165,7 @@ test.describe("the wallet", () => {
     const nav = page.getByRole("navigation", { name: "Pages" });
     await expect(nav.getByRole("link")).toHaveText(["Lab", "Bazaar", "Sell", "Agents"]);
     await expect(nav.getByRole("link", { name: "Lab" })).toHaveAttribute("aria-current", "page");
-    await expect(page.locator(".network-badge")).toHaveText("Testnet");
+    await expect(page.locator(".network-badge")).toHaveText("stellar:testnet");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Watch a payment, step by step");
 
     // No button to press: the dialog shows the key, Friendbot and the test USDC, then closes.
@@ -470,34 +472,54 @@ test.describe("the Lab", () => {
 });
 
 test.describe("the Bazaar", () => {
-  test("lists every listing on one page, with filters whose counts are real", async () => {
+  test("pages through every listing, with filters whose counts are real", async () => {
     await page.goto("/bazaar");
     const rows = page.locator("li.listing-row");
-    await expect(listingRow(page, "hourly_forecast")).toBeVisible();
-    await expect(listingRow(page, "/weather")).toBeVisible();
-    await expect(listingRow(page, "/history")).toBeVisible();
-    const total = await rows.count();
-    await expect(page.locator(".bazaar-title .eyebrow")).toHaveText(`Bazaar · ${String(total)} listings`);
+    await expect(rows.first()).toBeVisible({ timeout: 60_000 });
+    await expect(await findListing(page, "hourly_forecast")).toBeVisible();
+    await expect(await findListing(page, "/weather")).toBeVisible();
+    await expect(await findListing(page, "/history")).toBeVisible();
+    const total = await listingTotal(page);
+    await expect(page.locator(".bazaar-title .r4-eyebrow")).toHaveText(
+      `Bazaar · ${String(total)} listings · stellar:testnet`,
+    );
+
+    // Every page can be reached, and together the pages show every listing once.
+    const pager = listingPager(page);
+    const first = pager.getByRole("button", { name: "First page" });
+    if (await first.isEnabled()) await first.click();
+    const seen: string[] = [];
+    for (;;) {
+      seen.push(...(await rows.locator(".listing-url").allTextContents()));
+      const next = pager.getByRole("button", { name: "Next page" });
+      if (!(await next.isEnabled())) break;
+      await next.click();
+    }
+    expect(seen).toHaveLength(total);
+    await expect(pager.getByText(/^Page (\d+) of \1$/)).toBeVisible();
+    await expect(pager.getByRole("button", { name: "Next page" })).toBeDisabled();
+    if (await first.isEnabled()) await first.click();
+    await expect(pager.getByText(/^Page 1 of /)).toBeVisible();
+    await expect(first).toBeDisabled();
+
     const filters = page.getByRole("group", { name: "Filters" }).getByRole("button");
     for (const chip of await filters.all()) {
-      const count = Number(/· (\d+)$/.exec(((await chip.textContent()) ?? "").trim())?.[1]);
+      const count = Number(/(\d+)$/.exec(((await chip.textContent()) ?? "").trim())?.[1]);
       await chip.click();
       await expect(chip).toHaveAttribute("aria-pressed", "true");
-      await expect(rows).toHaveCount(count);
+      if (count === 0) await expect(rows).toHaveCount(0);
+      else expect(await listingTotal(page)).toBe(count);
     }
     await filters.filter({ hasText: /^MCP tools/ }).click();
     await expect(page).toHaveURL(/filter=mcp/);
     for (const type of await rows.locator(".listing-type").allTextContents()) expect(type).toBe("MCP");
     await filters.filter({ hasText: /^All/ }).click();
-    await expect(rows).toHaveCount(total);
-    // The scheme badges have one width and centred words.
-    const badges = await stylesOf(page, "li.listing-row .scheme-badge", [
-      "width",
-      "text-align",
-      "justify-content",
-    ]);
-    expect(new Set(badges.map((badge) => badge["width"])).size).toBe(1);
-    for (const badge of badges) expect([badge["text-align"], badge["justify-content"]]).toContain("center");
+    expect(await listingTotal(page)).toBe(total);
+    // Each scheme badge names its scheme as on the wire, in the scheme's colour.
+    for (const badge of await rows.locator(".listing-scheme .r4-badge").all()) {
+      expect(["exact", "upto"]).toContain(await badge.getAttribute("data-scheme"));
+      expect(await badge.textContent()).toBe(await badge.getAttribute("data-scheme"));
+    }
     await snapshot("bazaar");
   });
 
@@ -507,9 +529,9 @@ test.describe("the Bazaar", () => {
     await search.fill("current weather for a city");
     await expect(page).toHaveURL(/q=current\+weather/);
     await expect(page.locator("li.listing-row").first()).toContainText("/weather");
-    await expect(page.locator(".bazaar-foot")).toContainText("ranked by");
+    await expect(page.locator(".listing-pager-range")).toContainText("ranked by");
     await search.fill("");
-    await expect(page.locator(".bazaar-foot")).toHaveCount(0);
+    await expect(page.locator(".listing-pager-range")).not.toContainText("ranked by");
   });
 
   test("tries an HTTP listing with the wallet, then watches the payment in the Lab", async () => {
@@ -559,7 +581,7 @@ test.describe("the Bazaar", () => {
 
   test("says before paying that a price above the cap will be refused", async () => {
     await page.goto("/bazaar");
-    await listingRow(page, "/weather").getByRole("button", { name: /^Try / }).click();
+    await (await findListing(page, "/weather")).getByRole("button", { name: /^Try / }).click();
     const panel = page.locator(".listing-panel");
     await panel.getByLabel("Cap", { exact: true }).fill("0.0005");
     await expect(panel.locator(".try-hint")).toContainText("refuse it before signing");
@@ -569,7 +591,7 @@ test.describe("the Bazaar", () => {
 test.describe("the guides", () => {
   test("copies the seller's real commands and code", async () => {
     await page.goto("/sell");
-    const panel = page.locator(".guide-panel");
+    await page.getByRole("tab", { name: "Your code" }).click();
     const copied: Record<string, string> = {};
     for (const label of [
       "Copy the install command",
@@ -577,8 +599,9 @@ test.describe("the guides", () => {
       "Copy the seller code",
       "Copy the check command",
     ]) {
-      await panel.getByRole("button", { name: label }).click();
-      await expect(panel.getByRole("button", { name: label })).toHaveAttribute("data-state", "copied");
+      const button = page.getByRole("button", { name: label });
+      await button.click();
+      await expect(button).toHaveAttribute("data-state", "copied");
       copied[label] = await clipboard();
     }
     expect(copied["Copy the install command"]).toMatch(/^(npm|pnpm) (install|add) /);
@@ -586,13 +609,13 @@ test.describe("the guides", () => {
     expect(copied["Copy the key commands"]).toContain("rail402 keys new");
     const code = copied["Copy the seller code"] ?? "";
     expect(code).toMatch(/^import /);
-    expect(code).toContain(stack.rail402Url);
+    expect(code).toContain('price: "$0.01"');
     expect(code).not.toMatch(/\{\{|@hide/);
     expect(copied["Copy the check command"]).toContain("rail402 seller check");
     // The folded imports open on request and are part of the copy either way.
-    const fold = panel.getByRole("button", { name: /imports, copied with the code$/ });
+    const fold = page.getByRole("button", { name: /imports, copied with the code$/ });
     await fold.click();
-    await expect(panel.getByRole("button", { name: /^Hide the \d+ imports$/ })).toHaveAttribute(
+    await expect(page.getByRole("button", { name: /^Hide the \d+ imports$/ })).toHaveAttribute(
       "aria-expanded",
       "true",
     );

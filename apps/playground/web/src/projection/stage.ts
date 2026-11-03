@@ -30,6 +30,7 @@ import {
 import {
   compareDecimal,
   decimalDelta,
+  displayAmount,
   displayUrl,
   hostOf,
   pathAndQuery,
@@ -342,13 +343,14 @@ class StageBuilder {
   private amount(atomic: string | null | undefined, option?: OptionView): string | undefined {
     if (atomic === null || atomic === undefined) return undefined;
     const decimal = toDecimal(atomic, option?.decimals ?? this.decimals);
-    return decimal === undefined ? undefined : `${decimal} ${option?.symbol ?? this.symbol}`;
+    return decimal === undefined ? undefined : `${displayAmount(decimal)} ${option?.symbol ?? this.symbol}`;
   }
 
   /** Base units as `0.001`, without the asset. */
   private bare(atomic: string | null | undefined, option?: OptionView): string | undefined {
     if (atomic === null || atomic === undefined) return undefined;
-    return toDecimal(atomic, option?.decimals ?? this.decimals);
+    const decimal = toDecimal(atomic, option?.decimals ?? this.decimals);
+    return decimal === undefined ? undefined : displayAmount(decimal);
   }
 
   private optionAmount(option: OptionView | undefined): string | undefined {

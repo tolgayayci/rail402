@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { App } from "../../src/app/App.tsx";
-import { AGENT_PROMPT, SNIPPET_SOURCES, snippetText } from "../../src/app/guide/snippets.ts";
+import { AGENT_PROMPT, SNIPPET_SOURCES, sellCode, snippetText } from "../../src/app/guide/snippets.ts";
 import { createFakeEngine } from "../../src/dev/fake-engine.ts";
 import { tokenize } from "../../src/ui/CodeBlock.tsx";
 
@@ -10,14 +10,6 @@ const writeText = vi.fn<(text: string) => Promise<void>>();
 function open(path: string): void {
   window.history.replaceState(null, "", path);
   render(<App engine={createFakeEngine({ stepMs: 0 })} />);
-}
-
-/** The numbered steps of the setup panel, by their visible titles. */
-function stepTitles(): string[] {
-  const panel = screen.getByRole("region", { name: /From/ });
-  return within(panel)
-    .getAllByRole("heading", { level: 3 })
-    .map((heading) => heading.textContent.replace(/^Step \d+: /, ""));
 }
 
 beforeEach(() => {
@@ -32,84 +24,96 @@ afterEach(() => {
 });
 
 describe("Sell", () => {
-  it("walks from an API to a paid listing in four steps, with the facts beside it", () => {
+  it("hands the job to a coding agent, with the docs written for one", () => {
     open("/sell");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Sell your API to agents");
-    expect(screen.getByText("Paid in USDC")).toBeTruthy();
-    expect(screen.getByText("Listed automatically")).toBeTruthy();
-    expect(screen.getByText("No fees to manage")).toBeTruthy();
-    expect(stepTitles()).toEqual([
-      "Install",
-      "Get an address to be paid to",
-      "Price the route and use Rail402",
-      "Check it, then make one paid call",
-    ]);
-    const guides = screen.getByRole("navigation", { name: "Seller guides" });
-    expect([...guides.querySelectorAll("a")].map((link) => link.getAttribute("href"))).toEqual([
-      "https://docs.rail402.dev/quickstart/sellers",
-      "https://docs.rail402.dev/sellers/helpers#an-mcp-tool",
-      "https://docs.rail402.dev/sellers/helpers#charge-what-a-call-used-upto",
-    ]);
-    expect(screen.getByRole("link", { name: /Seller helpers/ }).getAttribute("href")).toBe(
-      "https://docs.rail402.dev/sellers/helpers#an-http-route",
+    const box = within(
+      screen.getByRole("region", { name: "Ask your coding agent to add Rail402 to your API" }),
     );
-    expect(screen.getByRole("link", { name: /How listing works/ }).getAttribute("href")).toBe(
-      "https://docs.rail402.dev/bazaar/cataloging",
+    expect(box.getByRole("link", { name: /llms\.txt/ }).getAttribute("href")).toBe(
+      "https://docs.rail402.dev/llms.txt",
+    );
+    expect(box.getByRole("link", { name: /Agent instructions/ }).getAttribute("href")).toBe(
+      "https://docs.rail402.dev/coding-agents/overview",
     );
   });
 
-  it("copies the whole seller code, with the Playground's facilitator and the folded imports", async () => {
+  it("shows the 402 an agent receives for the picked scheme and price", () => {
     open("/sell");
-    const full = snippetText(SNIPPET_SOURCES.sellerRoute, {
+    const value = (key: string): string | undefined =>
+      screen.getByText(key, { selector: "dt" }).nextElementSibling?.textContent;
+    expect(value("scheme")).toBe("exact");
+    expect(value("amount")).toBe("100000");
+    expect(screen.queryByText("maxTimeoutSeconds")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^upto/ }));
+    fireEvent.click(screen.getByRole("button", { name: "$0.10" }));
+    expect(screen.getByRole("button", { name: "$0.10" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("Most one call can cost")).toBeTruthy();
+    expect(value("scheme")).toBe("upto");
+    expect(value("amount")).toBe("1000000");
+    expect(value("maxTimeoutSeconds")).toBe("120");
+  });
+
+  it("shows and copies the code for the pick, with the picked price and folded imports", async () => {
+    open("/sell");
+    fireEvent.click(screen.getByRole("tab", { name: "Your code" }));
+    fireEvent.click(screen.getByRole("button", { name: "$0.001" }));
+    const expected = sellCode("http", "exact", "0.001", {
       facilitator: "https://testnet.rail402.dev",
       asset: "USDC",
     });
-    const code = (): HTMLElement =>
-      screen.getByText(
-        (_, element) => element?.tagName === "CODE" && /httpRoute\(/.test(element.textContent),
-      );
-    expect(code().textContent).toContain('url: "https://testnet.rail402.dev"');
-    expect(code().textContent).not.toContain("import ");
-    expect(code().querySelector(".code-string")).not.toBeNull();
-    const fold = screen.getByRole("button", { name: "5 imports, copied with the code" });
+    expect(expected).toContain('price: "$0.001"');
+    const fold = screen.getByRole("button", { name: /imports, copied with the code$/ });
     expect(fold.getAttribute("aria-expanded")).toBe("false");
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Copy the seller code" }));
       await Promise.resolve();
     });
-    expect(writeText).toHaveBeenCalledWith(full);
-    expect(screen.getAllByRole("status").map((status) => status.textContent)).toContain("Copied");
-    fireEvent.click(fold);
-    expect(fold.getAttribute("aria-expanded")).toBe("true");
-    expect(code().textContent).toBe(full);
+    expect(writeText).toHaveBeenCalledWith(expected);
+    fireEvent.click(screen.getByRole("button", { name: /^An MCP tool/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^upto/ }));
+    expect(screen.getByText("mcp-server.ts")).toBeTruthy();
+    const code = screen.getByRole("tabpanel").querySelector("code")?.textContent ?? "";
+    expect(code).toContain("mcpTool(");
+    expect(code).toContain('maxPrice: "$0.001"');
+    expect(screen.getByRole("link", { name: /Sell an MCP tool/ }).getAttribute("href")).toBe(
+      "https://docs.rail402.dev/sellers/helpers#an-mcp-tool",
+    );
   });
 
-  it("sends a seller to the Lab to make the first paid call", () => {
+  it("tells one paid call step by step", () => {
     open("/sell");
-    const panel = screen.getByRole("region", { name: "From an API to a paid listing" });
-    fireEvent.click(within(panel).getByRole("link", { name: "Lab" }), { button: 0 });
-    expect(window.location.pathname).toBe("/");
+    expect(screen.getByRole("heading", { level: 3, name: "Answers with a price" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Settles on Stellar/ }));
+    expect(screen.getByRole("heading", { level: 3, name: "Settles on Stellar" })).toBeTruthy();
+    expect(screen.getByText(/Rail402 submits the transfer and pays the network fee/)).toBeTruthy();
+  });
+
+  it("checks a seller's own route: the CLI command follows the URL, and the Lab opens it", () => {
+    open("/sell");
+    const input = screen.getByLabelText("Route URL");
+    fireEvent.change(input, { target: { value: "https://api.example.com/forecast/Izmir" } });
+    const command = screen.getByRole("button", { name: "Copy the check command" }).closest(".code-block");
+    expect(command?.textContent).toContain("rail402 seller check https://api.example.com/forecast/Izmir");
+    fireEvent.click(screen.getByRole("button", { name: "Open it in the Lab" }));
+    expect(`${window.location.pathname}${window.location.search}`).toBe(
+      `/?${new URLSearchParams({ url: "https://api.example.com/forecast/Izmir" }).toString()}`,
+    );
   });
 });
 
 describe("Agents", () => {
-  it("shows the budget, and the four steps from zero to a paid tool call", () => {
+  it("tries the picked limits against Bazaar listings and fills them into the client setup", async () => {
     open("/agents");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Give your agent a budget");
-    expect(screen.getByText("per call").nextElementSibling?.textContent).toBe("0.05USDC");
-    expect(screen.getByText("per session").nextElementSibling?.textContent).toBe("0.50USDC");
-    expect(stepTitles()).toEqual([
-      "Install the MCP server and the CLI",
-      "Create and fund a test wallet",
-      "Add the server to your client",
-      "Ask your agent",
-    ]);
-    expect(
-      screen.getByRole("link", { name: /Fund and manage wallets with the CLI/ }).getAttribute("href"),
-    ).toBe("https://docs.rail402.dev/agents/cli");
-    expect(screen.getByRole("link", { name: /MCP server/ }).getAttribute("href")).toBe(
-      "https://docs.rail402.dev/agents/mcp-server",
-    );
+    const list = await screen.findByRole("list", { name: "Listings tried against your limits" });
+    expect(within(list).getAllByText("Can pay").length).toBe(within(list).getAllByRole("listitem").length);
+    fireEvent.click(screen.getByRole("button", { name: "0.01 USDC" }));
+    fireEvent.click(screen.getByRole("button", { name: "1.00 USDC" }));
+    const panel = screen.getByRole("tabpanel");
+    expect(panel.textContent).toContain('"RAIL402_MAX_PER_CALL": "0.01 USDC"');
+    expect(panel.textContent).toContain('"RAIL402_MAX_TOTAL": "1.00 USDC"');
+    expect(screen.getByText("claude_desktop_config.json")).toBeTruthy();
   });
 
   it("switches the client configuration with the tabs, by click and by arrow key", () => {
@@ -117,13 +121,20 @@ describe("Agents", () => {
     const panel = (): HTMLElement => screen.getByRole("tabpanel");
     expect(screen.getByRole("tab", { selected: true }).textContent).toBe("Claude Desktop");
     expect(panel().textContent).toContain('"mcpServers"');
-    expect(panel().textContent).toContain("claude_desktop_config.json");
     fireEvent.click(screen.getByRole("tab", { name: "Claude Code" }));
     expect(panel().textContent).toContain("claude mcp add rail402");
     expect(panel().getAttribute("aria-labelledby")).toBe("agent-client-tab-claude-code");
     fireEvent.keyDown(screen.getByRole("tablist", { name: "Client" }), { key: "ArrowLeft" });
     expect(screen.getByRole("tab", { selected: true }).textContent).toBe("Cursor");
     expect(panel().textContent).toContain("~/.cursor/mcp.json");
+  });
+
+  it("explains the three tools with examples", () => {
+    open("/agents");
+    expect(screen.getByRole("heading", { level: 3, name: "It pays and calls in one step" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /get_budget/ }));
+    expect(screen.getByRole("heading", { level: 3, name: "It checks what it has left" })).toBeTruthy();
+    expect(screen.getByText("get_budget · example")).toBeTruthy();
   });
 
   it("copies the prompt, and plays an agent payment in the Lab", async () => {
@@ -136,7 +147,8 @@ describe("Agents", () => {
     expect(writeText).toHaveBeenCalledWith(AGENT_PROMPT);
     fireEvent.click(screen.getByRole("link", { name: /Watch an agent pay/ }), { button: 0 });
     expect(`${window.location.pathname}${window.location.search}`).toBe("/?mode=agent");
-    expect(screen.getByRole("link", { current: "page" }).textContent).toBe("Lab");
+    const pages = within(screen.getByRole("navigation", { name: "Pages" }));
+    expect(pages.getByRole("link", { current: "page" }).textContent).toBe("Lab");
   });
 });
 
@@ -155,6 +167,17 @@ describe("code colouring", () => {
       ["string", '"https://a.example"'],
       "; ",
       ["comment", "// note"],
+    ]);
+    expect(tokenize('{ "ok": true, "n": 2 }', "json")).toEqual([
+      "{ ",
+      ["key", '"ok"'],
+      ": ",
+      ["keyword", "true"],
+      ", ",
+      ["key", '"n"'],
+      ": ",
+      ["number", "2"],
+      " }",
     ]);
   });
 });

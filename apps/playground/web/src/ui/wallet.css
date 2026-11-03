@@ -24,7 +24,6 @@
 .wallet-pill:hover,
 .wallet-pill[aria-expanded="true"] {
   border-color: var(--line-strong);
-  box-shadow: 0 2px 8px rgba(17, 17, 17, 0.06);
 }
 
 .wallet-pill[data-status="ready"] {
@@ -176,7 +175,7 @@
   font-size: 12px;
 }
 
-.wallet-keyfile .text-button {
+.wallet-keyfile .r4-text-button {
   align-self: flex-start;
   font-size: 12px;
 }
@@ -234,7 +233,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--gutter);
-  background: rgba(14, 14, 16, 0.55);
+  background: color-mix(in srgb, var(--ink-fixed) 55%, transparent);
   animation: fade var(--duration) ease both;
 }
 
@@ -358,7 +357,7 @@
 .setup-pending {
   width: 16px;
   height: 16px;
-  border: 1.5px solid var(--line-stronger);
+  border: 1.5px solid var(--line-strong);
   border-radius: 50%;
 }
 
@@ -400,14 +399,23 @@
   font-size: 12px;
 }
 
+/* On a narrow screen the menu hangs from the header's right edge, under the pill and the menu button. */
 @media (max-width: 760px) {
   .wallet-pill-address {
     display: none;
   }
 
+  .wallet-pill {
+    height: 40px;
+    border-radius: 20px;
+  }
+
+  .wallet {
+    position: static;
+  }
+
   .wallet-menu {
-    position: fixed;
-    top: calc(var(--header-height) + 44px);
+    top: calc(100% + 8px);
     right: var(--gutter);
   }
 }

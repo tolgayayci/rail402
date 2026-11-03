@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import type { CodedError, Engine } from "../engine/types.ts";
+import mark from "../design/logos/rail402-mark.svg";
 import { Spinner } from "../ui/icons.tsx";
 import { Notice } from "../ui/Notice.tsx";
 import { EngineProvider, toCodedError, useEngineState } from "./engine.tsx";
@@ -55,7 +56,7 @@ export function Boot({ load }: { readonly load: () => Promise<Engine> }): ReactE
   if (engine !== null) return <App engine={engine} />;
   return (
     <div className="boot">
-      <span className="logo-block">RAIL402</span>
+      <img className="boot-mark" src={mark} alt="Rail402" width={40} height={40} />
       {error === null ? (
         <p className="boot-status" aria-busy="true">
           <Spinner /> Loading the Playground…

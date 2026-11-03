@@ -17,6 +17,7 @@ export function RunBar({
   onLeaveRefusal,
   leaveLabel,
   cap,
+  scheme,
   onCap,
   symbol,
   before,
@@ -39,6 +40,8 @@ export function RunBar({
   readonly leaveLabel: string;
   /** The cap as typed; null when the run sets its own (a refusal). */
   readonly cap: string | null;
+  /** The scheme the method badge is drawn in. */
+  readonly scheme: "exact" | "upto" | "agent";
   readonly onCap: (value: string) => void;
   readonly symbol: string;
   readonly before: readonly RefusalEntry[];
@@ -61,7 +64,7 @@ export function RunBar({
         if (runnable) onRun();
       }}
     >
-      <span className="run-method mono" aria-hidden="true">
+      <span className="r4-badge run-method" data-scheme={scheme} aria-hidden="true">
         {method}
       </span>
       {target.kind === "url" ? (
@@ -71,7 +74,8 @@ export function RunBar({
           </label>
           <input
             id={`${id}-url`}
-            className="run-url mono"
+            className="r4-input run-url"
+            data-mono
             type="text"
             inputMode="url"
             autoComplete="off"
@@ -87,7 +91,7 @@ export function RunBar({
           />
         </>
       ) : (
-        <span className="run-url run-url-fixed mono" title={target.text}>
+        <span className="r4-input run-url run-url-fixed" data-mono title={target.text}>
           <span className="run-url-text">{target.text}</span>
           {onLeaveRefusal === undefined ? null : (
             <button
@@ -125,12 +129,7 @@ export function RunBar({
         </span>
       )}
       <RefusalMenu before={before} after={after} disabled={menuDisabled} onChoose={onRefusal} />
-      <button
-        type="submit"
-        className="stage-button stage-button-run"
-        disabled={!runnable}
-        aria-busy={running}
-      >
+      <button type="submit" className="r4-button run-button" disabled={!runnable} aria-busy={running}>
         {running ? (
           <>
             <Spinner /> {runText.busy}

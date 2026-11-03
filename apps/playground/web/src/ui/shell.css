@@ -41,126 +41,152 @@
   color: var(--on-ink);
 }
 
-/* The Rail402 mark: black letters on the orange block. */
-.logo-block {
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 8px;
-  background: var(--accent-bright);
-  color: var(--ink);
-  font-family: var(--font-head);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.eyebrow-ink {
-  color: var(--ink);
-}
-
-.eyebrow-accent {
-  color: var(--accent-ink);
-}
-
-/* Header */
+/* Header: the shared r4-header, then the Playground's own pages in a row under it. */
 
 .site-header {
   position: relative;
   z-index: 20;
-  display: grid;
   flex: none;
-  grid-template-areas: "brand nav end";
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 8px 26px;
-  min-height: var(--header-height);
-  padding: 10px var(--gutter);
-  border-bottom: 1px solid var(--line);
-  background: rgba(252, 251, 249, 0.92);
-  backdrop-filter: blur(6px);
-}
-
-.brand {
-  grid-area: brand;
-  display: inline-flex;
-  align-items: center;
-  gap: 16px;
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.brand:hover {
-  color: var(--ink);
+  padding: 0 var(--inline);
 }
 
 .site-nav {
-  grid-area: nav;
-  display: flex;
-  gap: 2px;
-  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: flex-end;
 }
 
-.site-nav a {
+.site-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-icon {
   flex: none;
-  padding: 6px 10px;
-  border-radius: 7px;
+}
+
+/* At the right edge, also when the links between are folded into the menu. */
+.site-header-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-left: auto;
+}
+
+/* The menu that holds the header links on a narrow screen. */
+.site-menu {
+  position: relative;
+  display: none;
+}
+
+.site-menu-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line-strong);
+}
+
+.site-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: var(--space-2);
+  width: min(280px, calc(100vw - 2 * var(--gutter)));
+  padding: var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  animation: rise var(--duration) var(--ease-out) both;
+}
+
+.site-menu-links {
+  display: grid;
+}
+
+.site-menu-links .site-link {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-m);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.site-menu-links .site-link:hover {
+  background: var(--surface-soft);
+}
+
+.site-menu-links .site-link .external-icon {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.site-menu-network {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 10px 12px 6px;
+  border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 13px;
-  text-decoration: none;
-  transition:
-    background-color var(--duration-fast) ease,
-    color var(--duration-fast) ease;
 }
 
-.site-nav a:hover {
-  background: var(--surface-soft);
+.page-tabs {
+  flex: none;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+
+.page-tabs-nav {
+  display: flex;
+  gap: var(--space-5);
+  padding: 0 var(--inline);
+  overflow-x: auto;
+}
+
+.page-tabs-nav a {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 0 9px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font: 500 14px/20px var(--font-sans);
+  text-decoration: none;
+  transition: color var(--duration-fast) ease;
+}
+
+.page-tabs-nav a:hover {
   color: var(--ink);
 }
 
-.site-nav a[aria-current="page"] {
-  background: var(--surface-pressed);
+/* Both navs scroll sideways on narrow screens, which would clip a ring drawn outside the link. */
+.site-nav a:focus-visible,
+.page-tabs-nav a:focus-visible {
+  outline-offset: -2px;
+}
+
+.page-tabs-nav a[aria-current="page"] {
+  border-bottom-color: var(--accent);
   color: var(--ink);
   font-weight: 600;
 }
 
-.site-header-end {
-  grid-area: end;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.network-badge {
-  padding: 4px 8px;
-  border-radius: var(--radius-s);
-  background: var(--ok-tint);
-  color: var(--ok-ink);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.docs-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 13px;
-  text-decoration: none;
-}
-
-.docs-link:hover {
-  color: var(--ink);
+.page-tabs-nav a[aria-current="page"] .nav-icon {
+  color: var(--accent);
 }
 
 /* A background error (a balance read, a reconcile), under the header until the next success. */
 .site-alert {
   flex: none;
-  padding: 8px var(--gutter) 0;
+  padding: 8px var(--inline) 0;
 }
 
 /* Loading */
@@ -183,7 +209,7 @@
   color: var(--muted);
 }
 
-.boot .notice {
+.boot .r4-notice {
   max-width: 560px;
 }
 
@@ -191,30 +217,40 @@
   .brand-label {
     display: none;
   }
-
-  .site-header {
-    column-gap: 16px;
-  }
 }
 
 @media (max-width: 760px) {
-  .site-header {
-    grid-template-areas:
-      "brand end"
-      "nav nav";
-    grid-template-columns: auto 1fr;
-  }
-
-  .site-header-end {
-    justify-content: flex-end;
-  }
-
-  .site-nav {
-    overflow-x: auto;
-  }
-
-  .docs-link,
+  .site-nav,
   .network-badge {
     display: none;
+  }
+
+  /* The panel hangs from the header's right edge, like the wallet menu. */
+  .site-menu {
+    position: static;
+    display: block;
+  }
+
+  .site-menu-panel {
+    right: var(--gutter);
+  }
+}
+
+/* On a phone the four pages share the width, each an icon over its name. */
+@media (max-width: 560px) {
+  .page-tabs-nav {
+    gap: 0;
+    padding: 0;
+  }
+
+  .page-tabs-nav a {
+    flex: 1 1 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: 8px 4px 6px;
+    font-size: 12px;
+    line-height: 16px;
   }
 }

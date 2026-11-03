@@ -228,7 +228,7 @@ function MenuBody({
   return (
     <>
       <div className="wallet-menu-head">
-        <h2 className="eyebrow eyebrow-ink" ref={heading} tabIndex={-1}>
+        <h2 className="r4-eyebrow eyebrow-ink" ref={heading} tabIndex={-1}>
           Test wallet
         </h2>
         <span className="wallet-menu-where">
@@ -264,7 +264,7 @@ function MenuBody({
       <div className="wallet-menu-actions">
         <button
           type="button"
-          className="button button-dark"
+          className="r4-button"
           disabled={setup.busy || state.activeRun !== null}
           aria-busy={toppingUp}
           onClick={setup.topUp}
@@ -277,7 +277,7 @@ function MenuBody({
             `Add test ${symbol}`
           )}
         </button>
-        <ExternalLink className="button button-outline" href={account}>
+        <ExternalLink className="r4-button" variant="outline" href={account}>
           stellar.expert <ExternalIcon />
         </ExternalLink>
       </div>
@@ -303,12 +303,19 @@ function MenuBody({
               funds on the testnet.
             </p>
             <div className="wallet-confirm-actions">
-              <button type="button" className="button button-danger" disabled={setup.busy} onClick={onReset}>
+              <button
+                type="button"
+                className="r4-button"
+                data-variant="danger"
+                disabled={setup.busy}
+                onClick={onReset}
+              >
                 Reset wallet
               </button>
               <button
                 type="button"
-                className="button button-outline"
+                className="r4-button"
+                data-variant="outline"
                 onClick={() => {
                   setConfirmReset(false);
                 }}
@@ -324,7 +331,8 @@ function MenuBody({
             </span>
             <button
               type="button"
-              className="button button-danger"
+              className="r4-button"
+              data-variant="danger"
               disabled={setup.busy || state.activeRun !== null}
               onClick={() => {
                 setConfirmReset(true);
@@ -370,12 +378,13 @@ function KeyFile({ address }: { readonly address: string }): ReactElement {
             with it can spend this wallet&apos;s test funds.
           </p>
           <div className="wallet-confirm-actions">
-            <button type="button" className="button button-dark" disabled={busy} onClick={download}>
+            <button type="button" className="r4-button" disabled={busy} onClick={download}>
               Download the key file
             </button>
             <button
               type="button"
-              className="button button-outline"
+              className="r4-button"
+              data-variant="outline"
               onClick={() => {
                 setConfirm(false);
               }}
@@ -387,7 +396,7 @@ function KeyFile({ address }: { readonly address: string }): ReactElement {
       ) : (
         <button
           type="button"
-          className="text-button"
+          className="r4-text-button"
           onClick={() => {
             setSaved(null);
             setConfirm(true);

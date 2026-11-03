@@ -1,0 +1,226 @@
+/* Source: Rail402 design system, tokens.css (vendored verbatim; do not edit). */
+/* Rail402 design tokens, generated from tokens.json. Paper is the light theme, Stage the dark one.
+ * The page follows the reader's preference; data-theme="light" or "dark" on any element forces one. */
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 300 700; font-display: swap; src: url("./fonts/space-grotesk-latin.woff2") format("woff2"); }
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("./fonts/archivo-latin.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800; font-display: swap; src: url("./fonts/jetbrains-mono-latin.woff2") format("woff2"); }
+
+:root {
+  --ground: #fcfbf9;
+  --grid-line: #f0ece6;
+  --surface: #ffffff;
+  --surface-soft: #f6f3ee;
+  --surface-pressed: #f1ede7;
+  --surface-sunk: #ede8e1;
+  --ink: #111111;
+  --muted: #5f5a54;
+  --faint: #8a857e;
+  --line: #e8e4de;
+  --line-strong: #d6d0c7;
+  --on-ink: #ffffff;
+  --ink-hover: #2a2a2a;
+  --accent: #e23e00;
+  --accent-bright: #ff4d00;
+  --accent-ink: #c43d00;
+  --accent-ink-hover: #8f2c00;
+  --accent-tint: #fff3ec;
+  --ink-fixed: #111111;
+  --ok: #1f8a4c;
+  --ok-ink: #17663a;
+  --ok-tint: #e5f4ea;
+  --danger: #b42318;
+  --danger-tint: #fff4f1;
+  --danger-line: #f3c2b8;
+  --warn: #c98a00;
+  --warn-ink: #8a5a00;
+  --info-ink: #2457e6;
+  --info-tint: #eef3ff;
+  --info-line: #cbd9ff;
+  --scheme-exact: var(--accent);
+  --scheme-exact-ink: var(--accent-ink);
+  --scheme-exact-tint: var(--accent-tint);
+  --scheme-upto: #2457e6;
+  --scheme-upto-ink: #2457e6;
+  --scheme-upto-tint: #eef3ff;
+  --scheme-agent: #7a3fe0;
+  --scheme-agent-ink: #6c35cf;
+  --scheme-agent-tint: #f4efff;
+  --chain: #3cc8b4;
+  --code-string: #17663a;
+  --code-keyword: #c43d00;
+  --focus: #111111;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --radius-0: 0px;
+  --radius-s: 6px;
+  --radius-m: 8px;
+  --radius-code: 10px;
+  --radius-l: 12px;
+  --radius-xl: 18px;
+  --radius-pill: 999px;
+  --shadow-lift: 0 10px 26px -12px rgba(226, 62, 0, 0.3);
+  --shadow-pop: 0 20px 50px rgba(17, 17, 17, 0.18);
+  --shadow-dialog: 0 30px 80px rgba(0, 0, 0, 0.35);
+  --duration-fast: 150ms;
+  --duration: 250ms;
+  --duration-slow: 450ms;
+  --font-head: "Space Grotesk", "Archivo", system-ui, sans-serif;
+  --font-sans: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0e0e10;
+    --grid-line: #17171b;
+    --surface: #141418;
+    --surface-soft: #1c1c21;
+    --surface-pressed: #1e1e24;
+    --surface-sunk: #121215;
+    --ink: #edebe7;
+    --muted: #a39f98;
+    --faint: #77736c;
+    --line: #26262c;
+    --line-strong: #2e2e35;
+    --on-ink: #111111;
+    --ink-hover: #d6d3cd;
+    --accent: #ff7a47;
+    --accent-bright: #ff4d00;
+    --accent-ink: #ff7a47;
+    --accent-ink-hover: #ff9b70;
+    --accent-tint: #2a1810;
+    --ink-fixed: #111111;
+    --ok: #2bb673;
+    --ok-ink: #7edda8;
+    --ok-tint: #1f3a2c;
+    --danger: #fda29b;
+    --danger-tint: #2a1513;
+    --danger-line: #7a2e28;
+    --warn: #ffb547;
+    --warn-ink: #ffb547;
+    --info-ink: #7ea2ff;
+    --info-tint: #1f2a44;
+    --info-line: #2b3550;
+    --scheme-upto: #7ea2ff;
+    --scheme-upto-ink: #7ea2ff;
+    --scheme-upto-tint: #1f2a44;
+    --scheme-agent: #b39bff;
+    --scheme-agent-ink: #b39bff;
+    --scheme-agent-tint: #1f1a2e;
+    --chain: #3cc8b4;
+    --code-string: #9fd8a8;
+    --code-keyword: #ff9b70;
+    --focus: #ffffff;
+    color-scheme: dark;
+  }
+}
+
+[data-theme="dark"] {
+  --ground: #0e0e10;
+  --grid-line: #17171b;
+  --surface: #141418;
+  --surface-soft: #1c1c21;
+  --surface-pressed: #1e1e24;
+  --surface-sunk: #121215;
+  --ink: #edebe7;
+  --muted: #a39f98;
+  --faint: #77736c;
+  --line: #26262c;
+  --line-strong: #2e2e35;
+  --on-ink: #111111;
+  --ink-hover: #d6d3cd;
+  --accent: #ff7a47;
+  --accent-bright: #ff4d00;
+  --accent-ink: #ff7a47;
+  --accent-ink-hover: #ff9b70;
+  --accent-tint: #2a1810;
+  --ink-fixed: #111111;
+  --ok: #2bb673;
+  --ok-ink: #7edda8;
+  --ok-tint: #1f3a2c;
+  --danger: #fda29b;
+  --danger-tint: #2a1513;
+  --danger-line: #7a2e28;
+  --warn: #ffb547;
+  --warn-ink: #ffb547;
+  --info-ink: #7ea2ff;
+  --info-tint: #1f2a44;
+  --info-line: #2b3550;
+  --scheme-upto: #7ea2ff;
+  --scheme-upto-ink: #7ea2ff;
+  --scheme-upto-tint: #1f2a44;
+  --scheme-agent: #b39bff;
+  --scheme-agent-ink: #b39bff;
+  --scheme-agent-tint: #1f1a2e;
+  --chain: #3cc8b4;
+  --code-string: #9fd8a8;
+  --code-keyword: #ff9b70;
+  --focus: #ffffff;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --ground: #fcfbf9;
+  --grid-line: #f0ece6;
+  --surface: #ffffff;
+  --surface-soft: #f6f3ee;
+  --surface-pressed: #f1ede7;
+  --surface-sunk: #ede8e1;
+  --ink: #111111;
+  --muted: #5f5a54;
+  --faint: #8a857e;
+  --line: #e8e4de;
+  --line-strong: #d6d0c7;
+  --on-ink: #ffffff;
+  --ink-hover: #2a2a2a;
+  --accent: #e23e00;
+  --accent-bright: #ff4d00;
+  --accent-ink: #c43d00;
+  --accent-ink-hover: #8f2c00;
+  --accent-tint: #fff3ec;
+  --ink-fixed: #111111;
+  --ok: #1f8a4c;
+  --ok-ink: #17663a;
+  --ok-tint: #e5f4ea;
+  --danger: #b42318;
+  --danger-tint: #fff4f1;
+  --danger-line: #f3c2b8;
+  --warn: #c98a00;
+  --warn-ink: #8a5a00;
+  --info-ink: #2457e6;
+  --info-tint: #eef3ff;
+  --info-line: #cbd9ff;
+  --scheme-exact: var(--accent);
+  --scheme-exact-ink: var(--accent-ink);
+  --scheme-exact-tint: var(--accent-tint);
+  --scheme-upto: #2457e6;
+  --scheme-upto-ink: #2457e6;
+  --scheme-upto-tint: #eef3ff;
+  --scheme-agent: #7a3fe0;
+  --scheme-agent-ink: #6c35cf;
+  --scheme-agent-tint: #f4efff;
+  --chain: #3cc8b4;
+  --code-string: #17663a;
+  --code-keyword: #c43d00;
+  --focus: #111111;
+  color-scheme: light;
+}
+
+.display { font-family: var(--font-head); font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.025em; }
+.title { font-family: var(--font-head); font-size: 34px; line-height: 40px; font-weight: 600; letter-spacing: -0.02em; }
+.heading { font-family: var(--font-head); font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -0.02em; }
+.subheading { font-family: var(--font-head); font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em; }
+.lead { font-family: var(--font-sans); font-size: 16px; line-height: 24px; font-weight: 400; }
+.body { font-family: var(--font-sans); font-size: 14px; line-height: 20px; font-weight: 400; }
+.small { font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 400; }
+.caption { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 400; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.code { font-family: var(--font-mono); font-size: 12.5px; line-height: 19px; font-weight: 400; }
+.data { font-family: var(--font-mono); font-size: 13px; line-height: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }

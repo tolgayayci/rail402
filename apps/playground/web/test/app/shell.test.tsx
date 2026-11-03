@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { App, Boot } from "../../src/app/App.tsx";
 import { CodedFailure } from "../../src/app/engine.tsx";
 import { PAGES, documentTitle, labPath, movedTo, pageFor } from "../../src/app/routes.ts";
@@ -32,7 +32,8 @@ describe("page shell", () => {
     window.history.replaceState(null, "", "/pay?url=https%3A%2F%2Fa.example");
     render(<App engine={createFakeEngine({ stepMs: 0 })} />);
     expect(`${window.location.pathname}${window.location.search}`).toBe("/?url=https%3A%2F%2Fa.example");
-    expect(screen.getByRole("link", { current: "page" }).textContent).toBe("Lab");
+    const pages = within(screen.getByRole("navigation", { name: "Pages" }));
+    expect(pages.getByRole("link", { current: "page" }).textContent).toBe("Lab");
   });
 
   it("renders the current page and marks it in the navigation", () => {
@@ -43,13 +44,43 @@ describe("page shell", () => {
     const links = [...nav.querySelectorAll("a")];
     expect(links.map((link) => link.getAttribute("href"))).toEqual(PAGES.map((page) => page.path));
     expect(links.map((link) => link.textContent)).toEqual(["Lab", "Bazaar", "Sell", "Agents"]);
-    expect(screen.getByRole("link", { current: "page" }).textContent).toBe("Sell");
-    expect(screen.getByRole("link", { name: /Docs/ }).getAttribute("href")).toBe("https://docs.rail402.dev/");
+    expect(within(nav).getByRole("link", { current: "page" }).textContent).toBe("Sell");
+    // The header: Docs, Explorer and GitHub, each opening in a new tab.
+    const site = within(screen.getByRole("navigation", { name: "Rail402" }));
+    const external = site.getAllByRole("link");
+    expect(external.map((link) => link.textContent.replace(" (opens in a new tab)", "").trim())).toEqual([
+      "Docs",
+      "Explorer",
+      "GitHub",
+    ]);
+    for (const link of external) expect(link.getAttribute("target")).toBe("_blank");
+    expect(site.getByRole("link", { name: /Docs/ }).getAttribute("href")).toBe("https://docs.rail402.dev/");
+    expect(site.getByRole("link", { name: /Explorer/ }).getAttribute("href")).toMatch(
+      /^https:\/\/.+\/testnet$/,
+    );
+    expect(site.getByRole("link", { name: /GitHub/ }).getAttribute("href")).toBe(
+      "https://github.com/tolgayayci/rail402",
+    );
+  });
+
+  it("folds the header links into a menu that Escape closes", () => {
+    render(<App engine={createFakeEngine({ stepMs: 0 })} />);
+    const button = screen.getByRole("button", { name: "Menu" });
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(button);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    const menu = within(screen.getByRole("navigation", { name: "Rail402 links" }));
+    expect(menu.getAllByRole("link")).toHaveLength(3);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("navigation", { name: "Rail402 links" })).toBeNull();
   });
 
   it("navigates without reloading", async () => {
     render(<App engine={createFakeEngine({ stepMs: 0 })} />);
-    screen.getByRole("link", { name: "Bazaar" }).click();
+    within(screen.getByRole("navigation", { name: "Pages" }))
+      .getByRole("link", { name: "Bazaar" })
+      .click();
     expect(
       await screen.findByRole("heading", {
         level: 1,
@@ -61,7 +92,7 @@ describe("page shell", () => {
 
   it("shows the network and the wallet", () => {
     render(<App engine={createFakeEngine({ stepMs: 0 })} />);
-    expect(screen.getByText("Testnet").getAttribute("title")).toContain("stellar:testnet");
+    expect(screen.getByTitle(/^stellar:testnet: test funds/).textContent).toBe("stellar:testnet");
     expect(screen.getByText("GBBU…TYQO")).toBeTruthy();
   });
 

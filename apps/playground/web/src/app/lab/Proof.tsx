@@ -29,7 +29,7 @@ export function ProofPanel({
 }): ReactElement {
   return (
     <section className="proof" aria-labelledby="proof-title">
-      <p className="proof-eyebrow eyebrow">
+      <p className="proof-eyebrow r4-eyebrow">
         <DoneIcon size={16} />
         <span id="proof-title">Proof · Stellar testnet</span>
       </p>
@@ -62,7 +62,7 @@ export function ProofPanel({
         </span>
       </div>
       <div className="reveal" style={order(2)}>
-        <ExternalLink className="proof-tx" href={proof.tx.url}>
+        <ExternalLink className="r4-button proof-tx" href={proof.tx.url}>
           Open transaction {shortHash(proof.tx.hash)} <ExternalIcon />
         </ExternalLink>
       </div>
@@ -84,7 +84,7 @@ export function ProofPanel({
       </ul>
       {proof.result.length > 0 ? (
         <div className="result-card reveal" style={order(3 + proof.parties.length)}>
-          <span className="eyebrow">What came back</span>
+          <span className="r4-eyebrow">What came back</span>
           <FactList
             facts={proof.result.slice(0, PROOF_RESULT_PAIRS)}
             className="fact-list fact-list-compact"
@@ -117,7 +117,7 @@ export function VerdictPanel({
   const { good } = verdict;
   return (
     <section className="verdict" data-tone={verdict.tone} data-good={good} aria-labelledby="verdict-title">
-      <p className="verdict-eyebrow eyebrow">
+      <p className="verdict-eyebrow r4-eyebrow">
         {good ? <DoneIcon size={16} /> : <FailedIcon size={16} />}
         <span>{verdict.badge}</span>
       </p>
