@@ -106,16 +106,32 @@ export class AssetDirectory {
     this.passphrase = passphrase;
   }
 
-  /** The token's `symbol()`, `name()` and `decimals()`, or undefined if it is not a readable token. */
+  /**
+   * The token's `symbol()`, `name()` and `decimals()`, or undefined if it is not a readable token or
+   * the network could not be read now (see `readFacts` to tell the two apart).
+   */
   describe(contract: string): Promise<AssetFacts | undefined> {
+    return this.readFacts(contract).catch(() => undefined);
+  }
+
+  /**
+   * The token's `symbol()`, `name()` and `decimals()`, or undefined when the contract is not a readable
+   * token: a simulation of one of them fails, or answers with the wrong type. A request the RPC itself
+   * fails (unreachable, timed out, overloaded) rejects instead, so a caller that keeps the answer never
+   * keeps a network failure as "not a token". Facts read are cached for the process's life; an
+   * undefined answer and a failure are read again next time.
+   */
+  readFacts(contract: string): Promise<AssetFacts | undefined> {
     let known = this.facts.get(contract);
     if (known === undefined) {
-      known = this.read(contract).catch(() => undefined);
+      known = this.read(contract);
       this.facts.set(contract, known);
-      // A failed read is retried next time rather than cached.
+      const forget = () => {
+        this.facts.delete(contract);
+      };
       void known.then((facts) => {
-        if (facts === undefined) this.facts.delete(contract);
-      });
+        if (facts === undefined) forget();
+      }, forget);
     }
     return known;
   }

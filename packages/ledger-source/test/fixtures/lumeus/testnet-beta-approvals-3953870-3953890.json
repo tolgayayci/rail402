@@ -1,0 +1,60 @@
+{
+  "comment": "Lumeus testnet topic search (approve events naming the beta upto contract CCMM3FMG…) over ledgers 3,953,870–3,953,890, recorded 2026-10-23. Keys and request ids are not recorded.",
+  "since": 3953870,
+  "until": 3953891,
+  "pages": {
+    "/accounts/CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X/contract-events?name=approve&order=asc&since_ledger=3953870&until_ledger=3953891": {
+      "read_view": {
+        "network": "testnet",
+        "generation": "testnet-2025-12-18-v3",
+        "decoder_version": "activity-v6-sdk-0.7.3-protocol-29",
+        "first_ledger": 3,
+        "snapshot_ledger": 5348629,
+        "published_through": 5348629
+      },
+      "range_complete": true,
+      "scanned_through_ledger": 3953890,
+      "limit": 1000,
+      "_links": {
+        "self": {
+          "href": "/accounts/CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X/contract-events?generation=testnet-2025-12-18-v3&limit=1000&name=approve&order=asc&since_ledger=3953870&snapshot_ledger=5348629&until_ledger=3953891"
+        },
+        "prev": {
+          "href": "/accounts/CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X/contract-events?cursor=0016981776702423041-0000000001&generation=testnet-2025-12-18-v3&limit=1000&name=approve&order=desc&since_ledger=3953870&snapshot_ledger=5348629&until_ledger=3953891"
+        }
+      },
+      "_embedded": {
+        "records": [
+          {
+            "id": "testnet:3953878:ce:12:0:0",
+            "kind": "contract_event",
+            "type": "approve",
+            "network": "testnet",
+            "ledger": 3953878,
+            "closed_at": "2026-08-03T20:35:24Z",
+            "tx_hash": "b38c1addac90858868b2b59e68740d26540c393d8733de1349df1dde6358c92f",
+            "tx_index": 12,
+            "operation_index": 1,
+            "contract_address": "CB7Y4FL2CVRZOLKKNU6MWCVKK5AJATWKEW7TKT243DU5WYQRZ6WHDQAM",
+            "topics": [
+              "approve",
+              "GCE42OPHLVHI4CEBADATAH3FQCEZ3U6DKJ3MKTN7EOLNFGZJDBQFWHQ2",
+              "CCMM3FMGEH7FHRYXZ3WQDQCTIWDXGZBGW7D4UT7NKH34SUQACYC3U54X",
+              "UPTO:GBB627BRJFJOBQLXIBSRGJCA7BZZULZXYOS6C2IMU4FPWLASUGWZV6OB"
+            ],
+            "data": ["10000000", 3953889],
+            "topics_xdr": [
+              "AAAADwAAAAdhcHByb3ZlAA==",
+              "AAAAEgAAAAAAAAAAic05511OjgiBAMEwH2WAiZ3Tw1J2xU2/I5bSmykYYFs=",
+              "AAAAEgAAAAGYzZWGIf5TxxfO7QHAU0WHc2Qmt8fKT+1R98lSABYFug==",
+              "AAAADgAAAD1VUFRPOkdCQjYyN0JSSkZKT0JRTFhJQlNSR0pDQTdCWlpVTFpYWU9TNkMySU1VNEZQV0xBU1VHV1pWNk9CAAAA"
+            ],
+            "data_xdr": "AAAAEAAAAAEAAAACAAAACgAAAAAAAAAAAAAAAACYloAAAAADADxU4Q==",
+            "paging_token": "0016981776702423041-0000000001",
+            "rpc_event_id": "0016981776702423040-0000000000"
+          }
+        ]
+      }
+    }
+  }
+}

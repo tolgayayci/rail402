@@ -110,7 +110,7 @@ a tag `upto-contract-v<crate version>` (for this crate `upto-contract-v1.0.0`) r
    `stellar contract build --optimize --meta source_repo=github:<repository>`, publishes the WASM as a GitHub
    release, attests it with GitHub build provenance and sends stellar.expert the validation request.
 3. `confirm` downloads the released WASM, requires it to be the deployed one, and verifies its attestation
-   (`gh attestation verify <wasm> --repo tolgayayci/rail402 --signer-repo stellar-expert/soroban-build-workflow`).
+   (`gh attestation verify <wasm> --repo tolgayayci/rail402 --signer-repo stellar-expert/soroban-build-workflow --signer-digest 6b16426dd3a61715ddddf83a2df322a6371fe071`).
 
 stellar.expert shows the repository and commit on the contract's page once it has processed the request. The
 testnet contract was verified this way by the `upto-contract-v1.0.0` release, built from commit `77a4ddb`. A tag `upto-contract-v1.0.0-<n>` releases the same

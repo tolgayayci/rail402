@@ -1,16 +1,19 @@
 # Test contracts
 
-Contracts that exist to test payments on test networks. None of them is meant for a public network.
+Contracts that exist to test payments. None of them is meant to hold value. Pubnet conformance runs deploy two of
+them: `ed25519-account` as a smart-account payer, funded with a little of the operator's USDC that the run returns
+at the end, and `approve-spending-limit` as the policy of an OpenZeppelin smart-account payer.
 
 | Crate                     | What it is                                                                                  | SDK                  |
 | ------------------------- | ------------------------------------------------------------------------------------------- | -------------------- |
 | `test-token/`             | SEP-41 token with configurable decimals and an open faucet                                  | `soroban-sdk` 27.0.2 |
 | `approve-spending-limit/` | Spending-limit policy for OpenZeppelin smart accounts that budgets `approve` and `transfer` | `soroban-sdk` 27.0.2 |
+| `ed25519-account/`        | Custom account with one ed25519 owner key, bound by its constructor                         | `soroban-sdk` 28.0.0 |
 | `composition/`            | Tests only: the `upto` contract with an OpenZeppelin smart account, verifier and the policy | `soroban-sdk` 28.0.0 |
 | `upto-adversarial/`       | Tests only: the deployed `upto` wasm against hostile payers, tokens, sellers and relayers   | `soroban-sdk` 28.0.0 |
 
-Each crate is its own Cargo project with its own lockfile and `rust-toolchain.toml` (rust 1.98.0). The two
-contracts depend on [OpenZeppelin Stellar Contracts](https://github.com/OpenZeppelin/stellar-contracts) (MIT)
+Each crate is its own Cargo project with its own lockfile and `rust-toolchain.toml` (rust 1.98.0). The token and
+the policy depend on [OpenZeppelin Stellar Contracts](https://github.com/OpenZeppelin/stellar-contracts) (MIT)
 at commit `a5bd8cbd3d0bb8efbd5cf5e2edf9734f87e47640`, which requires `soroban-sdk` 27; contracts built with it
 run on protocol 28 networks.
 
@@ -109,6 +112,29 @@ without that policy:
 With this configuration the agent signs `upto` payments with the rule ids `[<upto rule>, <token rule>]` for
 the contexts `[settle, approve]`.
 
+## `ed25519-account/` — `rail402-ed25519-account`
+
+The custom account behind the smart-account (`C…`) payers of the test kit and the conformance runs
+(`deploySimpleAccount` in `@rail402.dev/testkit`).
+
+```rust
+fn __constructor(env: Env, public_key: BytesN<32>); // the owner, stored in instance storage under "owner"
+fn __check_auth(env: Env, signature_payload: Hash<32>, signature: BytesN<64>, auth_contexts: Vec<Context>)
+    -> Result<(), AccountError>;
+```
+
+- The constructor binds the owner key inside the transaction that creates the contract, so no other account can
+  set it first. No other function writes state: nobody, the owner included, can change the key afterwards, and the
+  contract cannot be upgraded.
+- `__check_auth` accepts an authorization when the signature is the owner's ed25519 signature over the
+  32-byte signature payload, as its 64 raw bytes, for any context.
+- A pubnet conformance run reads a deployed account before it funds it, and refuses unless the account runs this
+  contract's committed wasm with the run's own key as its owner.
+
+| Code | Error     | When                                                                  |
+| ---- | --------- | --------------------------------------------------------------------- |
+| 1    | `NoOwner` | the instance holds no owner key (never for one the constructor built) |
+
 ## `composition/`
 
 Tests that load the OpenZeppelin smart account and ed25519 verifier, the policy and the test token from their
@@ -164,9 +190,10 @@ cd contracts/testing/<crate>
 cargo fmt --check && cargo clippy --locked --all-targets -- -D warnings && cargo test --locked
 ```
 
-The two contracts are built like the `upto` contract (see [`../stellar/README.md`](../stellar/README.md)):
-`scripts/contracts/build.sh --contract test-token` or `--contract approve-spending-limit`. Their wasm and
-provenance records are committed as `packages/testkit/fixtures/{test_token,approve_spending_limit}.*`.
+The three contracts are built like the `upto` contract (see [`../stellar/README.md`](../stellar/README.md)):
+`scripts/contracts/build.sh --contract test-token`, `--contract approve-spending-limit` or
+`--contract ed25519-account`. Their wasm and provenance records are committed as
+`packages/testkit/fixtures/{test_token,approve_spending_limit,ed25519_account}.*`.
 `scripts/contracts/fixtures.sh` builds the OpenZeppelin smart account and verifier from the pinned commit in
 the same image (`--check` compares them with the committed `oz_*.wasm` fixtures, `--update-fixture` refreshes
 them). CI runs the Rust checks for every crate and both `--check` builds.

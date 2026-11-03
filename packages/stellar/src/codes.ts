@@ -266,6 +266,12 @@ export const exactStellarCodes = defineCodes({
     reason:
       "The transaction sets ledger bounds, sequence conditions or extra signers, which settlement cannot honour.",
   },
+  invalid_exact_stellar_payload_operation_source_set: {
+    status: 400,
+    retryable: false,
+    reason:
+      "The operation sets its own source account. Settlement keeps it and cannot sign for it, so the network would refuse the transaction; leave the operation source unset.",
+  },
   invalid_exact_stellar_payload_self_payment: {
     status: 400,
     retryable: false,
@@ -362,6 +368,26 @@ export const exactStellarCodes = defineCodes({
     status: 503,
     retryable: true,
     reason: "Fee sponsorship is temporarily unavailable on this network.",
+  },
+  settle_exact_stellar_caller_budget_exhausted: {
+    status: 429,
+    retryable: true,
+    reason: "This caller's hourly fee-sponsorship budget on this network is spent; retry later.",
+  },
+  settle_exact_stellar_payer_rate_limited: {
+    status: 429,
+    retryable: true,
+    reason: "This payer started too many settlements on this network; retry later.",
+  },
+  settle_exact_stellar_payto_rate_limited: {
+    status: 429,
+    retryable: true,
+    reason: "This payTo received too many settlements on this network; retry later.",
+  },
+  settle_exact_stellar_payer_cooldown: {
+    status: 429,
+    retryable: true,
+    reason: "This payer's settlements failed on-chain repeatedly; it may settle again later.",
   },
   settle_exact_stellar_transaction_expired: {
     status: 400,

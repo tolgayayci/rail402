@@ -171,3 +171,45 @@ describe("available balances", () => {
     expect(availableNativeBalance(account(10_000_000n, 0, new xdr.AccountEntryExt(0)))).toBe(0n);
   });
 });
+
+describe("AssetDirectory.readFacts", () => {
+  const facts: Record<string, xdr.ScVal> = {
+    symbol: xdr.ScVal.scvString("TEST6"),
+    name: xdr.ScVal.scvString("Test token"),
+    decimals: nativeToScVal(6, { type: "u32" }),
+  };
+  /** Answers each call by its function name, after `failures` RPC failures. */
+  const token = (failures: number) => {
+    let calls = 0;
+    const server = {
+      simulateTransaction: (transaction: { operations: { func: xdr.HostFunction }[] }) => {
+        calls++;
+        if (calls <= failures) return Promise.reject(new Error("503 Service Unavailable"));
+        const invocation = transaction.operations[0]?.func.invokeContract();
+        const value = facts[invocation?.functionName().toString() ?? ""];
+        return Promise.resolve(
+          value === undefined
+            ? { latestLedger: 100, error: ERRORS.missingWasmFunction, events: [] }
+            : { latestLedger: 100, ...answering(value)() },
+        );
+      },
+    };
+    return new AssetDirectory(server as unknown as rpc.Server, networkPassphrase(TESTNET));
+  };
+
+  it("rejects when the RPC fails, and reads the token again on the next call", async () => {
+    const directory = token(1);
+    await expect(directory.readFacts(CONTRACT)).rejects.toThrow("503 Service Unavailable");
+    expect(await directory.readFacts(CONTRACT)).toEqual({ symbol: "TEST6", name: "Test token", decimals: 6 });
+  });
+
+  it("keeps describe's answer: undefined while the RPC fails", async () => {
+    const directory = token(3);
+    expect(await directory.describe(CONTRACT)).toBeUndefined();
+    expect(await directory.describe(CONTRACT)).toMatchObject({ symbol: "TEST6" });
+  });
+
+  it("is definitive when the contract answers no token facts", async () => {
+    expect(await directory(failing(ERRORS.missingWasmFunction)).readFacts(CONTRACT)).toBeUndefined();
+  });
+});

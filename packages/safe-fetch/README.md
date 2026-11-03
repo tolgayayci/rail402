@@ -9,6 +9,7 @@ Outbound HTTP for URLs that come from untrusted input, such as a resource URL an
 - Private, loopback, link-local, carrier-grade NAT, cloud metadata, documentation, NAT64, 6to4 and IPv4-mapped addresses are refused. `allowPrivateNetwork: "loopback"` admits this machine only, for local development.
 - DNS answers are checked when connecting and the socket dials only validated addresses; a host with any private address is refused whole. The connected address is checked again. Environment proxies are never used.
 - Redirects are refused unless a request opts into `redirect: "same-origin"`, which follows up to 3 hops on the same host and port.
+- A body that is not returned (a redirect's, or one sent with a 205) is never read, and a connection is kept for reuse only once the exchange is over both ways. An unfinished body, an answer that ends before the server took the whole request body, or one that goes on after its compressed body ended closes the connection at once, so a server cannot hold a pooled connection with any of them.
 - Request headers and bodies, response headers and decoded response bodies (gzip, deflate, br) are capped. Connect, header, idle and total timeouts apply.
 - Errors never repeat a resolved address.
 

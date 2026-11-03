@@ -47,10 +47,17 @@ export const UPTO_TESTNET_DEPLOYMENT: UptoContractDeployment = Object.freeze({
   wasmHash: "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
 });
 
-/** Canonical deployments by CAIP-2 network. Pubnet is reserved until the contract is deployed there. */
+/**
+ * The canonical settlement contract on pubnet, once deployed from the attested release with its record
+ * in `contracts/stellar/deployments/pubnet.json`; undefined until then, so pubnet always needs an
+ * explicit contract address and WASM hash.
+ */
+export const UPTO_PUBNET_DEPLOYMENT: UptoContractDeployment | undefined = undefined;
+
+/** Canonical deployments by CAIP-2 network. */
 export const UPTO_DEPLOYMENTS: Readonly<Record<string, UptoContractDeployment | undefined>> = Object.freeze({
   [STELLAR_TESTNET_CAIP2]: UPTO_TESTNET_DEPLOYMENT,
-  [STELLAR_PUBNET_CAIP2]: undefined,
+  [STELLAR_PUBNET_CAIP2]: UPTO_PUBNET_DEPLOYMENT,
 });
 
 /** Settlement contract errors (`Error(Contract, #n)` raised by the settlement contract). */

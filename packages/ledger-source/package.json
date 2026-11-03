@@ -1,0 +1,31 @@
+{
+  "name": "@rail402.dev/ledger-source",
+  "version": "0.5.1",
+  "private": true,
+  "description": "Reads Stellar ledgers from the public data lake or RPC getLedgers and verifies their hash chain.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@rail402/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "catalog:"
+  },
+  "devDependencies": {
+    "@rail402.dev/x402-index": "workspace:*",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.11"
+  }
+}

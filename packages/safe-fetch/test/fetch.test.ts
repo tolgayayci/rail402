@@ -1,7 +1,12 @@
 import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import type { AddressInfo, Socket } from "node:net";
-import { gzipSync } from "node:zlib";
+import {
+  createServer as createNetServer,
+  type AddressInfo,
+  type Server as NetServer,
+  type Socket,
+} from "node:net";
+import { brotliCompressSync, deflateSync, gzipSync } from "node:zlib";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createSafeFetch, finalRequestOf, type EgressError, type SafeFetch } from "@rail402.dev/safe-fetch";
 
@@ -533,5 +538,311 @@ describe("createSafeFetch", () => {
       expect(seen).toHaveLength(0);
       other.close();
     });
+  });
+
+  describe("answer bodies that are never handed to the caller", () => {
+    const open = new Set<Socket>();
+    let connections = 0;
+    let drip: Server;
+    let base: string;
+
+    /** Writes a chunk every 20 ms until the client goes away: a body that never ends. */
+    const endless = (response: ServerResponse, chunk = Buffer.alloc(512, 97)) => {
+      const timer = setInterval(() => response.write(chunk), 20);
+      response.on("close", () => {
+        clearInterval(timer);
+      });
+    };
+    const answers: Record<string, (response: ServerResponse) => void> = {
+      "/endless-redirect": (response) => {
+        response.writeHead(302, { location: "/ok" });
+        endless(response);
+      },
+      "/endless-reset": (response) => {
+        response.writeHead(205);
+        endless(response);
+      },
+      "/whole-redirect": (response) => {
+        response.writeHead(302, { location: "/ok", "content-type": "text/plain" }).end("Found: /ok");
+      },
+      "/empty": (response) => {
+        response.writeHead(204).end();
+      },
+      "/gzip": (response) => {
+        response.writeHead(200, { "content-encoding": "gzip" }).end(gzipSync("ok"));
+      },
+      "/gzip-late-end": (response) => {
+        response.writeHead(200, { "content-encoding": "gzip" }).write(gzipSync("ok"));
+        setTimeout(() => response.end(), 20);
+      },
+      // A compressed body that is complete, followed by data that never ends: bytes past the end of
+      // a deflate or br stream, and gzip's zero padding.
+      "/deflate-trailing": (response) => {
+        response.writeHead(200, { "content-encoding": "deflate" }).write(deflateSync("ok"));
+        endless(response, Buffer.from("x"));
+      },
+      "/gzip-padding": (response) => {
+        response.writeHead(200, { "content-encoding": "gzip" }).write(gzipSync("ok"));
+        endless(response, Buffer.alloc(1));
+      },
+      "/br-trailing": (response) => {
+        response.writeHead(200, { "content-encoding": "br" }).write(brotliCompressSync("ok"));
+        endless(response, Buffer.from("x"));
+      },
+    };
+
+    beforeAll(async () => {
+      drip = createServer((request, response) => {
+        const answer = answers[request.url ?? ""];
+        if (answer !== undefined) {
+          answer(response);
+          return;
+        }
+        // An explicit length: Node's server sends none on HEAD, and a client then closes the connection.
+        response.writeHead(200, { "content-length": "2" }).end("ok");
+      });
+      drip.keepAliveTimeout = 60_000;
+      drip.on("connection", (socket) => {
+        connections++;
+        open.add(socket);
+        socket.on("close", () => open.delete(socket));
+      });
+      await new Promise<void>((resolve) => drip.listen(0, "127.0.0.1", resolve));
+      base = `:${String((drip.address() as AddressInfo).port)}`;
+    });
+
+    afterAll(async () => {
+      drip.closeAllConnections();
+      await new Promise((resolve) => drip.close(resolve));
+    });
+
+    /** The connections still open once at most `expected` remain, or after the server waited 1 s. */
+    const openAfter = async (expected = 0): Promise<number> => {
+      const until = Date.now() + 1_000;
+      while (open.size > expected && Date.now() < until) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      return open.size;
+    };
+
+    beforeEach(async () => {
+      drip.closeAllConnections();
+      expect(await openAfter()).toBe(0);
+      connections = 0;
+    });
+
+    /** Every host name resolves to the local server, each with its own connection pool. */
+    const pool = (input: { keepAlive?: boolean; maxSocketsPerHost?: number; maxTotalSockets?: number }) =>
+      createSafeFetch({
+        schemes: ["http:"],
+        ports: [(drip.address() as AddressInfo).port],
+        allowPrivateNetwork: "loopback",
+        resolve: () => Promise.resolve([{ address: "127.0.0.1", family: 4 }]),
+        ...input,
+      });
+
+    it("closes a refused redirect instead of reading its body, and frees its connection", async () => {
+      const limited = pool({ keepAlive: false, maxTotalSockets: 1 });
+      try {
+        const error = await failure(limited(`http://seller.example${base}/endless-redirect`));
+        expect(error.code).toBe("egress_redirect_not_allowed");
+        expect(await openAfter()).toBe(0);
+        // The only connection slot is free again: another host is answered.
+        const next = await limited(`http://other.example${base}/ok`, { timeouts: { totalMs: 1_000 } });
+        expect(await next.text()).toBe("ok");
+      } finally {
+        limited.close();
+      }
+    });
+
+    it("closes a followed redirect's endless body before the next hop", async () => {
+      const single = pool({ maxSocketsPerHost: 1 });
+      try {
+        const response = await single(`http://seller.example${base}/endless-redirect`, {
+          redirect: "same-origin",
+          timeouts: { totalMs: 2_000 },
+        });
+        expect(response.url).toBe(`http://seller.example${base}/ok`);
+        expect(await response.text()).toBe("ok");
+        // The redirect's connection was closed, not kept: the hop opened its own.
+        expect(connections).toBe(2);
+        expect(await openAfter(1)).toBe(1);
+      } finally {
+        single.close();
+      }
+    });
+
+    it("closes a 205 answer that sends a body anyway, and frees its connection", async () => {
+      const limited = pool({ keepAlive: false, maxTotalSockets: 1 });
+      try {
+        const reset = await limited(`http://seller.example${base}/endless-reset`);
+        expect(reset.status).toBe(205);
+        expect(reset.body).toBeNull();
+        expect(await openAfter()).toBe(0);
+        const next = await limited(`http://other.example${base}/ok`, { timeouts: { totalMs: 1_000 } });
+        expect(await next.text()).toBe("ok");
+      } finally {
+        limited.close();
+      }
+    });
+
+    for (const path of ["/deflate-trailing", "/gzip-padding", "/br-trailing"]) {
+      it(`closes the connection when a compressed body ends before the answer (${path})`, async () => {
+        const limited = pool({ keepAlive: false, maxTotalSockets: 1 });
+        try {
+          const answer = await limited(`http://seller.example${base}${path}`);
+          expect(await answer.text()).toBe("ok");
+          expect(await openAfter()).toBe(0);
+          const next = await limited(`http://other.example${base}/ok`, { timeouts: { totalMs: 1_000 } });
+          expect(await next.text()).toBe("ok");
+        } finally {
+          limited.close();
+        }
+      });
+    }
+
+    it("keeps the connection after a body-less answer or a redirect that arrived whole", async () => {
+      const single = pool({ maxSocketsPerHost: 1 });
+      try {
+        expect((await single(`http://seller.example${base}/empty`)).status).toBe(204);
+        expect((await single(`http://seller.example${base}/ok`, { method: "HEAD" })).status).toBe(200);
+        const followed = await single(`http://seller.example${base}/whole-redirect`, {
+          redirect: "same-origin",
+          timeouts: { totalMs: 2_000 },
+        });
+        expect(await followed.text()).toBe("ok");
+        // An upload the server took in full does not cost the connection either.
+        const posted = await single(`http://seller.example${base}/whole-redirect`, {
+          method: "POST",
+          body: "data",
+          redirect: "same-origin",
+          timeouts: { totalMs: 2_000 },
+        });
+        expect(await posted.text()).toBe("ok");
+        expect(
+          await (await single(`http://seller.example${base}/ok`, { method: "POST", body: "data" })).text(),
+        ).toBe("ok");
+        // Nor does a compressed body that ends with its answer, at once or with a late last chunk.
+        expect(await (await single(`http://seller.example${base}/gzip`)).text()).toBe("ok");
+        expect(await (await single(`http://seller.example${base}/gzip-late-end`)).text()).toBe("ok");
+        expect(await (await single(`http://seller.example${base}/gzip`)).text()).toBe("ok");
+        expect(connections).toBe(1);
+      } finally {
+        single.close();
+      }
+    });
+  });
+
+  describe("uploads the server never reads", () => {
+    /** Far more than the socket buffers of both ends hold, so the upload cannot leave the client whole. */
+    const UPLOAD = new Uint8Array(64 * 1_048_576);
+    const OK = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+    const ANSWERS: Record<string, string> = {
+      "/redirect": "HTTP/1.1 302 Found\r\nLocation: /ok\r\nContent-Length: 0\r\n\r\n",
+      "/see-other": "HTTP/1.1 303 See Other\r\nLocation: /ok\r\nContent-Length: 0\r\n\r\n",
+    };
+    const accepted = new Set<Socket>();
+    const opened: Socket[] = [];
+    const onSocket = (message: unknown) => {
+      opened.push((message as { socket: Socket }).socket);
+    };
+    let stall: NetServer;
+    let base: string;
+
+    beforeAll(async () => {
+      // Answers from the first bytes of the request, then stops reading: the rest of the body stays
+      // unread, and once the buffers fill, the client cannot send more.
+      stall = createNetServer((socket) => {
+        accepted.add(socket);
+        socket.on("close", () => accepted.delete(socket));
+        socket.on("error", () => undefined);
+        socket.once("data", (chunk: Buffer) => {
+          socket.pause();
+          const path = /^[A-Z]+ (\S+) /.exec(chunk.toString("latin1"))?.[1] ?? "";
+          socket.write(ANSWERS[path] ?? OK);
+        });
+      });
+      await new Promise<void>((resolve) => stall.listen(0, "127.0.0.1", resolve));
+      base = `:${String((stall.address() as AddressInfo).port)}`;
+      subscribe("net.client.socket", onSocket);
+    });
+
+    afterAll(async () => {
+      unsubscribe("net.client.socket", onSocket);
+      for (const socket of accepted) socket.destroy();
+      await new Promise((resolve) => stall.close(resolve));
+    });
+
+    beforeEach(() => {
+      opened.length = 0;
+    });
+
+    const pool = (input: { keepAlive?: boolean; maxSocketsPerHost?: number; maxTotalSockets?: number }) =>
+      createSafeFetch({
+        schemes: ["http:"],
+        ports: [(stall.address() as AddressInfo).port],
+        allowPrivateNetwork: "loopback",
+        resolve: () => Promise.resolve([{ address: "127.0.0.1", family: 4 }]),
+        limits: { requestBodyBytes: UPLOAD.byteLength },
+        ...input,
+      });
+
+    /** Client connections still open once all are closed, or after 1 s. */
+    const stillOpen = async (): Promise<number> => {
+      const until = Date.now() + 1_000;
+      while (opened.some((socket) => !socket.destroyed) && Date.now() < until) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      return opened.filter((socket) => !socket.destroyed).length;
+    };
+
+    it("closes a refused redirect's connection and frees its slot", async () => {
+      const limited = pool({ keepAlive: false, maxTotalSockets: 1 });
+      try {
+        const error = await failure(
+          limited(`http://seller.example${base}/redirect`, { method: "POST", body: UPLOAD }),
+        );
+        expect(error.code).toBe("egress_redirect_not_allowed");
+        expect(await stillOpen()).toBe(0);
+        const next = await limited(`http://other.example${base}/ok`, { timeouts: { totalMs: 1_000 } });
+        expect(await next.text()).toBe("ok");
+      } finally {
+        limited.close();
+      }
+    });
+
+    it("closes a followed redirect's connection before the next hop", async () => {
+      const single = pool({ maxSocketsPerHost: 1 });
+      try {
+        const response = await single(`http://seller.example${base}/see-other`, {
+          method: "POST",
+          body: UPLOAD,
+          redirect: "same-origin",
+          timeouts: { totalMs: 2_000 },
+        });
+        expect(response.url).toBe(`http://seller.example${base}/ok`);
+        expect(await response.text()).toBe("ok");
+      } finally {
+        single.close();
+      }
+    });
+
+    for (const keepAlive of [false, true]) {
+      it(`closes the connection once the answer is read${keepAlive ? ", with kept connections" : ""}`, async () => {
+        const limited = pool({ keepAlive, maxTotalSockets: 1 });
+        try {
+          const answer = await limited(`http://seller.example${base}/answer`, {
+            method: "POST",
+            body: UPLOAD,
+          });
+          expect(await answer.text()).toBe("ok");
+          expect(await stillOpen()).toBe(0);
+          const next = await limited(`http://other.example${base}/ok`, { timeouts: { totalMs: 1_000 } });
+          expect(await next.text()).toBe("ok");
+        } finally {
+          limited.close();
+        }
+      });
+    }
   });
 });

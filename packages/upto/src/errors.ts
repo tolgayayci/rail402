@@ -341,6 +341,26 @@ export const uptoStellarCodes = Object.freeze({
     retryable: true,
     reason: "Fee sponsorship is temporarily unavailable on this network.",
   },
+  settle_upto_stellar_caller_budget_exhausted: {
+    status: 429,
+    retryable: true,
+    reason: "This caller's hourly fee-sponsorship budget on this network is spent; retry later.",
+  },
+  settle_upto_stellar_payer_rate_limited: {
+    status: 429,
+    retryable: true,
+    reason: "This payer started too many settlements on this network; retry later.",
+  },
+  settle_upto_stellar_payto_rate_limited: {
+    status: 429,
+    retryable: true,
+    reason: "This payTo received too many settlements on this network; retry later.",
+  },
+  settle_upto_stellar_payer_cooldown: {
+    status: 429,
+    retryable: true,
+    reason: "This payer's settlements failed on-chain repeatedly; it may settle again later.",
+  },
   settle_upto_stellar_authority_unavailable: {
     status: 503,
     retryable: true,

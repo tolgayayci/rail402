@@ -1,0 +1,285 @@
+{
+  "comment": "Lumeus testnet Activity pages for every registry route over ledgers 5330305-5330320 (until 5330321), recorded 2026-10-23 with account pages of 2 records to show pagination; routes not listed answered an empty complete page like `emptyPage`. Error bodies recorded from the same API without request ids. No keys.",
+  "since": 5330305,
+  "until": 5330321,
+  "pages": {
+    "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?order=asc&since_ledger=5330305&until_ledger=5330321": {
+      "read_view": {
+        "network": "testnet",
+        "generation": "testnet-2025-12-18-v3",
+        "decoder_version": "activity-v6-sdk-0.7.3-protocol-29",
+        "first_ledger": 3,
+        "snapshot_ledger": 5347677,
+        "published_through": 5347677
+      },
+      "range_complete": false,
+      "limit": 2,
+      "_links": {
+        "self": {
+          "href": "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?generation=testnet-2025-12-18-v3&limit=2&order=asc&since_ledger=5330305&snapshot_ledger=5347677&until_ledger=5330321"
+        },
+        "next": {
+          "href": "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?cursor=0022893485652758528-0000000001&generation=testnet-2025-12-18-v3&limit=2&order=asc&since_ledger=5330305&snapshot_ledger=5347677&until_ledger=5330321"
+        },
+        "prev": {
+          "href": "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?cursor=0022893485652758528-0000000000&generation=testnet-2025-12-18-v3&limit=2&order=desc&since_ledger=5330305&snapshot_ledger=5347677&until_ledger=5330321"
+        }
+      },
+      "_embedded": {
+        "records": [
+          {
+            "id": "testnet:5330305:12",
+            "kind": "token_transfer",
+            "type": "fee",
+            "network": "testnet",
+            "ledger": 5330305,
+            "closed_at": "2026-10-22T13:18:32Z",
+            "tx_hash": "efbd58f2ac098f024c9633db7dd2b610d0ae6c34f15f669fcc08def5c599f200",
+            "tx_index": 13,
+            "asset": "native",
+            "contract_address": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+            "from": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+            "amount": "0.0016898",
+            "amount_raw": "16898",
+            "paging_token": "0022893485652758528-0000000000"
+          },
+          {
+            "id": "testnet:5330305:27",
+            "kind": "token_transfer",
+            "type": "fee",
+            "network": "testnet",
+            "ledger": 5330305,
+            "closed_at": "2026-10-22T13:18:32Z",
+            "tx_hash": "efbd58f2ac098f024c9633db7dd2b610d0ae6c34f15f669fcc08def5c599f200",
+            "tx_index": 13,
+            "asset": "native",
+            "contract_address": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+            "from": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+            "amount": "-0.0005117",
+            "amount_raw": "-5117",
+            "paging_token": "0022893485652758528-0000000001"
+          }
+        ]
+      }
+    },
+    "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?cursor=0022893485652758528-0000000001&generation=testnet-2025-12-18-v3&order=asc&since_ledger=5330305&snapshot_ledger=5347677&until_ledger=5330321": {
+      "read_view": {
+        "network": "testnet",
+        "generation": "testnet-2025-12-18-v3",
+        "decoder_version": "activity-v6-sdk-0.7.3-protocol-29",
+        "first_ledger": 3,
+        "snapshot_ledger": 5347677,
+        "published_through": 5347677
+      },
+      "range_complete": false,
+      "limit": 2,
+      "_links": {
+        "self": {
+          "href": "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?cursor=0022893485652758528-0000000001&generation=testnet-2025-12-18-v3&limit=2&order=asc&since_ledger=5330305&snapshot_ledger=5347677&until_ledger=5330321"
+        },
+        "next": {
+          "href": "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?cursor=0022893511422590976-0000000001&generation=testnet-2025-12-18-v3&limit=2&order=asc&since_ledger=5330305&snapshot_ledger=5347677&until_ledger=5330321"
+        },
+        "prev": {
+          "href": "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?cursor=0022893511422590976-0000000000&generation=testnet-2025-12-18-v3&limit=2&order=desc&since_ledger=5330305&snapshot_ledger=5347677&until_ledger=5330321"
+        }
+      },
+      "_embedded": {
+        "records": [
+          {
+            "id": "testnet:5330311:19",
+            "kind": "token_transfer",
+            "type": "fee",
+            "network": "testnet",
+            "ledger": 5330311,
+            "closed_at": "2026-10-22T13:19:02Z",
+            "tx_hash": "2cc59d87d51856cd6a9493a21576ed08bad7a9cb62a8cdea7769a85ecb2e39fc",
+            "tx_index": 20,
+            "asset": "native",
+            "contract_address": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+            "from": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+            "amount": "0.0016898",
+            "amount_raw": "16898",
+            "paging_token": "0022893511422590976-0000000000"
+          },
+          {
+            "id": "testnet:5330311:36",
+            "kind": "token_transfer",
+            "type": "fee",
+            "network": "testnet",
+            "ledger": 5330311,
+            "closed_at": "2026-10-22T13:19:02Z",
+            "tx_hash": "2cc59d87d51856cd6a9493a21576ed08bad7a9cb62a8cdea7769a85ecb2e39fc",
+            "tx_index": 20,
+            "asset": "native",
+            "contract_address": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+            "from": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+            "amount": "-0.0005117",
+            "amount_raw": "-5117",
+            "paging_token": "0022893511422590976-0000000001"
+          }
+        ]
+      }
+    },
+    "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?cursor=0022893511422590976-0000000001&generation=testnet-2025-12-18-v3&order=asc&since_ledger=5330305&snapshot_ledger=5347677&until_ledger=5330321": {
+      "read_view": {
+        "network": "testnet",
+        "generation": "testnet-2025-12-18-v3",
+        "decoder_version": "activity-v6-sdk-0.7.3-protocol-29",
+        "first_ledger": 3,
+        "snapshot_ledger": 5347677,
+        "published_through": 5347677
+      },
+      "range_complete": true,
+      "scanned_through_ledger": 5330320,
+      "limit": 2,
+      "_links": {
+        "self": {
+          "href": "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?cursor=0022893511422590976-0000000001&generation=testnet-2025-12-18-v3&limit=2&order=asc&since_ledger=5330305&snapshot_ledger=5347677&until_ledger=5330321"
+        },
+        "prev": {
+          "href": "/accounts/GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62/activity?cursor=0022893532897411072-0000000000&generation=testnet-2025-12-18-v3&limit=2&order=desc&since_ledger=5330305&snapshot_ledger=5347677&until_ledger=5330321"
+        }
+      },
+      "_embedded": {
+        "records": [
+          {
+            "id": "testnet:5330316:15",
+            "kind": "token_transfer",
+            "type": "fee",
+            "network": "testnet",
+            "ledger": 5330316,
+            "closed_at": "2026-10-22T13:19:27Z",
+            "tx_hash": "336ef628683551207f1399bceb01856c6343a846719a6c831051d8ed105aa177",
+            "tx_index": 16,
+            "asset": "native",
+            "contract_address": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+            "from": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+            "amount": "0.0025654",
+            "amount_raw": "25654",
+            "paging_token": "0022893532897411072-0000000000"
+          },
+          {
+            "id": "testnet:5330316:73",
+            "kind": "token_transfer",
+            "type": "fee",
+            "network": "testnet",
+            "ledger": 5330316,
+            "closed_at": "2026-10-22T13:19:27Z",
+            "tx_hash": "336ef628683551207f1399bceb01856c6343a846719a6c831051d8ed105aa177",
+            "tx_index": 16,
+            "asset": "native",
+            "contract_address": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+            "from": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+            "amount": "-0.0005352",
+            "amount_raw": "-5352",
+            "paging_token": "0022893532897411072-0000000001"
+          }
+        ]
+      }
+    },
+    "/contracts/CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U/activity?order=asc&since_ledger=5330305&until_ledger=5330321": {
+      "read_view": {
+        "network": "testnet",
+        "generation": "testnet-2025-12-18-v3",
+        "decoder_version": "activity-v6-sdk-0.7.3-protocol-29",
+        "first_ledger": 3,
+        "snapshot_ledger": 5347681,
+        "published_through": 5347681
+      },
+      "range_complete": true,
+      "scanned_through_ledger": 5330320,
+      "limit": 200,
+      "_links": {
+        "self": {
+          "href": "/contracts/CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U/activity?generation=testnet-2025-12-18-v3&limit=200&order=asc&since_ledger=5330305&snapshot_ledger=5347681&until_ledger=5330321"
+        },
+        "prev": {
+          "href": "/contracts/CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U/activity?cursor=0022893532897411073-0000000002&generation=testnet-2025-12-18-v3&limit=200&order=desc&since_ledger=5330305&snapshot_ledger=5347681&until_ledger=5330321"
+        }
+      },
+      "_embedded": {
+        "records": [
+          {
+            "id": "testnet:5330316:ce:16:0:2",
+            "kind": "contract_event",
+            "type": "upto_settled",
+            "network": "testnet",
+            "ledger": 5330316,
+            "closed_at": "2026-10-22T13:19:27Z",
+            "tx_hash": "336ef628683551207f1399bceb01856c6343a846719a6c831051d8ed105aa177",
+            "tx_index": 16,
+            "operation_index": 1,
+            "contract_address": "CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U",
+            "topics": [
+              "upto_settled",
+              "GANVCYEU5N2ZBZVULCCB3TRY2HJMZJPHFSTVKHRA7AM2HPWKL453IHFR",
+              "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP"
+            ],
+            "data": {
+              "amount": "21000",
+              "facilitator": "GBAQ3BGTI3THOPSLXCAAJNHOH7LGU477RFXOQ6NVECNVOTCABEAEI6SX",
+              "max_amount": "100000",
+              "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
+            },
+            "topics_xdr": [
+              "AAAADwAAAAx1cHRvX3NldHRsZWQ=",
+              "AAAAEgAAAAAAAAAAG1FglOt1kOa0WIQdzjjR0syl5yynVR4g+BmjvspfO7Q=",
+              "AAAAEgAAAAAAAAAAZVnWMOAIWLTH0xDnWzIFV5U5TVI5QBpMDmTYv4jZV7I="
+            ],
+            "data_xdr": "AAAAEQAAAAEAAAAEAAAADwAAAAZhbW91bnQAAAAAAAoAAAAAAAAAAAAAAAAAAFIIAAAADwAAAAtmYWNpbGl0YXRvcgAAAAASAAAAAAAAAABBDYTTRuZ3Pku4gAS07j/WanP/iW7oebUgm1dMQAkARAAAAA8AAAAKbWF4X2Ftb3VudAAAAAAACgAAAAAAAAAAAAAAAAABhqAAAAAPAAAABXRva2VuAAAAAAAAEgAAAAFQRc1ewHKado/VrQJQWFLfTwKNzoMOWsUiCbpISDsvAQ==",
+            "paging_token": "0022893532897411073-0000000002",
+            "rpc_event_id": "0022893532897411072-0000000002"
+          }
+        ]
+      }
+    }
+  },
+  "emptyPage": {
+    "read_view": {
+      "network": "testnet",
+      "generation": "testnet-2025-12-18-v3",
+      "decoder_version": "activity-v6-sdk-0.7.3-protocol-29",
+      "first_ledger": 3,
+      "snapshot_ledger": 5347673,
+      "published_through": 5347673
+    },
+    "range_complete": true,
+    "scanned_through_ledger": 5330320,
+    "limit": 2,
+    "_links": {
+      "self": {
+        "href": "/accounts/GA3O6DK775F3OWQ35XJ2QOKLVJF52GXX3GMRAKSA5UPDJXMU7HIEOWXM/activity?generation=testnet-2025-12-18-v3&limit=2&order=asc&since_ledger=5330305&snapshot_ledger=5347673&until_ledger=5330321"
+      },
+      "prev": {
+        "href": "/accounts/GA3O6DK775F3OWQ35XJ2QOKLVJF52GXX3GMRAKSA5UPDJXMU7HIEOWXM/activity?generation=testnet-2025-12-18-v3&limit=2&order=desc&since_ledger=5330305&snapshot_ledger=5347673&until_ledger=5330321"
+      }
+    },
+    "_embedded": {
+      "records": []
+    }
+  },
+  "errors": {
+    "unauthorized": {
+      "status": 401,
+      "body": {
+        "code": "unauthorized",
+        "error": "missing credentials"
+      }
+    },
+    "generation": {
+      "status": 409,
+      "body": {
+        "code": "generation_changed",
+        "error": "index generation or network changed; restart history sync"
+      }
+    },
+    "bad-request": {
+      "status": 400,
+      "body": {
+        "code": "invalid_request",
+        "error": "since_ledger must be a ledger number"
+      }
+    }
+  }
+}

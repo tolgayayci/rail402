@@ -55,11 +55,15 @@ const MAX_REMEMBERED_HOSTS = 1_024;
  * 3. Connections resolve through `pinnedLookup`, which refuses a host if any of its addresses is
  *    private, and dial only the validated addresses. Environment proxies are never used.
  * 4. Once connected, the socket's remote address must be one the lookup validated for that host.
- * 5. Response headers and the decoded body are capped; gzip, deflate and br are decoded.
+ * 5. Response headers and the decoded body are capped; gzip, deflate and br are decoded. Nothing past
+ *    the end of a compressed body is read: an answer that goes on after it closes its connection.
  * 6. Redirects are refused unless the request opts into same-origin redirects, which are then
- *    followed up to the policy's maximum, each hop checked again.
+ *    followed up to the policy's maximum, each hop checked again. A redirect's body is never read
+ *    past what arrived with its headers: an unfinished one closes its connection.
  * 7. Connect, headers, idle and total timeouts apply, and the caller's signal aborts.
  * 8. Connections are bounded per host and in total; a kept connection closes when it sits unused.
+ *    A connection is kept only once the exchange is over both ways: an answer that ends before the
+ *    server took the whole request body closes it.
  *
  * Errors name the host and the class of problem, never a resolved address.
  */
@@ -160,10 +164,20 @@ export function createSafeFetch(input: EgressPolicyInput = {}): SafeFetch {
             return;
           }
           outgoing.setTimeout(timeouts.idleMs);
+          // A server can answer before it took the whole request body and then stop reading. Once the
+          // answer ends, Node drops the socket's timeout and keeps the socket until the upload is sent,
+          // which may be never, outside every limit. Such a connection cannot be reused: close it.
+          response.once("end", () => {
+            if (!outgoing.writableFinished) outgoing.destroy();
+          });
           settled = true;
           stopTimers();
           signals.combined.removeEventListener("abort", onAbort);
-          resolve({ message: response, idleTimedOut: () => idleAfterHeaders });
+          resolve({
+            message: response,
+            idleTimedOut: () => idleAfterHeaders,
+            sent: () => outgoing.writableFinished,
+          });
         },
       );
 
@@ -224,7 +238,11 @@ export function createSafeFetch(input: EgressPolicyInput = {}): SafeFetch {
     if (signals.combined.aborted) throw signals.reason();
 
     for (let hops = 0; ; hops++) {
-      const { message: response, idleTimedOut } = await exchange({
+      const {
+        message: response,
+        idleTimedOut,
+        sent,
+      } = await exchange({
         url,
         method,
         headers,
@@ -235,7 +253,7 @@ export function createSafeFetch(input: EgressPolicyInput = {}): SafeFetch {
       const location = response.headers.location;
       const status = response.statusCode ?? 0;
       if (REDIRECT_STATUSES.has(status) && typeof location === "string") {
-        discard(response);
+        discard(response, sent());
         if (mode === "error") {
           throw new EgressError("egress_redirect_not_allowed", "redirect", {
             reason: `The server answered with a ${String(status)} redirect, and redirects are not followed.`,
@@ -261,6 +279,7 @@ export function createSafeFetch(input: EgressPolicyInput = {}): SafeFetch {
         method,
         redirected: hops > 0,
         idleTimedOut,
+        sent,
         signals,
         policy,
       });
@@ -282,12 +301,22 @@ interface Exchanged {
   readonly message: IncomingMessage;
   /** Whether the socket went idle after the headers arrived. */
   readonly idleTimedOut: () => boolean;
+  /** Whether the whole request, body included, has been handed to the socket. */
+  readonly sent: () => boolean;
 }
 
-/** Reads and drops a response body so its connection can be reused. */
-function discard(message: IncomingMessage): void {
+/**
+ * Drops a response body that is never handed to the caller (a redirect's, or one sent with 204, 205,
+ * 304 or to HEAD). When the exchange is over both ways (the body already arrived in full and the
+ * request, body included, was sent), the body is read from memory and a kept connection can serve
+ * the next request. Otherwise the connection is closed and never returns to the pool: the rest of an
+ * unfinished body comes as slowly as the server likes, an upload the server stopped reading may never
+ * finish, and the request's timers no longer watch either.
+ */
+function discard(message: IncomingMessage, sent: boolean): void {
   message.on("error", () => undefined);
-  message.resume();
+  if (message.complete && sent) message.resume();
+  else message.destroy();
 }
 
 interface Signals {
@@ -390,6 +419,7 @@ interface ResponseContext {
   readonly method: string;
   readonly redirected: boolean;
   readonly idleTimedOut: () => boolean;
+  readonly sent: () => boolean;
   readonly signals: Signals;
   readonly policy: EgressPolicy;
 }
@@ -420,7 +450,7 @@ function toResponse(message: IncomingMessage, context: ResponseContext): Respons
 
   let body: ReadableStream<Uint8Array> | null = null;
   if (nullBody) {
-    discard(message);
+    discard(message, context.sent());
   } else {
     let source: Readable = message;
     if (decoded) {
@@ -488,6 +518,14 @@ function limitedBody(
           context.signals.combined.removeEventListener("abort", onAbort);
           if (error === undefined) {
             controller.close();
+            // A decoder ends where the compressed stream ends, and the answer can go on past it (bytes
+            // after a deflate or br stream, gzip's zero padding). Those bytes are never counted, and
+            // only the idle timeout, which they keep resetting, would still watch them: close the
+            // connection unless the answer itself has ended.
+            if (!message.readableEnded) {
+              source.destroy();
+              message.destroy();
+            }
           } else {
             controller.error(error);
             source.destroy();
