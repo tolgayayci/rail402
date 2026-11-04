@@ -1,0 +1,1268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <title>Rail402: x402 payments and the Bazaar for Stellar</title>
+    <meta
+      name="description"
+      content="Rail402 settles x402 payments on Stellar and pays the network fee, and lists every paid API and MCP tool in a Bazaar that agents search in plain words. Live on mainnet, free on testnet."
+    />
+    <link rel="canonical" href="https://rail402.dev/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://rail402.dev/" />
+    <meta property="og:title" content="Rail402: the paid web, searchable" />
+    <meta
+      property="og:description"
+      content="x402 payments and the Bazaar for Stellar. Agents find paid APIs and MCP tools in plain words and pay per call."
+    />
+    <meta property="og:image" content="https://rail402.dev/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="design/logos/rail402-mark.svg" />
+    <link
+      rel="preload"
+      href="design/fonts/space-grotesk-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="preload" href="design/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link
+      rel="preload"
+      href="design/fonts/jetbrains-mono-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="design/tokens.css" />
+    <link rel="stylesheet" href="design/rail402.css" />
+    <link rel="stylesheet" href="landing.css" />
+    <script src="landing.js" defer></script>
+  </head>
+  <body>
+    <div class="l" data-theme="light">
+      <header class="nav">
+        <div class="wrap">
+          <a class="brand" href="https://rail402.dev/"
+            ><img src="design/logos/rail402-mark.svg" alt="" width="28" height="28" />Rail402</a
+          >
+          <nav class="links" aria-label="Products">
+            <a href="https://docs.rail402.dev">Docs</a><a href="https://playground.rail402.dev">Playground</a
+            ><a href="https://explorer.rail402.dev">Explorer</a
+            ><a href="https://explorer.rail402.dev/services">Bazaar</a>
+          </nav>
+          <div class="nav-r">
+            <a class="btn btn-s btn-ghost" href="https://github.com/tolgayayci/rail402"
+              ><svg class="bi bi-fill" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+                /></svg
+              >GitHub</a
+            ><a class="btn btn-s btn-orange" href="https://docs.rail402.dev/quickstart/sellers"
+              ><svg class="bi" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M13 3 5 14h6l-1 7 8-11h-6z" /></svg
+              >Quickstart</a
+            >
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div class="wrap">
+            <div class="hero-main">
+              <span class="pill"
+                ><b>Bazaar</b
+                ><span
+                  >x402 discovery for Stellar<span class="pill-more"
+                    >, live on mainnet and testnet</span
+                  ></span
+                ></span
+              >
+              <h1>The paid web, <span>searchable.</span></h1>
+              <p class="sub">
+                Every API and MCP tool paid through Rail402 lands in the Bazaar. Agents find what they need in
+                plain words and pay per call on Stellar, without an account anywhere.
+              </p>
+              <div class="search" role="img" aria-label="An example Bazaar search with two results">
+                <div class="box">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-4-4" /></svg
+                  ><span class="q"
+                    ><span data-text="typed">weather forecast under 1 cent</span
+                    ><span class="caret"></span></span
+                  ><span class="go" aria-hidden="true">Search</span>
+                </div>
+                <div class="results" data-results>
+                  <div class="res">
+                    <span class="ico"
+                      ><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M14 7l3 3M4 20l8-8M13 4l7 7-3 3-7-7z" /></svg></span
+                    ><span
+                      ><b>Weather forecast for a city</b
+                      ><small>MCP tool · forecast · demo.rail402.dev</small></span
+                    ><span class="price">0.001<small> USDC</small></span>
+                  </div>
+                  <div class="res">
+                    <span class="ico"
+                      ><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z" /></svg></span
+                    ><span
+                      ><b>Current weather for a city</b
+                      ><small>HTTP GET · demo.rail402.dev/weather</small></span
+                    ><span class="price">0.001<small> USDC</small></span>
+                  </div>
+                </div>
+              </div>
+              <div class="hero-cta">
+                <a class="btn btn-main" href="https://playground.rail402.dev"
+                  >Try a payment in your browser</a
+                >
+                <a class="btn btn-ghost" href="https://docs.rail402.dev">Read the docs</a>
+              </div>
+            </div>
+            <div class="strip">
+              <div>
+                <i
+                  ><svg viewBox="0 0 24 24">
+                    <path d="M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3" /></svg></i
+                ><b>Standard x402</b><span>Stock packages. No lock-in.</span>
+              </div>
+              <div>
+                <i
+                  ><svg viewBox="0 0 24 24">
+                    <path d="M12 3 20 7v6c0 4-3 7-8 8-5-1-8-4-8-8V7z" />
+                    <path d="m8.5 12 2.5 2.5 4.5-5" /></svg></i
+                ><b>Tested upstream</b><span>Passes the official x402 suite.</span>
+              </div>
+              <div>
+                <i
+                  ><svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="8" />
+                    <path d="M6.5 17.5 17.5 6.5" /></svg></i
+                ><b>0 XLM fees</b><span>Rail402 pays the network fee.</span>
+              </div>
+              <div>
+                <i
+                  ><svg viewBox="0 0 24 24">
+                    <circle cx="6" cy="5" r="2" />
+                    <circle cx="6" cy="19" r="2" />
+                    <circle cx="18" cy="8" r="2" />
+                    <path d="M6 7v10M18 10c0 4-6 3-12 7" /></svg></i
+                ><b>Open source</b><span>Apache-2.0. Self-host or use ours.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="wrap">
+          <div class="secs">
+            <section class="sec">
+              <div class="label"><b>01</b>The problem</div>
+              <div class="txt">
+                <h2>APIs make you sign up before you can ask.</h2>
+                <p class="lead">
+                  An API is a service your code can ask for something: the weather, a translation, a picture.
+                  Most want an account, a credit card and a secret key first.
+                  <b>For an AI agent that needs one answer right now, that doesn't work.</b>
+                </p>
+                <p class="lead">
+                  With Rail402 the API just names its price, and your code pays for that one answer.
+                </p>
+              </div>
+              <div class="vis">
+                <div class="ba">
+                  <div class="ba-col">
+                    <h4>Today</h4>
+                    <div class="chore x" data-cls="k0"><i></i><span>Create an account</span></div>
+                    <div class="chore x" data-cls="k1"><i></i><span>Confirm your email</span></div>
+                    <div class="chore x" data-cls="k2"><i></i><span>Add a credit card</span></div>
+                    <div class="chore x" data-cls="k3"><i></i><span>Keep an API key secret</span></div>
+                    <div class="chore x" data-cls="k4"><i></i><span>Pay a monthly bill</span></div>
+                  </div>
+                  <div class="ba-col after">
+                    <h4>With Rail402</h4>
+                    <div class="step3">
+                      <div class="s3 on" data-cls="a0"><em>GET</em>/weather?city=Istanbul</div>
+                      <div class="s3 on" data-cls="a1"><em class="e402">402</em>price 0.001 USDC</div>
+                      <div class="s3 on" data-cls="a2"><em>PAY</em>one signature</div>
+                      <div class="s3 on" data-cls="a3"><em class="e200">200</em>21°, sunny</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec dark flip" data-theme="dark" id="how">
+              <div class="label"><b>02</b>How it works</div>
+              <div class="txt">
+                <h2>Ask, pay, get the answer. In one round trip.</h2>
+                <p class="lead">
+                  The web has had a "402 Payment Required" code since 1997 that nobody could use.
+                  <b>x402</b> is the open standard that does. Rail402 is the <b>facilitator</b> in the middle:
+                  it checks the payment, sends it to Stellar and pays the fee.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span
+                      >The buyer signs once. Change the amount or the receiver and the signature breaks.</span
+                    >
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>The money goes straight from buyer to seller. Rail402 never holds it.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>Every refusal comes back with a clear code and a reason.</span>
+                  </li>
+                </ul>
+                <a class="more" href="https://docs.rail402.dev/architecture/overview"
+                  >How the facilitator works →</a
+                >
+              </div>
+              <div class="vis">
+                <div class="track" aria-hidden="true">
+                  <div class="rail"></div>
+                  <div class="rail-fill" data-w="fill"></div>
+                  <div class="stations">
+                    <div class="st on" data-cls="c0">
+                      <span class="st-ico"
+                        ><svg viewBox="0 0 24 24">
+                          <circle cx="12" cy="8" r="4" />
+                          <path d="M4 21a8 8 0 0 1 16 0" /></svg></span
+                      ><span class="st-label">You ask</span>
+                    </div>
+                    <div class="st on" data-cls="c1">
+                      <span class="st-ico"
+                        ><svg viewBox="0 0 24 24"><path d="M4 10h16v10H4zM2 10l3-6h14l3 6" /></svg></span
+                      ><span class="st-label">402 price</span>
+                    </div>
+                    <div class="st on" data-cls="c2">
+                      <span class="st-ico"
+                        ><svg viewBox="0 0 24 24"><path d="M4 18c3-6 5-8 7-6s-1 6 2 5 4-7 7-6" /></svg></span
+                      ><span class="st-label">You sign</span>
+                    </div>
+                    <div class="st on" data-cls="c3">
+                      <span class="st-ico u-brand"
+                        ><svg class="u-ink" viewBox="0 0 24 24">
+                          <path d="M2 15h7M15 15h7M9 6h6v6H9z" /></svg></span
+                      ><span class="st-label">Rail402</span>
+                    </div>
+                    <div class="st on" data-cls="c4">
+                      <span class="st-ico"
+                        ><svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg></span
+                      ><span class="st-label">200 answer</span>
+                    </div>
+                  </div>
+                  <div class="packet" data-left="fill"><span data-text="packet">200</span></div>
+                </div>
+                <div class="log">
+                  <span class="log-tag"><span data-text="tag">200</span></span
+                  ><span class="log-text"
+                    ><span data-text="log"
+                      >{ &quot;city&quot;: &quot;Istanbul&quot;, &quot;temperature&quot;: 21,
+                      &quot;conditions&quot;: &quot;sunny&quot; }</span
+                    ></span
+                  >
+                </div>
+              </div>
+            </section>
+
+            <section class="sec">
+              <div class="label"><b>03</b>Built on Stellar</div>
+              <div class="txt">
+                <h2>Money that moves as fast as the request.</h2>
+                <p class="lead">
+                  Paying a tenth of a cent only makes sense if the payment is fast and almost free. On
+                  <b>Stellar</b> it's final in about five seconds, in <b>USDC</b>, a digital dollar, and the
+                  network fee is a tiny fraction of a cent that Rail402 pays for you.
+                </p>
+                <a class="more" href="https://docs.rail402.dev/facilitator/assets">Networks and assets →</a>
+              </div>
+              <div class="vis">
+                <div class="race" aria-hidden="true">
+                  <div class="clock"><span data-text="secs">5.0</span><small> s</small></div>
+                  <div class="lane"><div class="lane-coin" data-left="coinLeft">USDC</div></div>
+                  <div class="lane-ends">
+                    <span>buyer</span><span><span data-text="lanePhase">final</span></span
+                    ><span>seller</span>
+                  </div>
+                </div>
+                <div class="trio">
+                  <div><b>≈ 5 s</b><span>until final</span></div>
+                  <div><b>USDC</b><span>1 USDC = 1 USD</span></div>
+                  <div><b>≈ 0.002 XLM</b><span>fee, paid for you</span></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec dark flip" data-theme="dark" id="stellar">
+              <div class="label"><b>04</b>Stellar-native</div>
+              <div class="txt">
+                <h2>Made for Stellar, not ported to it.</h2>
+                <p class="lead">
+                  A payment is a <b>Soroban</b> token transfer. The buyer signs one authorization that names
+                  the token, the receiver and the amount, and nothing else can be changed without breaking it.
+                  Rail402 puts it on the ledger from its own accounts and pays the fee.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="12" cy="8" r="4" />
+                      <path d="M4 21a8 8 0 0 1 16 0" /></svg
+                    ><span
+                      >Classic <b>G…</b> wallets and <b>C…</b> smart accounts both pay. A smart account runs
+                      its own checks.</span
+                    >
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="8" />
+                      <path
+                        d="M12 8v8M9.5 10.5c0-1 1-1.5 2.5-1.5s2.5.6 2.5 1.6c0 2.4-5 1.2-5 3.6 0 1 1 1.8 2.5 1.8s2.5-.6 2.5-1.6"
+                      /></svg
+                    ><span
+                      >Circle <b>USDC</b> by default, or any SEP-41 token, with 6, 7 or 18 decimals.</span
+                    >
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg
+                    ><span>A pool of channel accounts settles many payments side by side.</span>
+                  </li>
+                </ul>
+                <a class="more" href="https://docs.rail402.dev/architecture/overview"
+                  >Where Rail402 sits on Stellar →</a
+                >
+              </div>
+              <div class="vis">
+                <div class="auth" aria-label="A signed payment authorization">
+                  <div class="auth-h">
+                    <span>authorization · <b>transfer(from, to, amount)</b></span
+                    ><span>stellar:pubnet</span>
+                  </div>
+                  <div class="af on" data-cls="f0">
+                    <span>token</span><span>USDC · Stellar Asset Contract</span><i>✓</i>
+                  </div>
+                  <div class="af on" data-cls="f1">
+                    <span>from</span><span>the buyer's wallet</span><i>✓</i>
+                  </div>
+                  <div class="af on" data-cls="f2">
+                    <span>to</span><span>GBSV…ELYP · the seller</span><i>✓</i>
+                  </div>
+                  <div class="af on" data-cls="f3">
+                    <span>amount</span><span>10000 base units = 0.001 USDC</span><i>✓</i>
+                  </div>
+                  <div class="af on" data-cls="f4">
+                    <span>signature</span><span>buyer's key · locks all four</span><i>✓</i>
+                  </div>
+                  <div class="auth-f on" data-cls="f5">
+                    Rail402 adds only the fee. Change one field and Stellar rejects it.
+                  </div>
+                </div>
+                <div class="facts">
+                  <div><b>Soroban</b><span>the upto contract: no admin, cannot be changed</span></div>
+                  <div><b>CAIP-2</b><span>stellar:pubnet and stellar:testnet</span></div>
+                  <div><b>@x402/stellar</b><span>the official scheme, unmodified</span></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec wide" id="pricing">
+              <div class="label"><b>05</b>Pricing models</div>
+              <div class="build-head">
+                <h2>Two ways to charge.</h2>
+                <p>
+                  Use <b>exact</b> when you know the price up front. Use <b>upto</b> when you only know it
+                  after the work is done.
+                </p>
+              </div>
+              <div class="prices">
+                <div class="pbox">
+                  <span class="r4-badge" data-scheme="exact">exact</span>
+                  <div class="tagw" aria-hidden="true">
+                    <div class="ptag">0.001<small>USDC</small></div>
+                  </div>
+                  <h3>Like a price tag</h3>
+                  <p>One request, one fixed price. The buyer pays exactly that, and gets the answer.</p>
+                  <span class="eg">e.g. a weather report, a translation</span>
+                </div>
+                <div class="pbox">
+                  <span class="r4-badge" data-scheme="upto">upto</span>
+                  <div class="taxi" aria-hidden="true">
+                    <div class="taxi-top"><span>meter</span><span>max 0.0100</span></div>
+                    <div class="taxi-now"><span data-text="meter">0.0042</span></div>
+                    <div class="taxi-bar"><i data-w="meterW"></i><u></u></div>
+                    <div class="taxi-foot"><span>pay what was used</span><span>never above max</span></div>
+                  </div>
+                  <h3>Like a taxi meter</h3>
+                  <p>
+                    The buyer agrees to a maximum. The seller charges what was used. A contract on Stellar
+                    makes going over impossible.
+                  </p>
+                  <span class="eg">e.g. AI tokens, rows of data, seconds of compute</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec dark" data-theme="dark" id="upto">
+              <div class="label"><b>06</b>Built by Rail402</div>
+              <div class="txt">
+                <h2>We wrote upto for Stellar.</h2>
+                <p class="lead">
+                  x402 started with fixed prices. Rail402 wrote the Stellar version of <b>upto</b>, the
+                  metered scheme: the specification, the <b>Soroban contract</b> that enforces it, and the
+                  code for buyers, sellers and facilitators. It is proposed to the x402 project upstream.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span
+                      >The buyer signs a cap and a deadline. The contract checks the amount is between zero
+                      and the cap.</span
+                    >
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span
+                      >Each signature settles once and expires with the payment window. The unused part never
+                      leaves the wallet.</span
+                    >
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span
+                      >The contract has no admin, can't be changed and stores nothing. Its source is verified
+                      on chain.</span
+                    >
+                  </li>
+                </ul>
+                <div class="links2">
+                  <a class="more" href="https://docs.rail402.dev/facilitator/upto">Read the design →</a
+                  ><a class="more" href="https://github.com/x402-foundation/x402/pull/3859"
+                    >The upstream proposal →</a
+                  >
+                </div>
+              </div>
+              <div class="vis">
+                <div class="terms" aria-label="Signed upto terms">
+                  <div class="terms-h">
+                    <span>upto terms</span><span class="r4-badge" data-scheme="upto">upto</span>
+                  </div>
+                  <div class="tr"><span>cap</span><span>0.0100 USDC</span></div>
+                  <div class="tr"><span>to</span><span>GBSV…ELYP</span></div>
+                  <div class="tr"><span>token</span><span>USDC</span></div>
+                  <div class="tr"><span>expires</span><span>with the payment window</span></div>
+                  <div class="sig on" data-cls="usig">
+                    ✍ <span data-text="usigt">signed by the buyer · once</span>
+                  </div>
+                </div>
+                <div class="ev">
+                  <div class="evr good on" data-cls="ue0">
+                    <b>SETTLE</b><span>0.0042 used · 0 ≤ 0.0042 ≤ 0.0100 ✓</span>
+                  </div>
+                  <div class="evr info on" data-cls="ue1">
+                    <b>KEPT</b><span>0.0058 never left the buyer's wallet</span>
+                  </div>
+                  <div class="evr bad on" data-cls="ue2">
+                    <b>REPLAY</b><span>same signature again → refused, nothing moved</span>
+                  </div>
+                </div>
+                <p class="cid">
+                  testnet contract
+                  <a
+                    href="https://stellar.expert/explorer/testnet/contract/CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U"
+                    >CBTVKCHL…TU7U</a
+                  >
+                  · source verified
+                </p>
+              </div>
+            </section>
+
+            <section class="sec flip" id="sell">
+              <div class="label"><b>07</b>Sell your API</div>
+              <div class="txt">
+                <h2>Charge for your API with one middleware.</h2>
+                <p class="lead">
+                  Keep your server as it is. Add the stock <b>@x402/express</b> middleware, point it at
+                  Rail402 and name a price in dollars. Each call is paid in USDC, straight to your Stellar
+                  address.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>No accounts or billing to build. A request without payment gets a 402.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>Describe the route once and the Bazaar lists it after the first sale.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>MCP tools too: charge per tool call with the stock @x402/mcp.</span>
+                  </li>
+                </ul>
+                <a class="more" href="https://docs.rail402.dev/quickstart/sellers">Seller quickstart →</a>
+              </div>
+              <div class="vis">
+                <div class="code">
+                  <div class="code-bar"><i></i><i></i><i></i>&nbsp; seller.ts</div>
+                  <pre><span class="cg" data-cls="g0"><span class="k">const</span> facilitator = <span class="k">new</span> HTTPFacilitatorClient({
+  url: <span class="s">"https://testnet.rail402.dev"</span> });</span><span class="cg" data-cls="g1"><span class="k">const</span> server = <span class="k">new</span> x402ResourceServer(facilitator)
+  .register(<span class="s">"stellar:testnet"</span>, <span class="k">new</span> ExactStellarScheme())</span><span class="cg" data-cls="g2">  .registerExtension(bazaarResourceServerExtension);</span><span class="cg on" data-cls="g3">
+app.use(paymentMiddleware({
+  <span class="s">"GET /weather"</span>: {
+    accepts: { scheme: <span class="s">"exact"</span>, price: <span class="s">"$0.01"</span>,
+               network: <span class="s">"stellar:testnet"</span>, payTo },
+    description: <span class="s">"Current weather for a city"</span>,
+  },
+}, server));</span></pre>
+                  <div class="code-cap">
+                    <b><span data-text="gn">4</span></b
+                    ><span><span data-text="gcap">Name the route and its price</span></span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec" id="bazaar">
+              <div class="label"><b>08</b>The Bazaar</div>
+              <div class="txt">
+                <h2>Make one sale, and you're on the shelf.</h2>
+                <p class="lead">
+                  The <b>Bazaar</b> is a catalog of every API and MCP tool paid through Rail402. A listing
+                  appears by itself after its first payment, and agents search it in plain words.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="M12 3 20 7v6c0 4-3 7-8 8-5-1-8-4-8-8V7z" /></svg
+                    ><span>Only the seller who got paid can change a listing.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-4-4" /></svg
+                    ><span>Search by meaning, price, network or type.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="M4 12h16M4 6h16M4 18h10" /></svg
+                    ><span>Off chain: listing costs no extra transaction.</span>
+                  </li>
+                </ul>
+                <a class="more" href="https://docs.rail402.dev/bazaar/search">Search and discovery →</a>
+              </div>
+              <div class="vis">
+                <div class="shelf">
+                  <div class="item">
+                    <span class="ico u-surface"
+                      ><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z" /></svg></span
+                    ><span><b>Current weather</b><small>HTTP · 0.001 USDC</small></span>
+                  </div>
+                  <div class="item">
+                    <span class="ico u-surface"
+                      ><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M4 6h10M9 4v2c0 5-3 8-5 9M7 10c1 3 4 5 7 6M14 20l4-9 4 9M15.5 17h5"
+                        /></svg></span
+                    ><span><b>Translate a text</b><small>HTTP · 0.002 USDC</small></span>
+                  </div>
+                  <div class="item">
+                    <span class="ico u-surface"
+                      ><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M14 7l3 3M4 20l8-8M13 4l7 7-3 3-7-7z" /></svg></span
+                    ><span><b>Forecast</b><small>MCP tool · 0.001 USDC</small></span>
+                  </div>
+                  <div class="item">
+                    <span class="ico u-surface"
+                      ><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 20l4-1 11-11-3-3L5 16zM14 6l3 3" /></svg></span
+                    ><span><b>Pet photo to sketch</b><small>HTTP · 0.25 USDC</small></span>
+                  </div>
+                  <div class="item">
+                    <span class="ico u-surface"
+                      ><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 16a8 8 0 0 1 16 0M12 16l4-5" /></svg></span
+                    ><span><b>Weather history</b><small>upto · ≤ 0.01 USDC</small></span>
+                  </div>
+                  <div class="item new">
+                    <span class="ico"
+                      ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></span
+                    ><span><em>just listed</em><b>Your API</b><small>after its first sale</small></span>
+                  </div>
+                </div>
+                <div class="api">
+                  <b>GET</b> testnet.rail402.dev/discovery/search?query=weather+under+1+cent
+                </div>
+              </div>
+            </section>
+
+            <section class="sec flip">
+              <div class="label"><b>09</b>Search quality</div>
+              <div class="txt">
+                <h2>Ask in your own words. Get the right tool.</h2>
+                <p class="lead">
+                  Bazaar search mixes <b>keywords</b> with <b>meaning</b>, so a question finds the right tool
+                  even when it uses different words than the listing. We test it on 500 listings and 202
+                  questions, and publish the scores.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg
+                    ><span>Better than keyword search alone on every score.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg
+                    ><span>Filters always hold: 0 results over your price, network or type.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="8" />
+                      <path d="M12 8v4l3 2" /></svg
+                    ><span>About 5 ms per search. Any drop in quality fails our build.</span>
+                  </li>
+                </ul>
+                <a class="more" href="https://docs.rail402.dev/reference/search-evaluation"
+                  >Read the evaluation →</a
+                >
+              </div>
+              <div class="vis">
+                <div class="bars" aria-label="Search scores, keyword search compared with Rail402 search">
+                  <div class="legend"><span>keywords only</span><span class="h">Rail402 search</span></div>
+                  <div class="bar-row">
+                    <h5>Top 10 ranking · nDCG@10<b>0.677 → 0.742</b></h5>
+                    <div class="bt b"><i class="u-w677"></i></div>
+                    <div class="bt h"><i data-w="q0"></i></div>
+                  </div>
+                  <div class="bar-row">
+                    <h5>Found in top 20 · Recall@20<b>0.821 → 0.897</b></h5>
+                    <div class="bt b"><i class="u-w821"></i></div>
+                    <div class="bt h"><i data-w="q1"></i></div>
+                  </div>
+                  <div class="bar-row">
+                    <h5>Right answer first · P@1<b>0.741 → 0.815</b></h5>
+                    <div class="bt b"><i class="u-w741"></i></div>
+                    <div class="bt h"><i data-w="q2"></i></div>
+                  </div>
+                  <div class="bar-row">
+                    <h5>First right answer · MRR<b>0.823 → 0.881</b></h5>
+                    <div class="bt b"><i class="u-w823"></i></div>
+                    <div class="bt h"><i data-w="q3"></i></div>
+                  </div>
+                </div>
+                <div class="trio">
+                  <div><b>500</b><span>listings in the test</span></div>
+                  <div><b>202</b><span>questions, scored</span></div>
+                  <div><b>0</b><span>filter violations</span></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec dark" data-theme="dark" id="agents">
+              <div class="label"><b>10</b>For AI agents</div>
+              <div class="txt">
+                <h2>Give your agent pocket money.</h2>
+                <p class="lead">
+                  Add the Rail402 <b>MCP server</b> to Claude, Cursor or any MCP app. Your agent searches the
+                  Bazaar, pays for the tool it needs and keeps the receipt, even for tools it was never told
+                  about.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 0 1 16 0M12 16l4-5" /></svg
+                    ><span>Caps per call and per day, checked before anything is signed.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="M12 3 20 7v6c0 4-3 7-8 8-5-1-8-4-8-8V7z" /></svg
+                    ><span
+                      >On mainnet it pays only verified sellers, and asks you before its first payment.</span
+                    >
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="8" cy="12" r="4" />
+                      <path d="M12 12h9M18 12v3" /></svg
+                    ><span>The wallet key stays in a file. The model never sees it.</span>
+                  </li>
+                </ul>
+                <a class="more" href="https://docs.rail402.dev/agents/mcp-server">Set up the MCP server →</a>
+              </div>
+              <div class="vis">
+                <section class="chat" aria-label="An agent paying for an API">
+                  <div class="chat-top">
+                    <i></i><i></i><i></i>&nbsp; agent session<span>rail402-mcp</span>
+                  </div>
+                  <div class="msg on" data-cls="m0">
+                    <div class="me">What's the weather in Istanbul right now?</div>
+                  </div>
+                  <div class="msg on" data-cls="m1">
+                    <div class="tool">
+                      <span class="tool-name">search_stellar_resources</span
+                      ><span class="arg">query: <b>"current weather for a city"</b></span>
+                    </div>
+                  </div>
+                  <div class="msg on" data-cls="m2">
+                    <div class="tool">
+                      <span class="tool-name">pay_and_call</span
+                      ><span class="arg">Current weather for a city · <b>0.001 USDC</b></span>
+                    </div>
+                  </div>
+                  <div class="msg on" data-cls="m3">
+                    <div class="rcpt">
+                      <span class="top"><span>paid · settled on Stellar</span><span>0.001 USDC</span></span
+                      ><span
+                        >receipt
+                        <a
+                          href="https://explorer.rail402.dev/testnet/tx/b6f035f9948c43519bcf438e2bba4cee60c08be1eed730974eb78915748075af"
+                          >b6f035f9…75af</a
+                        ></span
+                      ><span>budget left 0.999 of 1 USDC</span>
+                    </div>
+                  </div>
+                  <div class="msg on" data-cls="m4">
+                    <div class="bot">It's <b>21°</b> and sunny in Istanbul.</div>
+                  </div>
+                </section>
+              </div>
+            </section>
+
+            <section class="sec flip" id="budgets">
+              <div class="label"><b>11</b>Agent budgets</div>
+              <div class="txt">
+                <h2>Give every agent a wallet with rules.</h2>
+                <p class="lead">
+                  An agent can pay from a plain key, or from a <b>smart account</b> with a budget written into
+                  it. Then the account itself refuses anything over the limit, so even a leaked agent key
+                  can't spend more than you allowed.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>Payments inside the budget settle as usual.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>A payment over what's left is refused, and nothing moves.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>The agent's key can't switch to a rule without the budget.</span>
+                  </li>
+                </ul>
+                <p class="lead u-note">
+                  Works with OpenZeppelin smart accounts. Our budget policy is an example in the repository,
+                  proven by tests on testnet.
+                </p>
+                <a class="more" href="https://docs.rail402.dev/facilitator/upto#smart-accounts"
+                  >Smart accounts and budgets →</a
+                >
+              </div>
+              <div class="vis">
+                <div class="budget" aria-label="An agent's budget">
+                  <div class="bud-top"><span>agent budget · C…</span><span>limit 1.00 USDC</span></div>
+                  <div class="bud-num u-mt10">
+                    <span data-text="bleft">0.20</span><small> USDC left</small>
+                  </div>
+                  <div class="bud-bar"><i data-w="bw"></i></div>
+                  <div class="bud-foot">
+                    <span>spent <span data-text="bspent">0.80</span></span
+                    ><span>1.00</span>
+                  </div>
+                  <div class="pays">
+                    <div class="evr good on" data-cls="b0"><b>PAID</b><span>forecast · 0.25 USDC</span></div>
+                    <div class="evr good on" data-cls="b1"><b>PAID</b><span>translate · 0.25 USDC</span></div>
+                    <div class="evr good on" data-cls="b2"><b>PAID</b><span>sketch · 0.30 USDC</span></div>
+                    <div class="evr bad on" data-cls="b3">
+                      <b>REFUSED</b><span>0.40 USDC &gt; 0.20 left · nothing moved</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec">
+              <div class="label"><b>12</b>Playground</div>
+              <div class="txt">
+                <h2>Try it in your browser. No install.</h2>
+                <p class="lead">
+                  The <b>Playground</b> makes a test wallet for you with free test USDC on Stellar's testnet.
+                  Make a real payment and watch every message, signature and transaction, from the 402 to the
+                  receipt.
+                </p>
+                <div>
+                  <a class="btn btn-orange" href="https://playground.rail402.dev">Open the Playground</a>
+                </div>
+              </div>
+              <div class="vis">
+                <div class="browser">
+                  <div class="bar"><i></i><i></i><i></i><span class="url">playground.rail402.dev</span></div>
+                  <div class="pg">
+                    <div class="pg-step done" data-cls="p0">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="6" width="18" height="13" rx="2" />
+                        <path d="M3 10h18M16 14h2" /></svg
+                      ><b>A wallet, made for you</b><span>1 test USDC, free</span>
+                    </div>
+                    <div class="pg-step done" data-cls="p1">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m20 20-4-4" /></svg
+                      ><b>Pick something</b><span>from the Bazaar</span>
+                    </div>
+                    <div class="pg-step done" data-cls="p2">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 18c3-6 5-8 7-6s-1 6 2 5 4-7 7-6" /></svg
+                      ><b>Sign and pay</b><span>see every message</span>
+                    </div>
+                    <div class="pg-step done" data-cls="p3">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L19 7" /></svg
+                      ><b>Open the receipt</b><span>a real transaction</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec dark flip" data-theme="dark" id="explorer">
+              <div class="label"><b>13</b>Explorer</div>
+              <div class="txt">
+                <h2>Every x402 payment on Stellar, in one place.</h2>
+                <p class="lead">
+                  The <b>Explorer</b> shows x402 payments on mainnet and testnet: who paid whom, how much,
+                  with which scheme and through which facilitator. Paste a transaction hash and see the whole
+                  payment.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="M12 3 20 7v6c0 4-3 7-8 8-5-1-8-4-8-8V7z" /></svg
+                    ><span>Every ledger is checked against its own hashes before it is shown.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg
+                    ><span>The Ecosystem Report counts payments across facilitators.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24">
+                      <path d="M4 4v6h6M20 20v-6h-6M5 15a7 7 0 0 0 13 2M19 9A7 7 0 0 0 6 7" /></svg
+                    ><span>Anyone can rebuild it from public ledgers. Nothing to take on trust.</span>
+                  </li>
+                </ul>
+                <a class="more" href="https://explorer.rail402.dev">Open the Explorer →</a>
+              </div>
+              <div class="vis">
+                <div class="ex">
+                  <div class="bar"><i></i><i></i><i></i><span class="url">explorer.rail402.dev</span></div>
+                  <div class="ex-q">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-4-4" /></svg
+                    ><span
+                      ><span data-text="hash">b6f035f9948c43519bcf438e2bba4cee60c08be1…</span
+                      ><span class="caret"></span
+                    ></span>
+                  </div>
+                  <div class="ex-card on" data-cls="exc">
+                    <div class="row">
+                      <span>scheme</span><span class="r4-badge" data-scheme="exact">exact</span>
+                    </div>
+                    <div class="row"><span>paid</span><span>0.0010000 USDC</span></div>
+                    <div class="row"><span>from → to</span><span>buyer → GBSV…ELYP</span></div>
+                    <div class="row"><span>facilitator</span><span>Rail402 · fee sponsored</span></div>
+                    <div class="row"><span>resource</span><span>demo.rail402.dev/weather</span></div>
+                    <div class="row"><span>ledger</span><span class="ok">✓ hashes verified</span></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec">
+              <div class="label"><b>14</b>Trust and proof</div>
+              <div class="txt">
+                <h2>We never touch the money. You can check.</h2>
+                <p class="lead">
+                  USDC moves from buyer to seller in one Stellar transaction, and Rail402 only pays the fee.
+                  Every payment has a public transaction hash you can check on Stellar yourself.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>Published threat model and operational tests</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>Recorded test runs with real transaction hashes</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>Every refusal has a stable error code you can look up</span>
+                  </li>
+                </ul>
+                <a class="more" href="https://docs.rail402.dev/security/threat-model"
+                  >Read the threat model →</a
+                >
+              </div>
+              <div class="vis">
+                <div class="flowbox" aria-hidden="true">
+                  <div class="feeline"></div>
+                  <span class="feetag">fee only</span>
+                  <div class="wire"></div>
+                  <span class="wire-l">USDC · buyer → seller</span>
+                  <div class="coin"></div>
+                  <div class="node n-r">
+                    <i
+                      ><svg class="u-ink" viewBox="0 0 24 24"><path d="M2 15h7M15 15h7M9 6h6v6H9z" /></svg></i
+                    >Rail402
+                  </div>
+                  <div class="node n-b">
+                    <i
+                      ><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21a8 8 0 0 1 16 0" /></svg></i
+                    >Buyer
+                  </div>
+                  <div class="node n-s">
+                    <i
+                      ><svg viewBox="0 0 24 24"><path d="M4 10h16v10H4zM2 10l3-6h14l3 6" /></svg></i
+                    >Seller
+                  </div>
+                </div>
+                <div class="paper-r" aria-label="A payment receipt">
+                  <div class="row"><span>paid</span><span>0.0010000 USDC</span></div>
+                  <div class="row"><span>to</span><span>GBSV…ELYP</span></div>
+                  <div class="row"><span>network fee</span><span>paid by Rail402</span></div>
+                  <div class="row">
+                    <span>receipt</span
+                    ><span
+                      ><a
+                        href="https://explorer.rail402.dev/testnet/tx/b6f035f9948c43519bcf438e2bba4cee60c08be1eed730974eb78915748075af"
+                        >b6f035f9…75af</a
+                      ></span
+                    >
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec dark flip" data-theme="dark" id="errors">
+              <div class="label"><b>15</b>Clear refusals</div>
+              <div class="txt">
+                <h2>Every "no" comes with a reason.</h2>
+                <p class="lead">
+                  When Rail402 refuses something, it never just says "error". Each code has a fixed name, an
+                  HTTP status, a plain reason and a flag that says whether trying again can work. Tests pin
+                  all of them, so your code can rely on them.
+                </p>
+                <ul class="bul">
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>Branch on the code. Show the reason to people.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>A reason can never be empty.</span>
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 5 5L19 7" /></svg
+                    ><span>A code never changes without a changelog entry.</span>
+                  </li>
+                </ul>
+                <a class="more" href="https://docs.rail402.dev/reference/error-codes">All error codes →</a>
+              </div>
+              <div class="vis">
+                <div class="errc">
+                  <div class="errc-top"><span>POST /verify</span><b>refused</b></div>
+                  <div class="errc-body">
+                    <div class="row">
+                      <span>code</span
+                      ><code
+                        ><span data-text="eCode"
+                          >invalid_exact_stellar_payload_facilitator_is_payer</span
+                        ></code
+                      >
+                    </div>
+                    <div class="row">
+                      <span>status</span><span><span data-text="eStatus">400</span></span>
+                    </div>
+                    <div class="row">
+                      <span>retry?</span
+                      ><span class="no" data-cls="eRetryC"><span data-text="eRetry">no</span></span>
+                    </div>
+                    <div class="row">
+                      <span>reason</span
+                      ><span
+                        ><span data-text="eReason"
+                          >The transfer&#x27;s from address is a facilitator account.</span
+                        ></span
+                      >
+                    </div>
+                  </div>
+                </div>
+                <div class="errn">
+                  <b>315</b><span>codes across the facilitator, Bazaar, search, SDK, MCP server and CLI</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec wide">
+              <div class="label"><b>16</b>Run it your way</div>
+              <div class="build-head">
+                <h2>Use ours, or run your own.</h2>
+                <p>
+                  The same facilitator runs in three ways. Your sellers and buyers don't notice the
+                  difference: they only see a URL.
+                </p>
+              </div>
+              <div class="modes">
+                <div class="mode">
+                  <span class="tagl">hosted</span>
+                  <h3>Point at our URL</h3>
+                  <p>Nothing to run. Free on testnet; mainnet with an API key.</p>
+                  <pre>
+https://testnet.rail402.dev
+https://mainnet.rail402.dev</pre>
+                </div>
+                <div class="mode">
+                  <span class="tagl">docker</span>
+                  <h3>Your own server</h3>
+                  <p>
+                    One command builds the image, funds a testnet sponsor and starts Postgres and the service.
+                  </p>
+                  <pre><b>$</b> ./deploy/docker.sh</pre>
+                </div>
+                <div class="mode">
+                  <span class="tagl">in-process</span>
+                  <h3>Inside your app</h3>
+                  <p>Import the facilitator into your own Node server. No network hop.</p>
+                  <pre><b>$</b> npm i @rail402.dev/facilitator</pre>
+                </div>
+              </div>
+              <h4 class="ops-h">Whichever you pick, you get</h4>
+              <div class="ops">
+                <div>
+                  <span class="pi"
+                    ><svg viewBox="0 0 24 24">
+                      <path d="M4 6h16M4 12h16M4 18h16" />
+                      <circle cx="9" cy="6" r="2" />
+                      <circle cx="15" cy="12" r="2" />
+                      <circle cx="7" cy="18" r="2" /></svg></span
+                  ><b>You choose what it accepts</b>
+                  <p>
+                    Turn testnet and mainnet on or off, and list the tokens you take. USDC is the default.
+                  </p>
+                </div>
+                <div>
+                  <span class="pi"
+                    ><svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 0 1 16 0M12 16l4-5" /></svg></span
+                  ><b>You set the limits</b>
+                  <p>Fees, rate limits and per-key quotas are settings, never fixed in the code.</p>
+                </div>
+                <div>
+                  <span class="pi"
+                    ><svg viewBox="0 0 24 24">
+                      <rect x="5" y="11" width="14" height="10" rx="2" />
+                      <path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg></span
+                  ><b>Mainnet won't start half-set</b>
+                  <p>
+                    If a mainnet setting is missing or unsafe, the service refuses to start instead of
+                    guessing.
+                  </p>
+                </div>
+                <div>
+                  <span class="pi"
+                    ><svg viewBox="0 0 24 24">
+                      <circle cx="8" cy="12" r="4" />
+                      <path d="M12 12h9M18 12v3" /></svg></span
+                  ><b>Keys stay in files</b>
+                  <p>Secret keys are read from files on your machine, not pasted into settings or logs.</p>
+                </div>
+                <div>
+                  <span class="pi"
+                    ><svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4" /></svg></span
+                  ><b>Easy to watch</b>
+                  <p>Built-in health, readiness and metrics pages for your monitoring.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec wide" id="toolkit">
+              <div class="label"><b>17</b>The toolkit</div>
+              <div class="build-head">
+                <h2>Everything ships on npm.</h2>
+                <p>Open source under Apache-2.0, version 0.5.1. Take one package, or the whole rail.</p>
+              </div>
+              <div class="term" aria-hidden="true">
+                <b>$</b
+                ><span
+                  >npm i @rail402.dev/<span data-text="pkg">errors</span><span class="caret"></span
+                ></span>
+              </div>
+              <div class="doors">
+                <div class="door" data-cls="d0">
+                  <em>the front door</em>
+                  <h3>sdk</h3>
+                  <p>Pay, search and sell from your code. Every payment needs a spending cap.</p>
+                  <a href="https://www.npmjs.com/package/@rail402.dev/sdk">npm →</a>
+                </div>
+                <div class="door" data-cls="d1">
+                  <em>the terminal</em>
+                  <h3>cli</h3>
+                  <p>Make a wallet, search the Bazaar and buy, right from your terminal.</p>
+                  <a href="https://www.npmjs.com/package/@rail402.dev/cli">npm →</a>
+                </div>
+                <div class="door" data-cls="d2">
+                  <em>for agents</em>
+                  <h3>mcp</h3>
+                  <p>Lets Claude, Cursor or any MCP app search and pay under a cap.</p>
+                  <a href="https://www.npmjs.com/package/@rail402.dev/mcp">npm →</a>
+                </div>
+                <div class="door" data-cls="d3">
+                  <em>the engine</em>
+                  <h3>facilitator</h3>
+                  <p>Verify and settle payments, as a service or inside your server.</p>
+                  <a href="https://www.npmjs.com/package/@rail402.dev/facilitator">npm →</a>
+                </div>
+                <div class="door" data-cls="d4">
+                  <em>the catalog</em>
+                  <h3>bazaar</h3>
+                  <p>Listings that appear after a sale, with integrity checks.</p>
+                  <a href="https://www.npmjs.com/package/@rail402.dev/bazaar">npm →</a>
+                </div>
+                <div class="door" data-cls="d5">
+                  <em>metered</em>
+                  <h3>upto</h3>
+                  <p>The upto scheme: buyer, seller and facilitator sides.</p>
+                  <a href="https://www.npmjs.com/package/@rail402.dev/upto">npm →</a>
+                </div>
+                <div class="door on" data-cls="d6">
+                  <em>the contract</em>
+                  <h3>errors</h3>
+                  <p>Every code and reason, shared by all of Rail402.</p>
+                  <a href="https://www.npmjs.com/package/@rail402.dev/errors">npm →</a>
+                </div>
+                <div class="door also">
+                  <em>also</em>
+                  <p>stellar · search · safe-fetch · store-postgres · x402-index</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec wide dark" data-theme="dark" id="build">
+              <div class="label"><b>18</b>Start building</div>
+              <div class="build-head">
+                <h2>Pick your side of the payment.</h2>
+                <p>
+                  Live on Stellar mainnet, free on testnet. Use our hosted facilitator or run your own:
+                  nothing depends on us.
+                </p>
+              </div>
+              <div class="paths">
+                <div class="path">
+                  <span class="pi"
+                    ><svg viewBox="0 0 24 24"><path d="M4 10h16v10H4zM2 10l3-6h14l3 6" /></svg
+                  ></span>
+                  <h3>Sell an API</h3>
+                  <p>Add one middleware, name a price, get paid per call.</p>
+                  <pre><b>$</b> npm i @x402/express @x402/stellar</pre>
+                  <a href="https://docs.rail402.dev/quickstart/sellers">Seller quickstart →</a>
+                </div>
+                <div class="path">
+                  <span class="pi"
+                    ><svg viewBox="0 0 24 24">
+                      <circle cx="12" cy="8" r="4" />
+                      <path d="M4 21a8 8 0 0 1 16 0" /></svg
+                  ></span>
+                  <h3>Pay as a buyer or agent</h3>
+                  <p>Find and pay any listing from your terminal or code.</p>
+                  <pre><b>$</b> npm i -g @rail402.dev/cli
+<b>$</b> rail402 purchase "current weather"</pre>
+                  <a href="https://docs.rail402.dev/agents/cli">CLI and SDK →</a>
+                </div>
+                <div class="path">
+                  <span class="pi"
+                    ><svg viewBox="0 0 24 24">
+                      <rect x="3" y="4" width="18" height="7" rx="2" />
+                      <rect x="3" y="13" width="18" height="7" rx="2" />
+                      <path d="M7 7.5h.01M7 16.5h.01" /></svg
+                  ></span>
+                  <h3>Give your agent a wallet</h3>
+                  <p>Add the MCP server to Claude, Cursor or any MCP app.</p>
+                  <pre><b>$</b> npm i -g @rail402.dev/mcp</pre>
+                  <a href="https://docs.rail402.dev/agents/mcp-server">MCP server →</a>
+                </div>
+              </div>
+              <div class="nets">
+                <div class="net">
+                  <span class="live"></span
+                  ><span><b>Mainnet</b><small>mainnet.rail402.dev · API key</small></span>
+                </div>
+                <div class="net">
+                  <span class="live"></span
+                  ><span><b>Testnet</b><small>testnet.rail402.dev · free, no key</small></span>
+                </div>
+                <div class="net">
+                  <span class="live u-brand"></span
+                  ><span><b>Open source</b><small>Apache-2.0 · github.com/tolgayayci/rail402</small></span>
+                </div>
+              </div>
+            </section>
+
+            <section class="end">
+              <div>
+                <h2>Ask. Pay. Get the answer.</h2>
+                <p>Start on testnet for free, then switch to mainnet when you're ready.</p>
+              </div>
+              <div class="row">
+                <a class="btn dk" href="https://docs.rail402.dev"
+                  ><svg class="bi" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M9 8h6" /></svg
+                  >Read the docs</a
+                ><a class="btn lt" href="https://github.com/tolgayayci/rail402"
+                  ><svg class="bi bi-fill" viewBox="0 0 16 16" aria-hidden="true">
+                    <path
+                      d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+                    /></svg
+                  >GitHub</a
+                >
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        <div class="wrap">
+          <div class="foot">
+            <img src="design/logos/rail402-logo.svg" alt="Rail402" />
+            <span>x402 payments and discovery for Stellar</span>
+            <nav aria-label="Footer">
+              <a href="https://playground.rail402.dev">Playground</a
+              ><a href="https://explorer.rail402.dev">Explorer</a
+              ><a href="https://explorer.rail402.dev/services">Bazaar</a
+              ><a href="https://status.rail402.dev">Status</a>
+            </nav>
+            <div class="foot-btns">
+              <a class="btn btn-s btn-ghost" href="https://docs.rail402.dev"
+                ><svg class="bi" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M9 8h6" /></svg
+                >Read the docs</a
+              ><a class="btn btn-s btn-main" href="https://github.com/tolgayayci/rail402"
+                ><svg class="bi bi-fill" viewBox="0 0 16 16" aria-hidden="true">
+                  <path
+                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+                  /></svg
+                >GitHub</a
+              >
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

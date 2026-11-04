@@ -56,6 +56,20 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   {
+    // The landing page's script: a classic script in browsers.
+    files: ["deploy/landing/site/*.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: {
+        CSS: "readonly",
+        IntersectionObserver: "readonly",
+        document: "readonly",
+        setInterval: "readonly",
+        window: "readonly",
+      },
+    },
+  },
+  {
     files: [
       "tools/**/*.ts",
       "examples/**/*.ts",
