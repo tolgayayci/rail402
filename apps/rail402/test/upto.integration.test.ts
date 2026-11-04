@@ -283,7 +283,9 @@ describe.skipIf(!available)("upto through the Rail402 service", () => {
       await db.destroy();
       await dropServiceSchema(schema);
     }
-  }, 300_000);
+    // About a minute alone; its network polls run one after another, and under the whole suite's load
+    // on a shared runner they have taken past 300 s.
+  }, 600_000);
 
   it("never catalogs an off-chain zero settlement", async () => {
     const offchain = await startService(net, usdc, {
