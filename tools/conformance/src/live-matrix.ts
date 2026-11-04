@@ -733,12 +733,14 @@ async function exactCases(seller: Keypair) {
       };
 
       const estimate = await getEstimatedLedgerCloseTimeSeconds(NETWORK);
-      const short = await stock(10);
+      // Short enough to wait out, long enough that a verification over a slow RPC answers inside it.
+      const window = 30;
+      const short = await stock(window);
       // The client read the latest ledger somewhere between `before` and `after`.
-      const offset = Math.ceil(10 / estimate);
+      const offset = Math.ceil(window / estimate);
       ok(
         short.expiration >= short.before + offset && short.expiration <= short.after + offset,
-        `expiration ${short.expiration} is not latest + ceil(10 / ${estimate}) (latest ${short.before}–${short.after})`,
+        `expiration ${short.expiration} is not latest + ceil(${window} / ${estimate}) (latest ${short.before}–${short.after})`,
       );
       const verified = await verify(short.payload, short.requirements);
       deepStrictEqual(verified.body, { isValid: true, payer: payerH.publicKey() });
