@@ -238,8 +238,14 @@ let treasury: Funder;
 const balance = (holder: string) => net.tokenBalance(USDC_ADDRESS, holder);
 
 /** A signed exact payment in USDC, built the way the stock client builds it. */
-const pay = async (payer: Keypair, payTo: string, amount: bigint, expirationLedger?: number) => {
-  const requirements = requirementsOn(NETWORK, USDC_ADDRESS, payTo, amount);
+const pay = async (
+  payer: Keypair,
+  payTo: string,
+  amount: bigint,
+  expirationLedger?: number,
+  maxTimeoutSeconds?: number,
+) => {
+  const requirements = requirementsOn(NETWORK, USDC_ADDRESS, payTo, amount, maxTimeoutSeconds);
   const payload = await net.payment(
     payer,
     requirements,
@@ -553,7 +559,9 @@ async function exactCases(seller: Keypair) {
     "a settled authorization in a new envelope is refused; verify names the replay",
     ["idempotency", "rejection-codes"],
     async () => {
-      const { payload, requirements } = await pay(payerD, seller.publicKey(), 1_000_000n);
+      // The longest window the service accepts: the replay must reach the nonce check while the
+      // authorization is still live, however slowly the settlement and its proof answer.
+      const { payload, requirements } = await pay(payerD, seller.publicKey(), 1_000_000n, undefined, 300);
       await settleAndProve(payload, requirements, payerD.publicKey());
       const before = await balance(payerD.publicKey());
       const original = TransactionBuilder.fromXDR(payload.payload.transaction, net.passphrase) as Transaction;
@@ -770,10 +778,12 @@ async function exactCases(seller: Keypair) {
     "a repeat after the authorization expired returns the original success and moves nothing",
     ["idempotency", "expiration"],
     async () => {
-      const expiration = (await net.latestLedger()) + 6;
+      // Short enough to wait out, long enough that building and settling the payment over a slow RPC
+      // still leaves the facilitator's minimum margin.
+      const expiration = (await net.latestLedger()) + 12;
       const { payload, requirements } = await pay(payerJ, seller.publicKey(), 1_000_000n, expiration);
       const { hash } = await settleAndProve(payload, requirements, payerJ.publicKey());
-      const deadline = Date.now() + 120_000;
+      const deadline = Date.now() + 180_000;
       while ((await net.latestLedger()) <= expiration) {
         if (Date.now() > deadline) throw new Error("the network did not pass the expiration ledger in time");
         await new Promise((resolve) => setTimeout(resolve, 1_000));
