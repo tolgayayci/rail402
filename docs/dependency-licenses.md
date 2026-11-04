@@ -19,7 +19,7 @@ exceptions flagged below. The policy is enforced on every CI run by `pnpm licens
 | --------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | Service (the container image)                                                                                                                 | 93       |
 | Outside the service: the published agent packages (SDK, MCP server, CLI, upto, safe-fetch) and workspace tools (conformance runs, evaluation) | 106      |
-| Development only (build, lint, test)                                                                                                          | 173      |
+| Development only (build, lint, test)                                                                                                          | 174      |
 | Contract contracts/stellar/upto (Rust)                                                                                                        | 216      |
 | Contract contracts/testing/approve-spending-limit (Rust)                                                                                      | 218      |
 | Contract contracts/testing/composition (Rust)                                                                                                 | 216      |
@@ -67,7 +67,7 @@ Dual or compound licences (a permissive branch is always available):
 | Package                         | Version | Licence      |
 | ------------------------------- | ------- | ------------ |
 | @adraffy/ens-normalize          | 1.11.1  | MIT          |
-| @hono/node-server               | 2.1.1   | MIT          |
+| @hono/node-server               | 2.1.3   | MIT          |
 | @noble/ciphers                  | 1.3.0   | MIT          |
 | @noble/curves                   | 1.9.1   | MIT          |
 | @noble/curves                   | 1.9.7   | MIT          |
@@ -111,9 +111,9 @@ Dual or compound licences (a permissive branch is always available):
 | eventsource-parser              | 3.1.1   | MIT          |
 | eventsource                     | 4.1.1   | MIT          |
 | fast-deep-equal                 | 3.1.3   | MIT          |
-| fast-uri                        | 3.1.8   | BSD-3-Clause |
+| fast-uri                        | 3.1.9   | BSD-3-Clause |
 | feaxios                         | 0.0.23  | MIT          |
-| follow-redirects                | 1.16.1  | MIT          |
+| follow-redirects                | 1.16.2  | MIT          |
 | form-data                       | 4.0.6   | MIT          |
 | function-bind                   | 1.1.2   | MIT          |
 | get-intrinsic                   | 1.3.0   | MIT          |
@@ -179,9 +179,9 @@ Dual or compound licences (a permissive branch is always available):
 | Apache-2.0    | 18       |
 | BSD-2-Clause  | 7        |
 | ISC           | 3        |
+| BlueOak-1.0.0 | 2        |
 | BSD-3-Clause  | 2        |
 | MPL-2.0       | 2        |
-| BlueOak-1.0.0 | 1        |
 
 ## Contract dependencies (Rust)
 
