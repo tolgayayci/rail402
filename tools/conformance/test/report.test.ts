@@ -20,11 +20,12 @@ import { HOSTED_BAZAAR_NOT_APPLICABLE } from "../src/upstream-e2e-output.ts";
 import { loadDeploymentRecord, renderDeploymentRecord, renderDeployments } from "../src/render-deployment.ts";
 
 describe("generated pages", () => {
+  // Rendering every page reads all the evidence and formats each page: seconds on a loaded runner.
   it("are up to date with the committed evidence (run `pnpm report` after changing either)", async () => {
     for (const file of await renderAll()) {
       expect(file.current, `${file.path} is out of date; run pnpm report`).toBe(file.rendered);
     }
-  });
+  }, 30_000);
 
   it("covers every page that carries generated blocks", () => {
     const marked = readdirSync(join(REPO_ROOT, "docs"), { recursive: true, encoding: "utf8" })
