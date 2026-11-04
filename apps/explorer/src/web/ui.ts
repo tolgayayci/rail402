@@ -1,4 +1,4 @@
-import { SCRIPT, STYLESHEET } from "./assets.ts";
+import { FAVICON_HREF, SCRIPT, STYLESHEET } from "./assets.ts";
 import { h, type Child, type Node } from "./components.ts";
 import { groupThousands, type NetworkView } from "./format.ts";
 import { inlineStylesheet } from "./inline-style.ts";
@@ -198,7 +198,7 @@ export function page(shell: PageShell, ...content: Child[]): string {
       interactive
         ? [
             h("link", { rel: "stylesheet", href: STYLESHEET.path }),
-            h("link", { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" }),
+            h("link", { rel: "icon", href: FAVICON_HREF, type: "image/svg+xml" }),
             h("script", { src: SCRIPT.path, defer: true }),
           ]
         : h("style", null, inlineStylesheet()),

@@ -195,11 +195,14 @@ document.querySelectorAll("form[data-suggest]").forEach(function (form) {
 });
 `;
 
-const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#ff4d00"/><path d="M9 23V9h8a4.5 4.5 0 0 1 0 9H9m7 0 6 5" stroke="#111" stroke-width="3" fill="none"/></svg>`;
+/** The Rail402 mark (the design system's rail402-mark.svg), as the Playground and the header draw it. */
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Rail402"><rect width="64" height="64" fill="#FF4D00"/><rect x="0" y="38" width="24" height="8" fill="#111111"/><rect x="40" y="38" width="24" height="8" fill="#111111"/><rect x="24" y="18" width="16" height="16" fill="#111111"/></svg>`;
 
 export const STYLESHEET = hashed("explorer", "css", CSS.trim(), "text/css; charset=utf-8");
 export const SCRIPT = hashed("explorer", "js", JS.trim(), "text/javascript; charset=utf-8");
 export const FAVICON_ASSET: Asset = { path: "/favicon.svg", body: FAVICON, type: "image/svg+xml" };
+/** The favicon link of the pages: versioned by content, so browsers drop a cached older mark. */
+export const FAVICON_HREF = `${FAVICON_ASSET.path}?v=${createHash("sha256").update(FAVICON).digest("hex").slice(0, 12)}`;
 export const ASSETS: readonly Asset[] = [STYLESHEET, SCRIPT, FONTS.head, FONTS.sans, FONTS.mono];
 export const LICENCE_ASSETS: readonly Asset[] = FONT_FAMILIES.map((entry) => entry.licence);
 
