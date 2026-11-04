@@ -1,260 +1,177 @@
-import type { SettlementRow } from "@rail402.dev/x402-index";
+import type { RegistrySnapshot, SettlementRow } from "@rail402.dev/x402-index";
 import type { Answer, Listing, ListingVersion, UsageAnswer } from "../bazaar.ts";
+import { amountText, h, type Child, type Node } from "../components.ts";
+import { ago, baseAccount, dayLabel, decimalAmount, groupThousands, shortHash, shortKey } from "../format.ts";
+import { displayText, safeHttpsUrl } from "../text.ts";
 import {
-  amountText,
-  badge,
-  body,
-  copyButton,
-  h,
-  layout,
-  monogram,
-  note,
+  actionLink,
+  bdg,
+  card,
+  checks,
+  copyAction,
+  copyMini,
+  empty,
+  facPill,
+  kv,
+  miniCard,
+  networkPill,
+  page,
   pageHead,
-  panel,
-  rows,
-  row,
-  shortAddress,
-  stat,
-  table,
-  txLink,
-  type Child,
-} from "../components.ts";
-import { ago, day, decimalAmount, groupThousands, shortKey } from "../format.ts";
-import { displayText } from "../text.ts";
-import { listingPrice, verifiedAsset, type PageContext } from "./context.ts";
+  payRow,
+  schemePill,
+  tile,
+} from "../ui.ts";
+import { verifiedAsset, type PageContext } from "./context.ts";
+import { shortName } from "./facilitators.ts";
+import {
+  hostOf,
+  listingIcon,
+  listingName,
+  listingWhere,
+  priceText,
+  trustBadge,
+  typeLabel,
+  type Entry,
+} from "./services.ts";
 
 export interface ResourceModel {
   readonly listing: Listing;
   readonly usage: UsageAnswer;
   readonly versions: Answer<readonly ListingVersion[]>;
-  /** The indexed settlements of the usage's recent transactions. */
+  /** The indexed settlements of the usage's recent transactions that paid the listing's payTo. */
   readonly recent: readonly SettlementRow[];
-  /** The seller's other listings (for its card), and the payments it received on the ledger. */
-  readonly sellerListings: number | undefined;
-  readonly sellerPayments: number | undefined;
+  /** The seller's other listings, with their paid calls when the Bazaar gave them. */
+  readonly more: readonly Entry[];
+  /** How many listings the seller has, this one included; undefined when the Bazaar did not say. */
+  readonly sellerCount: number | undefined;
   readonly sellerName: string;
-}
-
-const MAX_JSON = 4_000;
-
-/** Untrusted JSON as indented text, bounded; nothing in it is ever markup. */
-function json(value: unknown): string {
-  let text: string;
-  try {
-    text = JSON.stringify(value, null, 2);
-  } catch {
-    return "";
-  }
-  return displayText(text.length > MAX_JSON ? `${text.slice(0, MAX_JSON)}\n…` : text, MAX_JSON + 2);
 }
 
 type Json = Record<string, unknown>;
 const isObject = (value: unknown): value is Json =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** A listing's example input as string pairs, by kind (query, path, body, MCP arguments). */
-function examples(
-  listing: Listing,
-): { readonly kind: string; readonly pairs: readonly [string, string][] }[] {
+/** An untrusted example value as short text; nothing in it is ever markup. */
+function valueText(value: unknown, max = 80): string {
+  // JSON.stringify gives undefined for undefined and functions, whatever its declared type says.
+  const json: unknown = typeof value === "string" ? value : JSON.stringify(value);
+  return displayText(typeof json === "string" ? json : "", max);
+}
+
+/** What a call sends: each parameter, whether it is required, and the seller's example value. */
+interface Param {
+  readonly name: string;
+  readonly required: boolean;
+  readonly example: string | undefined;
+}
+
+function callShape(listing: Listing): { readonly sentAs: string; readonly params: readonly Param[] } {
   const input = isObject(listing.input) ? listing.input : {};
+  if (listing.type === "mcp") {
+    const schema = isObject(input["inputSchema"]) ? input["inputSchema"] : {};
+    const properties = isObject(schema["properties"]) ? schema["properties"] : {};
+    const required = Array.isArray(schema["required"]) ? schema["required"] : [];
+    const example = isObject(input["example"])
+      ? input["example"]
+      : isObject(input["arguments"])
+        ? input["arguments"]
+        : {};
+    const names = [...new Set([...Object.keys(properties), ...Object.keys(example)])].slice(0, 12);
+    return {
+      sentAs: "As tool arguments",
+      params: names.map((name) => ({
+        name: displayText(name, 48),
+        required: required.includes(name),
+        example: example[name] === undefined ? undefined : valueText(example[name], 40),
+      })),
+    };
+  }
   const groups: [string, unknown][] = [
     ["path", input["pathParams"]],
     ["query", input["queryParams"]],
     ["body", input["body"]],
-    ["argument", input["arguments"] ?? input["args"]],
   ];
-  return groups.flatMap(([kind, value]) => {
-    if (!isObject(value)) return [];
-    const pairs = Object.entries(value)
-      .slice(0, 20)
-      .map(([key, entry]): [string, string] => [
-        displayText(key, 64),
-        displayText(typeof entry === "string" ? entry : JSON.stringify(entry), 200),
-      ]);
-    return pairs.length === 0 ? [] : [{ kind, pairs }];
-  });
-}
-
-/** The URL a call example uses: the listing's resource with its example path and query filled in. */
-export function exampleUrl(listing: Listing): string {
-  const groups = examples(listing);
-  const path = new Map(groups.find((group) => group.kind === "path")?.pairs ?? []);
-  const query = groups.find((group) => group.kind === "query")?.pairs ?? [];
-  let url = listing.resource.replace(/:([A-Za-z_][A-Za-z0-9_]*)/g, (whole, name: string) =>
-    encodeURIComponent(path.get(name) ?? whole),
+  const params = groups.flatMap(([, value]) =>
+    isObject(value)
+      ? Object.entries(value).map(([name, example]) => ({
+          name: displayText(name, 48),
+          required: true,
+          example: valueText(example, 40),
+        }))
+      : [],
   );
-  if (query.length > 0 && !url.includes("?")) {
-    url += `?${new URLSearchParams(query).toString()}`;
-  }
-  return displayText(url, 1_000);
+  const inBody = isObject(input["body"]) && Object.keys(input["body"]).length > 0;
+  return { sentAs: inBody ? "In the body, as JSON" : "In the address", params: params.slice(0, 12) };
 }
 
-/** A value as one shell word: bare when it holds only safe characters, else single-quoted. */
-export const shellQuote = (value: string) =>
-  /^[A-Za-z0-9._:/=@%+-]+$/.test(value) ? value : `'${value.replaceAll("'", `'"'"'`)}'`;
+const VERSION_WHAT: Readonly<Record<string, string>> = {
+  settlement: "Listed after its first payment",
+  origin_verification: "Service checked",
+  domain_verification: "Domain checked",
+  quarantine: "Withdrawn: the service no longer confirms it",
+};
 
-/** The price in whole units, as `--max` and `maxAmount` take it. */
-function maxAmount(context: PageContext, listing: Listing): string | undefined {
-  return verifiedAsset(context, listing.asset) === undefined
-    ? undefined
-    : decimalAmount(listing.amount).replaceAll(",", "");
-}
-
-/** Copy-paste ways to call a listing: the CLI, TypeScript, the MCP server and the Playground. */
-function callIt(context: PageContext, listing: Listing): Child {
-  const view = context.layout.view;
-  const max = maxAmount(context, listing) ?? "<max>";
-  const code = verifiedAsset(context, listing.asset);
-  const network = view.network;
-  const pubnet = view.slug === "pubnet" ? "--network stellar:pubnet " : "";
-  const args = examples(listing).find((group) => group.kind === "argument")?.pairs ?? [];
-  const argsJson = JSON.stringify(Object.fromEntries(args));
-  const url = exampleUrl(listing);
-  const cli =
-    listing.type === "mcp"
-      ? `rail402 ${pubnet}pay ${shellQuote(listing.resource)} \\\n    --tool ${shellQuote(listing.toolName ?? "")} --args ${shellQuote(argsJson)} \\\n    --max ${shellQuote(max)}`
-      : `rail402 ${pubnet}pay ${shellQuote(url)}${listing.method !== undefined && listing.method !== "GET" ? ` --method ${shellQuote(listing.method)}` : ""} \\\n    --max ${shellQuote(max)}`;
-  const typescript =
-    listing.type === "http" && listing.scheme === "exact" && (listing.method ?? "GET") === "GET"
-      ? [
-          'import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";',
-          'import { createEd25519Signer } from "@x402/stellar";',
-          'import { ExactStellarScheme } from "@x402/stellar/exact/client";',
-          "",
-          `const NETWORK = "${network}";`,
-          "const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {",
-          "  schemes: [{ network: NETWORK, client: new ExactStellarScheme(createEd25519Signer(process.env.BUYER_SECRET!, NETWORK)) }],",
-          "});",
-          `const response = await fetchWithPayment(${JSON.stringify(url)});`,
-          "console.log(response.status, await response.json());",
-        ].join("\n")
-      : [
-          'import { createBuyer } from "@rail402.dev/sdk";',
-          "",
-          `const buyer = await createBuyer({ network: "${network}", signer: { secretFile: "~/.config/rail402/keys/stellar-${view.slug}.key" } });`,
-          listing.type === "mcp"
-            ? `const result = await buyer.pay(\n  { kind: "mcp", url: ${JSON.stringify(listing.resource)}, toolName: ${JSON.stringify(listing.toolName ?? "")}, arguments: ${argsJson} },\n  { maxAmount: { amount: "${max}" } },\n);`
-            : `const result = await buyer.pay(\n  { kind: "http", url: ${JSON.stringify(url)} },\n  { maxAmount: { amount: "${max}" } },\n);`,
-          "console.log(result.payment?.transaction);",
-        ].join("\n");
-  const mcp = JSON.stringify(
+/** The listing's public history as a timeline, newest first. */
+function historyCard(model: ResourceModel): Node {
+  const versions = model.versions.status === "ok" ? [...model.versions.value].reverse().slice(0, 8) : [];
+  return card(
     {
-      tool: "pay_and_call",
-      arguments: {
-        listingId: listing.id,
-        spendingCap: { amount: max },
-        ...(listing.type === "mcp" ? { arguments: Object.fromEntries(args) } : {}),
-      },
+      title: "History",
+      icon: "clock",
+      end:
+        model.listing.version === undefined
+          ? undefined
+          : bdg(`version ${String(model.listing.version)}`, "mut"),
     },
-    null,
-    2,
-  );
-  const tab = (id: string, label: string) =>
-    h("button", { type: "button", role: "tab", "data-tab": id, "aria-selected": "false" }, label);
-  const tabPanel = (id: string, label: string, ...content: Child[]) =>
-    h("div", { class: "tabpanel", role: "tabpanel", "data-panel": id }, h("h3", null, label), ...content);
-  const pays = `Pays ${listing.scheme === "upto" ? "at most " : ""}${code === undefined ? "the listed amount" : `${decimalAmount(listing.amount)} ${code}`} on ${view.label.toLowerCase()}.${listing.feesSponsored === true ? " The facilitator sponsors the fee." : ""}`;
-  return panel(
-    { title: "Call it", id: "call", cls: "dark" },
-    h(
-      "div",
-      { class: "tabs", "data-tabs": "true" },
-      h(
-        "div",
-        { class: "tablist", role: "tablist", "aria-label": "Client", hidden: true },
-        tab("cli", "CLI"),
-        tab("ts", "TypeScript"),
-        tab("mcp", "MCP"),
-        view.slug === "testnet" ? tab("playground", "Playground") : null,
-      ),
-      tabPanel(
-        "cli",
-        "CLI",
-        h("pre", { class: "dark" }, `$ ${cli}`),
-        copyButton(cli.replaceAll("\\\n    ", ""), "command"),
-        h("span", { class: "small" }, pays),
-      ),
-      tabPanel("ts", "TypeScript", h("pre", { class: "dark" }, typescript), copyButton(typescript, "code")),
-      tabPanel(
-        "mcp",
-        "MCP",
-        h("pre", { class: "dark" }, mcp),
-        h(
-          "span",
-          { class: "small" },
-          "The rail402-mcp server's pay_and_call tool, bound to this listing and its owner.",
-        ),
-      ),
-      view.slug === "testnet"
-        ? tabPanel(
-            "playground",
-            "Playground",
-            h(
-              "p",
-              { class: "small" },
-              "Pay it step by step in the browser, with a throwaway testnet account: ",
-              h(
-                "a",
-                { href: "https://playground.rail402.dev", rel: "noopener noreferrer" },
-                "playground.rail402.dev",
-              ),
-              ".",
-            ),
-          )
-        : null,
-    ),
-  );
-}
-
-/** The listing's public version history, newest first. */
-function historyPanel(context: PageContext, model: ResourceModel): Child {
-  const view = context.layout.view;
-  const versions = model.versions.status === "ok" ? [...model.versions.value].reverse() : [];
-  return panel(
-    { title: "Listing history", id: "history" },
     versions.length === 0
-      ? h(
-          "p",
-          { class: "empty" },
-          model.versions.status === "down" ? "The Bazaar did not answer." : "No public history.",
-        )
+      ? empty(model.versions.status === "down" ? "The Bazaar did not answer" : "No public history")
       : h(
           "ol",
-          { class: "history" },
-          versions
-            .slice(0, 12)
-            .map((version) =>
+          { class: "tl" },
+          versions.map((version, i) =>
+            h(
+              "li",
+              {
+                class:
+                  [version.state === "published" ? "" : "warn", i === 0 ? "now" : ""].join(" ").trim() ||
+                  undefined,
+              },
+              h("span", { class: "dot" }),
               h(
-                "li",
+                "span",
                 null,
                 h(
-                  "svg",
-                  { viewBox: "0 0 10 10", "aria-hidden": "true" },
-                  h("rect", { x: 0, y: 0, width: 10, height: 10 }),
+                  "b",
+                  null,
+                  VERSION_WHAT[version.cause] ?? displayText(version.cause, 40).replaceAll("_", " "),
                 ),
                 h(
-                  "div",
-                  { class: "cell" },
-                  h(
-                    "span",
-                    { class: "strong" },
-                    `${version.version === model.listing.version ? "Current version" : "Version"} ${String(version.version)}`,
-                  ),
-                  h(
-                    "span",
-                    { class: "small muted" },
-                    `${day(version.createdAt)} · ${displayText(version.cause, 40).replaceAll("_", " ")} · ${displayText(version.trust, 32).replaceAll("_", " ")}${version.state === "published" ? "" : ` · ${displayText(version.state, 24)}`}`,
-                  ),
-                  version.transaction === undefined
-                    ? null
-                    : h("span", { class: "small" }, "After payment ", txLink(view, version.transaction)),
+                  "small",
+                  null,
+                  `v${String(version.version)} · ${dayLabel(version.createdAt.slice(0, 10))} · ${displayText(version.trust, 32).replaceAll("_", " ")}`,
                 ),
               ),
             ),
+          ),
         ),
-    note("From the Bazaar's public version history (the first 25 versions)."),
   );
 }
+
+/** The time of the Bazaar's newest check of the service or its domain. */
+function checkedAt(model: ResourceModel): string | undefined {
+  if (model.listing.domainCheck?.checkedAt !== undefined) return model.listing.domainCheck.checkedAt;
+  if (model.versions.status !== "ok") return undefined;
+  return [...model.versions.value]
+    .reverse()
+    .find((version) => version.cause === "origin_verification" || version.cause === "domain_verification")
+    ?.createdAt;
+}
+
+const facilitatorOf = (registry: RegistrySnapshot, row: SettlementRow) => {
+  const id = row.attribution.facilitatorId;
+  const entry = id === null ? undefined : registry.facilitator(id);
+  return entry === undefined ? facPill("Not registered", null) : facPill(shortName(entry), entry.id);
+};
 
 /**
  * A listing the Bazaar does not publish (pending its origin check, or withdrawn): its state, its history
@@ -262,37 +179,40 @@ function historyPanel(context: PageContext, model: ResourceModel): Child {
  * price, no seller and no way to call it.
  */
 function unpublishedPage(context: PageContext, model: ResourceModel): string {
+  const view = context.layout.view;
   const listing = model.listing;
   const state = displayText(listing.state ?? "unknown", 24);
-  return layout(
+  return page(
     {
       ...context.layout,
-      section: "services",
       title: "Unpublished listing",
       path: `/resource/${listing.id}`,
+      section: "bazaar",
       description: "A Rail402 Bazaar listing that is not published.",
     },
-    body(
-      pageHead({ eyebrow: "Bazaar listing" }, [
-        h(
-          "h1",
-          { class: "url" },
-          displayText(
-            listing.type === "mcp" ? (listing.toolName ?? listing.resource) : listing.resource,
-            1_000,
-          ),
-        ),
-        badge(`Not published: ${state}`, "warn"),
-      ]),
+    pageHead({
+      crumbs: [
+        ["Bazaar", `${view.prefix}/services`],
+        ["Unpublished", undefined],
+      ],
+      title: displayText(
+        listing.type === "mcp" ? (listing.toolName ?? listing.resource) : listing.resource,
+        300,
+      ),
+      mono: true,
+      badges: [bdg(`not published: ${state}`, "warn"), networkPill(view)],
+    }),
+    card(
+      { title: "Not published", icon: "alert", cls: "dashed" },
       h(
         "p",
-        { class: "notice", role: "status" },
+        { class: "lede" },
         state === "pending"
-          ? "This listing waits for its resource's own 402 answer to confirm it. Until then the Bazaar does not publish it: its price, payee and description are unconfirmed, so they are not shown and it should not be paid from here."
-          : "The Bazaar withdrew this listing: its resource's own answer no longer confirms it. Its price, payee and description are not shown, and it should not be paid from here.",
+          ? "This listing waits for its service to confirm it. Until then its price, seller and description are unconfirmed: do not pay it from here."
+          : "The Bazaar withdrew this listing: its service no longer confirms it. Its price, seller and description are not shown: do not pay it from here.",
       ),
-      historyPanel(context, model),
     ),
+    h("div", { class: "oc-gap" }, historyCard(model)),
   );
 }
 
@@ -301,293 +221,314 @@ export function resourcePage(context: PageContext, model: ResourceModel): string
     return unpublishedPage(context, model);
   }
   const view = context.layout.view;
+  const p = view.prefix;
   const listing = model.listing;
   const usage = model.usage.status === "ok" ? model.usage.value : undefined;
   const code = verifiedAsset(context, listing.asset);
-  const groups = examples(listing);
+  const name = listingName(listing);
+  const host = hostOf(listing.resource) ?? shortKey(listing.payTo);
+  const sellerHref = `${p}/seller/${baseAccount(listing.payTo)}`;
+  const upto = listing.scheme === "upto";
+  const shape = callShape(listing);
   const output = isObject(listing.output) ? listing.output : undefined;
-  const inputLine =
-    listing.type === "mcp"
-      ? `tools/call ${displayText(listing.toolName ?? "", 128)}`
-      : `${displayText(listing.method ?? "GET", 8)} ${(() => {
-          try {
-            const url = new URL(exampleUrl(listing));
-            return `${url.pathname}${url.search}`;
-          } catch {
-            return exampleUrl(listing);
-          }
-        })()}`;
-  return layout(
-    {
-      ...context.layout,
-      section: "services",
-      title:
-        listing.type === "mcp"
-          ? `${displayText(listing.toolName ?? "", 64)} (MCP tool)`
-          : displayText(listing.resource, 120),
-      path: `/resource/${listing.id}`,
-      description:
-        "A paid resource in the Rail402 Bazaar: price, payment requirements, usage and how to call it.",
-    },
-    body(
-      h(
-        "div",
-        { class: "page-head" },
-        h(
-          "div",
-          { class: "titles" },
-          h(
-            "nav",
-            { class: "eyebrow", "aria-label": "Breadcrumb" },
-            h("a", { href: `${view.prefix}/account/${listing.payTo}` }, model.sellerName.toUpperCase()),
-            " / Listing",
-          ),
-          h(
+  const example = output !== undefined && isObject(output["example"]) ? output["example"] : undefined;
+  const answerKeys = example === undefined ? [] : Object.keys(example).slice(0, 8);
+  const description = listing.description === undefined ? undefined : displayText(listing.description, 600);
+  const domain = listing.trust === "domain_verified";
+  const origin = domain || listing.trust === "origin_verified";
+  const checked = checkedAt(model);
+  const lastAt = usage?.lastObservedAt ?? null;
+  const fresh =
+    lastAt === null
+      ? undefined
+      : context.now - Date.parse(lastAt) <= 86_400_000
+        ? bdg("last 24 h", "ok")
+        : context.now - Date.parse(lastAt) <= 7 * 86_400_000
+          ? bdg("this week", "ok")
+          : bdg("quiet", "mut");
+  const usageNote =
+    model.usage.status === "private"
+      ? bdg("private", "mut", "The seller does not publish this listing's usage")
+      : model.usage.status === "down"
+        ? bdg("not available", "mut")
+        : undefined;
+  const playground = view.slug === "testnet" ? safeHttpsUrl("https://playground.rail402.dev") : undefined;
+
+  const left: Node[] = [
+    card(
+      { title: "How to call", icon: "contract" },
+      kv([
+        [
+          "Address",
+          h("span", { class: "oc-addr" }, displayText(listing.resource, 300)),
+          copyMini(listing.resource, "address"),
+        ],
+        listing.type === "mcp" && listing.toolName !== undefined
+          ? [
+              "Tool",
+              h("span", { class: "r4-badge", "data-scheme": "agent" }, displayText(listing.toolName, 64)),
+            ]
+          : null,
+        listing.type === "http" ? ["Method", displayText(listing.method ?? "GET", 8)] : null,
+        ["Sent as", h("span", { class: "sans" }, shape.sentAs)],
+        shape.params.length === 0
+          ? null
+          : [
+              "Asks for",
+              ...shape.params.map((param) =>
+                bdg(
+                  [
+                    `${param.name}${param.required ? "" : " · optional"}`,
+                    param.example === undefined ? null : h("em", { class: "exv" }, param.example),
+                  ],
+                  param.required ? undefined : "dash",
+                ),
+              ),
+            ],
+        answerKeys.length === 0
+          ? null
+          : [
+              "Answers with",
+              ...answerKeys.map((key) => bdg(displayText(key, 40), "mut")),
+              output?.["type"] === "json" ? bdg("JSON", "dash") : null,
+            ],
+      ]),
+      example === undefined
+        ? null
+        : h(
             "div",
-            { class: "line" },
-            badge(listing.type === "mcp" ? "MCP" : displayText(listing.method ?? "HTTP", 8), "accent"),
+            { class: "exa" },
+            h("h4", null, "Example answer"),
             h(
-              "h1",
-              { class: "url" },
-              listing.type === "mcp"
-                ? displayText(listing.toolName ?? listing.resource, 128)
-                : displayText(listing.resource, 1_000),
+              "dl",
+              { class: "kv4" },
+              answerKeys.map((key) =>
+                h(
+                  "div",
+                  null,
+                  h("dt", null, displayText(key, 40)),
+                  h("dd", null, valueText(example[key], 60)),
+                ),
+              ),
             ),
-            copyButton(listing.resource, "URL"),
           ),
-          listing.type === "mcp"
-            ? h("p", { class: "mono soft" }, displayText(listing.resource, 1_000))
-            : null,
-          listing.description === undefined
-            ? null
-            : h("p", { class: "lede" }, displayText(listing.description, 1_000)),
-          h(
-            "div",
-            { class: "badges" },
-            badge(listing.type),
-            listing.mimeType === undefined ? null : badge(displayText(listing.mimeType, 64)),
-            badge(listing.scheme, listing.scheme === "upto" ? "upto" : "exact"),
-            listing.x402Version === undefined ? null : badge(`x402 v${String(listing.x402Version)}`),
-            listing.state === undefined || listing.state === "published"
-              ? badge(`In the Bazaar · updated ${day(listing.lastUpdated, false)}`, "dark")
-              : badge(`Bazaar state: ${displayText(listing.state, 24)}`, "warn"),
-            listing.trust === undefined
-              ? null
-              : badge(`Trust: ${displayText(listing.trust, 24).replaceAll("_", " ")}`, "grey"),
-          ),
-        ),
-      ),
       listing.contentWithheld === true
         ? h(
             "p",
-            { class: "notice", role: "status" },
-            "Its origin has not confirmed this listing's description, so the Bazaar withholds it.",
+            { class: "oc-note" },
+            "The service has not confirmed this listing's description, so the Bazaar withholds it.",
           )
         : null,
-      h(
-        "section",
-        { class: "panel stats", "aria-label": "Usage" },
-        stat(
-          "Price",
-          listingPrice(context, listing),
-          listing.scheme === "upto" ? "upto: the most a call can cost" : "exact, per call",
-        ),
-        stat(
-          "Payments",
-          usage === undefined ? "—" : groupThousands(usage.payments),
-          model.usage.status === "private"
-            ? "usage private: the seller does not publish it"
-            : usage === undefined
-              ? "usage not published by the Bazaar"
-              : "settled, linked by the Bazaar",
-        ),
-        stat("Distinct payers", usage === undefined ? "—" : groupThousands(usage.payers), "all time"),
-        stat(
-          "Last paid",
-          usage?.lastObservedAt === undefined || usage.lastObservedAt === null
-            ? "—"
-            : ago(usage.lastObservedAt, context.now),
-          usage?.lastObservedAt === undefined || usage.lastObservedAt === null
-            ? ""
-            : day(usage.lastObservedAt),
-        ),
-      ),
-      h(
-        "div",
-        { class: "columns" },
-        h(
-          "div",
-          { class: "wide" },
-          panel(
-            {
-              title: "Payment requirements",
-              id: "requirements",
-              aside: h("span", { class: "aside" }, `accepts · ${view.network}`),
-            },
-            rows(
-              undefined,
-              row("Scheme", h("span", { class: "mono" }, displayText(listing.scheme, 16))),
-              row("Network", h("span", { class: "mono" }, displayText(listing.network, 32))),
-              row(
-                "Amount",
-                h(
-                  "span",
-                  { class: "mono" },
-                  `${listing.amount}${code === undefined ? " atomic units" : ` (${decimalAmount(listing.amount)} ${code})`}`,
-                ),
-              ),
-              row(
-                "Asset",
-                h("span", { class: "mono full" }, displayText(listing.asset, 56)),
-                code === undefined
-                  ? badge("not a verified asset", "custom")
-                  : badge(`${code} · verified`, "ok"),
-              ),
-              row(
-                "Pay to",
-                h(
-                  "a",
-                  { class: "mono full", href: `${view.prefix}/account/${listing.payTo}` },
-                  displayText(listing.payTo, 56),
-                ),
-              ),
-              listing.maxTimeoutSeconds === undefined
-                ? null
-                : row("Max timeout", h("span", { class: "mono" }, `${String(listing.maxTimeoutSeconds)} s`)),
-              row(
-                "Fees",
-                listing.feesSponsored === true ? "Sponsored by the facilitator" : "Not declared as sponsored",
-              ),
-            ),
-            note("As the seller's 402 answer states them, recorded by the Bazaar (off chain)."),
-          ),
-          groups.length === 0 && output === undefined
-            ? null
-            : panel(
-                { title: "Input and output", id: "io" },
-                h(
-                  "div",
-                  { class: "io" },
-                  h(
-                    "div",
-                    null,
-                    h("span", { class: "label" }, "Input"),
-                    h("pre", { class: "code" }, inputLine),
-                    groups.flatMap((group) =>
-                      group.pairs.map(([key, value]) =>
-                        h(
-                          "div",
-                          { class: "kv" },
-                          h("span", null, `${group.kind} · ${key}`),
-                          h("span", null, value),
-                        ),
-                      ),
-                    ),
-                  ),
-                  output === undefined
-                    ? null
-                    : h(
-                        "div",
-                        null,
-                        h(
-                          "span",
-                          { class: "label" },
-                          `Output example${typeof output["type"] === "string" ? ` · ${displayText(output["type"], 16)}` : ""}`,
-                        ),
-                        h("pre", { class: "code" }, json(output["example"] ?? output)),
-                      ),
-                ),
-                note("The seller's own example (Bazaar metadata, untrusted)."),
-              ),
-          panel(
-            {
-              title: "Latest payments for this listing",
-              id: "payments",
-              aside: h(
-                "a",
-                { href: `${view.prefix}/account/${listing.payTo}#payments` },
-                "All the seller's payments",
-              ),
-            },
+    ),
+    card(
+      {
+        title: "Latest payments",
+        icon: "list",
+        link: { href: `${p}/account/${listing.payTo}`, label: "All the seller's payments →" },
+      },
+      model.recent.length === 0
+        ? empty(
             model.usage.status === "down"
-              ? h("p", { class: "empty" }, "The Bazaar did not answer; try again shortly.")
-              : model.recent.length === 0
-                ? h(
-                    "p",
-                    { class: "empty" },
-                    model.usage.status === "private"
-                      ? "Usage private: the Bazaar does not publish the payments linked to this listing."
-                      : usage === undefined
-                        ? "The Bazaar does not publish which payments bought this listing yet."
-                        : usage.recent.length === 0 && usage.payments > 0
-                          ? "This network's Bazaar publishes payment counts only: it links no payment, and no payer, to a listing."
-                          : "No indexed payment is linked to this listing yet.",
-                  )
-                : table(
-                    "narrow",
-                    [
-                      { label: "Payment" },
-                      { label: "Age" },
-                      { label: "Payer" },
-                      { label: "Amount", num: true },
-                    ],
-                    model.recent.map((settlement) =>
-                      h(
-                        "tr",
-                        null,
-                        h("td", null, txLink(view, settlement.txHash)),
-                        h("td", { class: "muted nowrap" }, ago(settlement.closedAt, context.now)),
-                        h("td", null, shortAddress(view, settlement.payer)),
-                        h("td", { class: "num" }, amountText(settlement)),
-                      ),
-                    ),
-                  ),
-            usage === undefined || usage.recent.length === model.recent.length
-              ? null
-              : note(
-                  `${String(usage.recent.length - model.recent.length)} more recent payments the Bazaar linked are not indexed yet.`,
-                ),
-          ),
-        ),
-        h(
-          "aside",
-          { class: "side" },
-          callIt(context, listing),
-          panel(
-            { title: "Seller", id: "seller" },
-            h(
-              "div",
-              { class: "item" },
-              h("span", { class: "avatar small accent", "aria-hidden": "true" }, monogram(model.sellerName)),
-              h(
-                "div",
-                { class: "main" },
-                h(
-                  "a",
-                  { href: `${view.prefix}/account/${listing.payTo}`, class: "strong" },
-                  model.sellerName,
-                ),
-                h(
-                  "span",
-                  { class: "small muted mono" },
-                  [
-                    shortKey(listing.payTo),
-                    model.sellerListings === undefined
-                      ? ""
-                      : `${String(model.sellerListings)} listing${model.sellerListings === 1 ? "" : "s"}`,
-                    model.sellerPayments === undefined
-                      ? ""
-                      : `${groupThousands(model.sellerPayments)} payments`,
-                  ]
-                    .filter((part) => part !== "")
-                    .join(" · "),
-                ),
-              ),
+              ? "The Bazaar did not answer"
+              : model.usage.status === "private"
+                ? "Usage is private"
+                : usage !== undefined && usage.recent.length > 0
+                  ? "Not indexed yet"
+                  : usage !== undefined && usage.payments > 0
+                    ? "Payments are counted only"
+                    : "No payment linked yet",
+            model.usage.status === "private"
+              ? "The seller does not publish which payments bought it."
+              : usage !== undefined && usage.recent.length > 0
+                ? "Its latest payments show here once the index reads their ledgers."
+                : usage !== undefined && usage.payments > 0
+                  ? "This network's Bazaar links no payment, and no payer, to a listing."
+                  : undefined,
+          )
+        : h(
+            "div",
+            { class: "feed2" },
+            model.recent.slice(0, 10).map((row) =>
+              payRow({
+                href: `${p}/tx/${row.txHash}`,
+                hash: shortHash(row.txHash),
+                sub: ago(row.closedAt, context.now),
+                middle: { title: `from ${shortKey(row.payer)}`, sub: "buyer" },
+                amount: amountText(row),
+                badges: [schemePill(row.scheme), facilitatorOf(context.registry, row)],
+              }),
             ),
           ),
-          historyPanel(context, model),
-        ),
+    ),
+  ];
+
+  const right: Node[] = [
+    card(
+      { title: "Price", icon: "tag" },
+      kv([
+        [
+          upto ? "Most per call" : "Per call",
+          h("b", null, priceText(context, listing).replace(/^up to /, "")),
+        ],
+        [
+          "Pricing",
+          schemePill(listing.scheme),
+          h("span", { class: "sans muted" }, upto ? "charged for what you use" : "same price every call"),
+        ],
+        [
+          "Token",
+          code ?? shortKey(displayText(listing.asset, 56)),
+          code === undefined ? bdg("unverified", "warn") : bdg("verified", "ok"),
+        ],
+        [
+          "Network fee",
+          listing.feesSponsored === true
+            ? bdg("paid by facilitator", "ok")
+            : bdg("not declared as sponsored", "mut"),
+        ],
+        listing.maxTimeoutSeconds === undefined
+          ? null
+          : [
+              "Offer valid",
+              listing.maxTimeoutSeconds >= 60
+                ? `${String(Math.round(listing.maxTimeoutSeconds / 60))} min`
+                : `${String(listing.maxTimeoutSeconds)} s`,
+            ],
+      ]),
+    ),
+    card(
+      {
+        title: "Trust",
+        icon: "shield",
+        end: checked === undefined ? undefined : bdg(`checked ${ago(checked, context.now)}`, "mut"),
+      },
+      checks(
+        [
+          { label: "Listed after a real payment", ok: true },
+          { label: "Service confirms this seller", ok: origin },
+          ...(model.listing.domainCheck !== undefined
+            ? [
+                { label: "Domain names this seller", ok: model.listing.domainCheck.claimsOwner },
+                { label: "Seller account names the domain", ok: model.listing.domainCheck.homeDomainMatches },
+              ]
+            : domain
+              ? [
+                  { label: "Domain names this seller", ok: true },
+                  { label: "Seller account names the domain", ok: true },
+                ]
+              : [{ label: "Domain and seller account name each other", ok: false }]),
+        ],
+        "why one",
       ),
     ),
+    historyCard(model),
+  ];
+
+  return page(
+    {
+      ...context.layout,
+      title: name,
+      path: `/resource/${listing.id}`,
+      section: "bazaar",
+      description: "A paid service in the Rail402 Bazaar: price, how to call it, trust and its paid calls.",
+    },
+    pageHead({
+      crumbs: [
+        ["Bazaar", `${p}/services`],
+        [host, sellerHref],
+        [name, undefined],
+      ],
+      title: name,
+      lede: description !== undefined && description !== name ? description : listingWhere(listing),
+      badges: [
+        typeLabel(listing.type),
+        schemePill(listing.scheme),
+        trustBadge(listing.trust),
+        listing.feesSponsored === true ? bdg("fees sponsored", "ok") : null,
+        networkPill(view),
+      ],
+      actions: [
+        copyAction(listing.resource, "Copy address"),
+        ...(playground === undefined
+          ? []
+          : [actionLink(playground, "Try in Playground", "external", true, true)]),
+      ],
+    }),
+    h(
+      "div",
+      { class: "g4" },
+      tile({
+        label: "Price",
+        icon: "tag",
+        value: code === undefined ? listing.amount : decimalAmount(listing.amount),
+        unit: code ?? "units",
+        badges: [bdg(upto ? "most per call" : "per call", "mut")],
+      }),
+      tile({
+        label: "Paid calls",
+        icon: "payments",
+        value: usage === undefined ? "—" : groupThousands(usage.payments),
+        badges:
+          usageNote !== undefined
+            ? [usageNote]
+            : [
+                bdg(
+                  `since ${dayLabel((usage?.firstObservedAt ?? listing.firstCataloged ?? listing.lastUpdated).slice(0, 10))}`,
+                  "mut",
+                ),
+              ],
+      }),
+      tile({
+        label: "Buyers",
+        icon: "user",
+        value: usage === undefined ? "—" : groupThousands(usage.payers),
+        badges:
+          usage === undefined || usage.payers === 0
+            ? usageNote === undefined
+              ? []
+              : [usageNote]
+            : [bdg(`${(usage.payments / usage.payers).toFixed(1)} calls each`, "mut")],
+      }),
+      tile({
+        label: "Last paid",
+        icon: "clock",
+        value: lastAt === null ? "—" : ago(lastAt, context.now),
+        badges: fresh === undefined ? (usageNote === undefined ? [] : [usageNote]) : [fresh],
+      }),
+    ),
+    h(
+      "div",
+      { class: "g21" },
+      h("div", { class: "oc-col" }, ...left),
+      h("div", { class: "oc-col" }, ...right),
+    ),
+    model.more.length === 0
+      ? null
+      : card(
+          {
+            title: `More from ${model.sellerName}`,
+            icon: "bazaar",
+            cls: "oc-gap",
+            end: bdg(shortKey(listing.payTo), "mut"),
+            link: {
+              href: sellerHref,
+              label: model.sellerCount === undefined ? "All →" : `All ${groupThousands(model.sellerCount)} →`,
+            },
+          },
+          h(
+            "div",
+            { class: "g4 oc-more" },
+            model.more
+              .slice(0, 4)
+              .map((entry): Child =>
+                miniCard(
+                  `${p}/resource/${entry.listing.id}`,
+                  listingIcon(entry.listing),
+                  listingName(entry.listing),
+                  `${priceText(context, entry.listing)}${entry.payments === undefined ? "" : ` · ${groupThousands(entry.payments)} paid`}`,
+                ),
+              ),
+          ),
+        ),
   );
 }

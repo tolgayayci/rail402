@@ -1,0 +1,141 @@
+/* Pages b: payments, payment, report, error. */
+
+/* Payments: the account chip that clears the account filter */
+.oa a.oa-b-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+.oa a.oa-b-clear svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.oa .oa-b-list,
+.oa .oa-b-same,
+.oa .chartcard,
+.oa .oa-b-cov {
+  margin-top: 12px;
+}
+.oa .fbar + .oa-b-list {
+  margin-top: 12px;
+}
+
+/* Payment: the unit after the amount, accounts in tiles, sans links in key-value rows */
+.oa .ph2 h1 .oa-b-unit {
+  font: 500 18px/1 var(--font-mono);
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.oa .st .n a.oa-b-key {
+  font: 600 20px/1.4 var(--font-mono);
+  letter-spacing: 0;
+}
+.oa .st .n .cpb {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.oa .oa-b-sans {
+  font-family: var(--font-sans);
+}
+.oa .g4 + .g2.pg2 {
+  margin-top: 12px;
+}
+
+/* Report: dashed apart tile and card, facilitator tones in the legend and tips, coverage stats */
+.oa .st.dashed,
+.oa .card.oa-b-apart {
+  border-style: dashed;
+}
+.x.oa i.c-bs {
+  background: #7a3fe0;
+}
+.x.oa i.c-av {
+  background: #c98a00;
+}
+.x.oa i.c-gen {
+  background: #5f5a54;
+}
+.oa .oa-b-cov .st {
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.oa .oa-b-cov .st .n {
+  font-size: 22px;
+}
+.oa .oa-b-cov .st .n.range {
+  font-size: 18px;
+}
+.oa .oa-b-cov .st .n.ok {
+  color: var(--ok-ink);
+}
+.oa .card h2 .seg a {
+  margin-left: 0;
+  color: var(--muted);
+  font: 600 12px/1 var(--font-sans);
+}
+.oa .card h2 .seg a[aria-current] {
+  color: var(--ink);
+}
+.oa .g3 + .oa-b-cov,
+.oa .g2 + .oa-b-cov {
+  margin-top: 12px;
+}
+
+/* Error and empty states: one card, the reason, where to go next */
+.oa .oa-b-err {
+  margin-top: 28px;
+}
+.oa .nfh h1.oa-b-h {
+  margin: 0;
+  font: 600 22px/1.2 var(--font-head);
+  letter-spacing: -0.02em;
+}
+.oa .nfh > div {
+  min-width: 0;
+  flex: 1;
+}
+.oa .nfh .oa-b-end,
+.oa .nfh > .bdg {
+  margin-left: auto;
+}
+.oa .oa-b-links {
+  margin-top: 0;
+}
+@media (max-width: 600px) {
+  .x.oa .nfh > .bdg,
+  .x.oa .nfh .oa-b-end {
+    margin-left: 50px;
+  }
+  .x.oa .nfh > div {
+    flex: 1 1 calc(100% - 60px);
+  }
+  .x.oa .st .n a.oa-b-key {
+    font-size: 17px;
+  }
+  .x.oa .st .n.oa-b-fee {
+    font-size: 20px;
+  }
+  .x.oa .oa-b-cov .st .n.range {
+    font-size: 15px;
+    white-space: normal;
+  }
+  /* Tile badges wrap instead of being cut */
+  .x.oa .oa-b-tiles .st .bdg {
+    height: auto;
+    min-height: 24px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    white-space: normal;
+    line-height: 1.3;
+  }
+  /* A long facilitator name moves under the scheme instead of squeezing the hash */
+  .x.oa .oa-b-list .prow .rb,
+  .x.oa .oa-b-same .prow .rb {
+    max-width: 172px;
+  }
+}

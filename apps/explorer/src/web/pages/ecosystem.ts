@@ -1,19 +1,24 @@
 import type { RegistrySnapshot } from "@rail402.dev/x402-index";
+import type { DailyFacilitator } from "../../api/queries-b.ts";
 import type { ReportDocument } from "../../api/report.ts";
+import { h, type Child, type LayoutOptions, type Node } from "../components.ts";
+import { assetName, decimalAmount, displayContract, groupThousands, percent } from "../format.ts";
 import {
-  body,
-  copyButton,
-  externalLink,
-  h,
-  layout,
-  stat,
-  tierBadge,
-  type Child,
-  type LayoutOptions,
-} from "../components.ts";
-import { assetName, decimalAmount, groupThousands, shortened, utc, type NetworkView } from "../format.ts";
-import { displayText } from "../text.ts";
-import type { NetworkWindowDocument } from "../../window/window.ts";
+  bdg,
+  card,
+  facTone,
+  iconBox,
+  kv,
+  miniCard,
+  page,
+  pageHead,
+  seg,
+  stackChart,
+  svgIcon,
+  type StackDay,
+  type StackSeries,
+} from "../ui.ts";
+import { facilitatorShort } from "./payments.ts";
 
 type Totals = ReportDocument["aggregates"]["headline"];
 
@@ -22,540 +27,477 @@ export interface EcosystemContext {
   readonly registry: RegistrySnapshot;
   /** Where service availability is reported. */
   readonly statusUrl: string | undefined;
-  /** The base for links to the report's JSON and manifest (empty on the site itself). */
+  /** The base for links to the report's files and other pages (empty on the site itself). */
   readonly apiOrigin: string;
 }
 
-type Assets = ReportDocument["assets"];
+/** The ranges of the per-day chart. */
+export type ChartRange = "7d" | "30d" | "all";
+export const CHART_RANGES: readonly (readonly [ChartRange, string])[] = [
+  ["7d", "7 days"],
+  ["30d", "30 days"],
+  ["all", "All"],
+];
 
-function volumeList(
-  report: { readonly network: ReportDocument["network"]; readonly assets: Assets },
-  totals: Totals,
-): Child {
-  const entries = Object.entries(totals.volume);
-  if (entries.length === 0) return h("p", { class: "muted" }, "No volume.");
-  return h(
-    "ul",
-    null,
-    entries.map(([contract, atomic]) => {
-      const asset = report.assets[contract];
-      return h(
-        "li",
-        null,
-        asset?.verified === true && asset.code !== null
-          ? [
-              h("strong", null, decimalAmount(atomic)),
-              ` ${assetName(report.network, contract, asset.code, asset.issuer)} `,
-              h("span", { class: "badge verified" }, "verified"),
-              " ",
-              h(
-                "span",
-                { class: "muted" },
-                "issuer ",
-                h(
-                  "span",
-                  { class: "mono", title: displayText(asset.issuer ?? "", 56) },
-                  shortened(displayText(asset.issuer ?? "", 56)),
-                ),
-                ", contract ",
-                h(
-                  "span",
-                  { class: "mono", title: displayText(contract, 56) },
-                  shortened(displayText(contract, 56)),
-                ),
-              ),
-            ]
-          : [
-              h("strong", null, atomic),
-              " atomic units of custom token ",
-              h("span", { class: "mono full" }, displayText(contract, 56)),
-            ],
-      );
-    }),
-  );
+export interface EcosystemExtras {
+  readonly range?: ChartRange;
+  /** Registered payments per day and facilitator from the index; the report's daily totals otherwise. */
+  readonly daily?: readonly DailyFacilitator[] | undefined;
+  /** The time the chart's last day is taken from (the report's time when absent). */
+  readonly now?: number;
 }
 
-function totalsBlock(report: ReportDocument, totals: Totals): Child[] {
-  return [
-    h(
-      "div",
-      { class: "stats framed" },
-      stat("Payments", groupThousands(totals.payments)),
-      stat("Distinct payers", groupThousands(totals.payers)),
-      stat("Distinct sellers", groupThousands(totals.sellers)),
-    ),
-    h("h3", { class: "volume" }, "Volume per asset"),
-    volumeList(report, totals),
-  ];
-}
+const DAY_MS = 86_400_000;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+const monthDay = (key: string) =>
+  `${MONTHS[Number(key.slice(5, 7)) - 1] ?? ""} ${String(Number(key.slice(8, 10)))}`;
 
-function breakdown(view: NetworkView, registry: RegistrySnapshot, report: ReportDocument): Child {
-  const rows = Object.entries(report.aggregates.byFacilitator);
-  const attributed = rows.filter(([id]) => registry.facilitator(id)?.tier !== "rail402-beta");
-  if (attributed.length === 0) return h("p", { class: "muted" }, "No attributed settlements in this range.");
-  return h(
-    "div",
-    { class: "table-scroll" },
-    h(
-      "table",
-      null,
-      h(
-        "thead",
-        null,
-        h(
-          "tr",
-          null,
-          h("th", { scope: "col" }, "Facilitator"),
-          h("th", { scope: "col" }, "Tier"),
-          h("th", { scope: "col", class: "num" }, "Payments"),
-          h("th", { scope: "col", class: "num" }, "Payers"),
-          h("th", { scope: "col", class: "num" }, "Sellers"),
-        ),
-      ),
-      h(
-        "tbody",
-        null,
-        attributed.map(([id, totals]) => {
-          const entry = registry.facilitator(id);
-          return h(
-            "tr",
-            null,
-            h(
-              "td",
-              null,
-              h(
-                "a",
-                { href: `${view.prefix}/facilitator/${displayText(id, 63)}` },
-                displayText(entry?.name ?? id, 100),
-              ),
-              entry?.sharedRelayer === true ? h("span", { class: "muted" }, " (shared relayer)") : null,
-            ),
-            h("td", null, tierBadge(entry?.tier ?? "facilitator")),
-            h("td", { class: "num" }, groupThousands(totals.payments)),
-            h("td", { class: "num" }, groupThousands(totals.payers)),
-            h("td", { class: "num" }, groupThousands(totals.sellers)),
-          );
-        }),
-      ),
-    ),
-  );
-}
+/** The chart's colour of a facilitator: its tone as an SVG fill class. */
+const chartTone = (id: string) => {
+  const tone = facTone(id);
+  return tone === "x4" ? "c-reg" : `c-${tone}`;
+};
 
-/** Attributed payments per UTC day as columns, with every value in each column's title and in a table. */
-function dailyChart(report: ReportDocument): Child {
-  const days = Object.entries(report.aggregates.daily);
-  if (days.length === 0) return null;
-  const width = 720;
-  const height = 160;
-  const top = 12;
-  const bottom = 24;
-  const max = Math.max(1, ...days.map(([, day]) => day.headline));
-  const slot = width / days.length;
-  const bar = Math.max(1, Math.min(28, slot - 2));
-  return h(
-    "figure",
-    null,
-    h(
-      "svg",
-      {
-        class: "chart",
-        viewBox: `0 0 ${String(width)} ${String(height)}`,
-        role: "img",
-        "aria-label": `Attributed x402 payments per day, ${days[0]?.[0] ?? ""} to ${days.at(-1)?.[0] ?? ""}; maximum ${String(max)} in a day.`,
-      },
-      h("line", { class: "axis", x1: 0, x2: width, y1: height - bottom, y2: height - bottom }),
-      days.map(([day, counts], index) => {
-        const barHeight = ((height - top - bottom) * counts.headline) / max;
-        return h(
-          "rect",
-          {
-            class: "bar",
-            x: (index * slot + (slot - bar) / 2).toFixed(1),
-            y: (height - bottom - barHeight).toFixed(1),
-            width: bar.toFixed(1),
-            height: barHeight.toFixed(1),
-            rx: 2,
-          },
-          h("title", null, `${day}: ${String(counts.headline)} attributed payments`),
-        );
-      }),
-      h("text", { x: 0, y: height - 6 }, days[0]?.[0] ?? ""),
-      h("text", { x: width, y: height - 6, "text-anchor": "end" }, days.at(-1)?.[0] ?? ""),
-      h("text", { x: 0, y: top - 2 }, `max ${String(max)}/day`),
-    ),
-    h(
-      "details",
-      null,
-      h("summary", null, "Daily values as a table"),
-      h(
-        "div",
-        { class: "table-scroll" },
-        h(
-          "table",
-          null,
-          h(
-            "thead",
-            null,
-            h(
-              "tr",
-              null,
-              h("th", { scope: "col" }, "Day (UTC)"),
-              h("th", { scope: "col", class: "num" }, "Attributed"),
-              h("th", { scope: "col", class: "num" }, "Unattributed shaped (apart)"),
-            ),
-          ),
-          h(
-            "tbody",
-            null,
-            days.map(([day, counts]) =>
-              h(
-                "tr",
-                null,
-                h("td", null, day),
-                h("td", { class: "num" }, groupThousands(counts.headline)),
-                h("td", { class: "num" }, groupThousands(counts.unattributedShaped)),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-/** Payments, payers, sellers and volume of one tier as a table row. */
-function tierRow(window: NetworkWindowDocument, label: Child, totals: Totals): Child {
-  return h(
-    "tr",
-    null,
-    h("th", { scope: "row" }, label),
-    h("td", { class: "num" }, groupThousands(totals.payments)),
-    h("td", { class: "num" }, groupThousands(totals.payers)),
-    h("td", { class: "num" }, groupThousands(totals.sellers)),
-    h("td", null, volumeList(window, totals)),
-  );
+/** The first day of a range ending on `today`: undefined for all days. */
+export function rangeStart(range: ChartRange, today: number): string | undefined {
+  return range === "all" ? undefined : dayKey(today - ((range === "7d" ? 7 : 30) - 1) * DAY_MS);
 }
 
 /**
- * The network-wide block: a full scan of a recent window, by tier, with the window stated and the command
- * that rebuilds it. Shown only when the window job has published one.
+ * The chart's columns: one per day of the range (weeks when "all" spans more than 60 days), each with
+ * one value per series. Days without payments are zero.
  */
-function networkWideSection(context: EcosystemContext, window: NetworkWindowDocument): Child {
-  const view = context.layout.view;
-  const span = `ledgers ${groupThousands(window.window.from)} to ${groupThousands(window.window.to)}, closed ${utc(window.window.firstClosedAt)} to ${utc(window.window.lastClosedAt)}`;
-  return h(
-    "section",
-    { class: "card", "aria-labelledby": "network-wide" },
-    h("h2", { id: "network-wide" }, "Network-wide (sampled window)"),
+function chartDays(
+  range: ChartRange,
+  todayMs: number,
+  firstKey: string | undefined,
+  value: (key: string) => readonly number[],
+  seriesCount: number,
+  current = true,
+): StackDay[] {
+  const today = Date.parse(`${dayKey(todayMs)}T00:00:00Z`);
+  const start =
+    range === "all"
+      ? Math.min(today, Date.parse(`${firstKey ?? dayKey(today)}T00:00:00Z`))
+      : today - ((range === "7d" ? 7 : 30) - 1) * DAY_MS;
+  const count = Math.round((today - start) / DAY_MS) + 1;
+  const step = count > 60 ? 7 : 1;
+  const columns: StackDay[] = [];
+  // Columns end on today; a week column sums its seven days.
+  for (let end = today; end >= start; end -= step * DAY_MS) {
+    const values = new Array<number>(seriesCount).fill(0);
+    for (let d = 0; d < step; d++) {
+      const at = end - d * DAY_MS;
+      if (at < start) break;
+      value(dayKey(at)).forEach((v, i) => (values[i] = (values[i] ?? 0) + v));
+    }
+    const key = dayKey(step === 1 ? end : Math.max(start, end - (step - 1) * DAY_MS));
+    columns.unshift({
+      label:
+        step === 1
+          ? `${monthDay(key)}${end === today && current ? " · so far" : ""}`
+          : `Week of ${monthDay(key)}`,
+      short: "",
+      values,
+    });
+  }
+  const every = columns.length <= 10 ? 1 : columns.length <= 31 ? 5 : Math.ceil(columns.length / 8);
+  return columns.map((column, i) => ({
+    ...column,
+    short:
+      i === columns.length - 1 || (columns.length - 1 - i) % every === 0
+        ? step === 1
+          ? column.label.slice(4).replace(" · so far", "")
+          : column.label.slice(8)
+        : "",
+  }));
+}
+
+function dailyChart(context: EcosystemContext, report: ReportDocument, extras: EcosystemExtras): Node {
+  const range = extras.range ?? "30d";
+  const today = extras.now ?? Date.parse(report.generatedAt);
+  const facilitators = context.registry.document.facilitators.filter(
+    (entry) => entry.tier !== "rail402-beta",
+  );
+  let series: StackSeries[];
+  let value: (key: string) => readonly number[];
+  let first: string | undefined;
+  if (extras.daily !== undefined) {
+    const byDay = new Map<string, Map<string, number>>();
+    for (const row of extras.daily) {
+      const day = byDay.get(row.day) ?? new Map<string, number>();
+      day.set(row.facilitatorId, (day.get(row.facilitatorId) ?? 0) + row.payments);
+      byDay.set(row.day, day);
+    }
+    series = facilitators.map((entry) => ({ name: facilitatorShort(entry), tone: chartTone(entry.id) }));
+    value = (key) => facilitators.map((entry) => byDay.get(key)?.get(entry.id) ?? 0);
+    first = extras.daily[0]?.day;
+  } else {
+    series = [{ name: "Registered", tone: "c-reg" }];
+    value = (key) => [report.aggregates.daily[key]?.headline ?? 0];
+    first = Object.keys(report.aggregates.daily)[0];
+  }
+  // A range with no payment at all (a network still indexing older ledgers) ends on the newest day
+  // that has some, so the chart shows real days instead of an empty run.
+  const keys =
+    extras.daily !== undefined ? extras.daily.map((row) => row.day) : Object.keys(report.aggregates.daily);
+  const newest = keys.reduce<string | undefined>(
+    (max, key) => (max === undefined || key > max ? key : max),
+    undefined,
+  );
+  const start = rangeStart(range, today);
+  const end =
+    newest !== undefined && start !== undefined && newest < start ? Date.parse(`${newest}T00:00:00Z`) : today;
+  const days = chartDays(range, end, first, value, series.length, dayKey(end) === dayKey(today));
+  const base = `${context.apiOrigin}${context.layout.view.prefix}/ecosystem`;
+  return card(
+    {
+      title: "Registered payments per day",
+      icon: "report",
+      cls: "chartcard",
+      end: seg(
+        "Range",
+        CHART_RANGES.map(([id, label]) => ({
+          label,
+          href: id === "30d" ? `${base}#chart` : `${base}?range=${id}#chart`,
+          on: range === id,
+        })),
+      ),
+      id: "chart",
+    },
+    ...stackChart(days, series),
+  );
+}
+
+/** A scope tile: the coloured scope chip, the number, and its badges. */
+function scopeTile(options: {
+  readonly scope: string;
+  readonly label: string;
+  readonly value: string;
+  readonly valueCls?: string;
+  readonly badges: readonly Child[];
+  readonly href?: string;
+  readonly dashed?: boolean;
+}): Node {
+  const inner = [
     h(
-      "p",
-      { class: "notice", role: "note" },
-      `A sample, not lifetime totals: every ledger of one recent window of about ${String(window.window.hours)} hours (${span}; ${groupThousands(window.window.ledgers)} ledgers), read in full from the public Stellar data lake under the same rules. Unlike the totals below, it counts payments of every facilitator, registered or not. Computed ${utc(window.generatedAt)}.`,
+      "span",
+      { class: "t" },
+      h("span", { class: `scope ${options.scope}`.trim() }, h("i", null), options.label),
     ),
+    h("span", { class: options.valueCls === undefined ? "n" : `n ${options.valueCls}` }, options.value),
+    h("span", { class: "bl2" }, ...options.badges),
+  ];
+  const cls = options.dashed === true ? "st dashed" : "st";
+  return options.href === undefined
+    ? h("div", { class: cls }, ...inner)
+    : h("a", { class: cls, href: options.href }, ...inner);
+}
+
+/** A verified asset's name; the native asset's contract is shown as XLM. */
+const tokenName = (network: string, contract: string, code: string, issuer: string | null) =>
+  code === "native" ? "XLM" : assetName(network, contract, code, issuer);
+
+const people = (totals: Totals) =>
+  `${groupThousands(totals.payers)} buyer${totals.payers === 1 ? "" : "s"} · ${groupThousands(totals.sellers)} seller${totals.sellers === 1 ? "" : "s"}`;
+
+/** The headline volume of totals: USDC (or the first verified asset), and how many other tokens. */
+function volume(report: ReportDocument, totals: Totals): Child[] {
+  const entries = Object.entries(totals.volume);
+  if (entries.length === 0) return [h("span", { class: "muted" }, "none")];
+  const usdc = displayContract(report.network, "USDC");
+  const verified = entries.filter(([contract]) => report.assets[contract]?.verified === true);
+  const main = verified.find(([contract]) => contract === usdc) ?? verified[0];
+  if (main === undefined)
+    return [bdg(`${String(entries.length)} unverified token${entries.length === 1 ? "" : "s"}`, "warn")];
+  const asset = report.assets[main[0]];
+  const others = entries.length - 1;
+  return [
+    `${decimalAmount(main[1])} ${tokenName(report.network, main[0], asset?.code ?? "", asset?.issuer ?? null)}`,
+    others === 0 ? bdg("verified", "ok") : bdg(`+ ${String(others)} token${others === 1 ? "" : "s"}`, "mut"),
+  ];
+}
+
+/** The tokens of totals other than the headline one: verified codes, and the unverified count. */
+function otherTokens(report: ReportDocument, totals: Totals): Child[] {
+  const usdc = displayContract(report.network, "USDC");
+  const entries = Object.keys(totals.volume).filter((contract) => contract !== usdc);
+  if (entries.length === 0) return [bdg("none", "mut")];
+  const verified = entries.filter((contract) => report.assets[contract]?.verified === true);
+  const unverified = entries.length - verified.length;
+  return [
+    ...verified.slice(0, 3).map((contract) => {
+      const asset = report.assets[contract];
+      return bdg(tokenName(report.network, contract, asset?.code ?? "", asset?.issuer ?? null), "mut");
+    }),
+    verified.length > 3 ? bdg(`+ ${String(verified.length - 3)}`, "mut") : null,
+    unverified === 0 ? null : bdg(`${String(unverified)} unverified`, "warn"),
+  ];
+}
+
+const schemeCounts = (report: ReportDocument): Child[] =>
+  Object.values(report.aggregates.byScheme).filter((totals) => totals.payments > 0).length < 2
+    ? []
+    : (["exact", "upto"] as const).flatMap((scheme) => {
+        const count = report.aggregates.byScheme[scheme]?.payments ?? 0;
+        return count === 0
+          ? []
+          : [h("span", { class: "r4-badge", "data-scheme": scheme }, groupThousands(count))];
+      });
+
+function reportBody(context: EcosystemContext, report: ReportDocument, extras: EcosystemExtras): Child[] {
+  const view = context.layout.view;
+  const agg = report.aggregates;
+  const facilitators = context.registry.document.facilitators.filter(
+    (entry) => entry.tier !== "rail402-beta",
+  );
+  const rail402 = facilitators.find((entry) => entry.id === "rail402");
+  const window = report.networkWide ?? undefined;
+  const windowTotal =
+    window === undefined
+      ? undefined
+      : window.tiers.rail402.payments +
+        window.tiers.otherRegistered.payments +
+        window.tiers.unattributed.payments;
+  const active = facilitators.filter((entry) => (agg.byFacilitator[entry.id]?.payments ?? 0) > 0).length;
+  const facilitatorCards = facilitators.map((entry) => {
+    const totals = agg.byFacilitator[entry.id] ?? { payments: 0, volume: {}, payers: 0, sellers: 0 };
+    return card(
+      {
+        title: facilitatorShort(entry),
+        icon: "facilitators",
+        tone: entry.id === "rail402" ? "or" : undefined,
+        id: `fac-${entry.id}`,
+        link: { href: `${context.apiOrigin}${view.prefix}/facilitator/${entry.id}`, label: "Open →" },
+      },
+      kv([
+        ["Payments", h("b", null, groupThousands(totals.payments))],
+        ["Buyers · sellers", `${groupThousands(totals.payers)} · ${groupThousands(totals.sellers)}`],
+        ["Volume", ...volume(report, totals)],
+        ["Share", bdg(percent(totals.payments, agg.headline.payments), "mut"), "of registered"],
+      ]),
+    );
+  });
+  const cards = [
+    card(
+      { title: "Registered", icon: "layers", id: "reg" },
+      kv([
+        ["Payments", h("b", null, groupThousands(agg.headline.payments)), ...schemeCounts(report)],
+        ["Volume", ...volume(report, agg.headline)],
+        ["Other tokens", ...otherTokens(report, agg.headline)],
+        [
+          "Self-payments",
+          bdg(groupThousands(agg.selfPayments.payments), agg.selfPayments.payments === 0 ? "ok" : "mut"),
+          agg.selfPayments.payments === 0 ? null : "left out",
+        ],
+      ]),
+    ),
+    ...facilitatorCards,
+    card(
+      { title: "Not registered", icon: "alert", id: "apart", cls: "oa-b-apart", end: bdg("apart", "warn") },
+      kv([
+        ["Payments", h("b", null, groupThousands(agg.unattributedShaped.payments))],
+        [
+          "Buyers · sellers",
+          `${groupThousands(agg.unattributedShaped.payers)} · ${groupThousands(agg.unattributedShaped.sellers)}`,
+        ],
+        ["Volume", ...volume(report, agg.unattributedShaped)],
+        ["In totals", bdg("never", "warn")],
+      ]),
+    ),
+  ];
+  const grid = cards.length === 4 ? "g2" : "g3";
+  const failed = report.failedLedgers.length;
+  return [
     h(
       "div",
-      { class: "table-scroll" },
+      { class: "g4 oa-b-tiles" },
+      scopeTile({
+        scope: "",
+        label: "Registered",
+        value: groupThousands(agg.headline.payments),
+        badges: [bdg(people(agg.headline), "mut")],
+        href: "#reg",
+      }),
+      rail402 !== undefined
+        ? scopeTile({
+            scope: "r4",
+            label: "Rail402",
+            value: groupThousands(agg.rail402.payments),
+            valueCls: "accent",
+            badges: [bdg(people(agg.rail402), "mut")],
+            href: "#fac-rail402",
+          })
+        : scopeTile({
+            scope: "r4",
+            label: "Facilitators",
+            value: groupThousands(facilitators.length),
+            badges: [bdg(`${String(active)} with payments`, "mut")],
+            href: facilitators[0] === undefined ? undefined : `#fac-${facilitators[0].id}`,
+          }),
+      windowTotal === undefined || window === undefined
+        ? scopeTile({
+            scope: "nw",
+            label: "Network-wide",
+            value: "soon",
+            valueCls: "muted",
+            badges: [bdg("every facilitator", "info")],
+          })
+        : scopeTile({
+            scope: "nw",
+            label: "Network-wide",
+            value: groupThousands(windowTotal),
+            badges: [bdg(`every facilitator · last ${String(window.window.hours)} h`, "info")],
+          }),
+      scopeTile({
+        scope: "apart",
+        label: "Apart",
+        value: groupThousands(agg.unattributedShaped.payments),
+        valueCls: "muted",
+        badges: [bdg("never in totals", "warn")],
+        href: "#apart",
+        dashed: true,
+      }),
+    ),
+    dailyChart(context, report, extras),
+    h("div", { class: grid }, ...cards),
+    card(
+      {
+        title: "Coverage",
+        icon: "ledger",
+        cls: "oa-b-cov",
+        end:
+          report.detachedFrom === null
+            ? bdg("complete", "ok")
+            : report.coverageStop === "failed"
+              ? bdg(`stops before ledger ${groupThousands(report.detachedFrom)}`, "warn")
+              : bdg(`catching up at ledger ${groupThousands(report.detachedFrom)}`, "info"),
+      },
       h(
-        "table",
-        null,
-        h(
-          "thead",
-          null,
-          h(
-            "tr",
-            null,
-            h("th", { scope: "col" }, "Settled by"),
-            h("th", { scope: "col", class: "num" }, "Payments"),
-            h("th", { scope: "col", class: "num" }, "Payers"),
-            h("th", { scope: "col", class: "num" }, "Sellers"),
-            h("th", { scope: "col" }, "Volume per asset"),
-          ),
-        ),
-        h(
-          "tbody",
-          null,
-          tierRow(window, "The hosted Rail402 service", window.tiers.rail402),
-          tierRow(window, "Other registered facilitators", window.tiers.otherRegistered),
-          tierRow(window, "Unregistered or unattributed (x402-shaped)", window.tiers.unattributed),
+        "div",
+        { class: "g4" },
+        smallStat("Ledgers read", groupThousands(report.discovery.ledgersRead)),
+        smallStat("Failed ledgers", groupThousands(failed), failed === 0 ? "ok" : undefined),
+        smallStat("Accounts watched", groupThousands(report.discovery.routes)),
+        smallStat(
+          "Range",
+          `${groupThousands(report.range.from)} – ${groupThousands(report.range.to)}`,
+          "range",
         ),
       ),
     ),
-    h(
-      "p",
-      { class: "muted" },
-      "Unregistered or unattributed rows have the exact shape of an x402 settlement but no registry account submitted them: facilitators outside the registry, smart-wallet relays, test scripts, and transfers that only look like x402 payments. ",
-      `Self-payments (${groupThousands(window.selfPayments.payments)}), concluded beta calls (${groupThousands(window.rail402Beta.payments)}) and failed attempts (${groupThousands(window.failedAttempts)}) are kept out of these rows.`,
-      window.sharedRelayerPayments === 0
-        ? ""
-        : ` ${groupThousands(window.sharedRelayerPayments)} of the other registered payments went through shared relayers, which also relay transfers that are not x402 payments.`,
-    ),
-    h(
-      "dl",
-      { class: "facts" },
-      h("dt", null, "Manifest"),
-      h(
-        "dd",
-        null,
-        "SHA-256 ",
-        h("code", { class: "full" }, window.manifestSha256),
-        " · ",
-        h("a", { href: `${context.apiOrigin}/api/v1/${view.slug}/network-window/manifest` }, "manifest.json"),
-      ),
-      h("dt", null, "Rules and registry"),
-      h("dd", null, `v${window.rulesVersion} · ${window.registryVersion}`),
-    ),
-    h(
-      "p",
-      null,
-      "Rebuild this exact window from the public data lake; the command prints the manifest's SHA-256, and equal hashes mean identical results:",
-    ),
-    h("pre", { class: "command" }, window.rebuildCommand),
-    copyButton(window.rebuildCommand, "command"),
+  ];
+}
+
+const smallStat = (label: string, value: string, cls?: string) =>
+  h(
+    "div",
+    { class: "st" },
+    h("span", { class: "t" }, label),
+    h("span", { class: cls === undefined ? "n" : `n ${cls}` }, value),
   );
+
+/** "updated 15:14 UTC", with the day when it was not today. */
+function updated(iso: string, now: number): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "updated";
+  const time = `${date.toISOString().slice(11, 16)} UTC`;
+  return dayKey(date.getTime()) === dayKey(now)
+    ? `updated ${time}`
+    : `updated ${monthDay(dayKey(date.getTime()))} · ${time}`;
 }
 
-/** Why ledgers after the covered range are left out of the report. */
-function detachedText(report: ReportDocument): string {
-  const from = groupThousands(report.detachedFrom ?? 0);
-  return report.coverageStop === "failed"
-    ? `Ledger ${from} failed an integrity check; the report stops before it until it is read again.`
-    : `Ledger ${from} is still being read; the report covers the ledgers before it.`;
-}
-
-/** The notice of a report whose manifest a rebuild would not match yet. */
-function notReproducibleText(report: ReportDocument): string {
-  if (report.failedLedgers.length > 0) {
-    return "A ledger of this epoch failed an integrity check; the totals below cover only the ledgers before it until it is read again.";
-  }
-  return `Some rows in this range were attributed under registry ${report.rowRegistryVersions.join(", ")}; they are being indexed again under ${report.registryVersion}.`;
-}
-
-/** The Ecosystem Report body for one network, shared by the page and the snapshot export. */
-export function ecosystemContent(context: EcosystemContext, report: ReportDocument | undefined): Child[] {
+export function ecosystemPage(
+  context: EcosystemContext,
+  report: ReportDocument | undefined,
+  extras: EcosystemExtras = {},
+): string {
   const view = context.layout.view;
-  const heading = [
-    h("p", { class: "eyebrow" }, `${view.label} · Ecosystem report`),
-    h("h1", null, `x402 on Stellar ${view.label.toLowerCase()}`),
-  ];
-  const availability = h(
-    "section",
-    { class: "card", "aria-labelledby": "availability" },
-    h("h2", { id: "availability" }, "Service availability"),
-    h(
-      "p",
-      null,
-      "This report counts payments settled on chain. It says nothing about whether a service is up right now. ",
-      context.statusUrl === undefined
-        ? "Each facilitator reports its own availability."
+  const origin = context.apiOrigin;
+  const head = pageHead({
+    title: "Ecosystem Report",
+    badges:
+      report === undefined
+        ? [bdg(view.label.toLowerCase())]
         : [
-            "Current availability of the hosted Rail402 service: ",
-            externalLink(context.statusUrl, "status page"),
-            ".",
+            bdg(view.label.toLowerCase()),
+            bdg(updated(report.generatedAt, extras.now ?? Date.parse(report.generatedAt)), "mut"),
+            report.reproducible
+              ? bdg("reproducible", "ok", "A rebuild from public ledgers gives these exact numbers.")
+              : bdg(
+                  "being re-read",
+                  "warn",
+                  report.failedLedgers.length > 0
+                    ? "A ledger failed an integrity check; the totals cover the ledgers before it."
+                    : "Some rows are being indexed again; a rebuild can differ until then.",
+                ),
           ],
-    ),
-  );
-  if (report === undefined) {
-    return [
-      ...heading,
-      h(
-        "p",
-        { class: "notice", role: "status" },
-        `No ${view.label.toLowerCase()} ledgers are indexed yet, so there is no report for this network.`,
-      ),
-      availability,
-    ];
-  }
-  const agg = report.aggregates;
-  const rowsCurrent = report.reproducible;
-  return [
-    ...heading,
-    h(
-      "p",
-      { class: "muted" },
-      `Ledgers ${groupThousands(report.range.from)} to ${groupThousands(report.range.to)} of epoch ${report.epoch}, computed ${utc(report.generatedAt)}. `,
-      `Registry scope: the ${groupThousands(report.discovery.ledgersRead)} ledgers in this range that hold transactions of the registry's facilitator accounts or upto contracts, each read in full and verified.`,
-      report.detachedFrom === null ? "" : ` ${detachedText(report)}`,
-    ),
-    rowsCurrent ? null : h("p", { class: "notice", role: "status" }, notReproducibleText(report)),
-    h(
-      "section",
-      { class: "card", "aria-labelledby": "rail402" },
-      h("h2", { id: "rail402" }, "Settled by the hosted Rail402 service"),
-      h(
-        "p",
-        { class: "muted" },
-        "Payments whose fee payer or source is an account of the hosted Rail402 facilitator in that ledger (its sponsor, channel accounts and upto settlement authority). Self-hosted Rail402 instances are not counted here.",
-      ),
-      ...totalsBlock(report, agg.rail402),
-    ),
-    report.networkWide === undefined || report.networkWide === null
-      ? null
-      : networkWideSection(context, report.networkWide),
-    h(
-      "section",
-      { class: "card", "aria-labelledby": "registered" },
-      h("h2", { id: "registered" }, "Registered facilitators (Rail402 included)"),
-      h(
-        "p",
-        { class: "muted" },
-        "Every settlement attributed to a facilitator in the public registry, Rail402 included. Self-payments, unattributed look-alikes and the concluded beta are not in these numbers.",
-      ),
-      h(
-        "p",
-        { class: "notice", role: "note" },
-        "This is not every x402 payment on the network: the index reads only the ledgers that hold transactions of registered facilitator accounts and upto contracts, so payments settled by a facilitator outside the registry are not counted here.",
-      ),
-      ...totalsBlock(report, agg.headline),
-      agg.headlineSharedRelayer.payments === 0
-        ? null
-        : h(
-            "p",
-            { class: "notice", role: "note" },
-            `Of these, ${groupThousands(agg.headlineSharedRelayer.payments)} payments went through shared relayers, which also relay transfers that are not x402 payments; such rows may not be x402 payments.`,
-          ),
-      h("h3", null, "By facilitator"),
-      breakdown(view, context.registry, report),
-      h("h3", null, "By scheme"),
-      h(
-        "ul",
-        null,
-        Object.entries(agg.byScheme).map(([scheme, totals]) =>
+    actions:
+      report === undefined
+        ? []
+        : [
+            h(
+              "a",
+              {
+                class: "btn2",
+                href: `${origin}/api/v1/${view.slug}/manifest`,
+                download: `rail402-${view.slug}-manifest.json`,
+              },
+              svgIcon("download"),
+              "Download",
+            ),
+          ],
+  });
+  const content =
+    report === undefined
+      ? [
           h(
-            "li",
-            null,
-            h("code", null, displayText(scheme, 16)),
-            `: ${groupThousands(totals.payments)} payments`,
+            "section",
+            { class: "card nf" },
+            h(
+              "div",
+              { class: "nfh" },
+              iconBox("report"),
+              h(
+                "div",
+                null,
+                h("h2", null, "No report yet"),
+                h("p", null, `No ${view.label.toLowerCase()} ledgers are indexed yet.`),
+              ),
+              h("span", { class: "bdg info oa-b-end" }, "indexing"),
+            ),
+            h(
+              "div",
+              { class: "g3 oa-b-links" },
+              miniCard(`${origin}${view.prefix}/payments`, "payments", "Payments", "the newest settlements"),
+              miniCard(
+                `${origin}${view.prefix}/facilitators`,
+                "facilitators",
+                "Facilitators",
+                "who settles payments",
+              ),
+              miniCard(
+                "https://docs.rail402.dev/explorer",
+                "info",
+                "How it works",
+                "how payments are counted",
+              ),
+            ),
           ),
-        ),
-      ),
-      h("h3", null, "Per day"),
-      dailyChart(report),
-    ),
-    h(
-      "section",
-      { class: "card", "aria-labelledby": "shaped" },
-      h("h2", { id: "shaped" }, "Unattributed x402-shaped (not counted above)"),
-      h(
-        "p",
-        { class: "notice", role: "note" },
-        "These transactions have the exact shape of an x402 settlement, but no registered facilitator account submitted them. Smart-wallet relays, test scripts and unknown facilitators produce the same shape, so they are shown apart and never added to the totals above.",
-      ),
-      h(
-        "p",
-        { class: "notice", role: "status" },
-        "Not measured across the network here. This report reads only the ledgers that hold transactions of registry accounts and upto contracts, so it counts upto look-alikes through registry contracts but sees exact-scheme look-alikes only when they share a ledger with a registry transaction. Every look-alike of the range is counted only by a full-scan rebuild from the public data lake:",
-      ),
-      h("pre", { class: "command" }, report.auditCommand),
-      copyButton(report.auditCommand, "command"),
-      h(
-        "p",
-        { class: "muted" },
-        "Found in the ledgers read (a lower bound, not a count of the whole network):",
-      ),
-      ...totalsBlock(report, agg.unattributedShaped),
-      h(
-        "p",
-        { class: "muted" },
-        `Self-payments (payer and seller are the same account), in every tier, also stay out of the totals: ${groupThousands(agg.selfPayments.payments)}.`,
-      ),
-    ),
-    h(
-      "section",
-      { class: "card", "aria-labelledby": "beta" },
-      h("h2", { id: "beta" }, "Concluded Rail402 beta"),
-      h(
-        "p",
-        null,
-        "The Rail402 beta ran from August to October 2026 and ended on 22 October 2026. Its own explorer's totals came from a live database with no defined ledger range and mixed attributed and heuristic rows; they cannot be reproduced and are superseded by these rules. Its settlement contracts cannot be changed and anyone can still call them, so the registry counts calls through them only up to the beta's end, whoever submitted them. They emit no event of their own, so discovery finds them by the token approve events that name a beta contract as the spender, which each beta settlement carries in the same transaction. Only beta transactions found on chain in this range are counted here:",
-      ),
-      ...totalsBlock(report, agg.rail402Beta),
-    ),
-    h(
-      "section",
-      { class: "card", "aria-labelledby": "method" },
-      h("h2", { id: "method" }, "Methodology and rebuild"),
-      h(
-        "dl",
-        { class: "facts" },
-        h("dt", null, "Indexing rules"),
-        h(
-          "dd",
-          null,
-          `v${report.rulesVersion} · `,
-          h("a", { href: `${context.apiOrigin}/methodology` }, "what each check means"),
-        ),
-        h("dt", null, "Registry"),
-        h(
-          "dd",
-          null,
-          `${report.registryVersion} · SHA-256 `,
-          h("code", { class: "full" }, report.registrySha256),
-        ),
-        h("dt", null, "Manifest"),
-        h(
-          "dd",
-          null,
-          "SHA-256 ",
-          h("code", { class: "full" }, report.manifestSha256),
-          " · ",
-          h("a", { href: `${context.apiOrigin}/api/v1/${view.slug}/manifest` }, "manifest.json"),
-          " · ",
-          h("a", { href: `${context.apiOrigin}/api/v1/${view.slug}/report` }, "report JSON"),
-        ),
-        h("dt", null, "Failed attempts"),
-        h("dd", null, `${groupThousands(agg.failedAttempts)} (never counted)`),
-        h("dt", null, "Ledgers read"),
-        h(
-          "dd",
-          null,
-          `${groupThousands(report.discovery.ledgersRead)} selected by ${report.discovery.source} discovery over ${groupThousands(report.discovery.routes)} registry routes; bytes from the data lake ${groupThousands(report.discovery.bytes.lake)}, from RPC ${groupThousands(report.discovery.bytes.rpc)}, each verified against its own hashes. ${groupThousands(report.discovery.ledgersWithoutAttributedRow)} of them held no attributed row; their transactions count only in the lower-bound sections.`,
-        ),
-        h("dt", null, "Near misses (in the ledgers read)"),
-        h(
-          "dd",
-          null,
-          Object.keys(agg.excluded).length === 0
-            ? "none"
-            : Object.entries(agg.excluded).map(([reason, count]) => [
-                h("code", null, displayText(reason, 40)),
-                ` ${groupThousands(count)} `,
-              ]),
-        ),
-      ),
-      h(
-        "p",
-        null,
-        "Anyone can recompute these numbers from the public Stellar data lake, with no account, no discovery service and no access to this site: save the manifest, then run the command. It reads the ledgers the manifest lists and prints the manifest's SHA-256; equal hashes mean identical results:",
-      ),
-      h("pre", { class: "command" }, report.rebuildCommand),
-      copyButton(report.rebuildCommand, "command"),
-      h(
-        "p",
-        null,
-        "To check that discovery missed nothing, rebuild every ledger of the range: its rail402, facilitator and beta rows must equal this report's.",
-      ),
-      report.reproducible
-        ? null
-        : h(
-            "p",
-            { class: "notice", role: "status" },
-            "Until the notice above clears, this manifest's totals can differ from a rebuild's.",
-          ),
-    ),
-    availability,
-  ];
-}
-
-export function ecosystemPage(context: EcosystemContext, report: ReportDocument | undefined): string {
-  return layout(
+        ]
+      : reportBody(context, report, extras);
+  return page(
     {
       ...context.layout,
-      section: "ecosystem",
-      title: `Ecosystem report (${context.layout.view.label})`,
+      section: "report",
+      title: `Ecosystem Report (${view.label})`,
       path: "/ecosystem",
+      statusUrl: context.statusUrl,
       description:
-        "x402 payments on Stellar: Rail402-settled, settled by registered facilitators, and unattributed look-alikes, each apart, rebuildable from public ledgers.",
+        "x402 payments on Stellar by registered facilitator, with unregistered look-alikes kept apart, rebuildable from public ledgers.",
     },
-    body(...ecosystemContent(context, report)),
+    head,
+    ...content,
   );
 }

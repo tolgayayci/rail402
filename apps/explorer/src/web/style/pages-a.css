@@ -1,0 +1,94 @@
+/* Pages a: overview, search, account. */
+.oa .live .a-warn,
+.oa .a-warn {
+  color: var(--warn-ink);
+}
+.oa .live .a-small {
+  font-size: 13px;
+}
+.oa .a-sub {
+  font-size: 13px;
+  margin: 0;
+}
+.oa .big.a-muted {
+  color: var(--muted);
+}
+.oa a.card.a-cardlink {
+  text-decoration: none;
+  color: inherit;
+}
+.oa a.card.a-cardlink:hover {
+  border-color: var(--line-strong);
+}
+.oa .card h2.a-h2gap {
+  margin-top: 8px;
+}
+.oa .rank .a-sans {
+  font-family: var(--font-sans);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.oa .sbox button.go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.oa .sbox .go:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.oa .sh2 .a-full {
+  width: 100%;
+}
+.oa .sh2 .sbox {
+  margin-top: 14px;
+}
+.oa .sh2 .sbox > svg {
+  flex: 0 0 auto;
+}
+.oa a.sclr {
+  text-decoration: none;
+}
+.oa a.sclr svg {
+  fill: none;
+}
+.oa .a-rq {
+  font: 500 14px/1 var(--font-sans);
+}
+.oa .a-try {
+  font: 500 12px/1 var(--font-mono);
+}
+.oa a.tryb {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+.oa .nfh .a-end {
+  margin-left: auto;
+}
+.oa .nf .g3 {
+  margin-top: 0;
+}
+.oa .g4.a-g4 {
+  gap: 8px;
+}
+.oa .a-side {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-width: 0;
+}
+.oa .ph2 .bl a.fac {
+  text-decoration: none;
+}
+.oa .sdrop[hidden] {
+  display: none;
+}
+.oa .prow > span > small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -52,30 +52,36 @@ tried again later without holding back newer ones; the report still stops before
 Mainnet pages have no prefix; testnet pages live under `/testnet`. An Explorer that serves testnet only
 redirects `/` to `/testnet`.
 
-| Page             | Mainnet               | Testnet                       |
-| ---------------- | --------------------- | ----------------------------- |
-| Home             | `/`                   | `/testnet`                    |
-| Payments         | `/payments`           | `/testnet/payments`           |
-| Payments as CSV  | `/payments.csv`       | `/testnet/payments.csv`       |
-| Transaction      | `/tx/<hash>`          | `/testnet/tx/<hash>`          |
-| Account, seller  | `/account/<G… or C…>` | `/testnet/account/<G… or C…>` |
-| Services         | `/services`           | `/testnet/services`           |
-| Listing          | `/resource/<id>`      | `/testnet/resource/<id>`      |
-| Facilitators     | `/facilitators`       | `/testnet/facilitators`       |
-| Facilitator      | `/facilitator/<id>`   | `/testnet/facilitator/<id>`   |
-| Ecosystem Report | `/ecosystem`          | `/testnet/ecosystem`          |
-| Methodology      | `/methodology`        | same page                     |
-| Read API         | `/api/v1/pubnet/…`    | `/api/v1/testnet/…`           |
+| Page             | Mainnet                     | Testnet                             |
+| ---------------- | --------------------------- | ----------------------------------- |
+| Overview         | `/`                         | `/testnet`                          |
+| Payments         | `/payments`                 | `/testnet/payments`                 |
+| Payments as CSV  | `/payments.csv`             | `/testnet/payments.csv`             |
+| Payment          | `/tx/<hash>`                | `/testnet/tx/<hash>`                |
+| Account          | `/account/<G… or C…>`       | `/testnet/account/<G… or C…>`       |
+| Search           | `/search?q=<text>`          | `/testnet/search?q=<text>`          |
+| Bazaar           | `/services`                 | `/testnet/services`                 |
+| Service          | `/resource/<id>`            | `/testnet/resource/<id>`            |
+| Seller           | `/seller/<G…>`              | `/testnet/seller/<G…>`              |
+| Facilitators     | `/facilitators`             | `/testnet/facilitators`             |
+| Facilitator      | `/facilitator/<id>`         | `/testnet/facilitator/<id>`         |
+| Not registered   | `/facilitator/unregistered` | `/testnet/facilitator/unregistered` |
+| Ecosystem Report | `/ecosystem`                | `/testnet/ecosystem`                |
+| Read API         | `/api/v1/pubnet/…`          | `/api/v1/testnet/…`                 |
 
 - Both the outer hash of a fee bump and its inner hash open the payment. An upper-case hash redirects
   (301) to lower case.
-- `/public/…`, `/pubnet/…` and `/mainnet/…` redirect (301) to the unprefixed path on the same site.
+- `/public/…`, `/pubnet/…` and `/mainnet/…` redirect (301) to the unprefixed path on the same site;
+  `/methodology` redirects to this page.
 - An `M…` muxed address opens its base account with `?muxed=<id>`, which lists only payments received by
   that id; the totals on that page cover all muxed ids of the base account.
 - An invalid hash or address, or one nobody knows, answers 404 with the code `explorer_not_found`.
-- Search takes a hash, a G…, C… or M… address, an endpoint URL (a listing's `:name` route segments match
-  any value), an MCP tool name or a word from a listing; a scope selector narrows it to payments,
-  accounts, endpoints or MCP tools.
+- Search takes a transaction hash or its first characters, a G…, C… or M… address or its first or last
+  characters, an endpoint URL, an MCP tool name, a facilitator or words from a listing. An exact hash or
+  address opens its page; anything else lists the matches by kind, ten a page. The search box on the
+  overview shows the first matches as you type.
+- Lists show ten rows a page; the Bazaar's filters, sorting and views are links, so every page works
+  without JavaScript.
 
 ## Three kinds of data
 

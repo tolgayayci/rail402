@@ -1,49 +1,32 @@
-import {
-  CHECKS,
-  type ExclusionReason,
-  type FailedAttemptRow,
-  type RegistrySnapshot,
-  type SettlementRow,
+import type {
+  CheckId,
+  ExclusionReason,
+  FailedAttemptRow,
+  RegistrySnapshot,
+  SettlementRow,
 } from "@rail402.dev/x402-index";
+import { COUNT_CAP } from "../../api/queries-b.ts";
 import type { Answer, PaidFor } from "../bazaar.ts";
-import {
-  amountLabel,
-  amountText,
-  assetLabel,
-  badge,
-  body,
-  copyButton,
-  externalLink,
-  facilitatorName,
-  fullAddress,
-  fullHash,
-  h,
-  layout,
-  listingTitle,
-  notCataloged,
-  note,
-  panel,
-  rowAsset,
-  rows,
-  row,
-  schemeBadge,
-  shortAddress,
-  table,
-  tierLabel,
-  type Child,
-  type LayoutOptions,
-} from "../components.ts";
-import {
-  decimalAmount,
-  groupThousands,
-  rpcCommand,
-  stellarExpertAccount,
-  stellarExpertTx,
-  utc,
-  type NetworkView,
-} from "../format.ts";
+import { h, rowAsset, type Child, type Node } from "../components.ts";
+import { decimalAmount, groupThousands, shortKey, stellarExpertTx, type NetworkView } from "../format.ts";
 import { displayText } from "../text.ts";
-import { listingPrice, type PageContext } from "./context.ts";
+import {
+  actionLink,
+  bdg,
+  card,
+  checks,
+  copyAction,
+  copyMini,
+  facPill,
+  kv,
+  networkPill,
+  page,
+  pageHead,
+  schemePill,
+  tile,
+} from "../ui.ts";
+import type { PageContext } from "./context.ts";
+import { facilitatorShort, paymentRow, rowAmount, rowFacilitator, rowHash } from "./payments.ts";
 
 export type TxModel =
   | { readonly kind: "settlement"; readonly row: SettlementRow; readonly live: boolean }
@@ -58,492 +41,466 @@ export type TxModel =
 
 export interface TxPageContext {
   readonly page: PageContext;
-  readonly publicRpcUrl: string;
+  /** This page's public address, for "Copy link". */
+  readonly url: string;
   /** What the payment paid for, from the Bazaar; undefined when this network has no Bazaar. */
   readonly paid: Answer<PaidFor> | undefined;
+  /** Payments the buyer made in the epoch, when the index can say. */
+  readonly buyerPayments?: number | undefined;
+  /** The seller's Bazaar listings, or the payments it received when the Bazaar cannot say. */
+  readonly seller?: { readonly services?: number; readonly payments?: number } | undefined;
+  /** Payments between the same buyer and seller next to this one, and how many the buyer's list holds. */
+  readonly same?: { readonly rows: readonly SettlementRow[]; readonly total: number | undefined } | undefined;
 }
 
+/**
+ * The payments-list facilitator filter that holds a row: none for registered payments, `shaped` for
+ * the apart ones, the beta's id for the concluded beta (never in the registered list).
+ */
+export function buyerList(row: Pick<SettlementRow, "attribution">): string | undefined {
+  if (row.attribution.tier === "shaped") return "shaped";
+  if (row.attribution.tier === "rail402-beta") return row.attribution.facilitatorId ?? undefined;
+  return undefined;
+}
+
+/** The near miss each exclusion is, in the words of the check it failed. */
 const EXCLUSIONS: Readonly<Record<ExclusionReason, string>> = {
-  multi_operation: "It has more than one operation; the canonical scheme never batches.",
-  multi_auth: "It does not carry exactly one authorization entry.",
-  delegated_credentials:
-    "Its authorization uses delegated credentials, which the canonical facilitator cannot verify today.",
-  sub_invocations: "The authorized invocation has sub-invocations.",
-  transfer_event_mismatch: "Its events do not prove the payment.",
-  unproven_authorization:
-    "Nothing on chain proves the payer authorized it: the token is not a Stellar Asset Contract and the payer's own key did not sign the authorization.",
-  self_paid_fee: "The payer paid its own fee or signed as a source account, so the fee was not sponsored.",
-  upto_unregistered_contract: "An upto_settled event came from a contract the registry does not list.",
-  upto_wasm_mismatch: "The settlement contract runs WASM other than the registered one.",
-  malformed: "Its XDR does not decode, or its arguments do not match a settlement.",
+  multi_operation: "One operation only",
+  multi_auth: "Buyer signed once",
+  delegated_credentials: "Buyer signed with its own key",
+  sub_invocations: "Signed for this payment only",
+  transfer_event_mismatch: "One token transfer",
+  unproven_authorization: "Buyer's signature proven",
+  self_paid_fee: "Buyer paid no network fee",
+  upto_unregistered_contract: "Registered settlement contract",
+  upto_wasm_mismatch: "Registered settlement contract",
+  malformed: "Reads as a settlement",
 };
 
-/** What each rule check reads from the transaction. */
-const READS: Readonly<Record<string, string>> = {
-  E1: "result",
-  E2: "operation",
-  E3: "auth",
-  E4: "invocation",
-  E5: "fee",
-  E6: "events",
-  E7: "signature",
-  U1: "result",
-  U2: "operation",
-  U3: "registry",
-  U4: "wasm",
-  U5: "events",
-  U6: "events",
-  U7: "fee",
-  B1: "result",
-  B2: "operation",
-  B3: "events",
+/**
+ * The rule checks in plain words. Checks that prove one thing together (the transfer and its event, the
+ * signature and its proof) share a line; a line passes when every check under it passed.
+ */
+const LINES: Readonly<Record<"exact" | "upto" | "beta", readonly (readonly [string, readonly CheckId[]])[]>> =
+  {
+    exact: [
+      ["Succeeded on Stellar", ["E1"]],
+      ["One token transfer", ["E2", "E6"]],
+      ["Buyer signed once", ["E3", "E7"]],
+      ["Signed for this payment only", ["E4"]],
+      ["Buyer paid no network fee", ["E5"]],
+    ],
+    upto: [
+      ["Succeeded on Stellar", ["U1"]],
+      ["One settle call", ["U2"]],
+      ["Registered settlement contract", ["U3", "U4"]],
+      ["Settled amount matches the transfer", ["U5", "U6"]],
+      ["Buyer paid no network fee", ["U7"]],
+    ],
+    beta: [
+      ["Succeeded on Stellar", ["B1"]],
+      ["One settle call", ["B2"]],
+      ["Concluded beta contract", ["B2"]],
+      ["One token transfer", ["B3"]],
+      ["Buyer paid no network fee", ["B3"]],
+    ],
+  };
+
+const ROLES: Readonly<Record<string, string>> = {
+  sponsor: "sponsor",
+  channel: "channel",
+  "upto-authority": "settlement authority",
+  "fee-bump": "fee bump",
+  relayer: "relayer",
 };
 
-const stellarExpertLedger = (view: NetworkView, ledger: number) =>
-  `https://stellar.expert/explorer/${view.expert}/ledger/${String(ledger)}`;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** The strip that sends the reader to sources other than this page. */
-function proofStrip(context: TxPageContext, hash: string, ledger: number): Child {
+/** "Oct 29 · 14:32:55 UTC", with the year when it is not this year. */
+function closedLabel(iso: string, now: number): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const year =
+    date.getUTCFullYear() === new Date(now).getUTCFullYear() ? "" : `, ${String(date.getUTCFullYear())}`;
+  return `${MONTHS[date.getUTCMonth()] ?? ""} ${String(date.getUTCDate())}${year} · ${date.toISOString().slice(11, 19)} UTC`;
+}
+
+/** How far `other` is from `base`: "31 min later", "5 s earlier". */
+function relative(other: string, base: string): string {
+  const seconds = Math.round((Date.parse(other) - Date.parse(base)) / 1000);
+  const size = Math.abs(seconds);
+  const amount =
+    size < 60
+      ? `${String(size)} s`
+      : size < 3600
+        ? `${String(Math.round(size / 60))} min`
+        : size < 172_800
+          ? `${String(Math.round(size / 3600))} h`
+          : `${String(Math.round(size / 86_400))} days`;
+  return seconds === 0 ? "same ledger time" : `${amount} ${seconds > 0 ? "later" : "earlier"}`;
+}
+
+/** An account linked to its page, short. */
+const accountLink = (view: NetworkView, address: string, cls = "u") =>
+  h(
+    "a",
+    { class: cls, href: `${view.prefix}/account/${address}`, title: address, "aria-label": address },
+    shortKey(address),
+  );
+
+/** The role an account plays in a settlement: a registry role, the buyer, or not registered. */
+function roleOf(registry: RegistrySnapshot, row: SettlementRow, address: string): Node {
+  if (address === row.payer) return bdg("buyer", "mut");
+  const match = registry.accountAt(address, row.epoch, row.ledger);
+  return match === undefined
+    ? bdg("not registered", "dash")
+    : bdg(ROLES[match.account.role] ?? "registered", "mut");
+}
+
+const hashValue = (hash: string, what = "hash") => [
+  h("span", { title: hash }, `${hash.slice(0, 8)}…${hash.slice(-7)}`),
+  copyMini(hash, what),
+];
+
+/** The head's actions: copy this page's link, open the transaction on stellar.expert. */
+const headActions = (context: TxPageContext, hash: string) => [
+  copyAction(context.url, "Copy link"),
+  actionLink(stellarExpertTx(context.page.layout.view, hash), "stellar.expert", "external", true, true),
+];
+
+/** The Details card (two lists of equal length) beside a check card. */
+function detailsAndChecks(
+  left: readonly (readonly [string, ...Child[]])[],
+  right: readonly (readonly [string, ...Child[]])[],
+  title: string,
+  items: readonly { readonly label: string; readonly ok: boolean }[],
+): Node {
+  const passed = items.filter((item) => item.ok).length;
+  return h(
+    "div",
+    { class: "g2 pg2" },
+    card({ title: "Details", icon: "coin" }, h("div", { class: "kvs" }, kv(left), kv(right))),
+    card(
+      {
+        title,
+        icon: "shield",
+        end: bdg(
+          `${String(passed)} of ${String(items.length)}`,
+          passed === items.length ? undefined : "warn",
+        ),
+      },
+      checks(items, left.length > 6 ? "why one tall" : "why one"),
+    ),
+  );
+}
+
+function paidForValue(context: TxPageContext): Child {
   const view = context.page.layout.view;
-  const command = rpcCommand(context.publicRpcUrl, hash);
-  const rebuild = `pnpm explorer:rebuild --network ${view.slug} --from ${String(ledger)} --to ${String(ledger)}`;
-  return h(
-    "section",
-    { class: "proof", id: "verify", "aria-labelledby": "verify-title" },
-    h("h2", { id: "verify-title" }, "Don't trust us, check it"),
-    h(
-      "div",
-      { class: "actions stack" },
-      externalLink(stellarExpertTx(view, hash), "stellar.expert ↗", "btn on-dark"),
-      h("a", { class: "btn on-dark", href: `/api/v1/${view.slug}/transactions/${hash}` }, "Raw transaction"),
-      externalLink(
-        "https://docs.rail402.dev/reference/explorer-rebuild",
-        "Rebuild the index",
-        "btn on-dark accent",
-      ),
-    ),
-    h(
-      "p",
-      { class: "rebuild" },
-      "From the network's public RPC (about the last seven days): ",
-      h("code", null, command),
-      copyButton(command, "command"),
-    ),
-    h(
-      "p",
-      { class: "rebuild" },
-      "This ledger's rows from the public data lake, with no access to this site: ",
-      h("code", null, rebuild),
-      copyButton(rebuild, "command"),
-    ),
-  );
+  const paid = context.paid;
+  if (paid === undefined) return h("span", { class: "muted oa-b-sans" }, `No Bazaar on ${view.label}`);
+  if (paid.status === "down") return bdg("Bazaar did not answer", "mut");
+  if (paid.status !== "ok")
+    return bdg("not listed", "mut", "The Bazaar links no public listing to this payment.");
+  const listing = paid.value.listing;
+  let where = displayText(listing.serviceName ?? listing.resource, 120);
+  if (listing.serviceName === undefined && listing.type !== "mcp") {
+    try {
+      where = new URL(listing.resource).host;
+    } catch {
+      // Not a URL: shown as it is.
+    }
+  }
+  if (listing.type === "mcp" && listing.toolName !== undefined) where = displayText(listing.toolName, 128);
+  return h("a", { class: "u oa-b-sans", href: `${view.prefix}/resource/${listing.id}` }, where);
 }
 
-function liveNotice(): Child {
-  return h(
-    "p",
-    { class: "notice info", role: "status" },
-    h("strong", null, "Live lookup, not yet indexed. "),
-    "This transaction was read from the network's RPC just now and classified with the same rules; it enters the index and the report once the indexer reaches its ledger.",
-  );
-}
-
-function settlementBody(context: TxPageContext, settlement: SettlementRow, live: boolean): Child[] {
+function settlementBody(context: TxPageContext, row: SettlementRow, live: boolean): Child[] {
   const page = context.page;
   const view = page.layout.view;
-  const registry: RegistrySnapshot = page.registry;
+  const registry = page.registry;
   const facilitator =
-    settlement.attribution.facilitatorId === null
-      ? undefined
-      : registry.facilitator(settlement.attribution.facilitatorId);
-  const paid = context.paid?.status === "ok" ? context.paid.value : undefined;
-  const feeXlm = `${decimalAmount(settlement.fee.chargedStroops)} XLM`;
-  const amount = amountText(settlement);
-  const checks = settlement.checks.map((id) => ({
-    id: displayText(id, 4),
-    text: (CHECKS as Readonly<Record<string, string | undefined>>)[id] ?? displayText(id, 120),
-    read: READS[id] ?? "",
-  }));
-  const settledBy =
-    facilitator === undefined ? tierLabel(settlement.attribution.tier) : facilitatorName(facilitator);
-  const title =
-    paid === undefined
-      ? `${amount} to ${settlement.payTo.slice(0, 4)}…${settlement.payTo.slice(-4)}`
-      : `${amount} for ${listingTitle(paid.listing)}`;
-  const paidForValue: Child =
-    context.paid === undefined
-      ? h("span", { class: "muted" }, "No Bazaar is configured for this network.")
-      : context.paid.status === "down"
-        ? h("span", { class: "muted" }, "The Bazaar did not answer; try again shortly.")
-        : paid === undefined
-          ? [
-              notCataloged(),
-              h(
-                "span",
-                { class: "small muted" },
-                "The Bazaar links no public listing to this payment: it was not cataloged, its seller keeps usage private, or cataloging has not finished yet.",
-              ),
-            ]
-          : [
-              h(
-                "a",
-                { href: `${view.prefix}/resource/${paid.listing.id}`, class: "mono full" },
-                `${paid.listing.type === "mcp" ? "MCP" : displayText(paid.listing.method ?? "", 8)} ${displayText(paid.listing.resource, 400)}${paid.listing.toolName === undefined ? "" : ` · ${displayText(paid.listing.toolName, 128)}`}`,
-              ),
-              badge(
-                "First-party",
-                "accent",
-                "Rail402 settled this payment and cataloged the resource it paid for.",
-              ),
-            ];
-  const moneyRows: Child[] = [
-    h(
-      "tr",
-      null,
-      h("td", null, shortAddress(view, settlement.payer)),
-      h("td", null, "Payer"),
-      h("td", { class: "num minus" }, `−${amount}`),
-    ),
-    h(
-      "tr",
-      null,
-      h("td", null, shortAddress(view, settlement.payTo)),
-      h("td", null, "Seller (payTo)"),
-      h("td", { class: "num plus" }, `+${amount}`),
-    ),
-    h(
-      "tr",
-      null,
-      h("td", null, shortAddress(view, settlement.fee.payer)),
-      h("td", null, facilitator === undefined ? "Fee payer" : "Facilitator fee payer"),
-      h("td", { class: "num" }, `−${feeXlm}`),
-    ),
+    row.attribution.facilitatorId === null ? undefined : registry.facilitator(row.attribution.facilitatorId);
+  const registered = row.attribution.tier !== "shaped";
+  const verified = row.asset.verified && row.asset.code !== null;
+  const amount = verified ? decimalAmount(row.amount) : row.amount;
+  const unit = verified ? rowAsset(row) : "units";
+  const fee = decimalAmount(row.fee.chargedStroops);
+  const feePayerMatch = registry.accountAt(row.fee.payer, row.epoch, row.ledger);
+  const feeBy =
+    feePayerMatch !== undefined
+      ? bdg(`paid by ${facilitatorShort(feePayerMatch.facilitator)}`, "ok")
+      : row.fee.payer === row.payer
+        ? bdg("paid by the buyer", "warn")
+        : bdg(`paid by ${shortKey(row.fee.payer)}`, "mut");
+  const rule = row.ruleId === "R-UPTO" ? "upto" : row.ruleId === "R-UPTO-BETA" ? "beta" : "exact";
+  const passed = new Set<string>(row.checks);
+  const items = [
+    ...LINES[rule].map(([label, ids]) => ({ label, ok: ids.every((id) => passed.has(id)) })),
+    { label: live ? "Ledger check once indexed" : "Ledger matches the record", ok: !live },
+    { label: "Registered facilitator", ok: registered },
   ];
-  const nonCustodial =
-    settlement.fee.sponsored &&
-    settlement.fee.payer !== settlement.payer &&
-    settlement.fee.payer !== settlement.payTo;
+  const upto = row.scheme === "upto";
+  const used =
+    row.maxAmount !== null && BigInt(row.maxAmount) > 0n
+      ? Number((BigInt(row.amount) * 1000n) / BigInt(row.maxAmount)) / 10
+      : undefined;
+  const notRecorded = h("span", { class: "muted" }, "not recorded");
+  const left: (readonly [string, ...Child[]])[] = [
+    ["Network", networkPill(view)],
+    ["Scheme", schemePill(row.scheme)],
+    [
+      "Asset",
+      verified ? rowAsset(row) : h("span", { title: row.asset.contract }, shortKey(row.asset.contract)),
+      verified ? bdg("verified", "ok") : bdg("unverified token", "warn"),
+    ],
+    ["Amount", h("b", null, rowAmount(row))],
+    ...(upto
+      ? [
+          row.maxAmount === null
+            ? (["Max amount", notRecorded] as const)
+            : ([
+                "Max amount",
+                rowAmount(row, row.maxAmount),
+                used === undefined ? null : bdg(`${String(used)}% used`, "info"),
+              ] as const),
+        ]
+      : []),
+    ["Facilitator", rowFacilitator(view.prefix, registry, row)],
+    ["Paid for", paidForValue(context)],
+  ];
+  const right: (readonly [string, ...Child[]])[] = [
+    [
+      "Fee payer",
+      accountLink(view, row.fee.payer),
+      roleOf(registry, row, row.fee.payer),
+      copyMini(row.fee.payer, "fee payer address"),
+    ],
+    ["Sent from", accountLink(view, row.fee.innerSource), roleOf(registry, row, row.fee.innerSource)],
+    ...(upto
+      ? [
+          row.upto === null
+            ? (["Authority", notRecorded] as const)
+            : ([
+                "Authority",
+                accountLink(view, row.upto.authority),
+                roleOf(registry, row, row.upto.authority),
+              ] as const),
+        ]
+      : []),
+    ["Envelope", row.fee.bump ? bdg("fee bump", "info") : bdg("single", "mut")],
+    ["Network fee", `${fee} XLM`],
+    ["Position", `tx ${String(row.txIndex)} in its ledger`],
+    ["Hash", ...hashValue(row.txHash)],
+  ];
+  const same = context.same;
+  const list = buyerList(row);
+  const sameHref = `${view.prefix}/payments?account=${row.payer}${list === undefined ? "" : `&facilitator=${list}`}`;
   return [
-    h(
-      "div",
-      { class: "page-head" },
-      h(
-        "div",
-        { class: "titles" },
-        h("p", { class: "eyebrow" }, `${view.label} · x402 payment`),
-        h("h1", null, title),
-        h(
-          "div",
-          { class: "badges" },
-          badge("✓ Settled", "ok"),
-          paid === undefined ? null : badge("First-party", "accent"),
-          schemeBadge(settlement.scheme),
-          badge(
-            settledBy,
-            facilitator?.tier === "rail402" ? "accent" : facilitator === undefined ? "warn" : undefined,
-          ),
-          live ? badge("Live lookup", "live") : null,
-        ),
-      ),
-    ),
-    h(
-      "div",
-      { class: "paid" },
-      h("span", { class: "label" }, "Paid for"),
-      paid === undefined
-        ? h("span", null, "Not cataloged")
-        : h("a", { href: `${view.prefix}/resource/${paid.listing.id}` }, listingTitle(paid.listing)),
-      h("span", { class: "big" }, amount),
-      h("span", { class: "small" }, `Fee ${feeXlm}, paid by ${settledBy}`),
-    ),
-    h(
-      "nav",
-      { class: "sections", "aria-label": "Payment" },
-      h("a", { href: "#overview", "aria-current": "true" }, "Overview"),
-      h("a", { href: "#money" }, "Money movement"),
-      h("a", { href: "#checks" }, `Rule checks (${String(checks.length)})`),
-      h("a", { href: "#verify" }, "Verify"),
-    ),
-    live ? liveNotice() : null,
-    panel(
-      { id: "overview", label: "Overview" },
-      rows(
-        "group",
-        row(
-          "Transaction hash",
-          fullHash(settlement.txHash),
-          settlement.fee.bump ? h("span", { class: "small muted" }, "fee bump, outer") : null,
-        ),
-        settlement.innerHash === null ? null : row("Inner hash", fullHash(settlement.innerHash)),
-        row(
-          "Status",
-          badge("✓ Settled", "ok"),
-          h("span", { class: "small muted" }, `rule ${settlement.ruleId}`),
-        ),
-        row(
-          "Ledger",
-          externalLink(
-            stellarExpertLedger(view, settlement.ledger),
-            groupThousands(settlement.ledger),
-            "mono",
-          ),
-          h("span", { class: "small muted" }, `position ${String(settlement.txIndex)}`),
-        ),
-        row("Timestamp", utc(settlement.closedAt)),
-        row("Network", `${view.label} (${settlement.network})`),
-      ),
-      rows(
-        "group",
-        row("Paid for", paidForValue),
-        paid === undefined
+    pageHead({
+      crumbs: [
+        ["Payments", `${view.prefix}/payments`],
+        [rowHash(row.txHash), undefined],
+      ],
+      title: [amount, " ", h("span", { class: "oa-b-unit" }, unit)],
+      badges: [
+        bdg("✓ Settled", "ok"),
+        schemePill(row.scheme),
+        rowFacilitator(view.prefix, registry, row),
+        registered
           ? null
-          : row(
-              "Service",
-              h(
-                "a",
-                { href: `${view.prefix}/account/${paid.listing.payTo}` },
-                displayText(paid.listing.serviceName ?? hostOf(paid.listing.resource), 120),
+          : bdg("kept apart", "warn", "Not settled by a registered facilitator: never in the totals."),
+        row.payer === row.payTo
+          ? bdg("self-payment", "warn", "The buyer paid itself: never in the totals.")
+          : null,
+        row.fee.sponsored ? bdg("fee sponsored", "ok") : bdg("fee not sponsored", "warn"),
+        row.attribution.sharedRelayer || facilitator?.sharedRelayer === true
+          ? bdg("shared relayer", "warn", "This relayer also sends transfers that are not x402 payments.")
+          : null,
+        live
+          ? bdg("not indexed yet", "info", "Read from the network just now; it enters the index soon.")
+          : null,
+        bdg(closedLabel(row.closedAt, page.now), "mut"),
+      ],
+      actions: headActions(context, row.txHash),
+    }),
+    h(
+      "div",
+      { class: "g4 oa-b-tiles" },
+      tile({
+        label: "Buyer",
+        icon: "user",
+        value: [accountLink(view, row.payer, "u oa-b-key"), copyMini(row.payer, "buyer address")],
+        badges: [
+          context.buyerPayments === undefined
+            ? bdg(row.payerKind === "C" ? "contract account" : "account", "mut")
+            : bdg(
+                `${groupThousands(context.buyerPayments)} payment${context.buyerPayments === 1 ? "" : "s"}`,
+                "mut",
               ),
-              h("span", { class: "small muted" }, "seller page"),
-            ),
-        paid === undefined
-          ? null
-          : row(
-              "Listed price",
-              `${listingPrice(page, paid.listing)} · scheme ${displayText(paid.listing.scheme, 16)}`,
-            ),
-      ),
-      rows(
-        "group",
-        row(
-          "From (payer)",
-          fullAddress(view, settlement.payer),
-          h("span", { class: "small muted" }, settlement.payerKind === "C" ? "contract account" : "account"),
-        ),
-        row(
-          "To (payTo)",
-          fullAddress(view, settlement.payTo),
-          settlement.payToMuxedId === null
-            ? null
-            : h("span", { class: "small muted" }, `muxed id ${displayText(settlement.payToMuxedId, 24)}`),
-        ),
-        row(
-          "Amount",
-          amountLabel(settlement),
-          settlement.asset.verified ? badge("Verified asset", "grey") : null,
-        ),
-        settlement.scheme === "upto"
-          ? row(
-              "Authorized up to",
-              settlement.maxAmount === null
-                ? h("span", { class: "muted" }, "not recorded")
-                : amountLabel(settlement, settlement.maxAmount),
-              h("span", { class: "small muted" }, "Cap (upto)"),
-            )
-          : null,
-        row(
-          "Asset",
-          assetLabel(settlement),
-          externalLink(
-            stellarExpertAccount(view, settlement.asset.contract),
-            displayText(settlement.asset.contract, 56),
-            "mono full",
-          ),
-          copyButton(displayText(settlement.asset.contract, 56), "token contract"),
-        ),
-        settlement.asset.verified && settlement.asset.issuer !== null
-          ? row("Issuer", fullAddress(view, settlement.asset.issuer))
-          : null,
-        settlement.upto === null
-          ? null
-          : row(
-              "Upto contract",
-              h("span", { class: "mono full" }, displayText(settlement.upto.contract, 56)),
-            ),
-        settlement.upto === null
-          ? null
-          : row("Settlement authority", fullAddress(view, settlement.upto.authority)),
-      ),
-      rows(
-        "group",
-        row(
-          "Settled by",
-          facilitator === undefined
-            ? badge(tierLabel(settlement.attribution.tier), "warn")
-            : [
-                h(
-                  "a",
-                  { href: `${view.prefix}/facilitator/${facilitator.id}` },
-                  displayText(facilitator.name, 100),
-                ),
-                badge(facilitator.tier === "rail402-beta" ? "Concluded beta" : "Registered", "grey"),
-              ],
-          settlement.attribution.evidenceUrl === null
-            ? h(
-                "span",
-                { class: "small muted" },
-                "No registry account matched: smart-wallet relays, test scripts and unknown facilitators look the same.",
+        ],
+      }),
+      tile({
+        label: "Seller",
+        icon: "bazaar",
+        value: [accountLink(view, row.payTo, "u oa-b-key"), copyMini(row.payTo, "seller address")],
+        badges: [
+          context.seller?.services !== undefined
+            ? bdg(
+                context.seller.services === 0
+                  ? "no listings"
+                  : `${groupThousands(context.seller.services)} service${context.seller.services === 1 ? "" : "s"}`,
+                "mut",
               )
-            : externalLink(settlement.attribution.evidenceUrl, "attribution evidence"),
-          settlement.attribution.sharedRelayer || facilitator?.sharedRelayer === true
-            ? h(
-                "span",
-                { class: "small muted" },
-                "Shared relayer: it also relays transactions that are not x402 payments.",
-              )
-            : null,
-        ),
-        row("Fee payer", fullAddress(view, settlement.fee.payer)),
-        row(
-          "Network fee",
-          `${feeXlm} (${groupThousands(settlement.fee.chargedStroops)} stroops)`,
-          settlement.fee.sponsored ? badge("Sponsored", "ok") : badge("Not sponsored", "warn"),
-          h(
-            "span",
-            { class: "small muted" },
-            settlement.fee.sponsored
-              ? `the payer paid no fee${settlement.fee.bump ? "; sponsored through a fee bump" : ""}`
-              : "the transaction source paid it",
-          ),
-        ),
-        row("Transaction source", fullAddress(view, settlement.fee.innerSource)),
-        row(
-          "Rule",
-          `${settlement.ruleId} v${displayText(settlement.rulesVersion, 8)} · ${String(checks.length)} of ${String(checks.length)} checks passed`,
-        ),
-        row(
-          "Classified under",
-          `rules v${displayText(settlement.rulesVersion, 8)}, registry ${displayText(settlement.registryVersion, 20)}`,
-          live ? null : h("span", { class: "small muted" }, `epoch ${displayText(settlement.epoch, 32)}`),
-        ),
-      ),
-      note(
-        "“Paid for” comes from the Rail402 Bazaar (off chain). Everything else on this page is read from the ledger.",
-      ),
+            : context.seller?.payments !== undefined
+              ? bdg(`${groupThousands(context.seller.payments)} payments received`, "mut")
+              : null,
+          row.payToMuxedId === null ? null : bdg(`muxed ${displayText(row.payToMuxedId, 24)}`, "mut"),
+        ],
+      }),
+      tile({
+        label: "Ledger",
+        icon: "ledger",
+        value: groupThousands(row.ledger),
+        badges: [bdg(`tx ${String(row.txIndex)} of the ledger`, "mut")],
+      }),
+      tile({
+        label: "Network fee",
+        icon: "shield",
+        value: fee,
+        unit: "XLM",
+        valueCls: "oa-b-fee",
+        badges: [feeBy],
+      }),
     ),
-    h(
-      "div",
-      { class: "grid-2" },
-      panel(
-        {
-          title: "Money movement",
-          id: "money",
-          aside: nonCustodial ? badge("Non-custodial", "ok") : null,
-        },
-        table("narrow", [{ label: "Account" }, { label: "Role" }, { label: "Change", num: true }], moneyRows),
-        h(
-          "p",
-          { class: "panel-note strong" },
-          nonCustodial
-            ? `The fee payer only paid the network fee. The rule checks prove the ${settlement.asset.verified ? rowAsset(settlement) : "token"} moved from the payer to the seller.`
-            : "The fee was not sponsored by a separate account.",
-        ),
-      ),
-      panel(
-        {
-          title: `Rule checks · ${settlement.ruleId} v${displayText(settlement.rulesVersion, 8)}`,
-          id: "checks",
-          aside: h("a", { href: "/methodology#checks" }, "Read the rules"),
-        },
-        checks.map((check) =>
+    detailsAndChecks(left, right, "Why it counts", items),
+    same === undefined || same.rows.length === 0
+      ? null
+      : card(
+          {
+            title: "Same buyer and seller",
+            icon: "list",
+            cls: "oa-b-same",
+            link: {
+              href: sameHref,
+              label:
+                same.total === undefined
+                  ? "All →"
+                  : `All ${groupThousands(Math.min(same.total, COUNT_CAP))}${same.total > COUNT_CAP ? "+" : ""} →`,
+            },
+          },
           h(
             "div",
-            { class: "check" },
-            h("span", { class: "id" }, check.id),
-            h("span", { class: "text" }, check.text),
-            h("span", { class: "read" }, check.read),
-            h("span", { class: "pass" }, "PASS"),
+            { class: "feed2" },
+            same.rows.map((other) => paymentRow(page, other, relative(other.closedAt, row.closedAt))),
           ),
         ),
-        note("Rule checks that matched, as the published indexing rules define them."),
-      ),
-    ),
-    proofStrip(context, settlement.txHash, settlement.ledger),
   ];
-}
-
-function hostOf(resource: string): string {
-  try {
-    return new URL(resource).host;
-  } catch {
-    return resource;
-  }
 }
 
 function failedBody(context: TxPageContext, failed: FailedAttemptRow, live: boolean): Child[] {
-  const view = context.page.layout.view;
+  const page = context.page;
+  const view = page.layout.view;
+  const match = page.registry.accountAt(failed.feePayer, failed.epoch, failed.ledger);
+  const fee = decimalAmount(failed.feeChargedStroops);
   return [
-    h(
-      "div",
-      { class: "page-head" },
-      h(
-        "div",
-        { class: "titles" },
-        h("p", { class: "eyebrow" }, `${view.label} · failed attempt`),
-        h("h1", null, "Failed x402 attempt"),
-        h(
-          "div",
-          { class: "badges" },
-          badge("Failed", "error"),
-          schemeBadge(failed.scheme),
-          live ? badge("Live lookup", "live") : null,
-        ),
-      ),
+    pageHead({
+      crumbs: [
+        ["Payments", `${view.prefix}/payments`],
+        [rowHash(failed.txHash), undefined],
+      ],
+      title: "Failed attempt",
+      badges: [
+        bdg("✗ Failed", "warn"),
+        schemePill(failed.scheme),
+        match === undefined
+          ? null
+          : facPill(
+              facilitatorShort(match.facilitator),
+              match.facilitator.id,
+              `${view.prefix}/facilitator/${match.facilitator.id}`,
+            ),
+        bdg("never counted", "mut"),
+        live ? bdg("not indexed yet", "info") : null,
+      ],
+      actions: headActions(context, failed.txHash),
+    }),
+    detailsAndChecks(
+      [
+        ["Network", networkPill(view)],
+        ["Scheme", schemePill(failed.scheme)],
+        ["Result", h("span", { title: displayText(failed.resultCode, 120) }, resultWords(failed.resultCode))],
+        ["Ledger", groupThousands(failed.ledger)],
+      ],
+      [
+        [
+          "Fee payer",
+          accountLink(view, failed.feePayer),
+          match === undefined
+            ? bdg("not registered", "dash")
+            : bdg(ROLES[match.account.role] ?? "registered", "mut"),
+        ],
+        ["Network fee", `${fee} XLM`],
+        ["Position", `tx ${String(failed.txIndex)} in its ledger`],
+        ["Hash", ...hashValue(failed.txHash)],
+      ],
+      "Why it does not count",
+      [
+        { label: "Shaped like an x402 payment", ok: true },
+        { label: "Succeeded on Stellar", ok: false },
+        { label: live ? "Ledger check once indexed" : "Ledger matches the record", ok: !live },
+        { label: "No money moved", ok: true },
+      ],
     ),
-    h(
-      "p",
-      { class: "notice error", role: "status" },
-      h("strong", null, "Not a payment. "),
-      "This transaction has the shape of an x402 settlement but failed on chain. Failed attempts are never counted.",
-      live ? " (Live lookup, not yet indexed.)" : "",
-    ),
-    panel(
-      { label: "Failed attempt" },
-      rows(
-        undefined,
-        row("Network", `${view.label} (${failed.network})`),
-        row("Result", h("code", null, displayText(failed.resultCode, 120))),
-        row("Fee payer", fullAddress(view, failed.feePayer)),
-        row("Fee charged", `${groupThousands(failed.feeChargedStroops)} stroops`),
-        row("Hash", fullHash(failed.txHash)),
-        row("Ledger", groupThousands(failed.ledger)),
-      ),
-    ),
-    proofStrip(context, failed.txHash, failed.ledger),
   ];
+}
+
+/** A failed transaction's result code in words. */
+function resultWords(code: string): string {
+  const text = displayText(code, 120).toLowerCase();
+  if (text.includes("trapped")) return "Contract call failed";
+  if (text.includes("resource_limit")) return "Ran out of resources";
+  if (text.includes("insufficient_balance") || text.includes("underfunded")) return "Not enough funds";
+  if (text.includes("bad_seq")) return "Wrong sequence number";
+  if (text.includes("too_late") || text.includes("too_early")) return "Outside its time window";
+  if (text.includes("bad_auth")) return "Signature not accepted";
+  return "Rejected on chain";
 }
 
 function notX402Body(context: TxPageContext, model: Extract<TxModel, { kind: "not_x402" }>): Child[] {
   const view = context.page.layout.view;
+  const near = model.reason !== null;
   return [
-    h(
-      "div",
-      { class: "page-head" },
-      h(
-        "div",
-        { class: "titles" },
-        h("p", { class: "eyebrow" }, `${view.label} · live lookup`),
-        h("h1", null, "Not an x402 settlement"),
-      ),
+    pageHead({
+      title: near ? "Near miss" : "Not an x402 payment",
+      mono: false,
+      badges: [
+        near ? bdg("near miss · not counted", "warn") : bdg("not x402", "mut"),
+        bdg("not indexed yet", "info", "Read from the network just now."),
+        bdg(closedLabel(model.closedAt, context.page.now), "mut"),
+      ],
+      actions: headActions(context, model.hash),
+    }),
+    detailsAndChecks(
+      [
+        ["Network", networkPill(view)],
+        ["Ledger", groupThousands(model.ledger)],
+        ["Closed", closedLabel(model.closedAt, context.page.now)],
+      ],
+      [
+        ["Hash", ...hashValue(model.hash)],
+        ["Index", bdg("not indexed yet", "info")],
+        ["Counted", bdg("never", "mut")],
+      ],
+      "Why it does not count",
+      [
+        { label: "Succeeded on Stellar", ok: true },
+        {
+          label: model.reason === null ? "Shaped like an x402 payment" : EXCLUSIONS[model.reason],
+          ok: false,
+        },
+        { label: "Ledger check once indexed", ok: false },
+      ],
     ),
-    h(
-      "p",
-      { class: "notice info", role: "status" },
-      h("strong", null, "Live lookup, not yet indexed. "),
-      model.reason === null
-        ? "This transaction exists on chain, but it is not shaped like an x402 settlement under the indexing rules."
-        : ["It is close to an x402 settlement but misses one check: ", EXCLUSIONS[model.reason]],
-    ),
-    panel(
-      { label: "Transaction" },
-      rows(
-        undefined,
-        row("Hash", fullHash(model.hash)),
-        row("Ledger", groupThousands(model.ledger), h("span", { class: "small muted" }, utc(model.closedAt))),
-        model.reason === null ? null : row("Excluded because", h("code", null, model.reason)),
-      ),
-    ),
-    proofStrip(context, model.hash, model.ledger),
   ];
 }
 
@@ -555,13 +512,15 @@ export function txPage(context: TxPageContext, model: TxModel): string {
       : model.kind === "failed"
         ? failedBody(context, model.row, model.live)
         : notX402Body(context, model);
-  const layoutOptions: LayoutOptions = {
-    ...context.page.layout,
-    section: "payments",
-    title: `Payment ${hash.slice(0, 12)}…`,
-    path: `/tx/${hash}`,
-    description:
-      "An x402 payment on Stellar: what it paid for, who paid whom, the facilitator, the fee sponsorship and the rule checks that matched.",
-  };
-  return layout(layoutOptions, body(...content));
+  return page(
+    {
+      ...context.page.layout,
+      section: "payments",
+      title: `Payment ${hash.slice(0, 12)}…`,
+      path: `/tx/${hash}`,
+      description:
+        "An x402 payment on Stellar: who paid whom, how much, the facilitator, the fee and the rule checks it passed.",
+    },
+    ...content,
+  );
 }

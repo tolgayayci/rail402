@@ -1,0 +1,164 @@
+/* Pages c: facilitators, facilitator, Bazaar, service, seller. */
+.oa .oc-gap {
+  margin-top: 12px;
+}
+.oa .oc-note {
+  margin: 12px 0 0;
+  font: 500 13px/18px var(--font-sans);
+  color: var(--muted);
+}
+.oa .st .n.oc-mut {
+  color: var(--muted);
+}
+.oa .sbar rect.rest {
+  fill: transparent;
+}
+
+/* Side-by-side columns end at the same height: the last card of each takes the rest. */
+.oa .oc-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.oa .oc-col > .card:last-child {
+  flex: 1;
+}
+
+/* Registry card: one count column per facilitator. */
+.oa .tr.ra.oc-ra1 {
+  grid-template-columns: minmax(0, 1fr) 110px;
+}
+.oa .tr.ra.oc-ra2 {
+  grid-template-columns: minmax(0, 1fr) repeat(2, 110px);
+}
+.oa .tr.ra.oc-ra3 {
+  grid-template-columns: minmax(0, 1fr) repeat(3, 110px);
+}
+.oa .tr.ra.oc-ra4 {
+  grid-template-columns: minmax(0, 1fr) repeat(4, 96px);
+}
+.oa .tr.ra.th .num {
+  white-space: normal;
+  line-height: 14px;
+}
+.oa .oc-chart .stack-x span {
+  white-space: nowrap;
+}
+.oa .tr.fx > span:last-child {
+  white-space: nowrap;
+}
+
+/* A facilitator's daily bars in its own colour. */
+.oa .oc-bars-r4 rect,
+.oa .oc-bars-r4 rect.today {
+  fill: var(--accent-bright);
+}
+.oa .oc-bars-x4 rect,
+.oa .oc-bars-x4 rect.today {
+  fill: var(--chain);
+}
+.oa .oc-bars-bs rect,
+.oa .oc-bars-bs rect.today {
+  fill: #7a3fe0;
+}
+.oa .oc-bars-av rect,
+.oa .oc-bars-av rect.today {
+  fill: #c98a00;
+}
+.oa .oc-bars-gen rect,
+.oa .oc-bars-gen rect.today {
+  fill: #5f5a54;
+}
+.oa .oc-bars-sh rect,
+.oa .oc-bars-sh rect.today {
+  fill: var(--line-strong);
+}
+
+@media (max-width: 900px) {
+  .x.oa .tr.ra.oc-ra1 {
+    grid-template-columns: minmax(0, 1fr) 72px;
+  }
+  .x.oa .tr.ra.oc-ra2 {
+    grid-template-columns: minmax(0, 1fr) repeat(2, 72px);
+  }
+  .x.oa .tr.ra.oc-ra3 {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 64px);
+  }
+  .x.oa .tr.ra.oc-ra4 {
+    grid-template-columns: minmax(0, 1fr) repeat(4, 56px);
+  }
+}
+.oa .oc-col .mx span {
+  white-space: nowrap;
+}
+
+/* Bazaar filters: links with the checkbox look. */
+.oa .fside a.opt {
+  box-sizing: border-box;
+  color: var(--ink);
+  text-decoration: none;
+  font: 500 14px/18px var(--font-sans);
+}
+.oa .fside a.opt[aria-current="true"] {
+  font-weight: 600;
+}
+.oa .fside a.opt[aria-current="true"] .cbx {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.oa .fside a.opt[aria-current="true"] .cbx svg {
+  stroke: var(--on-ink);
+}
+.oa .fside a.clr {
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+}
+.oa .fside span.clr {
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  cursor: default;
+}
+.oa .fside form {
+  margin: 0;
+}
+.oa .oc-ftog {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.oa .ftog .chev::after {
+  content: "+";
+}
+.oa .oc-ftog:checked + .ftog .chev::after {
+  content: "−";
+}
+.oa .oc-ftog:focus-visible + .ftog {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.oa .fside .oc-fbody {
+  display: grid;
+  gap: 18px;
+}
+.oa .rhead h2 .oc-of {
+  font: 500 14px/1 var(--font-sans);
+}
+.oa a.ach {
+  text-decoration: none;
+}
+.oa .oc-addr {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .x.oa .fside .oc-fbody {
+    display: none;
+  }
+  .x.oa .oc-ftog:checked ~ .oc-fbody {
+    display: grid;
+  }
+}

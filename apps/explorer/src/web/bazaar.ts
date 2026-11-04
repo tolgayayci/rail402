@@ -51,6 +51,16 @@ export interface Listing extends ListingRef {
   readonly version?: number;
   readonly x402Version?: number;
   readonly feesSponsored?: boolean;
+  /**
+   * The Bazaar's last check of the seller's domain: whether the domain's stellar.toml names the payTo
+   * account, and whether that account's home domain names the domain back.
+   */
+  readonly domainCheck?: {
+    readonly checkedAt?: string;
+    readonly host?: string;
+    readonly claimsOwner: boolean;
+    readonly homeDomainMatches: boolean;
+  };
 }
 
 export interface PaidFor {
@@ -268,6 +278,20 @@ export function parseListing(value: unknown, network: string): Listing | undefin
     ...optional("version", count(summary["version"])),
     ...optional("x402Version", count(value["x402Version"])),
     ...(extra["areFeesSponsored"] === true ? { feesSponsored: true } : {}),
+    ...optional("domainCheck", domainCheck(summary["stellar"])),
+  };
+}
+
+function domainCheck(value: unknown): Listing["domainCheck"] {
+  if (!isObject(value) || !isObject(value["domain"])) return undefined;
+  const domain = value["domain"];
+  if (typeof domain["claimsOwner"] !== "boolean" || typeof domain["homeDomainMatches"] !== "boolean")
+    return undefined;
+  return {
+    ...optional("checkedAt", time(value["checkedAt"])),
+    ...optional("host", text(domain["host"], 253)),
+    claimsOwner: domain["claimsOwner"],
+    homeDomainMatches: domain["homeDomainMatches"],
   };
 }
 

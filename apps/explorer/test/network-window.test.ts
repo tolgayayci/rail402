@@ -291,17 +291,15 @@ describe("the network window on the report", () => {
     } as unknown as ComputedReport;
     const app = testApp({ reader: new MemoryReader(rows), report });
     const html = await (await app.request("/testnet/ecosystem")).text();
-    expect(html).toContain("Network-wide (sampled window)");
-    expect(html).toContain("ledgers 5,330,305 to 5,330,320");
-    expect(html).toContain("Other registered facilitators");
-    expect(html).toContain("Unregistered or unattributed (x402-shaped)");
-    expect(html).toContain(window.document.manifestSha256);
-    expect(html).toContain("--anchor-horizon");
-    // The registry-scope block keeps its own label next to it.
-    expect(html).toContain("Registered facilitators (Rail402 included)");
-    expect(html.indexOf("Network-wide (sampled window)")).toBeLessThan(
-      html.indexOf("Registered facilitators (Rail402 included)"),
-    );
+    // The network-wide tile counts every tier of the window and names its span; the registered
+    // totals stay a tile of their own.
+    const tiers = window.document.tiers;
+    const total = tiers.rail402.payments + tiers.otherRegistered.payments + tiers.unattributed.payments;
+    expect(html).toContain("Network-wide");
+    expect(html).toContain(`>${String(total)}</span>`);
+    expect(html).toContain(`every facilitator · last ${String(window.document.window.hours)} h`);
+    expect(html).not.toContain(">soon<");
+    expect(html.indexOf(">Registered<")).toBeLessThan(html.indexOf("Network-wide"));
 
     const api = (await (await app.request("/api/v1/testnet/report")).json()) as {
       networkWide: { manifestSha256: string; window: { from: number } };
@@ -323,8 +321,8 @@ describe("the network window on the report", () => {
     } as unknown as ComputedReport;
     const app = testApp({ reader: new MemoryReader(rows), report });
     const html = await (await app.request("/testnet/ecosystem")).text();
-    expect(html).not.toContain("Network-wide");
-    expect(html).toContain("Registered facilitators (Rail402 included)");
+    expect(html).toContain(">soon<");
+    expect(html).not.toContain("every facilitator · last");
     const api = (await (await app.request("/api/v1/testnet/report")).json()) as { networkWide: unknown };
     expect(api.networkWide).toBeNull();
     expect((await app.request("/api/v1/testnet/network-window/manifest")).status).toBe(404);
@@ -333,7 +331,7 @@ describe("the network window on the report", () => {
   it("is absent until the window job publishes one", async () => {
     const report = { document: { ...reportOf(rows), networkWide: null } } as unknown as ComputedReport;
     const app = testApp({ reader: new MemoryReader(rows), report });
-    expect(await (await app.request("/testnet/ecosystem")).text()).not.toContain("Network-wide");
+    expect(await (await app.request("/testnet/ecosystem")).text()).toContain(">soon<");
     const manifest = await app.request("/api/v1/testnet/network-window/manifest");
     expect(manifest.status).toBe(404);
     expect(((await manifest.json()) as { error: { code: string } }).error.code).toBe("explorer_not_found");

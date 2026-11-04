@@ -34,22 +34,58 @@ import type { HoldingsClient } from "./holdings.ts";
 import type { LiveLookup } from "./live-lookup.ts";
 import { TokenBuckets } from "./live-lookup.ts";
 import type { WebMetrics } from "./metrics.ts";
-import { accountPage } from "./pages/account.ts";
-import type { PageContext } from "./pages/context.ts";
+import { accountPage, FEE_ROLES } from "./pages/account.ts";
+import { accountSample, readerDatabase, topAccounts } from "../api/queries-a.ts";
+import { usdcContract, type PageContext } from "./pages/context.ts";
 import { ecosystemPage } from "./pages/ecosystem.ts";
-import { facilitatorPage, facilitatorsPage } from "./pages/facilitators.ts";
-import { homePage, SEARCH_SCOPES, type SearchScope } from "./pages/home.ts";
-import { errorPage, methodologyPage, searchPage } from "./pages/misc.ts";
+import {
+  facilitatorDaily,
+  facilitatorStats,
+  facilitatorSummaries,
+  newestDay,
+  databaseOf as facilitatorDatabase,
+} from "../api/queries-c.ts";
+import {
+  chartEnd,
+  chartStart,
+  facilitatorPage,
+  facilitatorsPage,
+  UNREGISTERED,
+} from "./pages/facilitators.ts";
+import { homePage, loadOverview, type Range, type SearchScope, type TopSide } from "./pages/home.ts";
+import {
+  GROUP_IDS,
+  runSearch,
+  searchKind,
+  searchResultsPage,
+  searchStarts,
+  searchTries,
+  suggestion,
+} from "./pages/search.ts";
+import { errorPage } from "./pages/misc.ts";
 import {
   paymentsCsv,
   paymentsPage,
+  PER_PAGE,
   TIME_WINDOWS,
   type PaymentQuery,
   type TimeWindow,
 } from "./pages/payments.ts";
+import { MAX_OFFSET, readsOf, type PaymentFilterB } from "../api/queries-b.ts";
+import { CHART_RANGES, rangeStart, type ChartRange } from "./pages/ecosystem.ts";
+import { DOCS_URL } from "./ui.ts";
 import { resourcePage } from "./pages/resource.ts";
-import { groupServices, serviceName, servicesPage, type Service } from "./pages/services.ts";
-import { txPage, type TxModel } from "./pages/tx.ts";
+import { sellerPage } from "./pages/seller.ts";
+import {
+  BAZAAR_PARAMS,
+  bazaarQuery,
+  groupServices,
+  loadCatalog,
+  serviceName,
+  servicesPage,
+  type Service,
+} from "./pages/services.ts";
+import { buyerList, txPage, type TxModel } from "./pages/tx.ts";
 import { clientKey } from "./client-key.ts";
 import { HASH } from "./text.ts";
 
@@ -297,9 +333,16 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     const entry =
       (c.req.path.startsWith("/testnet") ? served.get("stellar:testnet") : undefined) ?? defaultServed;
     if (entry === undefined) return send(c, known.reason, "text", "volatile", versions, known.status);
+    // The path without the network prefix: the network switch opens it on the other network.
+    const path = c.req.path.slice(entry.view.prefix.length, entry.view.prefix.length + 200);
     return send(
       c,
-      errorPage({ ...layoutFor(entry), path: "" }, known.status, known.code, known.reason),
+      errorPage(
+        { ...layoutFor(entry), statusUrl: options.statusUrl, path },
+        known.status,
+        known.code,
+        known.reason,
+      ),
       "html",
       "volatile",
       versions,
@@ -737,6 +780,51 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
 
   const PAYMENT_PARAMS = ["facilitator", "scheme", "asset", "time"];
 
+  /**
+   * The payments page's and the CSV's request: the list's filters, an `account` (G…, C…, or M… for that
+   * muxed seller) and, on pages, a `page` number (1 to 1,000). An old `cursor` is ignored.
+   */
+  async function paymentsRequest(
+    entry: Served,
+    raw: Readonly<Record<string, string>>,
+    pages: boolean,
+  ): Promise<{ query: PaymentQuery; filter: PaymentFilterB; page: number }> {
+    const allowed = [...PAYMENT_PARAMS, "account", ...(pages ? ["page", "cursor"] : [])];
+    for (const name of Object.keys(raw))
+      if (!allowed.includes(name))
+        throw explorerError("explorer_invalid_parameter", {
+          reason: `Unknown query parameter ${JSON.stringify(name.slice(0, 40))}.`,
+        });
+    const { account: rawAccount, page: rawPage, cursor: _cursor, ...rest } = raw;
+    const query = paymentQuery(entry, rest);
+    const base = await paymentFilter(entry, query);
+    const account = (rawAccount ?? "").trim();
+    let filter: PaymentFilterB = base;
+    if (account !== "") {
+      if (StrKey.isValidEd25519PublicKey(account) || StrKey.isValidContract(account)) {
+        filter = { ...base, account };
+      } else if (StrKey.isValidMed25519PublicKey(account)) {
+        const muxed = MuxedAccount.fromAddress(account, "0");
+        filter = { ...base, account: muxed.baseAccount().accountId(), muxedId: muxed.id() };
+      } else {
+        throw explorerError("explorer_invalid_parameter", {
+          reason: "An account is a G…, C… or M… address.",
+        });
+      }
+    }
+    let page = 1;
+    if (rawPage !== undefined && rawPage !== "") {
+      if (
+        !/^\d{1,4}$/.test(rawPage) ||
+        Number(rawPage) < 1 ||
+        Number(rawPage) > (MAX_OFFSET + PER_PAGE) / PER_PAGE
+      )
+        throw explorerError("explorer_invalid_parameter", { reason: "page is 1 to 1,000." });
+      page = Number(rawPage);
+    }
+    return { query: account === "" ? query : { ...query, account }, filter, page };
+  }
+
   app.get("/api/v1/:network/settlements", async (c) => {
     const entry = apiNetwork(c.req.param("network"));
     const raw = queryOf(c);
@@ -867,21 +955,9 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     }
   }
 
-  app.get("/methodology", (c) => {
-    if (defaultServed === undefined) throw explorerError("explorer_not_found");
-    const list = [...served.values()];
-    return send(
-      c,
-      methodologyPage(
-        { ...layoutFor(defaultServed), statusUrl: options.statusUrl },
-        list.map((entry) => entry.registry),
-        list.map((entry) => entry.view),
-      ),
-      "html",
-      "listing",
-      defaultServed.versions,
-    );
-  });
+  // The rules and how payments are counted live in the docs now.
+  app.get("/methodology", (c) => c.redirect(DOCS_URL, 301));
+  const readsB = readsOf(options.reader);
 
   // Without mainnet the root has no home page of its own: send it to the testnet home. Temporary, so a
   // later mainnet home at "/" is never shadowed by a cached redirect.
@@ -895,63 +971,111 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     if (entry === undefined) continue;
 
     app.get(p === "" ? "/" : p, async (c) => {
+      const query = queryOf(c);
+      const range: Range = query["range"] === "7d" || query["range"] === "all" ? query["range"] : "30d";
+      const top: TopSide = query["top"] === "buyers" ? "buyers" : "sellers";
       const bazaar = bazaarFor(c, entry);
-      const raw = c.req.query("scheme");
-      const scheme = raw === "exact" || raw === "upto" ? raw : undefined;
-      const [latest, services] = await Promise.all([
-        options.reader.payments(entry.network, entry.epoch.id, scheme === undefined ? {} : { scheme }, {
-          after: undefined,
-          limit: 8,
-        }),
+      const context = pageContext(entry);
+      const [latest, services, overview] = await Promise.all([
+        options.reader.payments(entry.network, entry.epoch.id, {}, { after: undefined, limit: 7 }),
         servicesOf(entry, bazaar),
+        loadOverview(readerDatabase(options.reader), context, entry.epoch.id, range, top),
       ]);
       const paid = (await paidFor(bazaar, latest.items)) ?? { status: "none" };
       return send(
         c,
-        homePage(pageContext(entry), { latest: latest.items, paid, scheme, services }),
+        homePage(context, { latest: latest.items, paid, services, range, top, overview }),
         "html",
         "listing",
         entry.versions,
       );
     });
 
+    /** The search pages' starting points: the latest payment and the top seller and buyer. */
+    const searchExtras = async (context: PageContext) => {
+      const db = readerDatabase(options.reader);
+      const usdc = usdcContract(context.report);
+      const tops = (role: "payer" | "payTo") =>
+        db === undefined
+          ? undefined
+          : soft(() => topAccounts(db, entry.network, entry.epoch.id, role, usdc, now()));
+      const [latest, sellers, buyers] = await Promise.all([
+        soft(() =>
+          options.reader.payments(entry.network, entry.epoch.id, {}, { after: undefined, limit: 1 }),
+        ),
+        tops("payTo"),
+        tops("payer"),
+      ]);
+      return { latest: latest?.items[0], topSeller: sellers?.[0], topBuyer: buyers?.[0] };
+    };
+
+    /** The Bazaar's listings when a search of `kind` reads them (words, or the empty box's ideas). */
+    const searchListings = (c: Context, q: string): Promise<Answer<Listing[]>> => {
+      const kind = searchKind(q);
+      return kind === "words" || kind === "empty"
+        ? listingsOf(bazaarFor(c, entry))
+        : Promise.resolve({ status: "none" });
+    };
+
     app.get(`${p}/search`, async (c) => {
-      const q = (c.req.query("q") ?? "").trim().slice(0, 300);
-      const rawScope = c.req.query("scope") ?? "all";
-      const scope: SearchScope = SEARCH_SCOPES.some(([id]) => id === rawScope)
-        ? (rawScope as SearchScope)
-        : "all";
-      if ((scope === "all" || scope === "payments") && /^[0-9a-fA-F]{64}$/.test(q))
-        return c.redirect(`${p}/tx/${q.toLowerCase()}`, 302);
+      const query = queryOf(c);
+      const q = (query["q"] ?? "").trim().slice(0, 300);
+      if (/^[0-9a-fA-F]{64}$/.test(q)) return c.redirect(`${p}/tx/${q.toLowerCase()}`, 302);
+      const upper = q.toUpperCase();
       if (
-        (scope === "all" || scope === "accounts") &&
-        (StrKey.isValidEd25519PublicKey(q) || StrKey.isValidContract(q) || StrKey.isValidMed25519PublicKey(q))
-      ) {
-        return c.redirect(`${p}/account/${q}`, 302);
+        StrKey.isValidEd25519PublicKey(upper) ||
+        StrKey.isValidContract(upper) ||
+        StrKey.isValidMed25519PublicKey(upper)
+      )
+        return c.redirect(`${p}/account/${upper}`, 302);
+      const listings = await searchListings(c, q);
+      // An endpoint URL or a tool name that names exactly one listing opens it.
+      if (listings.status === "ok" && q !== "") {
+        const matches = matchListings(listings.value, q, "all");
+        const [only] = matches;
+        if (
+          matches.length === 1 &&
+          only !== undefined &&
+          (isAddressLike(q) || only.toolName?.toLowerCase() === q.toLowerCase())
+        )
+          return c.redirect(`${p}/resource/${only.id}`, 302);
       }
-      if (entry.bazaar === undefined || q === "" || scope === "payments" || scope === "accounts") {
-        throw explorerError("explorer_not_found", {
-          reason:
-            entry.bazaar === undefined
-              ? "Search for a 64-character transaction hash or a G…, C… or M… account."
-              : "Search for a 64-character transaction hash, a G…, C… or M… account, an endpoint URL or an MCP tool name.",
-        });
-      }
-      const listings = await entry.bazaar
-        .forRequest(clientKey(clientAddress(c, hops)), options.bazaarBudgetMs)
-        .listings();
-      const matches = listings.status === "ok" ? matchListings(listings.value, q, scope) : [];
-      const [only] = matches;
-      if (matches.length === 1 && only !== undefined && (scope !== "all" || isAddressLike(q)))
-        return c.redirect(`${p}/resource/${only.id}`, 302);
+      const type = GROUP_IDS.find((id) => id === query["type"]) ?? "all";
+      const rawPage = query["page"] ?? "1";
+      const pageNumber = /^\d{1,3}$/.test(rawPage) && Number(rawPage) >= 1 ? Number(rawPage) : 1;
+      const context = pageContext(entry);
+      const [result, extras] = await Promise.all([
+        runSearch(context, q, { db: readerDatabase(options.reader), epoch: entry.epoch.id, listings }),
+        searchExtras(context),
+      ]);
+      const found = result.total > 0 || result.kind === "empty" || result.kind === "short";
       return send(
         c,
-        searchPage(pageContext(entry), q, scope, matches, listings.status === "down"),
+        searchResultsPage(context, {
+          result,
+          type,
+          page: pageNumber,
+          tries: searchTries(context, { ...extras, listings }),
+          starts: result.kind === "empty" ? searchStarts(context, extras) : [],
+        }),
         "html",
-        "volatile",
+        found ? "listing" : "volatile",
         entry.versions,
-        matches.length === 0 ? 404 : 200,
+        found ? 200 : 404,
       );
+    });
+
+    app.get(`${p}/suggest`, async (c) => {
+      const q = (c.req.query("q") ?? "").trim().slice(0, 300);
+      const context = pageContext(entry);
+      const listings = await searchListings(c, q);
+      const empty = searchKind(q) === "empty";
+      const [result, extras] = await Promise.all([
+        runSearch(context, q, { db: readerDatabase(options.reader), epoch: entry.epoch.id, listings }),
+        empty ? searchExtras(context) : undefined,
+      ]);
+      const tries = extras === undefined ? [] : searchTries(context, { ...extras, listings });
+      return json(c, suggestion(context, result, tries), "listing", entry.versions);
     });
 
     app.get(`${p}/tx/:hash`, async (c) => {
@@ -961,17 +1085,44 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
       if (!HASH.test(raw))
         throw explorerError("explorer_not_found", { reason: "A transaction hash is 64 hex characters." });
       const model = await resolveTx(entry, raw, clientAddress(c, hops));
-      const answer =
-        model.kind === "settlement" ? await paidFor(bazaarFor(c, entry), [model.row]) : undefined;
+      const row = model.kind === "settlement" ? model.row : undefined;
+      const bazaar = bazaarFor(c, entry);
+      // The buyer's list the "same buyer and seller" card links to: the registered list, or the apart one.
+      const sameFilter: PaymentFilterB | undefined =
+        row === undefined
+          ? undefined
+          : (() => {
+              const list = buyerList(row);
+              return {
+                account: row.payer,
+                ...(list === "shaped" ? { shaped: true } : list === undefined ? {} : { facilitator: list }),
+              };
+            })();
+      const [answer, buyer, listings, sellerTotals, around, sameTotal] = await Promise.all([
+        row === undefined ? undefined : paidFor(bazaar, [row]),
+        row === undefined
+          ? undefined
+          : soft(() => options.reader.accountTotals(entry.network, entry.epoch.id, row.payer)),
+        row === undefined || entry.bazaar === undefined ? undefined : listingsOf(bazaar),
+        row === undefined
+          ? undefined
+          : soft(() => options.reader.sellerTotals(entry.network, entry.epoch.id, [row.payTo])),
+        row === undefined || readsB === undefined
+          ? undefined
+          : soft(() => readsB.sameParties(entry.network, entry.epoch.id, row.payer, row.payTo, row, 4)),
+        sameFilter === undefined || readsB === undefined
+          ? undefined
+          : soft(() => readsB.paymentsCount(entry.network, entry.epoch.id, sameFilter)),
+      ]);
       const found =
-        model.kind !== "settlement" || answer === undefined
+        row === undefined || answer === undefined
           ? undefined
           : answer.status !== "ok"
             ? answer
             : (() => {
                 const hit =
-                  answer.value.get(model.row.txHash) ??
-                  (model.row.innerHash === null ? undefined : answer.value.get(model.row.innerHash));
+                  answer.value.get(row.txHash) ??
+                  (row.innerHash === null ? undefined : answer.value.get(row.innerHash));
                 return hit === undefined
                   ? ({ status: "none" } as const)
                   : ({ status: "ok", value: hit } as const);
@@ -984,9 +1135,40 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
       const old = model.kind === "settlement" && now() - Date.parse(model.row.closedAt) > CATALOG_GRACE_MS;
       const settledAnswer = linked || (old && found.status === "none");
       const kind = caching.kind === "final" && !settledAnswer ? "listing" : caching.kind;
+      const bought = buyer?.items
+        .filter((total) => total.role === "payer")
+        .reduce((sum, total) => sum + total.payments, 0);
+      // The five payments of the pair nearest to this one, newest first.
+      const nearest =
+        row === undefined || around === undefined
+          ? []
+          : [...around]
+              .sort((x, y) => Math.abs(x.ledger - row.ledger) - Math.abs(y.ledger - row.ledger))
+              .slice(0, 5)
+              .sort((x, y) => y.ledger - x.ledger || y.txIndex - x.txIndex);
       return send(
         c,
-        txPage({ page: pageContext(entry), publicRpcUrl: entry.publicRpcUrl, paid: found }, model),
+        txPage(
+          {
+            page: pageContext(entry),
+            url: `${options.publicUrl}${p}/tx/${raw}`,
+            paid: found,
+            buyerPayments: bought === undefined || bought === 0 ? undefined : bought,
+            seller:
+              row === undefined
+                ? undefined
+                : listings?.status === "ok"
+                  ? {
+                      services: listings.value.filter((listing) => baseAccount(listing.payTo) === row.payTo)
+                        .length,
+                    }
+                  : sellerTotals?.get(row.payTo) === undefined
+                    ? undefined
+                    : { payments: sellerTotals.get(row.payTo)?.payments ?? 0 },
+            same: row === undefined ? undefined : { rows: nearest, total: sameTotal },
+          },
+          model,
+        ),
         "html",
         kind,
         caching.versions,
@@ -999,16 +1181,57 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
       if (parsed.muxedId !== undefined)
         return c.redirect(`${p}/account/${parsed.address}?muxed=${parsed.muxedId}`, 301);
       const query = queryOf(c);
+      for (const name of Object.keys(query))
+        if (name !== "role" && name !== "muxed" && name !== "page")
+          throw explorerError("explorer_invalid_parameter", {
+            reason: `Unknown query parameter ${JSON.stringify(name.slice(0, 40))}.`,
+          });
       const muxedId = muxedParam(query["muxed"]);
       const role = muxedRole(accountRole(query["role"]), muxedId);
-      const page = keyset(accountList(entry.network, entry.epoch.id, parsed.address, role, muxedId), query, [
-        "role",
-        "muxed",
-      ]);
+      const rawPage = query["page"] ?? "1";
+      if (!/^\d{1,3}$/.test(rawPage) || Number(rawPage) < 1)
+        throw explorerError("explorer_invalid_parameter", { reason: "page is a number from 1 to 999." });
+      const db = readerDatabase(options.reader);
+      const registered = memberships(entry, parsed.address);
+      const byKey = new Map(registered.map((entry) => [`${entry.facilitatorId}:${entry.role}`, entry]));
+      const accountMemberships = [...byKey.values()].map((entry) => ({
+        facilitatorId: entry.facilitatorId,
+        role: entry.role,
+        validFromLedger: entry.validFromLedger,
+        validToLedger: entry.validToLedger,
+        evidence: entry.evidence[0],
+      }));
+      const feePaidFor = accountMemberships.find((entry) => FEE_ROLES.has(entry.role))?.facilitatorId;
+      const sides = muxedId === undefined ? (["payer", "payTo"] as const) : (["payTo"] as const);
+      const sampleOf = async (withFees: boolean) =>
+        db === undefined
+          ? options.reader
+              .accountSettlements(
+                entry.network,
+                entry.epoch.id,
+                parsed.address,
+                role,
+                { after: undefined, limit: 100 },
+                muxedId,
+              )
+              .then((result) => ({
+                rows: result.items,
+                capped: result.nextCursor !== null,
+                first: undefined,
+              }))
+          : accountSample(db, entry.network, entry.epoch.id, parsed.address, {
+              sides,
+              muxedId,
+              feePaidFor: withFees ? feePaidFor : undefined,
+            });
       const bazaar = bazaarFor(c, entry);
-      const [totals, result, listings, holdings] = await Promise.all([
+      const [totals, sample, listings, holdings] = await Promise.all([
         options.reader.accountTotals(entry.network, entry.epoch.id, parsed.address),
-        options.reader.accountSettlements(entry.network, entry.epoch.id, parsed.address, role, page, muxedId),
+        // The payments a registered account paid the fee for are read on the facilitator's index; when
+        // that read fails, the page shows the account's own payments.
+        feePaidFor === undefined
+          ? sampleOf(false)
+          : soft(() => sampleOf(true)).then((found) => found ?? sampleOf(false)),
         listingsOf(bazaar).then((answer): Answer<readonly Listing[]> =>
           answer.status === "ok"
             ? {
@@ -1020,35 +1243,28 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
         entry.holdings?.holdings(parsed.address),
       ]);
       const seller = listings.status === "ok" && listings.value.length > 0;
-      const received = totals.items.some((total) => total.role === "payTo");
-      const [paid, usage, summary] = await Promise.all([
-        paidFor(bazaar, result.items),
+      const received =
+        totals.items.some((total) => total.role === "payTo") ||
+        sample.rows.some((row) => row.payTo === parsed.address);
+      const [usage, summary] = await Promise.all([
         seller ? bazaar?.sellerUsage(parsed.address) : undefined,
         received
           ? soft(() => options.reader.sellerSummary(entry.network, entry.epoch.id, parsed.address))
           : undefined,
       ]);
-      const upto =
-        summary !== undefined && summary.upto > 0
-          ? ((await soft(() =>
-              options.reader.uptoReceived(entry.network, entry.epoch.id, parsed.address, 8),
-            )) ?? [])
-          : [];
       return send(
         c,
         accountPage(pageContext(entry), {
           address: parsed.address,
           muxedId,
           role,
+          page: Number(rawPage),
           totals,
-          items: result.items,
-          nextCursor: result.nextCursor,
-          epoch: entry.epoch.id,
-          paid,
+          summary,
+          sample,
+          memberships: accountMemberships,
           listings: entry.bazaar === undefined ? undefined : listings,
           usage,
-          summary,
-          upto,
           holdings,
         }),
         "html",
@@ -1058,23 +1274,35 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     });
 
     app.get(`${p}/payments`, async (c) => {
-      const raw = queryOf(c);
-      const query = paymentQuery(entry, raw);
-      const filter = await paymentFilter(entry, query);
-      const page = keyset(paymentsList(entry.network, entry.epoch.id, filter), raw, PAYMENT_PARAMS);
-      const result = await options.reader.payments(entry.network, entry.epoch.id, filter, page);
-      const paid = (await paidFor(bazaarFor(c, entry), result.items)) ?? { status: "none" };
+      const { query, filter, page } = await paymentsRequest(entry, queryOf(c), true);
+      let items;
+      let total: number | undefined;
+      let shown: number;
+      if (readsB === undefined) {
+        // Without the numbered reads (a test double): the newest page only.
+        if (filter.account !== undefined) throw explorerError("explorer_unavailable");
+        items = (
+          await options.reader.payments(entry.network, entry.epoch.id, filter, {
+            after: undefined,
+            limit: PER_PAGE,
+          })
+        ).items;
+        shown = 1;
+      } else {
+        total = await readsB.paymentsCount(entry.network, entry.epoch.id, filter);
+        // A page past the end shows the last one.
+        shown = Math.max(1, Math.min(page, Math.ceil(Math.min(total, MAX_OFFSET + PER_PAGE) / PER_PAGE)));
+        items = await readsB.paymentsAt(
+          entry.network,
+          entry.epoch.id,
+          filter,
+          (shown - 1) * PER_PAGE,
+          PER_PAGE,
+        );
+      }
       return send(
         c,
-        paymentsPage(pageContext(entry), {
-          query,
-          filter,
-          items: result.items,
-          nextCursor: result.nextCursor,
-          first: page.after === undefined,
-          limit: page.limit,
-          paid,
-        }),
+        paymentsPage(pageContext(entry), { query, items, page: shown, total }),
         "html",
         "listing",
         entry.versions,
@@ -1082,23 +1310,27 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     });
 
     app.get(`${p}/payments.csv`, async (c) => {
-      const raw = queryOf(c);
-      keyset("payments-csv", raw, PAYMENT_PARAMS);
-      if (raw["cursor"] !== undefined || raw["limit"] !== undefined)
-        throw explorerError("explorer_invalid_parameter", { reason: "A CSV download takes filters only." });
-      const query = paymentQuery(entry, raw);
-      const filter = await paymentFilter(entry, query);
+      const { filter } = await paymentsRequest(entry, queryOf(c), false);
       const rows = [];
-      let after;
-      while (rows.length < CSV_ROWS) {
-        const result = await options.reader.payments(entry.network, entry.epoch.id, filter, {
-          after,
-          limit: 100,
-        });
-        rows.push(...result.items);
-        const last = result.items.at(-1);
-        if (result.nextCursor === null || last === undefined) break;
-        after = { ledger: last.ledger, txIndex: last.txIndex };
+      if (readsB !== undefined) {
+        while (rows.length < CSV_ROWS) {
+          const items = await readsB.paymentsAt(entry.network, entry.epoch.id, filter, rows.length, 100);
+          rows.push(...items);
+          if (items.length < 100) break;
+        }
+      } else {
+        if (filter.account !== undefined) throw explorerError("explorer_unavailable");
+        let after;
+        while (rows.length < CSV_ROWS) {
+          const result = await options.reader.payments(entry.network, entry.epoch.id, filter, {
+            after,
+            limit: 100,
+          });
+          rows.push(...result.items);
+          const last = result.items.at(-1);
+          if (result.nextCursor === null || last === undefined) break;
+          after = { ledger: last.ledger, txIndex: last.txIndex };
+        }
       }
       const paid = await paidFor(bazaarFor(c, entry), rows.slice(0, CSV_ROWS));
       c.header("Content-Disposition", `attachment; filename="rail402-${view.slug}-payments.csv"`);
@@ -1112,9 +1344,15 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     });
 
     app.get(`${p}/services`, async (c) => {
-      keyset("services", queryOf(c));
-      const services = await servicesOf(entry, bazaarFor(c, entry));
-      return send(c, servicesPage(pageContext(entry), { services }), "html", "listing", entry.versions);
+      for (const name of Object.keys(queryOf(c)))
+        if (!BAZAAR_PARAMS.includes(name))
+          throw explorerError("explorer_invalid_parameter", {
+            reason: `Unknown query parameter ${JSON.stringify(name.slice(0, 40))}.`,
+          });
+      const query = bazaarQuery((name) => c.req.queries(name) ?? []);
+      const bazaar = bazaarFor(c, entry);
+      const catalog = bazaar === undefined ? ({ status: "none" } as const) : await loadCatalog(bazaar);
+      return send(c, servicesPage(pageContext(entry), { catalog, query }), "html", "listing", entry.versions);
     });
 
     app.get(`${p}/resource/:id`, async (c) => {
@@ -1138,13 +1376,11 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
       // A listing that is not published (pending, or withdrawn) gets no usage, price or seller: only its
       // state and history.
       const published = listing.value.state === undefined || listing.value.state === "published";
-      const [usage, versions, listings, sellerTotals] = await Promise.all([
+      const [usage, versions, listings, seller] = await Promise.all([
         published ? bazaar.resourceUsage(id) : ({ status: "none" } as const),
         bazaar.versions(id),
         published ? bazaar.listings() : ({ status: "none" } as const),
-        published
-          ? soft(() => options.reader.sellerTotals(entry.network, entry.epoch.id, [payTo]))
-          : undefined,
+        published ? bazaar.sellerUsage(payTo) : ({ status: "none" } as const),
       ]);
       // Only payments that paid the listing's payTo on chain count as its payments.
       const recent =
@@ -1163,6 +1399,23 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
         listings.status === "ok"
           ? listings.value.filter((other) => baseAccount(other.payTo) === payTo)
           : undefined;
+      const counts = new Map(
+        seller.status === "ok" ? seller.value.listings.map((item) => [item.listing.id, item] as const) : [],
+      );
+      const more = (sellerListings ?? [])
+        .filter((other) => other.id !== id)
+        .map((other) => {
+          const found = counts.get(other.id);
+          const known = seller.status === "ok";
+          return {
+            listing: other,
+            seller: payTo,
+            payments: known ? (found?.payments ?? 0) : undefined,
+            payers: known ? (found?.payers ?? 0) : undefined,
+            lastAt: known ? (found?.lastObservedAt ?? null) : undefined,
+          };
+        })
+        .sort((a, b) => (b.payments ?? 0) - (a.payments ?? 0));
       return send(
         c,
         resourcePage(pageContext(entry), {
@@ -1170,8 +1423,8 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
           usage,
           versions,
           recent,
-          sellerListings: sellerListings?.length,
-          sellerPayments: sellerTotals === undefined ? undefined : (sellerTotals.get(payTo)?.payments ?? 0),
+          more,
+          sellerCount: sellerListings?.length,
           sellerName: serviceName(
             sellerListings !== undefined && sellerListings.length > 0 ? sellerListings : [listing.value],
           ),
@@ -1182,30 +1435,116 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
       );
     });
 
-    app.get(`${p}/facilitators`, (c) => {
+    app.get(`${p}/seller/:payTo`, async (c) => {
+      const payTo = c.req.param("payTo");
+      const raw = queryOf(c);
+      for (const name of Object.keys(raw))
+        if (name !== "page")
+          throw explorerError("explorer_invalid_parameter", {
+            reason: `Unknown query parameter ${JSON.stringify(name.slice(0, 40))}.`,
+          });
+      const notFound = () =>
+        explorerError("explorer_not_found", {
+          reason: "No Bazaar seller with this account on this network.",
+        });
+      if (entry.bazaar === undefined || !/^[GC][A-Z2-7]{55}$/.test(payTo)) throw notFound();
+      const bazaar = entry.bazaar.forRequest(clientKey(clientAddress(c, hops)), options.bazaarBudgetMs);
+      const catalog = await loadCatalog(bazaar);
+      if (catalog.status === "down")
+        throw explorerError("explorer_unavailable", {
+          reason: "The Bazaar did not answer in time; retry shortly.",
+        });
+      const mine =
+        catalog.status === "ok" ? catalog.value.entries.filter((item) => item.seller === payTo) : [];
+      if (mine.length === 0 || catalog.status !== "ok") throw notFound();
+      const pageNumber = /^\d{1,4}$/.test(raw["page"] ?? "") ? Math.max(1, Number(raw["page"])) : 1;
+      return send(
+        c,
+        sellerPage(pageContext(entry), {
+          payTo,
+          entries: [...mine].sort((a, b) => (b.payments ?? -1) - (a.payments ?? -1)),
+          totals: catalog.value.sellers.get(payTo),
+          page: pageNumber,
+        }),
+        "html",
+        "listing",
+        entry.versions,
+      );
+    });
+
+    app.get(`${p}/facilitators`, async (c) => {
       keyset("facilitators", queryOf(c));
-      return send(c, facilitatorsPage(pageContext(entry)), "html", "listing", entry.versions);
+      const db = facilitatorDatabase(options.reader);
+      const ids = entry.registry.document.facilitators.map((facilitator) => facilitator.id);
+      const end = chartEnd(
+        db === undefined ? null : ((await soft(() => newestDay(db, entry.network, entry.epoch.id))) ?? null),
+        now(),
+      );
+      const [summaries, days] = await Promise.all([
+        db === undefined
+          ? undefined
+          : soft(() => facilitatorSummaries(db, entry.network, entry.epoch.id, ids)),
+        db === undefined
+          ? undefined
+          : soft(() => facilitatorDaily(db, entry.network, entry.epoch.id, chartStart(end))),
+      ]);
+      return send(
+        c,
+        facilitatorsPage(pageContext(entry), { summaries, days, chartEnd: end }),
+        "html",
+        "listing",
+        entry.versions,
+      );
     });
 
     app.get(`${p}/facilitator/:id`, async (c) => {
-      const facilitator = facilitatorOf(entry, c.req.param("id"));
-      const page = keyset(facilitatorList(entry.network, entry.epoch.id, facilitator.id), queryOf(c));
-      const sponsor = facilitator.accounts.find(
+      const raw = c.req.param("id");
+      const facilitator =
+        raw === UNREGISTERED && entry.registry.facilitator(raw) === undefined
+          ? undefined
+          : facilitatorOf(entry, raw);
+      keyset("facilitator", queryOf(c));
+      const db = facilitatorDatabase(options.reader);
+      const key = facilitator?.id ?? null;
+      const sponsor = facilitator?.accounts.find(
         (account) =>
           account.role === "sponsor" && account.validToLedger === null && account.epoch === entry.epoch.id,
       )?.address;
-      const [result, holdings] = await Promise.all([
-        options.reader.facilitatorSettlements(entry.network, entry.epoch.id, facilitator.id, page),
+      const end = chartEnd(
+        db === undefined ? null : ((await soft(() => newestDay(db, entry.network, entry.epoch.id))) ?? null),
+        now(),
+      );
+      const latest = { after: undefined, limit: 3 };
+      const [stats, days, result, holdings] = await Promise.all([
+        db === undefined
+          ? undefined
+          : soft(() =>
+              facilitatorStats(
+                db,
+                entry.network,
+                entry.epoch.id,
+                key,
+                usdcContract(currentReport(entry.network)?.document),
+              ),
+            ),
+        db === undefined
+          ? undefined
+          : soft(() => facilitatorDaily(db, entry.network, entry.epoch.id, chartStart(end))),
+        soft(() =>
+          facilitator === undefined
+            ? options.reader.payments(entry.network, entry.epoch.id, { shaped: true }, latest)
+            : options.reader.facilitatorSettlements(entry.network, entry.epoch.id, facilitator.id, latest),
+        ),
         sponsor === undefined ? undefined : entry.holdings?.holdings(sponsor),
       ]);
-      const paid = await paidFor(bazaarFor(c, entry), result.items);
       return send(
         c,
         facilitatorPage(pageContext(entry), {
           facilitator,
-          items: result.items,
-          nextCursor: result.nextCursor,
-          paid,
+          stats,
+          days,
+          chartEnd: end,
+          latest: result?.items ?? [],
           sponsor,
           holdings,
         }),
@@ -1215,8 +1554,24 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
       );
     });
 
-    app.get(`${p}/ecosystem`, (c) =>
-      send(
+    app.get(`${p}/ecosystem`, async (c) => {
+      const raw = queryOf(c);
+      for (const name of Object.keys(raw))
+        if (name !== "range")
+          throw explorerError("explorer_invalid_parameter", {
+            reason: `Unknown query parameter ${JSON.stringify(name.slice(0, 40))}.`,
+          });
+      const range = (raw["range"] ?? "30d") as ChartRange;
+      if (!CHART_RANGES.some(([id]) => id === range))
+        throw explorerError("explorer_invalid_parameter", { reason: "range is 7d, 30d or all." });
+      const report = currentReport(entry.network)?.document;
+      const daily =
+        report === undefined || readsB === undefined
+          ? undefined
+          : await soft(() =>
+              readsB.dailyByFacilitator(entry.network, entry.epoch.id, rangeStart(range, now())),
+            );
+      return send(
         c,
         ecosystemPage(
           {
@@ -1225,13 +1580,14 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
             statusUrl: options.statusUrl,
             apiOrigin: "",
           },
-          currentReport(entry.network)?.document,
+          report,
+          { range, daily, now: now() },
         ),
         "html",
         "report",
         entry.versions,
-      ),
-    );
+      );
+    });
   }
 
   return app;

@@ -13,7 +13,6 @@ import type { ComputedReport } from "../src/api/report.ts";
 import { BazaarClient, forwardedClientId } from "../src/web/bazaar.ts";
 import { webConfig } from "../src/web/config.ts";
 import { assetName, baseAccount } from "../src/web/format.ts";
-import { shellQuote } from "../src/web/pages/resource.ts";
 import { bazaarClient, reportOf, type FakeListing } from "./bazaar.ts";
 import { MemoryReader, TRANSACTIONS, rowOf, testApp } from "./web.ts";
 
@@ -245,12 +244,12 @@ describe("links checked against the chain", () => {
       reader: new MemoryReader([exact, x402org]),
       bazaar: bazaarClient([weather]).client,
     });
-    expect(await (await app.request(`/testnet/tx/${exact.txHash}`)).text()).toContain("First-party");
+    expect(await (await app.request(`/testnet/tx/${exact.txHash}`)).text()).toContain(
+      `href="/testnet/resource/${WEATHER}"`,
+    );
     const other = await (await app.request(`/testnet/tx/${x402org.txHash}`)).text();
-    expect(other).not.toContain("First-party");
-    expect(other).toContain("Not cataloged");
-    const list = await (await app.request("/testnet/payments")).text();
-    expect(list.match(/>GET demo\.example\.org\/weather</g)).toHaveLength(1);
+    expect(other).not.toContain(`href="/testnet/resource/${WEATHER}"`);
+    expect(other).toContain(">not listed<");
     const csv = await (await app.request("/testnet/payments.csv")).text();
     const line = csv.split("\r\n").find((entry) => entry.startsWith(x402org.txHash)) ?? "";
     expect(line).not.toContain(WEATHER);
@@ -264,9 +263,13 @@ describe("links checked against the chain", () => {
     const listing: FakeListing = { ...weather, id: MUXED, payTo: muxedPayTo, paid: [exact] };
     const app = testApp({ reader: new MemoryReader([exact]), bazaar: bazaarClient([listing]).client });
     const seller = await (await app.request(`/testnet/account/${exact.payTo}`)).text();
-    expect(seller).toContain("listing in the Bazaar");
-    expect(await (await app.request(`/testnet/tx/${exact.txHash}`)).text()).toContain("First-party");
-    expect(await (await app.request("/testnet/services")).text()).toContain("1 seller, 1 listing");
+    expect(seller).toContain("Services in the Bazaar");
+    expect(await (await app.request(`/testnet/tx/${exact.txHash}`)).text()).toContain(
+      `href="/testnet/resource/${MUXED}"`,
+    );
+    const bazaar = await (await app.request("/testnet/services")).text();
+    expect(bazaar).toContain("1 seller<");
+    expect(bazaar).toContain("1 service<");
   });
 });
 
@@ -297,7 +300,7 @@ describe("asset names", () => {
     const tx = await (await app.request(`/testnet/tx/${lookalike.txHash}`)).text();
     expect(tx).toContain(`USDC ${otherIssuer.slice(0, 4)}…`);
     const home = await (await app.request("/testnet")).text();
-    expect(home).toMatch(/USDC settled<\/span><span class="value">—/);
+    expect(home).toMatch(/Volume<\/span><span class="nrow"><span class="n">0<small>USDC<\/small>/);
   });
 });
 
@@ -308,9 +311,9 @@ describe("unpublished listings and payment page caching", () => {
     const response = await app.request(`/testnet/resource/${PENDING}`);
     expect(response.status).toBe(200);
     const html = await response.text();
-    expect(html).toContain("Not published: pending");
-    expect(html).toContain("Listing history");
-    for (const text of ["Call it", "rail402 pay", "Payment requirements", "Seller", "0.001 USDC"]) {
+    expect(html).toContain("not published: pending");
+    expect(html).toContain("History");
+    for (const text of ["How to call", "Try in Playground", "Copy address", "More from", "0.001 USDC"]) {
       expect(html, text).not.toContain(text);
     }
   });
@@ -335,7 +338,8 @@ describe("unpublished listings and payment page caching", () => {
     const counted: FakeListing = { ...weather, countsOnly: true };
     const app = testApp({ reader: new MemoryReader([exact]), bazaar: bazaarClient([counted]).client });
     const html = await (await app.request(`/testnet/resource/${WEATHER}`)).text();
-    expect(html).toContain("publishes payment counts only: it links no payment, and no payer, to a listing");
+    expect(html).toContain("Payments are counted only");
+    expect(html).toContain("links no payment, and no payer, to a listing");
     const tx = await (await app.request(`/testnet/tx/${exact.txHash}`)).text();
     expect(tx).not.toContain(`href="/testnet/resource/${WEATHER}"`);
   });
@@ -343,26 +347,18 @@ describe("unpublished listings and payment page caching", () => {
   it("says the truth about an unlinked payment and a private listing", async () => {
     const app = testApp({ reader: new MemoryReader([x402org]), bazaar: bazaarClient([]).client });
     const html = await (await app.request(`/testnet/tx/${x402org.txHash}`)).text();
-    expect(html).toContain(
-      "not cataloged, its seller keeps usage private, or cataloging has not finished yet",
-    );
+    expect(html).toContain(">not listed<");
+    expect(html).toContain("The Bazaar links no public listing to this payment.");
     expect(html).not.toContain("No Bazaar listing is linked");
   });
 });
 
-describe("the call snippets", () => {
-  it("shell-quotes every value it interpolates", () => {
-    expect(shellQuote("0.001")).toBe("0.001");
-    expect(shellQuote("GET")).toBe("GET");
-    expect(shellQuote("x'; rm -rf / #")).toBe(`'x'"'"'; rm -rf / #'`);
-    expect(shellQuote("https://a.example/x?y=1&z=2")).toBe("'https://a.example/x?y=1&z=2'");
-    expect(shellQuote("")).toBe("''");
-  });
-
-  it("quotes a hostile method in the CLI snippet", async () => {
-    const hostile: FakeListing = { ...weather, method: "POST;id", paid: [] };
+describe("how to call a listing", () => {
+  it("shows a hostile method as text, and no command to paste", async () => {
+    const hostile: FakeListing = { ...weather, method: "POST;id<b>", paid: [] };
     const app = testApp({ reader: new MemoryReader([exact]), bazaar: bazaarClient([hostile]).client });
     const html = await (await app.request(`/testnet/resource/${WEATHER}`)).text();
-    expect(html).toContain("--method &#39;POST;id&#39;");
+    expect(html).toContain("POST;id&lt;");
+    expect(html).not.toContain("rail402 pay");
   });
 });

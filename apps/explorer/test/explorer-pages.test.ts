@@ -126,7 +126,7 @@ const PAGES = [
   "/testnet/facilitator/rail402",
   "/testnet/facilitator/x402-org",
   "/testnet/ecosystem",
-  "/methodology",
+  "/testnet/ecosystem?range=all",
 ];
 
 describe("explorer pages with the Bazaar", () => {
@@ -152,15 +152,12 @@ describe("explorer pages with the Bazaar", () => {
   it("says what a payment paid for, first-party from the Bazaar, or that it is not cataloged", async () => {
     const target = app("up");
     const paid = await page(target, `/testnet/tx/${exact.txHash}`);
-    expect(paid).toContain("for GET demo.example.org/weather");
-    expect(paid).toContain(`href="/testnet/resource/${WEATHER}"`);
-    expect(paid).toContain("First-party");
-    expect(paid).toContain("“Paid for” comes from the Rail402 Bazaar (off chain).");
-    expect(paid).toContain("Non-custodial");
-    expect(paid).toContain("Don&#39;t trust us, check it");
+    expect(paid).toContain(`href="/testnet/resource/${WEATHER}">demo.example.org</a>`);
+    expect(paid).toContain("Buyer paid no network fee");
+    expect(paid).toContain("stellar.expert");
     const other = await page(target, `/testnet/tx/${x402org.txHash}`);
-    expect(other).toContain("Not cataloged");
-    expect(other).not.toContain("First-party");
+    expect(other).toContain(">not listed<");
+    expect(other).not.toContain(`/testnet/resource/${WEATHER}`);
     // Both hashes of a fee bump are asked for.
     expect(
       target.paths.some((path) => path.includes(exact.txHash) && path.includes(exact.innerHash ?? "-")),
@@ -170,7 +167,7 @@ describe("explorer pages with the Bazaar", () => {
   it("caches a payment page briefly when the Bazaar did not answer", async () => {
     const down = await app("down").app.request(`/testnet/tx/${exact.txHash}`);
     expect(down.headers.get("cache-control")).toContain("max-age=15");
-    expect(await down.text()).toContain("The Bazaar did not answer");
+    expect(await down.text()).toContain("Bazaar did not answer");
     const up = await app("up").app.request(`/testnet/tx/${exact.txHash}`);
     expect(up.headers.get("cache-control")).toContain("max-age=3600");
   });
@@ -178,40 +175,37 @@ describe("explorer pages with the Bazaar", () => {
   it("treats missing usage routes as no data, not as an error", async () => {
     const target = app("no-usage-routes");
     const html = await page(target, `/testnet/tx/${exact.txHash}`);
-    expect(html).toContain("Not cataloged");
+    expect(html).toContain(">not listed<");
     const resource = await page(target, `/testnet/resource/${WEATHER}`);
-    expect(resource).toContain("usage not published by the Bazaar");
+    expect(resource).toContain("No payment linked yet");
+    expect(resource).not.toContain("The Bazaar did not answer");
   });
 
   it("shows a private listing's usage as private", async () => {
     const html = await page(app("up"), `/testnet/resource/${TOOL}`);
-    expect(html).toContain("usage private");
+    expect(html).toContain("Usage is private");
     expect(html).toContain("&lt;script&gt;alert(&quot;listing&quot;)&lt;/script&gt;");
     expect(html).toContain("&lt;b&gt;Demo&lt;/b&gt; seller");
   });
 
-  it("shows a seller's listings with linked payments and the remainder from the ledger", async () => {
+  it("shows a seller's services with the payments the Bazaar linked to each", async () => {
     const html = await page(app("up"), `/testnet/account/${exact.payTo}`);
-    expect(html).toContain("listings in the Bazaar");
-    expect(html).toContain("Not linked to a public listing");
-    expect(html).toContain("The ledger count covers the current epoch");
-    expect(html).toContain("GET /weather");
-    // The Bazaar links the seller's paid listings; the rest of what the ledger shows it received is
-    // the remainder.
-    const received = rows.filter((row) => row.payTo === exact.payTo).length;
-    const linked = listings
-      .filter((listing) => listing.payTo === exact.payTo && listing.private !== true)
-      .reduce((sum, listing) => sum + (listing.paid?.length ?? 0), 0);
-    expect(html).toContain(`ledger&#39;s ${String(received)} received payments minus the ${String(linked)}`);
+    expect(html).toContain("Services in the Bazaar");
+    expect(html).toContain("Current weather for a city");
+    expect(html).toContain(`href="/testnet/resource/${WEATHER}"`);
+    expect(html).toContain("1 paid");
+    expect(html).toContain("Payments received");
+    expect(html).toContain(`/testnet/tx/${exact.txHash}`);
     const plain = await page(app("down"), `/testnet/account/${exact.payTo}`);
     expect(plain).toContain("The Bazaar did not answer");
-    expect(plain).not.toContain("Not linked to a public listing");
+    expect(plain).not.toContain("Services in the Bazaar");
   });
 
-  it("shows upto payments as charged against authorized", async () => {
+  it("shows an upto payment's authorized cap with what it charged", async () => {
     const html = await page(app("up"), `/testnet/account/${upto.payTo}`);
-    expect(html).toContain("charged vs authorized");
-    expect(html).toContain(upto.txHash.slice(0, 6));
+    expect(html).toContain(upto.txHash.slice(0, 8));
+    expect(html).toContain("charged of ≤ ");
+    expect(html).toContain('data-scheme="upto"');
   });
 
   it("filters the payments list, binds cursors to filters and refuses unknown filters", async () => {
@@ -275,12 +269,8 @@ describe("explorer pages with the Bazaar", () => {
     ];
     for (const [q, id] of cases) {
       const response = await target.app.request(`/testnet/search?scope=all&q=${encodeURIComponent(q)}`);
-      if (q === "air_quality") {
-        expect(await response.text()).toContain(`/testnet/resource/${id}`);
-      } else {
-        expect(response.status, q).toBe(302);
-        expect(response.headers.get("location"), q).toBe(`/testnet/resource/${id}`);
-      }
+      expect(response.status, q).toBe(302);
+      expect(response.headers.get("location"), q).toBe(`/testnet/resource/${id}`);
     }
     const tools = await target.app.request("/testnet/search?scope=tools&q=air_quality");
     expect(tools.headers.get("location")).toBe(`/testnet/resource/${TOOL}`);
@@ -290,49 +280,54 @@ describe("explorer pages with the Bazaar", () => {
     expect(hash.headers.get("location")).toBe(`/testnet/tx/${exact.txHash}`);
   });
 
-  it("shows call snippets for a listing from the documented clients", async () => {
+  it("shows how to call a listing from its own metadata", async () => {
     const html = await page(app("up"), `/testnet/resource/${WEATHER}`);
-    expect(html).toContain("rail402 pay &#39;https://demo.example.org/weather?city=Istanbul&#39;");
-    expect(html).toContain("--max 0.001");
-    expect(html).not.toContain("Not published");
-    expect(html).toContain("wrapFetchWithPaymentFromConfig");
-    expect(html).toContain("pay_and_call");
-    expect(html).toContain("Listing history");
+    expect(html).toContain("How to call");
+    expect(html).toContain("https://demo.example.org/weather");
+    expect(html).toContain("In the address");
+    expect(html).toContain("Istanbul");
+    expect(html).toContain("Example answer");
+    expect(html).not.toContain("not published");
+    expect(html).toContain("History");
     const template = await page(app("up"), `/testnet/resource/${HISTORY}`);
-    expect(template).toContain("https://demo.example.org/users/42");
-    expect(template).toContain("createBuyer");
+    expect(template).toContain("https://demo.example.org/users/:id");
+    expect(template).toContain("most per call");
     const tool = await page(app("up"), `/testnet/resource/${TOOL}`);
-    expect(tool).toContain("--tool air_quality");
+    expect(tool).toContain("As tool arguments");
+    expect(tool).toContain("air_quality");
   });
 
   it("lists services by seller with ledger payment counts", async () => {
     const html = await page(app("up"), "/testnet/services");
     const sellers = new Set(listings.map((listing) => listing.payTo)).size;
-    expect(html).toContain(`${String(sellers)} seller${sellers === 1 ? "" : "s"}, 3 listings`);
-    expect(html).toContain("payments on the ledger");
+    expect(html).toContain(`${String(sellers)} seller${sellers === 1 ? "" : "s"}<`);
+    expect(html).toContain("3 services<");
+    expect(html).toContain("paid calls");
     const home = await page(app("up"), "/testnet");
-    expect(home).toContain("Services in the Bazaar");
-    expect(home).toContain("3 listings · by payments");
-    expect(home).toContain("Who paid, what for, and the proof.");
-    expect(home).toContain("Distinct payers");
+    expect(home).toContain("In the Bazaar");
+    expect(home).toContain('href="/testnet/services">3 →');
+    expect(home).toContain("x402 payments on Stellar testnet");
+    expect(home).toContain(">Buyers<");
   });
 
   it("labels attributed totals as registered facilitators, never as the whole network", async () => {
     const ecosystem = await page(app("up"), "/testnet/ecosystem");
-    expect(ecosystem).toContain("Registered facilitators (Rail402 included)");
-    expect(ecosystem).toContain(
-      "payments settled by a facilitator outside the registry are not counted here",
-    );
-    for (const path of PAGES) {
+    expect(ecosystem).toContain(">Registered<");
+    expect(ecosystem).toContain(">Not registered<");
+    expect(ecosystem).toContain("never in totals");
+    // Without a network window the report names the network-wide scope only as still to come.
+    expect(ecosystem).toContain(">soon<");
+    for (const path of PAGES.filter((path) => !path.includes("/ecosystem"))) {
       expect(await page(app("up"), path), path).not.toMatch(/network-wide/i);
     }
-    expect(await page(app("up"), "/testnet")).toContain("Registered facilitators · 30 days");
+    expect(await page(app("up"), "/testnet")).toContain("Every payment settled by a registered facilitator");
   });
 
-  it("labels the shaped count a lower bound wherever it appears", async () => {
-    for (const path of ["/testnet", "/testnet/facilitators"]) {
-      expect(await page(app("up"), path)).toContain("as a lower bound");
-    }
+  it("keeps the shaped count apart from the totals", async () => {
+    const home = await page(app("up"), "/testnet");
+    expect(home).toContain("Kept apart");
+    expect(home).toContain("Never in the totals.");
+    expect(home).toContain('href="/testnet/payments?facilitator=shaped"');
   });
 });
 
@@ -394,7 +389,8 @@ describe("live holdings", () => {
       });
     const ok = testApp({ reader: new MemoryReader(rows), holdings: holdings(false), now: () => NOW });
     const html = await (await ok.request(`/testnet/account/${exact.payTo}`)).text();
-    expect(html).toContain("Live · not audited");
+    expect(html).toContain(">Holdings<");
+    expect(html).toContain(">live<");
     expect(html).toContain("9999.9999800");
     expect(html).not.toContain("1000.0");
     await ok.request(`/testnet/account/${exact.payTo}`);
@@ -402,7 +398,7 @@ describe("live holdings", () => {
     const down = testApp({ reader: new MemoryReader(rows), holdings: holdings(true), now: () => NOW });
     const soft = await down.request(`/testnet/account/${exact.payTo}`);
     expect(soft.status).toBe(200);
-    expect(await soft.text()).toContain("did not answer");
+    expect(await soft.text()).toContain("Not read just now");
   });
 });
 

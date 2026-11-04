@@ -116,6 +116,14 @@ export class ExplorerReader {
     this.#now = options.now ?? Date.now;
   }
 
+  /**
+   * The database, for the page reads that live beside this class (`queries-*.ts`): each takes this
+   * Kysely instance and keeps to the same rules (current rules version, keyset or bounded reads).
+   */
+  get database(): Kysely<ExplorerDatabase> {
+    return this.#db;
+  }
+
   /** The settlements table, limited to rows of the current rules. */
   #settlements() {
     return this.#db.selectFrom("settlements").where("rules_version", "=", RULES_VERSION);

@@ -13,6 +13,7 @@ import { sql, type Kysely } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrate } from "@rail402.dev/store-postgres";
 import { ExplorerReader } from "../src/api/queries.ts";
+import { COUNT_CAP, databaseReadsB } from "../src/api/queries-b.ts";
 import { computeReport, type ComputedReport } from "../src/api/report.ts";
 import { EXPLORER_MIGRATIONS, createExplorerDatabase, type ExplorerDatabase } from "../src/db.ts";
 import { LedgerBytes } from "../src/indexer/bytes.ts";
@@ -174,10 +175,11 @@ describe("the Explorer web role over the indexed testnet slice", () => {
     expect(exactPage.status).toBe(200);
     expect(exactPage.headers.get("cache-control")).toBe("public, max-age=3600, no-transform");
     const exactHtml = await exactPage.text();
-    expect(exactHtml).toContain("Rail402 hosted");
-    expect(exactHtml).not.toContain("Live lookup");
+    expect(exactHtml).toContain("<i></i>Rail402</a>");
+    expect(exactHtml).not.toContain("not indexed yet");
     const uptoHtml = await (await explorer.request(`/testnet/tx/${upto.hash}`)).text();
-    expect(uptoHtml).toContain("Cap (upto)");
+    expect(uptoHtml).toContain("Max amount");
+    expect(uptoHtml).toContain("Authority");
 
     const api = (await (await explorer.request(`/api/v1/testnet/transactions/${exact.hash}`)).json()) as {
       source: string;
@@ -198,11 +200,9 @@ describe("the Explorer web role over the indexed testnet slice", () => {
     const manifest = await (await explorer.request("/api/v1/testnet/manifest")).text();
     expect(manifest).toBe(report.manifestText);
     const ecosystem = await (await explorer.request("/testnet/ecosystem")).text();
-    expect(ecosystem).toContain(report.document.manifestSha256);
+    expect(ecosystem).toContain('href="/api/v1/testnet/manifest"');
     expect(ecosystem).toContain(`>${String(report.document.aggregates.headline.payments)}<`);
-    expect(ecosystem).toContain("Unattributed x402-shaped (not counted above)");
-    expect(ecosystem).toContain("counted only by a full-scan rebuild");
-    expect(ecosystem).toContain(report.document.auditCommand);
+    expect(ecosystem).toContain(">Not registered<");
     expect(ecosystem).not.toMatch(/57,054|2,620/);
 
     const facilitator = (await (
@@ -285,6 +285,40 @@ describe("the Explorer web role over the indexed testnet slice", () => {
     }
     const csv = await (await explorer.request("/testnet/payments.csv")).text();
     expect(csv.split("\r\n").length).toBeGreaterThan(2);
+  });
+
+  it("numbers payment pages, filters by account and finds the same buyer and seller, from the database", async () => {
+    const reads = databaseReadsB(reader);
+    const db = new ExplorerReader(reader);
+    const network = "stellar:testnet" as const;
+    const epoch = EPOCH.id;
+    const all = await db.payments(network, epoch, {}, { after: undefined, limit: 100 });
+    const total = await reads.paymentsCount(network, epoch, {});
+    expect(total).toBe(Math.min(all.items.length, COUNT_CAP + 1));
+    // A numbered page is the keyset list at that offset.
+    const second = await reads.paymentsAt(network, epoch, {}, 2, 3);
+    expect(second.map((row) => row.txHash)).toEqual(all.items.slice(2, 5).map((row) => row.txHash));
+    const row = all.items[0];
+    expect(row).toBeDefined();
+    if (row === undefined) return;
+    const mine = await reads.paymentsAt(network, epoch, { account: row.payer }, 0, 100);
+    expect(mine.length).toBeGreaterThan(0);
+    expect(mine.every((item) => item.payer === row.payer || item.payTo === row.payer)).toBe(true);
+    expect(await reads.paymentsCount(network, epoch, { account: row.payer })).toBe(mine.length);
+    const pair = await reads.sameParties(network, epoch, row.payer, row.payTo, row, 3);
+    expect(pair.every((item) => item.payer === row.payer && item.payTo === row.payTo)).toBe(true);
+    expect(pair.map((item) => item.txHash)).not.toContain(row.txHash);
+    const days = await reads.dailyByFacilitator(network, epoch, undefined);
+    expect(days?.reduce((sum, day) => sum + day.payments, 0)).toBeGreaterThan(0);
+
+    const explorer = app();
+    const page2 = await explorer.request("/testnet/payments?page=2");
+    expect(page2.status).toBe(200);
+    const accountPage = await (await explorer.request(`/testnet/payments?account=${row.payer}`)).text();
+    expect(accountPage).toContain(`/testnet/tx/${row.txHash}`);
+    const csv = await (await explorer.request(`/testnet/payments.csv?account=${row.payer}`)).text();
+    expect(csv.trim().split("\r\n")).toHaveLength(Math.min(mine.length, 500) + 1);
+    expect((await explorer.request("/testnet/ecosystem?range=all")).status).toBe(200);
   });
 
   it("opens a hash the index does not hold through a live lookup", async () => {

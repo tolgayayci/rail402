@@ -156,6 +156,8 @@ export const DISPLAY_ASSETS: Readonly<
  */
 export function assetName(network: string, contract: string, code: string, issuer: string | null): string {
   const clean = code.replace(/[^\x21-\x7e]/g, "").slice(0, 12);
+  // The native asset's contract has no issuer; people know it as XLM.
+  if (clean === "native" && issuer === null) return "XLM";
   const known = (DISPLAY_ASSETS as Readonly<Record<string, (typeof DISPLAY_ASSETS)[IndexNetwork]>>)[
     network
   ]?.[clean];

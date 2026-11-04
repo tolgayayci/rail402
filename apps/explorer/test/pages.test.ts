@@ -12,7 +12,7 @@ import { RULES_VERSION, type SettlementRow } from "@rail402.dev/x402-index";
 import type { ComputedReport } from "../src/api/report.ts";
 import { CONTENT_SECURITY_POLICY } from "../src/web/csp.ts";
 import { SCRIPT, STYLESHEET_TEXT } from "../src/web/assets.ts";
-import { layout } from "../src/web/components.ts";
+import { page } from "../src/web/ui.ts";
 import { NETWORK_VIEWS } from "../src/web/format.ts";
 import { displayText, safeHttpsUrl } from "../src/web/text.ts";
 import {
@@ -52,12 +52,11 @@ describe("explorer pages", () => {
     const html = withoutOwnScript(await response.text());
     expect(html).not.toMatch(/<script/i);
     expect(html).not.toMatch(/<img/i);
-    expect(html).not.toMatch(/<b>/);
+    expect(html).not.toContain("<b>2</b>");
     expect(html).not.toContain("javascript:");
     expect(html).toContain("&lt;script&gt;x");
-    expect(html).toContain("&lt;img src=x onerror=alert(4)&gt;");
-    // The evidence link is dropped, not rendered with a script URL.
-    expect(html).not.toContain(">attribution evidence</a>");
+    // A check id the rules do not define is never shown, as markup or as a passed check.
+    expect(html).not.toContain("onerror");
   });
 
   it("sends the strict CSP on every page", async () => {
@@ -100,9 +99,10 @@ describe("explorer pages", () => {
     expect(html).not.toContain("\u202e");
     expect(html).not.toContain("\u200b");
     expect(html).toContain("DSU");
-    // Every party appears in full, with a copy button carrying the full strkey.
+    // Every party is linked with its full strkey in the title and accessible label, with a copy
+    // button carrying it in full.
     for (const address of [exact.payer, exact.payTo, exact.fee.payer]) {
-      expect(html).toContain(`>${address}</a>`);
+      expect(html).toContain(`title="${address}" aria-label="${address}"`);
       expect(html).toContain(`data-copy="${address}"`);
     }
     // Tables shorten addresses only with the full value in the title and the accessible label, linked
@@ -117,26 +117,28 @@ describe("explorer pages", () => {
     const app = testApp({ reader: new MemoryReader([exact, upto]) });
     const html = await (await app.request(`/testnet/tx/${upto.txHash}`)).text();
     for (const text of [
-      "Testnet (stellar:testnet)",
+      ">stellar:testnet<",
       ">upto<",
       "verified",
-      "Cap (upto)",
+      "Max amount",
+      "% used",
+      "Authority",
       upto.payer,
       upto.payTo,
-      "Rail402 hosted",
-      "Sponsored",
+      ">Rail402<",
+      "fee sponsored",
       upto.fee.payer,
-      "stroops",
+      " XLM",
       upto.txHash,
-      "Rule checks that matched",
-      "Audit aid — verify on chain.",
+      "Why it counts",
+      "Registered settlement contract",
+      "Ledger matches the record",
       `https://stellar.expert/explorer/testnet/tx/${upto.txHash}`,
-      "getTransaction",
-      `--from ${String(upto.ledger)} --to ${String(upto.ledger)}`,
     ]) {
       expect(html, text).toContain(text);
     }
-    expect(html).toContain(`${upto.amount} atomic units`);
+    // Every check of the row passed: no line is crossed.
+    expect(html).not.toContain('<li class="no">');
   });
 
   it("resolves the inner hash of a fee bump to the same payment", async () => {
@@ -162,7 +164,7 @@ describe("explorer pages", () => {
     expect(live.headers.get("cache-control")).toBe("no-store, no-transform");
     expect(live.headers.get("etag")).toBeNull();
     const html = await live.text();
-    expect(html).toContain("Live lookup, not yet indexed.");
+    expect(html).toContain("not indexed yet");
     expect(html).toContain("x402.org");
 
     const missing = await app.request(`/testnet/tx/${"0".repeat(64)}`);
@@ -207,9 +209,9 @@ describe("explorer pages", () => {
     const { lookup } = liveLookup({ [forged.hash]: forged });
     const live = testApp({ reader: new MemoryReader([stale]), lookup });
     const html = await (await live.request(`/testnet/tx/${forged.hash}`)).text();
-    expect(html).toContain("Not an x402 settlement");
-    expect(html).toContain("unproven_authorization");
-    expect(html).not.toContain(">Payer<");
+    expect(html).toContain("Near miss");
+    expect(html).toContain("Buyer&#39;s signature proven");
+    expect(html).not.toContain(">Buyer<");
   });
 
   it("serves no report computed under other rules", async () => {
@@ -252,7 +254,7 @@ describe("explorer pages", () => {
     expect(html).toContain(muxed.txHash);
     // exact.payer paid exact: a payment it made is not a payment received by muxed id 42.
     expect(html).not.toContain(`/testnet/tx/${exact.txHash}`);
-    expect(html).toContain("all muxed ids of the base account");
+    expect(html).toContain("every muxed id of the base account");
     const refused = await app.request(
       `/api/v1/testnet/accounts/${exact.payer}/settlements?role=payer&muxed=42`,
     );
@@ -300,9 +302,9 @@ describe("explorer pages", () => {
     const { lookup } = liveLookup({ [fake.hash]: fake });
     const app = testApp({ reader: new MemoryReader([]), lookup });
     const html = await (await app.request(`/testnet/tx/${fake.hash}`)).text();
-    expect(html).toContain("custom token");
-    expect(html).not.toContain("badge verified");
-    expect(html).toContain("decimals not verified");
+    expect(html).toContain("unverified token");
+    expect(html).not.toContain('"bdg ok">verified');
+    expect(html).toContain(" units");
     const json = (await (await app.request(`/api/v1/testnet/transactions/${fake.hash}`)).json()) as {
       settlement: SettlementRow;
     };
@@ -314,9 +316,9 @@ describe("explorer pages", () => {
     const { lookup } = liveLookup({ [fake.hash]: fake });
     const app = testApp({ reader: new MemoryReader([]), lookup });
     const html = await (await app.request(`/testnet/tx/${fake.hash}`)).text();
-    expect(html).toContain("Not an x402 settlement");
-    expect(html).toContain("upto_unregistered_contract");
-    expect(html).not.toContain("Cap (upto)");
+    expect(html).toContain("Near miss");
+    expect(html).toContain("Registered settlement contract");
+    expect(html).not.toContain("Max amount");
   });
 
   it("never shows an account as the payer of a custom-token transfer it did not sign", async () => {
@@ -325,9 +327,9 @@ describe("explorer pages", () => {
     const { lookup } = liveLookup({ [forged.hash]: forged });
     const app = testApp({ reader: new MemoryReader([]), lookup });
     const html = await (await app.request(`/testnet/tx/${forged.hash}`)).text();
-    expect(html).toContain("Not an x402 settlement");
-    expect(html).toContain("unproven_authorization");
-    expect(html).not.toContain(">Payer<");
+    expect(html).toContain("Near miss");
+    expect(html).toContain("Buyer&#39;s signature proven");
+    expect(html).not.toContain(">Buyer<");
     const json = (await (await app.request(`/api/v1/testnet/transactions/${forged.hash}`)).json()) as Record<
       string,
       unknown
@@ -368,7 +370,7 @@ describe("explorer pages", () => {
     ]) {
       const response = await app.request(path);
       expect(response.status, path).toBe(404);
-      expect(await response.text(), path).toContain("explorer_not_found");
+      expect(await response.text(), path).toContain("not found · 404");
     }
     // This app serves testnet only: mainnet paths are not found, never shown as another network.
     expect((await app.request(`/tx/${exact.txHash}`)).status).toBe(404);
@@ -404,15 +406,14 @@ describe("explorer pages", () => {
   });
 
   it("inlines the stylesheet unescaped in the standalone snapshot", () => {
-    const page = layout({
+    const html = page({
       view: NETWORK_VIEWS["stellar:testnet"],
       networks: [],
       path: "/",
       title: "t",
-      versions: { rules: "1", registry: "r" },
       standalone: { origin: "https://explorer.example.org" },
     });
-    expect(page).toContain(`<style>${STYLESHEET_TEXT}</style>`);
+    expect(html).toContain(`<style>${STYLESHEET_TEXT}</style>`);
     expect(STYLESHEET_TEXT).toMatch(/>/);
   });
 });
