@@ -68,6 +68,7 @@ acceptance that names the mitigations and the role that approved it.
 | `REV-2026-10-rehearsal`       | Internal | Conformance rehearsals against a local service and the hosted testnet                                                    | discovery, conformance                                                                             | 2026-10-27               | 1        | not published |
 | `REV-2026-10-local-drills`    | Internal | Recovery drills on the local stack: the Explorer indexer and RPC provider failover                                       | operations, explorer                                                                               | 2026-10-27               | 1        | not published |
 | `REV-2026-10-prelaunch`       | Internal | Internal pre-launch security review of the whole codebase before pubnet                                                  | facilitator, settlement, upto, discovery, search, sdk, mcp, cli, explorer, operations, conformance | 2026-10-28               | 35       | not published |
+| `REV-2026-11-protocol-30`     | Internal | Investigation of failed testnet payments after the Stellar testnet moved to protocol 30                                  | facilitator, operations                                                                            | 2026-11-04               | 1        | not published |
 
 {/* generated:end */}
 
@@ -79,7 +80,7 @@ acceptance that names the mitigations and the role that approved it.
 | -------- | ----- | ------------- | ----- |
 | Critical | 0     | 0             | 0     |
 | High     | 18    | 0             | 18    |
-| Medium   | 81    | 1             | 82    |
+| Medium   | 82    | 1             | 83    |
 | Low      | 88    | 2             | 90    |
 | Info     | 8     | 7             | 15    |
 
@@ -294,6 +295,7 @@ acceptance that names the mitigations and the role that approved it.
 | [F-2026-203](#f-2026-203) | Medium   | bazaar      | One party could fill pubnet's published-listing capacity and keep every new seller out                          | Fixed         | [`2fd3600`](https://github.com/tolgayayci/rail402/commit/2fd36001c638d0ad930ada5f4e87696c3a848613) |
 | [F-2026-204](#f-2026-204) | Low      | operations  | A contract release did not prove which revision of the third-party build workflow ran                           | Fixed         | [`32bb685`](https://github.com/tolgayayci/rail402/commit/32bb685ff9f0e50020ac3d789bbcf2954cbdd79b) |
 | [F-2026-205](#f-2026-205) | Medium   | operations  | The deploy gate accepted an image built for the tag name from another commit                                    | Fixed         | [`32bb685`](https://github.com/tolgayayci/rail402/commit/32bb685ff9f0e50020ac3d789bbcf2954cbdd79b) |
+| [F-2026-206](#f-2026-206) | Medium   | operations  | A protocol upgrade the SDK could not read stopped every verification while /health and /ready said healthy      | Fixed         | [`6079ae2`](https://github.com/tolgayayci/rail402/commit/6079ae274a4f963a777fa2ed6f0c1a84ff2dc17f) |
 
 {/* generated:end */}
 
@@ -3095,5 +3097,17 @@ The deploy gate checked that the release tag was signed and that each image's at
 **Fixed in** [`32bb685`](https://github.com/tolgayayci/rail402/commit/32bb685ff9f0e50020ac3d789bbcf2954cbdd79b). **Tests**
 
 - [`tools/conformance/test/check-deployable.test.ts`](https://github.com/tolgayayci/rail402/blob/main/tools/conformance/test/check-deployable.test.ts): gathers its facts from git and the GitHub API
+
+### F-2026-206
+
+**A protocol upgrade the SDK could not read stopped every verification while /health and /ready said healthy**
+
+Medium · operations · Fixed · found by `REV-2026-11-protocol-30` on 2026-11-04, resolved 2026-11-04 · threats O3
+
+The Stellar testnet moved to protocol 30, whose ledger headers carry a StellarValueType that @stellar/stellar-sdk 16.3.0 cannot decode. Every /verify then answered unexpected_verify_error, so no testnet payment settled, while the network poll (getHealth, getTransaction and balance reads, none of which decode a ledger header) kept /health and /ready healthy and no alert fired. 0.5.2 moves to stellar-sdk 16.4.1, which reads protocol 30, and the network poll now decodes the newest ledger header each time: an SDK that cannot read the network's ledgers fails the RPC readiness check, so /ready answers 503 and the alerts on it fire before payments fail one by one.
+
+**Fixed in** [`6079ae2`](https://github.com/tolgayayci/rail402/commit/6079ae274a4f963a777fa2ed6f0c1a84ff2dc17f). **Tests**
+
+- [`apps/rail402/test/protocol-readiness.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/protocol-readiness.integration.test.ts): fails readiness while the newest ledger header cannot be decoded, and passes again after
 
 {/* generated:end */}

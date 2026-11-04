@@ -184,6 +184,15 @@
       "from": "2026-10-28",
       "to": "2026-10-28",
       "report": null
+    },
+    {
+      "id": "REV-2026-11-protocol-30",
+      "kind": "internal",
+      "by": "Investigation of failed testnet payments after the Stellar testnet moved to protocol 30",
+      "scope": ["facilitator", "operations"],
+      "from": "2026-11-04",
+      "to": "2026-11-04",
+      "report": null
     }
   ],
   "findings": [
@@ -4562,6 +4571,26 @@
       "verifiedBy": null,
       "reportedAt": "2026-10-28",
       "resolvedAt": "2026-10-29"
+    },
+    {
+      "id": "F-2026-206",
+      "title": "A protocol upgrade the SDK could not read stopped every verification while /health and /ready said healthy",
+      "severity": "medium",
+      "component": "operations",
+      "review": "REV-2026-11-protocol-30",
+      "status": "fixed",
+      "threats": ["O3"],
+      "description": "The Stellar testnet moved to protocol 30, whose ledger headers carry a StellarValueType that @stellar/stellar-sdk 16.3.0 cannot decode. Every /verify then answered unexpected_verify_error, so no testnet payment settled, while the network poll (getHealth, getTransaction and balance reads, none of which decode a ledger header) kept /health and /ready healthy and no alert fired. 0.5.2 moves to stellar-sdk 16.4.1, which reads protocol 30, and the network poll now decodes the newest ledger header each time: an SDK that cannot read the network's ledgers fails the RPC readiness check, so /ready answers 503 and the alerts on it fire before payments fail one by one.",
+      "fix": {
+        "commit": "6079ae274a4f963a777fa2ed6f0c1a84ff2dc17f",
+        "tests": [
+          "apps/rail402/test/protocol-readiness.integration.test.ts::fails readiness while the newest ledger header cannot be decoded, and passes again after"
+        ]
+      },
+      "acceptance": null,
+      "verifiedBy": null,
+      "reportedAt": "2026-11-04",
+      "resolvedAt": "2026-11-04"
     }
   ]
 }
