@@ -984,6 +984,9 @@ export async function createRuntime(
     }
     try {
       await state.server.getHealth();
+      // Decodes the newest ledger header and its metadata: after a protocol upgrade whose XDR this
+      // SDK does not know, every verification fails, and this read fails with them.
+      await state.server.getLatestLedger();
       state.rpcHealthy = true;
       const probe = await state.server.getTransaction(ABSENT_TRANSACTION);
       state.latestLedger = probe.latestLedger;
