@@ -1425,7 +1425,7 @@ Mitigated · Information disclosure · boundary TB2 (Seller and facilitator) · 
 
 - Each network publishes either settlement links or counts only (&lt;NET&gt;\_BAZAAR_USAGE_DETAIL); pubnet defaults to counts: /discovery/settlements links nothing and a listing's usage lists no settlement or payer. ([`apps/rail402/src/discovery.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/src/discovery.ts), `export function defaultUsageDetail`)
 - The setting is read per network, so testnet's never applies to pubnet. ([`apps/rail402/src/discovery-config.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/src/discovery-config.ts), `BAZAAR_USAGE_DETAIL`)
-- The Explorer shows a payment's 'paid for' only from the Bazaar's links, so with counts it labels no pubnet payment and says the network publishes counts only. ([`apps/explorer/src/web/pages/resource.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/explorer/src/web/pages/resource.ts), `publishes payment counts only`)
+- The Explorer shows a payment's 'paid for' only from the Bazaar's links, so with counts it labels no pubnet payment and says the network publishes counts only. ([`apps/explorer/src/web/pages/resource.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/explorer/src/web/pages/resource.ts), `links no payment, and no payer, to a listing`)
 - The other public routes keep the same promise: a listing's version history names no settlement transaction while its usage is private or its network publishes counts only, and a private listing shows no lastSettled. ([`packages/bazaar/src/wire.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/bazaar/src/wire.ts), `export function toVersionItem`)
 
 **Tests**

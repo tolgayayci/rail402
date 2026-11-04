@@ -4363,7 +4363,7 @@
         },
         {
           "text": "The Explorer shows a payment's 'paid for' only from the Bazaar's links, so with counts it labels no pubnet payment and says the network publishes counts only.",
-          "code": "apps/explorer/src/web/pages/resource.ts#publishes payment counts only"
+          "code": "apps/explorer/src/web/pages/resource.ts#links no payment, and no payer, to a listing"
         },
         {
           "text": "The other public routes keep the same promise: a listing's version history names no settlement transaction while its usage is private or its network publishes counts only, and a private listing shows no lastSettled.",
