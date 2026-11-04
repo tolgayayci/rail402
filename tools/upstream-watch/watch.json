@@ -4,8 +4,8 @@
   "upstream": {
     "repository": "x402-foundation/x402",
     "branch": "main",
-    "baselineRef": "npm-@x402/stellar@v2.28.0",
-    "baselineCommit": "6b6ee91fee027b540faabcb25774e73851006c3b"
+    "baselineRef": "npm-@x402/stellar@v2.29.0",
+    "baselineCommit": "e4a086819f419e9395acbbdc1679fe6627029ff7"
   },
   "files": [
     {
@@ -17,8 +17,8 @@
     },
     {
       "path": "specs/schemes/exact/scheme_exact.md",
-      "pinnedCommit": "8228bd6d837f58b77037603e45825dc2520f31c9",
-      "pinnedBlob": "139c2fceeec2fcddf7bae6d544fca96132c6dd19",
+      "pinnedCommit": "477bdc7408eeca13de54c4dc20bd059f401af382",
+      "pinnedBlob": "508a9701f39d967903186c1b6f45db3c816ccb97",
       "affects": ["facilitator"],
       "note": "The exact scheme for every network; only its Stellar parts bind Rail402."
     },
@@ -66,8 +66,8 @@
     },
     {
       "path": "e2e/README.md",
-      "pinnedCommit": "28376d643a6d9492e4a6cbfa5199376b90eb89dc",
-      "pinnedBlob": "9a62bae5b8aad187fd0809763abfb48ec138f9a7",
+      "pinnedCommit": "6f1a533b876e3f58426d77344753c564bd4187b9",
+      "pinnedBlob": "37f65dce9d42dfa264742b9d543024e5a24ccd6e",
       "affects": ["conformance"],
       "note": "The upstream end-to-end suite's contract for an external facilitator."
     }
@@ -109,63 +109,63 @@
   "packages": [
     {
       "name": "@x402/core",
-      "pinned": "2.28.0",
+      "pinned": "2.29.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/core@v{version}",
       "affects": ["facilitator", "buyers-and-sellers"]
     },
     {
       "name": "@x402/stellar",
-      "pinned": "2.28.0",
+      "pinned": "2.29.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/stellar@v{version}",
       "affects": ["facilitator", "upto"]
     },
     {
       "name": "@x402/extensions",
-      "pinned": "2.28.0",
+      "pinned": "2.29.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/extensions@v{version}",
       "affects": ["bazaar"]
     },
     {
       "name": "@x402/fetch",
-      "pinned": "2.28.0",
+      "pinned": "2.29.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/fetch@v{version}",
       "affects": ["buyers-and-sellers", "conformance"]
     },
     {
       "name": "@x402/express",
-      "pinned": "2.28.0",
+      "pinned": "2.29.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/express@v{version}",
       "affects": ["buyers-and-sellers"]
     },
     {
       "name": "@x402/paywall",
-      "pinned": "2.28.0",
+      "pinned": "2.29.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/paywall@v{version}",
       "affects": ["buyers-and-sellers"]
     },
     {
       "name": "@x402/mcp",
-      "pinned": "2.28.0",
+      "pinned": "2.29.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/mcp@v{version}",
       "affects": ["mcp"]
     },
     {
       "name": "@x402/hono",
-      "pinned": "2.28.0",
+      "pinned": "2.29.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/hono@v{version}",
       "affects": ["buyers-and-sellers"]
     },
     {
       "name": "@stellar/stellar-sdk",
-      "pinned": "16.3.0",
+      "pinned": "16.4.1",
       "follow": "same-major",
       "affects": ["facilitator", "buyers-and-sellers"],
       "note": "@x402/stellar depends on ^16.3.0, so only 16.x releases count; a second major would load a second, incompatible copy of the XDR classes."

@@ -181,8 +181,14 @@ export function checkRequirements(
       `maxTimeoutSeconds must be an integer between ${policy.timeoutSeconds.min} and ${policy.timeoutSeconds.max}.`,
     );
   }
-  if ((requirements.extra as { areFeesSponsored?: unknown } | undefined)?.areFeesSponsored !== true) {
+  const extra = requirements.extra as { areFeesSponsored?: unknown; splits?: unknown } | undefined;
+  if (extra?.areFeesSponsored !== true) {
     return reject("invalid_exact_stellar_requirements_fees_not_sponsored");
+  }
+  // Multi-payee splits are an optional exact extension that Stellar does not define; the scheme
+  // requires a network without it to refuse them rather than pay everything to payTo.
+  if (extra.splits !== undefined && !(Array.isArray(extra.splits) && extra.splits.length === 0)) {
+    return reject("invalid_exact_stellar_requirements_splits_unsupported");
   }
   return undefined;
 }

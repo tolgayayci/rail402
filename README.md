@@ -19,7 +19,7 @@ developers can find it with filters or plain-language search.
 - Hosted testnet instance, free and without an API key; or run your own with one command.
 - Apache-2.0.
 
-**Release state.** The npm packages are at **0.5.1**: the facilitator, the Bazaar and search, `upto`, the
+**Release state.** The npm packages are at **0.5.2**: the facilitator, the Bazaar and search, `upto`, the
 agent tools (`@rail402.dev/sdk`, `@rail402.dev/mcp`, `@rail402.dev/cli`) and their browser entries, and the
 transaction reader `@rail402.dev/x402-index`. The hosted testnet service runs 0.5.0 with `exact` and
 `upto`. The latest service release and container image is **0.2.1** (`exact` only); later versions of the
@@ -46,7 +46,7 @@ To pay from a browser instead, open the Playground at [playground.rail402.dev](h
 Point a stock x402 resource server at Rail402. With Express:
 
 ```sh
-npm install express@5 @x402/express@2.28.0 @x402/core@2.28.0 @x402/stellar@2.28.0 @x402/extensions@2.28.0
+npm install express@5 @x402/express@2.29.0 @x402/core@2.29.0 @x402/stellar@2.29.0 @x402/extensions@2.29.0
 ```
 
 ```ts
@@ -85,7 +85,7 @@ trustline: [Quickstart for sellers](https://docs.rail402.dev/quickstart/sellers)
 ## Pay for one
 
 ```sh
-npm install @x402/fetch@2.28.0 @x402/core@2.28.0 @x402/stellar@2.28.0
+npm install @x402/fetch@2.29.0 @x402/core@2.29.0 @x402/stellar@2.29.0
 ```
 
 ```ts
@@ -160,18 +160,18 @@ public dataset with one command, `pnpm eval` ([search evaluation](https://docs.r
 
 | Package                                                                                    | What it is                                                             | On npm |
 | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | ------ |
-| [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator)       | The settlement engine, usable in-process as an x402 facilitator        | 0.5.1  |
-| [`@rail402.dev/bazaar`](https://www.npmjs.com/package/@rail402.dev/bazaar)                 | The Bazaar catalog built from settled payments                         | 0.5.1  |
-| [`@rail402.dev/search`](https://www.npmjs.com/package/@rail402.dev/search)                 | Natural-language search over the catalog                               | 0.5.1  |
-| [`@rail402.dev/store-postgres`](https://www.npmjs.com/package/@rail402.dev/store-postgres) | Postgres stores for settlements, channel accounts and the catalog      | 0.5.1  |
-| [`@rail402.dev/stellar`](https://www.npmjs.com/package/@rail402.dev/stellar)               | Stellar payload inspection and failure diagnosis                       | 0.5.1  |
-| [`@rail402.dev/errors`](https://www.npmjs.com/package/@rail402.dev/errors)                 | Stable error codes and reasons                                         | 0.5.1  |
-| [`@rail402.dev/upto`](https://www.npmjs.com/package/@rail402.dev/upto)                     | The `upto` scheme: client, resource server and facilitator             | 0.5.1  |
-| [`@rail402.dev/sdk`](https://www.npmjs.com/package/@rail402.dev/sdk)                       | Buyer SDK: pay under a spending cap, discover through the Bazaar       | 0.5.1  |
-| [`@rail402.dev/mcp`](https://www.npmjs.com/package/@rail402.dev/mcp)                       | MCP server (`rail402-mcp`) for AI agents                               | 0.5.1  |
-| [`@rail402.dev/cli`](https://www.npmjs.com/package/@rail402.dev/cli)                       | Command-line tool (`rail402`)                                          | 0.5.1  |
-| [`@rail402.dev/safe-fetch`](https://www.npmjs.com/package/@rail402.dev/safe-fetch)         | Outbound HTTP for untrusted URLs, SSRF-safe                            | 0.5.1  |
-| [`@rail402.dev/x402-index`](https://www.npmjs.com/package/@rail402.dev/x402-index)         | Reads Stellar transactions into x402 settlements, as the Explorer does | 0.5.1  |
+| [`@rail402.dev/facilitator`](https://www.npmjs.com/package/@rail402.dev/facilitator)       | The settlement engine, usable in-process as an x402 facilitator        | 0.5.2  |
+| [`@rail402.dev/bazaar`](https://www.npmjs.com/package/@rail402.dev/bazaar)                 | The Bazaar catalog built from settled payments                         | 0.5.2  |
+| [`@rail402.dev/search`](https://www.npmjs.com/package/@rail402.dev/search)                 | Natural-language search over the catalog                               | 0.5.2  |
+| [`@rail402.dev/store-postgres`](https://www.npmjs.com/package/@rail402.dev/store-postgres) | Postgres stores for settlements, channel accounts and the catalog      | 0.5.2  |
+| [`@rail402.dev/stellar`](https://www.npmjs.com/package/@rail402.dev/stellar)               | Stellar payload inspection and failure diagnosis                       | 0.5.2  |
+| [`@rail402.dev/errors`](https://www.npmjs.com/package/@rail402.dev/errors)                 | Stable error codes and reasons                                         | 0.5.2  |
+| [`@rail402.dev/upto`](https://www.npmjs.com/package/@rail402.dev/upto)                     | The `upto` scheme: client, resource server and facilitator             | 0.5.2  |
+| [`@rail402.dev/sdk`](https://www.npmjs.com/package/@rail402.dev/sdk)                       | Buyer SDK: pay under a spending cap, discover through the Bazaar       | 0.5.2  |
+| [`@rail402.dev/mcp`](https://www.npmjs.com/package/@rail402.dev/mcp)                       | MCP server (`rail402-mcp`) for AI agents                               | 0.5.2  |
+| [`@rail402.dev/cli`](https://www.npmjs.com/package/@rail402.dev/cli)                       | Command-line tool (`rail402`)                                          | 0.5.2  |
+| [`@rail402.dev/safe-fetch`](https://www.npmjs.com/package/@rail402.dev/safe-fetch)         | Outbound HTTP for untrusted URLs, SSRF-safe                            | 0.5.2  |
+| [`@rail402.dev/x402-index`](https://www.npmjs.com/package/@rail402.dev/x402-index)         | Reads Stellar transactions into x402 settlements, as the Explorer does | 0.5.2  |
 
 ## Develop
 

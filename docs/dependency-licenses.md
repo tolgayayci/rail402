@@ -17,7 +17,7 @@ exceptions flagged below. The policy is enforced on every CI run by `pnpm licens
 
 | Closure                                                                                                                                       | Packages |
 | --------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| Service (the container image)                                                                                                                 | 93       |
+| Service (the container image)                                                                                                                 | 92       |
 | Outside the service: the published agent packages (SDK, MCP server, CLI, upto, safe-fetch) and workspace tools (conformance runs, evaluation) | 106      |
 | Development only (build, lint, test)                                                                                                          | 174      |
 | Contract contracts/stellar/upto (Rust)                                                                                                        | 216      |
@@ -82,9 +82,9 @@ Dual or compound licences (a permissive branch is always available):
 | @signinwithethereum/siwe-parser | 4.2.1   | Apache-2.0   |
 | @signinwithethereum/siwe        | 4.2.1   | Apache-2.0   |
 | @stellar/js-xdr                 | 4.0.0   | Apache-2.0   |
-| @stellar/stellar-sdk            | 16.3.0  | Apache-2.0   |
-| @x402/core                      | 2.28.0  | Apache-2.0   |
-| @x402/extensions                | 2.28.0  | Apache-2.0   |
+| @stellar/stellar-sdk            | 16.4.1  | Apache-2.0   |
+| @x402/core                      | 2.29.0  | Apache-2.0   |
+| @x402/extensions                | 2.29.0  | Apache-2.0   |
 | abitype                         | 1.2.3   | MIT          |
 | agent-base                      | 6.0.2   | MIT          |
 | ajv                             | 8.20.0  | MIT          |
@@ -157,8 +157,7 @@ Dual or compound licences (a permissive branch is always available):
 | uint8array-extras               | 1.5.0   | MIT          |
 | viem                            | 2.56.8  | MIT          |
 | ws                              | 8.21.0  | MIT          |
-| zod                             | 3.25.76 | MIT          |
-| zod                             | 4.6.5   | MIT          |
+| zod                             | 4.6.7   | MIT          |
 
 ## Outside the service (published agent packages and workspace tools), by licence
 

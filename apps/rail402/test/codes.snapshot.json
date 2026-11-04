@@ -100,13 +100,13 @@
       "status": 404,
       "retryable": false
     },
-    "discovery_usage_private": {
-      "status": 404,
-      "retryable": false
-    },
     "discovery_overloaded": {
       "status": 503,
       "retryable": true
+    },
+    "discovery_usage_private": {
+      "status": 404,
+      "retryable": false
     },
     "forbidden": {
       "status": 403,
@@ -204,6 +204,10 @@
       "status": 409,
       "retryable": false
     },
+    "invalid_exact_stellar_payload_operation_source_set": {
+      "status": 400,
+      "retryable": false
+    },
     "invalid_exact_stellar_payload_payer_trustline_missing": {
       "status": 400,
       "retryable": true
@@ -241,10 +245,6 @@
       "retryable": false
     },
     "invalid_exact_stellar_payload_unexpected_pending_signatures": {
-      "status": 400,
-      "retryable": false
-    },
-    "invalid_exact_stellar_payload_operation_source_set": {
       "status": 400,
       "retryable": false
     },
@@ -297,6 +297,10 @@
       "retryable": false
     },
     "invalid_exact_stellar_requirements_invalid_pay_to": {
+      "status": 400,
+      "retryable": false
+    },
+    "invalid_exact_stellar_requirements_splits_unsupported": {
       "status": 400,
       "retryable": false
     },
@@ -552,6 +556,10 @@
       "status": 503,
       "retryable": true
     },
+    "settle_exact_stellar_caller_budget_exhausted": {
+      "status": 429,
+      "retryable": true
+    },
     "settle_exact_stellar_channel_unavailable": {
       "status": 503,
       "retryable": true
@@ -564,19 +572,7 @@
       "status": 409,
       "retryable": false
     },
-    "settle_exact_stellar_settlement_in_progress": {
-      "status": 409,
-      "retryable": true
-    },
-    "settle_exact_stellar_signer_selection_failed": {
-      "status": 503,
-      "retryable": true
-    },
-    "settle_exact_stellar_sponsor_unavailable": {
-      "status": 503,
-      "retryable": true
-    },
-    "settle_exact_stellar_caller_budget_exhausted": {
+    "settle_exact_stellar_payer_cooldown": {
       "status": 429,
       "retryable": true
     },
@@ -588,8 +584,16 @@
       "status": 429,
       "retryable": true
     },
-    "settle_exact_stellar_payer_cooldown": {
-      "status": 429,
+    "settle_exact_stellar_settlement_in_progress": {
+      "status": 409,
+      "retryable": true
+    },
+    "settle_exact_stellar_signer_selection_failed": {
+      "status": 503,
+      "retryable": true
+    },
+    "settle_exact_stellar_sponsor_unavailable": {
+      "status": 503,
       "retryable": true
     },
     "settle_exact_stellar_transaction_expired": {
@@ -608,8 +612,16 @@
       "status": 400,
       "retryable": false
     },
+    "settle_exact_stellar_transaction_submission_retryable": {
+      "status": 503,
+      "retryable": true
+    },
     "settle_upto_stellar_authority_unavailable": {
       "status": 503,
+      "retryable": true
+    },
+    "settle_upto_stellar_caller_budget_exhausted": {
+      "status": 429,
       "retryable": true
     },
     "settle_upto_stellar_channel_unavailable": {
@@ -623,6 +635,18 @@
     "settle_upto_stellar_idempotency_conflict": {
       "status": 409,
       "retryable": false
+    },
+    "settle_upto_stellar_payer_cooldown": {
+      "status": 429,
+      "retryable": true
+    },
+    "settle_upto_stellar_payer_rate_limited": {
+      "status": 429,
+      "retryable": true
+    },
+    "settle_upto_stellar_payto_rate_limited": {
+      "status": 429,
+      "retryable": true
     },
     "settle_upto_stellar_settled_elsewhere": {
       "status": 409,
@@ -638,22 +662,6 @@
     },
     "settle_upto_stellar_sponsor_unavailable": {
       "status": 503,
-      "retryable": true
-    },
-    "settle_upto_stellar_caller_budget_exhausted": {
-      "status": 429,
-      "retryable": true
-    },
-    "settle_upto_stellar_payer_rate_limited": {
-      "status": 429,
-      "retryable": true
-    },
-    "settle_upto_stellar_payto_rate_limited": {
-      "status": 429,
-      "retryable": true
-    },
-    "settle_upto_stellar_payer_cooldown": {
-      "status": 429,
       "retryable": true
     },
     "settle_upto_stellar_transaction_expired": {

@@ -94,6 +94,16 @@ describe("preflight", () => {
       "invalid_exact_stellar_requirements_fees_not_sponsored",
     ],
     ["a missing extra", { extra: {} }, "invalid_exact_stellar_requirements_fees_not_sponsored"],
+    [
+      "multi-payee splits",
+      { extra: { areFeesSponsored: true, splits: [{ payTo: "GB…", amount: "10" }] } },
+      "invalid_exact_stellar_requirements_splits_unsupported",
+    ],
+    [
+      "splits that are not a list",
+      { extra: { areFeesSponsored: true, splits: {} } },
+      "invalid_exact_stellar_requirements_splits_unsupported",
+    ],
   ])("rejects requirements with %s", async (_label, override, code) => {
     const required = requirements(override);
     const { payload } = await payment({}, required);

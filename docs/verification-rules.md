@@ -97,6 +97,7 @@ In this order:
 | `amount` is within the asset's configured minimum and maximum            | `invalid_exact_stellar_requirements_amount_out_of_range`  | preflight |
 | `maxTimeoutSeconds` is an integer within the configured range            | `invalid_exact_stellar_requirements_timeout_out_of_range` | preflight |
 | `extra.areFeesSponsored` is `true`                                       | `invalid_exact_stellar_requirements_fees_not_sponsored`   | preflight |
+| `extra.splits` is absent or empty: Stellar has no multi-payee splits     | `invalid_exact_stellar_requirements_splits_unsupported`   | preflight |
 | The payload's accepted asset, `payTo` and amount equal the requirements  | `invalid_exact_stellar_payload_accepted_mismatch`         | preflight |
 
 A transfer to a muxed `M…` address credits its base `G…` account, and its CAP-67 `transfer` event names that
@@ -150,7 +151,7 @@ verbatim; nothing in it is rewritten.
 
 ## 6. Upstream verifier
 
-`ExactStellarScheme.verify` from `@x402/stellar` 2.28.0, unmodified, called by
+`ExactStellarScheme.verify` from `@x402/stellar` 2.29.0, unmodified, called by
 `packages/facilitator/src/scheme.ts`. It simulates the transaction against the current ledger in
 enforcing mode, which verifies the payer's signature and runs a smart account's `__check_auth`, and
 then checks the simulated result. Its fee ceiling is checked at the inclusion-fee bid settlement
@@ -277,6 +278,10 @@ once the cause is fixed, for example after `payTo` adds a trustline.
 | Nothing was signed within the claim window (30 s, for example a provider that stopped answering): nothing is signed afterwards, the claim is dropped and the channel freed; retry the payment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `unexpected_settle_error`                            | first-submission                           |
 | Not final within `confirmTimeoutMs` of recording the envelope, however long upstream would poll; the reconciler finishes it later                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `settlement_pending` (with the transaction hash)     | settlement                                 |
 | An unexpected internal error                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `unexpected_verify_error`, `unexpected_settle_error` | app (`unexpected_verify_error`)            |
+
+`settle_exact_stellar_transaction_submission_retryable` is the code `@x402/stellar` gives a network
+answer of `TRY_AGAIN_LATER`. It is registered but never returned: the engine treats that answer as bytes
+the network does not hold yet and broadcasts the recorded bytes again.
 
 Only the recorded bytes are ever resubmitted, so a lost response or a restart can never produce a
 second transaction for the same authorization (settlement, "recovers after a lost submission

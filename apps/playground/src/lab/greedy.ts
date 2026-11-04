@@ -1,6 +1,5 @@
 import type { Context } from "hono";
-import type { RouteConfig } from "@x402/core/server";
-import { setSettlementOverrides } from "@x402/hono";
+import type { FacilitatorClient, RouteConfig } from "@x402/core/server";
 import { TESTNET } from "@rail402.dev/stellar";
 import { upto } from "@rail402.dev/sdk/seller";
 import type { PlaygroundConfig } from "../config.ts";
@@ -11,6 +10,10 @@ import { GREEDY_MAX_TIMEOUT_SECONDS, LAB_PATHS, LAB_PRICES } from "../shared/lab
  * the facilitator to settle 0.02, twice what the buyer authorized. Rail402 refuses that settlement, so
  * nothing moves; the buyer's hold returns once the authorization expires (60 seconds). It declares no
  * Bazaar metadata, so it is never listed.
+ *
+ * The stock seller middleware refuses a settlement override above the cap before the facilitator sees
+ * it, so this seller overcharges the way a dishonest one would: its own facilitator client rewrites the
+ * amount of every settle request.
  */
 
 export const GREEDY_ROUTE_KEY = `GET ${LAB_PATHS.greedy}`;
@@ -40,12 +43,21 @@ export function greedyRouteConfig(config: PlaygroundConfig, payTo: string): Rout
   };
 }
 
-/** The handler: serves the history and asks to settle LAB_PRICES.greedyCharge, above the cap. */
+/** The facilitator client of the greedy route: every settle asks for LAB_PRICES.greedyCharge. */
+export function overcharging(facilitator: FacilitatorClient): FacilitatorClient {
+  return {
+    verify: (payload, requirements) => facilitator.verify(payload, requirements),
+    settle: (payload, requirements) =>
+      facilitator.settle(payload, { ...requirements, amount: LAB_PRICES.greedyCharge.atomic }),
+    getSupported: () => facilitator.getSupported(),
+  };
+}
+
+/** The handler: serves the history; the route's facilitator client asks to settle above the cap. */
 export function greedyHandler(c: Context): Response {
   const city = (c.req.query("city") ?? "Berlin").slice(0, 80);
   const asked = Number.parseInt(c.req.query("days") ?? "7", 10);
   const days = Number.isSafeInteger(asked) && asked >= 1 && asked <= DAYS_MAX ? asked : 7;
-  setSettlementOverrides(c, { amount: LAB_PRICES.greedyCharge.atomic });
   return c.json({
     city,
     days: Array.from({ length: days }, (_, index) => ({ daysAgo: index + 1, high: 18, low: 9 })),

@@ -13,7 +13,7 @@ import type { Metrics } from "../metrics.ts";
 import { LAB_PATHS, LAB_PREFIX } from "../shared/lab.ts";
 import { TRACE_HEADER, decodeTrace } from "../shared/trace.ts";
 import { cityOf, forecastFor, declareSellRoute, sellBazaarExtension } from "./sell.ts";
-import { GREEDY_ROUTE_KEY, greedyHandler, greedyRouteConfig } from "./greedy.ts";
+import { GREEDY_ROUTE_KEY, greedyHandler, greedyRouteConfig, overcharging } from "./greedy.ts";
 import { offerHandler, type OfferId } from "./offers.ts";
 import { STELLAR_TOML_HEADERS, STELLAR_TOML_PATH, stellarToml } from "./stellar-toml.ts";
 import { TraceRecorder } from "./trace.ts";
@@ -160,7 +160,10 @@ function labSellers(options: LabOptions & { readonly now: Clock }, payTo: string
   const exactServer = new x402ResourceServer(facilitator)
     .register(TESTNET, new ExactStellarScheme())
     .registerExtension(sellBazaarExtension);
-  const uptoServer = new x402ResourceServer(facilitator).register(TESTNET, new UptoStellarServerScheme());
+  const uptoServer = new x402ResourceServer(overcharging(facilitator)).register(
+    TESTNET,
+    new UptoStellarServerScheme(),
+  );
   const sell = declareSellRoute(config, payTo);
 
   const lab = new Hono();

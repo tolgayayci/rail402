@@ -110,6 +110,7 @@ describe("retryable and paid across the SDK, rail402-mcp and the CLI", () => {
           "settle_exact_stellar_signer_selection_failed",
           "settle_exact_stellar_sponsor_unavailable",
           "settle_exact_stellar_transaction_signing_failed",
+          "settle_exact_stellar_transaction_submission_retryable",
           "settle_upto_stellar_authority_unavailable",
           "settle_upto_stellar_caller_budget_exhausted",
           "settle_upto_stellar_channel_unavailable",

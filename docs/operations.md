@@ -354,7 +354,7 @@ counts: set `METRICS_TOKEN_SHA256` on any deployment whose `/metrics` is reachab
   ```json
   {
     "status": "ok",
-    "version": "0.5.1",
+    "version": "0.5.2",
     "state": "healthy",
     "checkedAt": "2026-09-30T12:00:00.000Z",
     "warnings": [],
@@ -426,7 +426,7 @@ counts: set `METRICS_TOKEN_SHA256` on any deployment whose `/metrics` is reachab
         "similarityFloor": 0.3,
         "depth": 100,
         "embeddings": true,
-        "searchPackage": "0.5.1",
+        "searchPackage": "0.5.2",
         "evalBaseline": "search-eval-v1.1.0"
       }
     }

@@ -22,8 +22,8 @@ catalogs:
       specifier: 1.63.0
       version: 1.63.0
     '@stellar/stellar-sdk':
-      specifier: 16.3.0
-      version: 16.3.0
+      specifier: 16.4.1
+      version: 16.4.1
     '@testing-library/dom':
       specifier: 10.4.2
       version: 10.4.2
@@ -49,26 +49,26 @@ catalogs:
       specifier: 5.0.5
       version: 5.0.5
     '@x402/core':
-      specifier: 2.28.0
-      version: 2.28.0
+      specifier: 2.29.0
+      version: 2.29.0
     '@x402/express':
-      specifier: 2.28.0
-      version: 2.28.0
+      specifier: 2.29.0
+      version: 2.29.0
     '@x402/extensions':
-      specifier: 2.28.0
-      version: 2.28.0
+      specifier: 2.29.0
+      version: 2.29.0
     '@x402/fetch':
-      specifier: 2.28.0
-      version: 2.28.0
+      specifier: 2.29.0
+      version: 2.29.0
     '@x402/hono':
-      specifier: 2.28.0
-      version: 2.28.0
+      specifier: 2.29.0
+      version: 2.29.0
     '@x402/mcp':
-      specifier: 2.28.0
-      version: 2.28.0
+      specifier: 2.29.0
+      version: 2.29.0
     '@x402/stellar':
-      specifier: 2.28.0
-      version: 2.28.0
+      specifier: 2.29.0
+      version: 2.29.0
     buffer:
       specifier: 6.0.3
       version: 6.0.3
@@ -111,9 +111,6 @@ catalogs:
     vitest:
       specifier: 5.0.5
       version: 5.0.5
-    zod:
-      specifier: 4.6.5
-      version: 4.6.5
 
 overrides:
   axios: 1.20.0
@@ -123,6 +120,7 @@ overrides:
   qs: 6.16.1
   minimatch: 11.0.1
   '@hono/node-server': 2.1.3
+  zod: 4.6.7
   hono: 4.13.13
   source-map-js: 1.2.2
   ip-address: 10.7.4
@@ -154,7 +152,7 @@ importers:
         version: link:packages/testkit
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@types/express':
         specifier: 5.0.6
         version: 5.0.6
@@ -166,16 +164,16 @@ importers:
         version: 5.0.5(vitest@5.0.5)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/express':
         specifier: 'catalog:'
-        version: 2.28.0(express@5.2.1)(typescript@6.0.3)
+        version: 2.29.0(express@5.2.1)(typescript@6.0.3)
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
       eslint:
         specifier: 'catalog:'
         version: 10.11.0
@@ -199,28 +197,28 @@ importers:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
-        version: 1.32.1(zod@4.6.5)
+        version: 1.32.1(zod@4.6.7)
       '@rail402.dev/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/express':
         specifier: 'catalog:'
-        version: 2.28.0(express@5.2.1)(typescript@6.0.3)
+        version: 2.29.0(express@5.2.1)(typescript@6.0.3)
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
       '@x402/mcp':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
       express:
         specifier: 5.2.1
         version: 5.2.1
@@ -251,7 +249,7 @@ importers:
         version: link:../../packages/x402-index
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       hono:
         specifier: 4.13.13
         version: 4.13.13
@@ -297,19 +295,19 @@ importers:
         version: link:../../packages/upto
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
       '@x402/hono':
         specifier: 'catalog:'
-        version: 2.28.0(hono@4.13.13)(typescript@6.0.3)
+        version: 2.29.0(hono@4.13.13)(typescript@6.0.3)
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
       hono:
         specifier: 4.13.13
         version: 4.13.13
@@ -320,8 +318,8 @@ importers:
         specifier: 'catalog:'
         version: 15.1.3
       zod:
-        specifier: 'catalog:'
-        version: 4.6.5
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@modelcontextprotocol/client':
         specifier: 'catalog:'
@@ -367,10 +365,10 @@ importers:
         version: 6.1.1(vite@8.3.5(@types/node@24.13.6)(esbuild@0.28.2)(tsx@4.23.15))
       '@x402/express':
         specifier: 'catalog:'
-        version: 2.28.0(express@5.2.1)(typescript@6.0.3)
+        version: 2.29.0(express@5.2.1)(typescript@6.0.3)
       '@x402/fetch':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       buffer:
         specifier: 'catalog:'
         version: 6.0.3
@@ -418,13 +416,13 @@ importers:
         version: link:../../packages/upto
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
       hono:
         specifier: 4.13.13
         version: 4.13.13
@@ -438,8 +436,8 @@ importers:
         specifier: 'catalog:'
         version: 15.1.3
       zod:
-        specifier: 'catalog:'
-        version: 4.6.5
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@rail402.dev/testkit':
         specifier: workspace:*
@@ -449,13 +447,13 @@ importers:
         version: 5.0.6
       '@x402/express':
         specifier: 'catalog:'
-        version: 2.28.0(express@5.2.1)(typescript@6.0.3)
+        version: 2.29.0(express@5.2.1)(typescript@6.0.3)
       '@x402/fetch':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
       express:
         specifier: 5.2.1
         version: 5.2.1
@@ -479,13 +477,13 @@ importers:
         version: link:../stellar
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
       ajv:
         specifier: 8.20.0
         version: 8.20.0
@@ -495,7 +493,7 @@ importers:
     devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
-        version: 1.32.1(zod@4.6.5)
+        version: 1.32.1(zod@4.6.7)
       vitest:
         specifier: 'catalog:'
         version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@5.0.5)(happy-dom@21.0.4)(vite@8.3.5(@types/node@24.13.6)(esbuild@0.28.2)(tsx@4.23.15))
@@ -513,7 +511,7 @@ importers:
         version: link:../stellar
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
     devDependencies:
       '@rail402.dev/safe-fetch':
         specifier: workspace:*
@@ -526,16 +524,16 @@ importers:
         version: 5.0.6
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/express':
         specifier: 'catalog:'
-        version: 2.28.0(express@5.2.1)(typescript@6.0.3)
+        version: 2.29.0(express@5.2.1)(typescript@6.0.3)
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
       express:
         specifier: 5.2.1
         version: 5.2.1
@@ -555,13 +553,13 @@ importers:
         version: link:../upto
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
     devDependencies:
       '@rail402.dev/testkit':
         specifier: workspace:*
@@ -574,7 +572,7 @@ importers:
     dependencies:
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
     devDependencies:
       '@rail402.dev/x402-index':
         specifier: workspace:*
@@ -601,15 +599,15 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
       zod:
-        specifier: 'catalog:'
-        version: 4.6.5
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@modelcontextprotocol/client':
         specifier: 'catalog:'
         version: 2.3.1
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
-        version: 1.32.1(zod@4.6.5)
+        version: 1.32.1(zod@4.6.7)
       '@rail402.dev/stellar':
         specifier: workspace:*
         version: link:../stellar
@@ -618,22 +616,22 @@ importers:
         version: link:../testkit
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@types/express':
         specifier: 5.0.6
         version: 5.0.6
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/express':
         specifier: 'catalog:'
-        version: 2.28.0(express@5.2.1)(typescript@6.0.3)
+        version: 2.29.0(express@5.2.1)(typescript@6.0.3)
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
       express:
         specifier: 5.2.1
         version: 5.2.1
@@ -669,29 +667,29 @@ importers:
         version: link:../x402-index
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
       buffer:
         specifier: 'catalog:'
         version: 6.0.3
       zod:
-        specifier: 'catalog:'
-        version: 4.6.5
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@hono/node-server':
         specifier: 2.1.3
         version: 2.1.3(hono@4.13.13)
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
-        version: 1.32.1(zod@4.6.5)
+        version: 1.32.1(zod@4.6.7)
       '@rail402.dev/facilitator':
         specifier: workspace:*
         version: link:../facilitator
@@ -706,10 +704,10 @@ importers:
         version: 5.0.6
       '@x402/express':
         specifier: 'catalog:'
-        version: 2.28.0(express@5.2.1)(typescript@6.0.3)
+        version: 2.29.0(express@5.2.1)(typescript@6.0.3)
       '@x402/mcp':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       express:
         specifier: 5.2.1
         version: 5.2.1
@@ -749,10 +747,10 @@ importers:
         version: link:../upto
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
       buffer:
         specifier: 'catalog:'
         version: 6.0.3
@@ -771,7 +769,7 @@ importers:
         version: link:../facilitator
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       kysely:
         specifier: 'catalog:'
         version: 0.29.6
@@ -790,22 +788,22 @@ importers:
     dependencies:
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
 
   packages/upto:
     dependencies:
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
       buffer:
         specifier: 'catalog:'
         version: 6.0.3
@@ -827,13 +825,13 @@ importers:
         version: link:../stellar
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       buffer:
         specifier: 'catalog:'
         version: 6.0.3
       zod:
-        specifier: 'catalog:'
-        version: 4.6.5
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       vitest:
         specifier: 'catalog:'
@@ -879,22 +877,22 @@ importers:
         version: link:../../packages/upto
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/express':
         specifier: 'catalog:'
-        version: 2.28.0(express@5.2.1)(typescript@6.0.3)
+        version: 2.29.0(express@5.2.1)(typescript@6.0.3)
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
       '@x402/fetch':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/stellar':
         specifier: 'catalog:'
-        version: 2.28.0(debug@4.4.3)
+        version: 2.29.0(debug@4.4.3)
       express:
         specifier: 5.2.1
         version: 5.2.1
@@ -902,8 +900,8 @@ importers:
         specifier: 'catalog:'
         version: 0.29.6
       zod:
-        specifier: 'catalog:'
-        version: 4.6.5
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@playwright/test':
         specifier: 'catalog:'
@@ -937,13 +935,13 @@ importers:
         version: link:../../packages/store-postgres
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
       hono:
         specifier: 4.13.13
         version: 4.13.13
@@ -982,7 +980,7 @@ importers:
         version: link:../../packages/testkit
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       hono:
         specifier: 4.13.13
         version: 4.13.13
@@ -1019,13 +1017,13 @@ importers:
         version: link:../../packages/store-postgres
       '@stellar/stellar-sdk':
         specifier: 'catalog:'
-        version: 16.3.0(debug@4.4.3)
+        version: 16.4.1(debug@4.4.3)
       '@x402/core':
         specifier: 'catalog:'
-        version: 2.28.0
+        version: 2.29.0
       '@x402/extensions':
         specifier: 'catalog:'
-        version: 2.28.0(typescript@6.0.3)
+        version: 2.29.0(typescript@6.0.3)
     devDependencies:
       '@rail402.dev/service':
         specifier: workspace:*
@@ -1046,8 +1044,8 @@ importers:
   tools/upstream-watch:
     dependencies:
       zod:
-        specifier: 'catalog:'
-        version: 4.6.5
+        specifier: 4.6.7
+        version: 4.6.7
 
 packages:
 
@@ -1348,7 +1346,7 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
-      zod: ^3.25 || ^4.0
+      zod: 4.6.7
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
@@ -1521,8 +1519,8 @@ packages:
     resolution: {integrity: sha512-+NmNa7Tk5BI5XFdy/6xGTqAN4J9a9KgCrCGhj2uEUTCBhLkch0M+QbKzNH8zEnejWe0p8w+0q5hUVX6L3OzoVA==}
     engines: {node: '>=20.0.0', pnpm: '>=9.0.0'}
 
-  '@stellar/stellar-sdk@16.3.0':
-    resolution: {integrity: sha512-pnB1t4bdnkN8M7tRIcLXnNboq+Hof62NzPMnQrl5MWBNC/d1vUbdrzXgy7yw8I+0hbfz5YN64uVb84BqzIpYiQ==}
+  '@stellar/stellar-sdk@16.4.1':
+    resolution: {integrity: sha512-0kT+ShOUE6dc0smLEsajuizss1hvlGDsCooM88FqgxNOCKpY8IuQPzCs75RNKMSMITz+dX7KZ5qGhQ2EWGMTTg==}
     engines: {node: '>=22.0.0'}
     hasBin: true
 
@@ -1716,45 +1714,45 @@ packages:
   '@vitest/spy@5.0.5':
     resolution: {integrity: sha512-lwJRExuH417257Q5wv9QYugN9IMJkoxcrKrYxGPQkBzl7wlNpTUxD/5yNX4ESKVUIShKPgkGchYPFMWOOk0wzw==}
 
-  '@x402/core@2.28.0':
-    resolution: {integrity: sha512-Da/7zKxCKqpBoB4Msc9tFgkAv7tJTD8nG+DSSm+QdXAyJS4PQsmgVSKe17rDJTtlu0pwNbLcOje6MyQ6kaDkig==}
+  '@x402/core@2.29.0':
+    resolution: {integrity: sha512-fkS0JqVwHgczteDlwItLRipOlIzm28U9HWLvYnYpnNbfmepoBT/4ux7LjrR0xGD51JHoC8/r+Qo7uCfoAQYeuw==}
 
-  '@x402/express@2.28.0':
-    resolution: {integrity: sha512-/94ZT89ce9Y92TgAxMuBQiS32BbvZOh0ZziMxTR8js2dbroEZ8po5guayy8zHOG79/x0p5GHJ/yoUUC4faMnvA==}
+  '@x402/express@2.29.0':
+    resolution: {integrity: sha512-0Ka1740ye02ZjSN3VeiEt3Gt7iINvTCl9nlP6ttGKSsySLMeMuDXJOzSOuzUnkJxy4LBxpG4Z+w3F46mhn6AUA==}
     peerDependencies:
-      '@x402/paywall': ^2.28.0
-      express: ^4.0.0 || ^5.0.0
+      '@x402/paywall': ^2.29.0
+      express: ^4.22.3 || ^5.3.0
     peerDependenciesMeta:
       '@x402/paywall':
         optional: true
 
-  '@x402/extensions@2.28.0':
-    resolution: {integrity: sha512-M3SVxO8DJnx7gpok/ODQp803jr21s1XrCMholNw0hSgOVvSPRksfTZ+CUNfJwteNaHmaAxGjPelXWBhTCMD9oQ==}
+  '@x402/extensions@2.29.0':
+    resolution: {integrity: sha512-FCpjZ6QR6ZtHTRZBV7VHMt7tc66LnTrpKDERiL3atXlLu4PlmgiulHt9PWE+Ktm5iUbXr3dAYZu2e7XrVd/XgA==}
 
-  '@x402/fetch@2.28.0':
-    resolution: {integrity: sha512-kF5IjZIz/izg2TD/Zav+SVj0jtC0zBDfE7WcKCnMZWIsZcLCyL2GgvwXCn7CCSsNjpQ/z3Rz4OqTCA4AaeKySQ==}
+  '@x402/fetch@2.29.0':
+    resolution: {integrity: sha512-ym/+6Cg7uUqScrE/pCV0sfmKecX46KTk5B/VKyJo579Xn1Z6dq2KiLd04rTvvO2xldLKKluU/3SqpDIgkp6T9Q==}
 
-  '@x402/hono@2.28.0':
-    resolution: {integrity: sha512-tR/AegvCpluj4AX1uYpqt0Ak7e3RcA2QE9GYrPCzwZTxv2z7gYUl7xE/olaxxDEiEb/yRmlsNAxmL81cARjeKw==}
+  '@x402/hono@2.29.0':
+    resolution: {integrity: sha512-ERZU+6CLVPQgRZMjHj24/PFBSYdCIg+Aji5fJnNAw3SDKdvFAC8WnNqgOoL8DL4kITc5ymOdjIYlUJP0ZC0lfw==}
     peerDependencies:
-      '@x402/paywall': ^2.28.0
+      '@x402/paywall': ^2.29.0
       hono: 4.13.13
     peerDependenciesMeta:
       '@x402/paywall':
         optional: true
 
-  '@x402/mcp@2.28.0':
-    resolution: {integrity: sha512-I84qbst4aazR8lqfcw/XRURjECxzKuFsNMWgELgD63OBK39Jqjz0dar9o0X7Vdm4FcsWA/QET+F1MFFEU4QmKQ==}
+  '@x402/mcp@2.29.0':
+    resolution: {integrity: sha512-ueAoUILuWzugwQIvAgcTMuCf026S9QPBGUNYCNC9Tf3w4BfPn4UM2NWJT56kvM+b4M811LKpANYpJrVPBIRMeA==}
 
-  '@x402/stellar@2.28.0':
-    resolution: {integrity: sha512-H/P46YVVEvJmnXlss8fJBNGgjaLkp3pWJ6PH2uOJY+jVemugUoQPArwtQKNovEV2BnF0gnJ+sdaRg+4Gucu6jQ==}
+  '@x402/stellar@2.29.0':
+    resolution: {integrity: sha512-ZQPp/m/eXgO2IsVX65VLQ++RWVXZ9nEkyZ4BT4wF5HAfG1uEmSVmAEjggZAGubv7Iu+D7oFo/AI0wj2CKCtVCg==}
     engines: {node: '>=22.0.0'}
 
   abitype@1.2.3:
     resolution: {integrity: sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==}
     peerDependencies:
       typescript: '>=5.0.4'
-      zod: ^3.22.0 || ^4.0.0
+      zod: 4.6.7
     peerDependenciesMeta:
       typescript:
         optional: true
@@ -2980,13 +2978,10 @@ packages:
   zod-to-json-schema@3.25.2:
     resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
     peerDependencies:
-      zod: ^3.25.28 || ^4
+      zod: 4.6.7
 
-  zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
-
-  zod@4.6.5:
-    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
 snapshots:
 
@@ -3188,13 +3183,13 @@ snapshots:
       eventsource-parser: 3.1.1
       jose: 6.2.12
       pkce-challenge: 5.0.1
-      zod: 4.6.5
+      zod: 4.6.7
 
   '@modelcontextprotocol/core@2.3.1':
     dependencies:
-      zod: 4.6.5
+      zod: 4.6.7
 
-  '@modelcontextprotocol/sdk@1.32.1(zod@3.25.76)':
+  '@modelcontextprotocol/sdk@1.32.1(zod@4.6.7)':
     dependencies:
       '@hono/node-server': 2.1.3(hono@4.13.13)
       ajv: 8.20.0
@@ -3211,37 +3206,15 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 3.25.76
-      zod-to-json-schema: 3.25.2(zod@3.25.76)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@modelcontextprotocol/sdk@1.32.1(zod@4.6.5)':
-    dependencies:
-      '@hono/node-server': 2.1.3(hono@4.13.13)
-      ajv: 8.20.0
-      ajv-formats: 3.0.1(ajv@8.20.0)
-      content-type: 1.0.5
-      cors: 2.8.6
-      cross-spawn: 7.0.6
-      eventsource: 3.0.7
-      eventsource-parser: 3.1.1
-      express: 5.2.1
-      express-rate-limit: 8.7.0(express@5.2.1)
-      hono: 4.13.13
-      jose: 6.2.12
-      json-schema-typed: 8.0.2
-      pkce-challenge: 5.0.1
-      raw-body: 3.0.2
-      zod: 4.6.5
-      zod-to-json-schema: 3.25.2(zod@4.6.5)
+      zod: 4.6.7
+      zod-to-json-schema: 3.25.2(zod@4.6.7)
     transitivePeerDependencies:
       - supports-color
 
   '@modelcontextprotocol/server@2.3.1':
     dependencies:
       '@modelcontextprotocol/core': 2.3.1
-      zod: 4.6.5
+      zod: 4.6.7
 
   '@noble/ciphers@1.3.0': {}
 
@@ -3334,15 +3307,15 @@ snapshots:
       '@noble/hashes': 1.8.0
       apg-js: 4.4.0
 
-  '@signinwithethereum/siwe@4.2.1(viem@2.56.8(typescript@6.0.3)(zod@3.25.76))':
+  '@signinwithethereum/siwe@4.2.1(viem@2.56.8(typescript@6.0.3)(zod@4.6.7))':
     dependencies:
       '@signinwithethereum/siwe-parser': 4.2.1
     optionalDependencies:
-      viem: 2.56.8(typescript@6.0.3)(zod@3.25.76)
+      viem: 2.56.8(typescript@6.0.3)(zod@4.6.7)
 
   '@stellar/js-xdr@4.0.0': {}
 
-  '@stellar/stellar-sdk@16.3.0(debug@4.4.3)':
+  '@stellar/stellar-sdk@16.4.1(debug@4.4.3)':
     dependencies:
       '@noble/ed25519': 3.2.0
       '@noble/hashes': 2.4.0
@@ -3582,14 +3555,14 @@ snapshots:
 
   '@vitest/spy@5.0.5': {}
 
-  '@x402/core@2.28.0':
+  '@x402/core@2.29.0':
     dependencies:
-      zod: 3.25.76
+      zod: 4.6.7
 
-  '@x402/express@2.28.0(express@5.2.1)(typescript@6.0.3)':
+  '@x402/express@2.29.0(express@5.2.1)(typescript@6.0.3)':
     dependencies:
-      '@x402/core': 2.28.0
-      '@x402/extensions': 2.28.0(typescript@6.0.3)
+      '@x402/core': 2.29.0
+      '@x402/extensions': 2.29.0(typescript@6.0.3)
       express: 5.2.1
     transitivePeerDependencies:
       - bufferutil
@@ -3597,31 +3570,31 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@x402/extensions@2.28.0(typescript@6.0.3)':
+  '@x402/extensions@2.29.0(typescript@6.0.3)':
     dependencies:
       '@noble/curves': 1.9.7
       '@scure/base': 1.2.6
-      '@signinwithethereum/siwe': 4.2.1(viem@2.56.8(typescript@6.0.3)(zod@3.25.76))
-      '@x402/core': 2.28.0
+      '@signinwithethereum/siwe': 4.2.1(viem@2.56.8(typescript@6.0.3)(zod@4.6.7))
+      '@x402/core': 2.29.0
       ajv: 8.20.0
       jose: 5.10.0
       tweetnacl: 1.0.3
-      viem: 2.56.8(typescript@6.0.3)(zod@3.25.76)
-      zod: 3.25.76
+      viem: 2.56.8(typescript@6.0.3)(zod@4.6.7)
+      zod: 4.6.7
     transitivePeerDependencies:
       - bufferutil
       - ethers
       - typescript
       - utf-8-validate
 
-  '@x402/fetch@2.28.0':
+  '@x402/fetch@2.29.0':
     dependencies:
-      '@x402/core': 2.28.0
+      '@x402/core': 2.29.0
 
-  '@x402/hono@2.28.0(hono@4.13.13)(typescript@6.0.3)':
+  '@x402/hono@2.29.0(hono@4.13.13)(typescript@6.0.3)':
     dependencies:
-      '@x402/core': 2.28.0
-      '@x402/extensions': 2.28.0(typescript@6.0.3)
+      '@x402/core': 2.29.0
+      '@x402/extensions': 2.29.0(typescript@6.0.3)
       hono: 4.13.13
     transitivePeerDependencies:
       - bufferutil
@@ -3629,27 +3602,27 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@x402/mcp@2.28.0':
+  '@x402/mcp@2.29.0':
     dependencies:
-      '@modelcontextprotocol/sdk': 1.32.1(zod@3.25.76)
-      '@x402/core': 2.28.0
-      zod: 3.25.76
+      '@modelcontextprotocol/sdk': 1.32.1(zod@4.6.7)
+      '@x402/core': 2.29.0
+      zod: 4.6.7
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - supports-color
 
-  '@x402/stellar@2.28.0(debug@4.4.3)':
+  '@x402/stellar@2.29.0(debug@4.4.3)':
     dependencies:
-      '@stellar/stellar-sdk': 16.3.0(debug@4.4.3)
-      '@x402/core': 2.28.0
+      '@stellar/stellar-sdk': 16.4.1(debug@4.4.3)
+      '@x402/core': 2.29.0
     transitivePeerDependencies:
       - debug
       - supports-color
 
-  abitype@1.2.3(typescript@6.0.3)(zod@3.25.76):
+  abitype@1.2.3(typescript@6.0.3)(zod@4.6.7):
     optionalDependencies:
       typescript: 6.0.3
-      zod: 3.25.76
+      zod: 4.6.7
 
   accepts@2.0.0:
     dependencies:
@@ -4375,7 +4348,7 @@ snapshots:
       type-check: 0.4.0
       word-wrap: 1.2.5
 
-  ox@0.14.45(typescript@6.0.3)(zod@3.25.76):
+  ox@0.14.45(typescript@6.0.3)(zod@4.6.7):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/ciphers': 1.3.0
@@ -4383,7 +4356,7 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@6.0.3)(zod@3.25.76)
+      abitype: 1.2.3(typescript@6.0.3)(zod@4.6.7)
       eventemitter3: 5.0.1
     optionalDependencies:
       typescript: 6.0.3
@@ -4741,15 +4714,15 @@ snapshots:
 
   vary@1.1.2: {}
 
-  viem@2.56.8(typescript@6.0.3)(zod@3.25.76):
+  viem@2.56.8(typescript@6.0.3)(zod@4.6.7):
     dependencies:
       '@noble/curves': 1.9.1
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@6.0.3)(zod@3.25.76)
+      abitype: 1.2.3(typescript@6.0.3)(zod@4.6.7)
       isows: 1.0.7(ws@8.21.0)
-      ox: 0.14.45(typescript@6.0.3)(zod@3.25.76)
+      ox: 0.14.45(typescript@6.0.3)(zod@4.6.7)
       ws: 8.21.0
     optionalDependencies:
       typescript: 6.0.3
@@ -4813,14 +4786,8 @@ snapshots:
 
   yocto-queue@0.1.0: {}
 
-  zod-to-json-schema@3.25.2(zod@3.25.76):
+  zod-to-json-schema@3.25.2(zod@4.6.7):
     dependencies:
-      zod: 3.25.76
+      zod: 4.6.7
 
-  zod-to-json-schema@3.25.2(zod@4.6.5):
-    dependencies:
-      zod: 4.6.5
-
-  zod@3.25.76: {}
-
-  zod@4.6.5: {}
+  zod@4.6.7: {}

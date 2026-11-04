@@ -1,6 +1,33 @@
 # Changelog
 
-## Unreleased
+## 0.5.2 — unreleased
+
+Moves to x402 2.29.0, whose `zod` 4.6.6 fixes memory exhaustion while validating oversized collections
+(GHSA-mrhx-c7xc-m3w5); 2.28.0 still depended on `zod` 3, which has no fix. Every package moves to 0.5.2; apply
+the new migrations (Explorer `0006`, service `0036`) before deploying.
+
+### Dependencies
+
+- Every `@x402/*` package moves from 2.28.0 to 2.29.0 and `@stellar/stellar-sdk` from 16.3.0 to 16.4.1, which
+  `@x402/stellar` 2.29.0 requires. `zod` is 4.6.7 everywhere. The upstream watch list pins the 2.29.0 release
+  and the current revisions of the `exact` scheme and the e2e guide.
+- Patched transitive dependencies with published advisories: `@hono/node-server` 2.1.3, `body-parser` 2.4.0,
+  `fast-uri` 3.1.9, `follow-redirects` 1.16.2, `qs` 6.16.1, `minimatch` 11.0.1 (lint only) and `happy-dom`
+  21.0.4 (tests only).
+
+### Facilitator
+
+- `exact` requirements with a non-empty `extra.splits` are refused with
+  `invalid_exact_stellar_requirements_splits_unsupported`: the `exact` scheme now defines multi-payee splits,
+  and a network that does not implement them must refuse them rather than pay the whole amount to `payTo`.
+- `settle_exact_stellar_transaction_submission_retryable`, new in `@x402/stellar` 2.29.0, is registered. The
+  service never returns it: a `TRY_AGAIN_LATER` answer from the network is rebroadcast.
+
+### Playground
+
+- The overcharging lab seller asks the facilitator to settle above the cap through its own facilitator client.
+  `@x402/core` 2.29.0 refuses a settlement override above the authorized amount before the facilitator sees
+  it, so the stock middleware can no longer overcharge.
 
 ### Bazaar and search
 

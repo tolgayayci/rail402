@@ -31,7 +31,7 @@ The key file holds the secret seed of a testnet account with a USDC trustline an
 `rail402` CLI creates one at that path:
 
 ```sh
-npm install -g @rail402.dev/cli@0.5.1
+npm install -g @rail402.dev/cli@0.5.2
 rail402 keys new                       # ~/.config/rail402/keys/stellar-testnet.key, tagged for stellar:testnet
 rail402 account setup --usdc 1         # Friendbot, USDC trustline, 1 USDC bought on the testnet exchange
 ```

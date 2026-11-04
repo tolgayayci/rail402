@@ -210,6 +210,11 @@ export const exactStellarCodes = defineCodes({
     retryable: false,
     reason: "The network refused the settlement transaction, so no funds moved; sign a new payment.",
   },
+  settle_exact_stellar_transaction_submission_retryable: {
+    status: 503,
+    retryable: true,
+    reason: "The network asked for the settlement transaction later, so no funds moved; retry shortly.",
+  },
   settle_exact_stellar_transaction_failed: {
     status: 400,
     retryable: false,
@@ -221,6 +226,12 @@ export const exactStellarCodes = defineCodes({
     status: 400,
     retryable: false,
     reason: "Stellar exact payments require extra.areFeesSponsored to be true.",
+  },
+  invalid_exact_stellar_requirements_splits_unsupported: {
+    status: 400,
+    retryable: false,
+    reason:
+      "Stellar exact payments pay one recipient; requirements with multi-payee extra.splits are refused.",
   },
   invalid_exact_stellar_requirements_asset_not_accepted: {
     status: 400,
