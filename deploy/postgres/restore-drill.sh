@@ -48,6 +48,7 @@ volume_args() { # data volume
     -v "$spool:/var/spool/pgbackrest" -v "$conf:/run/secrets:ro"
 }
 
+# Over TCP: the image's temporary init server listens on the Unix socket only, then shuts down.
 start_server() { # name volume
   local volumes
   mapfile -t volumes < <(volume_args "$2")
@@ -56,7 +57,7 @@ start_server() { # name volume
     -v "$root/deploy/postgres:/share:ro" \
     "$image" postgres "${archive_args[@]}" >/dev/null
   for _ in $(seq 1 60); do
-    docker exec "$1" pg_isready -q -U postgres 2>/dev/null && return 0
+    docker exec "$1" pg_isready -q -h 127.0.0.1 -U postgres 2>/dev/null && return 0
     sleep 1
   done
   docker logs "$1" >&2
