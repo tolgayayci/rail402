@@ -2,11 +2,13 @@
  * A fake pubnet for rehearsing the pubnet harnesses without touching the network: loaded with
  * `node --import`, it replaces `fetch` with a router that serves a fake Rail402 at
  * https://facilitator.example and a fake demo seller at https://seller.example, and refuses every
- * other request (an RPC, Friendbot, a real facilitator). Every request is appended to the file
- * FAKE_PUBNET_LOG names, one JSON line each, so a test can show what was asked and that nothing
- * settled.
+ * other request (an RPC, Friendbot, a real facilitator), but for the one read a run makes before it
+ * plans anything: `getLedgerEntries` answers that the published upto contract runs its published WASM.
+ * Every other request is appended to the file FAKE_PUBNET_LOG names, one JSON line each, so a test can
+ * show what was asked and that nothing settled.
  */
-import { appendFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
+import { Address, xdr } from "@stellar/stellar-sdk";
 import { encodePaymentRequiredHeader } from "@x402/core/http";
 import { USDC_PUBNET_ADDRESS } from "@x402/stellar";
 
@@ -80,20 +82,65 @@ function route(method: string, url: URL, authorization: string | null): Response
   throw new TypeError(`fake pubnet: no route for ${method} ${url.href}`);
 }
 
-globalThis.fetch = (input, init) => {
+/** The answer to a `getLedgerEntries` read of the published upto contract's instance. */
+function uptoInstance(request: {
+  readonly id: unknown;
+  readonly params: { readonly keys: readonly string[] };
+}) {
+  const record = JSON.parse(
+    readFileSync(new URL("../../../../contracts/stellar/deployments/pubnet.json", import.meta.url), "utf8"),
+  ) as { contract_id: string; wasm_sha256: string };
+  const data = xdr.LedgerEntryData.contractData(
+    new xdr.ContractDataEntry({
+      ext: new xdr.ExtensionPoint(0),
+      contract: Address.fromString(record.contract_id).toScAddress(),
+      key: xdr.ScVal.scvLedgerKeyContractInstance(),
+      durability: xdr.ContractDataDurability.persistent(),
+      val: xdr.ScVal.scvContractInstance(
+        new xdr.ScContractInstance({
+          executable: xdr.ContractExecutable.contractExecutableWasm(Buffer.from(record.wasm_sha256, "hex")),
+          storage: null,
+        }),
+      ),
+    }),
+  );
+  return Response.json({
+    jsonrpc: "2.0",
+    id: request.id,
+    result: {
+      entries: [
+        {
+          key: request.params.keys[0],
+          xdr: data.toXDR("base64"),
+          lastModifiedLedgerSeq: 1,
+          liveUntilLedgerSeq: 2,
+        },
+      ],
+      latestLedger: 1,
+    },
+  });
+}
+
+globalThis.fetch = async (input, init) => {
   const url = new URL(urlOf(input));
   const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
   const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
   const authorization = headers.get("authorization");
+  if (method === "POST" && url.origin !== FAKE_FACILITATOR && url.origin !== FAKE_SELLER) {
+    const body =
+      typeof init?.body === "string" ? init.body : input instanceof Request ? await input.clone().text() : "";
+    const request = (body === "" ? {} : JSON.parse(body)) as {
+      id: unknown;
+      method?: string;
+      params: { keys: string[] };
+    };
+    if (request.method === "getLedgerEntries") return uptoInstance(request);
+  }
   note({
     method,
     url: url.href,
     // Only whether a key was sent, never the key.
     bearer: authorization?.startsWith("Bearer ") === true,
   });
-  try {
-    return Promise.resolve(route(method, url, authorization));
-  } catch (error) {
-    return Promise.reject(error instanceof Error ? error : new Error(String(error)));
-  }
+  return route(method, url, authorization);
 };

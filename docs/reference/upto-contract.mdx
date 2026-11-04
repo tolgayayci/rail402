@@ -21,10 +21,14 @@ source is [`contracts/stellar/upto`](https://github.com/tolgayayci/rail402/tree/
 
 {/* generated:end */}
 
-There is no pubnet deployment. A facilitator serving `upto` on pubnet configures its own contract and WASM
-hash (`PUBNET_UPTO_CONTRACT`, `PUBNET_UPTO_WASM_HASH`), and refuses to start (or, serving several networks,
-holds pubnet) if the live contract is absent or runs other code. `@rail402.dev/upto` reserves
-`UPTO_PUBNET_DEPLOYMENT` for the pubnet deployment; it is `undefined` until one is recorded.
+On pubnet the same WASM is deployed at
+[`CAHZA4BYDJFQLNYX43LVPKN676IDELNIKP7BOYF2CT7MR2OG2BAZZHT4`](https://stellar.expert/explorer/public/contract/CAHZA4BYDJFQLNYX43LVPKN676IDELNIKP7BOYF2CT7MR2OG2BAZZHT4),
+from the attested release, verified against its source. Its record, with the source commit and every
+transaction, is `contracts/stellar/deployments/pubnet.json`. `@rail402.dev/upto` reserves
+`UPTO_PUBNET_DEPLOYMENT` for it, and it is `undefined` until a release sets it. A facilitator serving `upto` on
+pubnet configures its contract and WASM hash
+(`PUBNET_UPTO_CONTRACT`, `PUBNET_UPTO_WASM_HASH`), and refuses to start (or, serving several networks,
+holds pubnet) if the live contract is absent or runs other code.
 
 ### Deploying to pubnet
 
