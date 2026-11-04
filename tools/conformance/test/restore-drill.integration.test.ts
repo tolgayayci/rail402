@@ -3,7 +3,7 @@
  * database with the owner and runtime roles, restored to a point in time on throwaway containers.
  * Needs Docker.
  */
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { REPO_ROOT } from "../src/evidence.ts";
@@ -24,12 +24,18 @@ interface DrillResult {
 
 describe("the restore drill", () => {
   it("records a restore drill with row counts and checksums", () => {
-    const output = execFileSync("bash", [join(REPO_ROOT, "deploy/postgres/restore-drill.sh")], {
+    const run = spawnSync("bash", [join(REPO_ROOT, "deploy/postgres/restore-drill.sh")], {
       encoding: "utf8",
-      stdio: ["ignore", "pipe", "inherit"],
+      stdio: ["ignore", "pipe", "pipe"],
       timeout: 480_000,
+      maxBuffer: 16 * 1024 * 1024,
     });
-    const result = JSON.parse(output) as DrillResult;
+    // The drill's progress and any container log go to stderr; a failure shows where it stopped.
+    expect(
+      run.status,
+      `restore-drill.sh failed (signal ${String(run.signal)}):\n${run.stderr.slice(-8000)}`,
+    ).toBe(0);
+    const result = JSON.parse(run.stdout) as DrillResult;
     expect(result.tool).toMatch(/^pgBackRest \d+\.\d+/);
     expect(result.encryption).toBe("aes-256-cbc");
     expect(result.matches).toBe(true);
