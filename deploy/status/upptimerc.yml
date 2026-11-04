@@ -42,7 +42,7 @@ sites:
     expectedStatusCodes: [200]
     __dangerous__body_down_if_text_missing: '"ready":true'
     tags: [testnet, readiness]
-  # --- mainnet: published once the mainnet host serves ---
+  # --- mainnet ---
   - name: Mainnet facilitator /supported
     url: https://mainnet.rail402.dev/supported
     expectedStatusCodes: [200]
@@ -100,15 +100,10 @@ sites:
     url: https://docs.rail402.dev/
     expectedStatusCodes: [200]
     tags: [docs]
-status-website:
-  cname: status.rail402.dev
-  name: Rail402 status
-  introTitle: Rail402 status
-  introMessage: >-
-    Checks run about every 5 minutes from outside the service, with content assertions; an outage shorter
-    than one interval can be missed. Each network's readiness is shown separately: it follows that
-    network's RPC.
-  navbar:
-    - title: Documentation
-      url: https://docs.rail402.dev
+# Rail402 serves its own page from this repository's history; Upptime builds no site and leaves the
+# repository's description, topics and homepage alone.
+skipGeneratingWebsite: true
+skipDescriptionUpdate: true
+skipTopicsUpdate: true
+skipHomepageUpdate: true
 skipPoweredByReadme: false

@@ -44,7 +44,11 @@ const T = "https://testnet.rail402.dev";
 const M = "https://mainnet.rail402.dev";
 
 /** Runs the page as status.rail402.dev, where it reads the served history (null: the fetch fails). */
-async function load(summary: unknown[] | null, incidents: unknown[] = []): Promise<void> {
+async function load(
+  summary: unknown[] | null,
+  incidents: unknown[] = [],
+  lastModified?: string,
+): Promise<void> {
   vi.stubGlobal("fetch", (url: string) => {
     if (url.startsWith("history/") && summary === null) {
       return Promise.resolve(new Response("", { status: 503 }));
@@ -52,7 +56,10 @@ async function load(summary: unknown[] | null, incidents: unknown[] = []): Promi
     return Promise.resolve(
       new Response(JSON.stringify(url.startsWith("history/") ? summary : incidents), {
         status: 200,
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(lastModified === undefined ? {} : { "last-modified": lastModified }),
+        },
       }),
     );
   });
@@ -136,7 +143,7 @@ describe("the status page", () => {
       },
     ];
     await load(summary, [{ title: hostile, start: "2026-10-26T10:00Z", summary: hostile }]);
-    expect(text("overall")).toBe("Some services are down");
+    expect(text("overall")).toBe("Testnet facilitator is down");
     expect(document.getElementById("injected")).toBeNull();
     // The header's mark is the only image.
     expect(all("img").map((img) => img.getAttribute("src"))).toEqual(["design/logos/rail402-mark.svg"]);
@@ -171,21 +178,26 @@ describe("the status page", () => {
         dailyMinutesDown: {},
       },
     ]);
-    const sections = all("main section.net").map((section) => section.getAttribute("id"));
-    expect(sections).toEqual(["mainnet", "testnet", "incidents"]);
+    // The band's strips and the board's groups both put mainnet first.
+    expect(all("#strips .strip-title").map((title) => title.textContent)).toEqual(["Mainnet", "Testnet"]);
+    expect(all(".board .group").map((group) => group.getAttribute("id"))).toEqual([
+      "group-pubnet",
+      "group-testnet",
+    ]);
     expect(rowsOf("pubnet")).toEqual([
       ["Facilitator", "Down"],
       ["Network readiness", "No data"],
       ["Service health", "No data"],
       ["Bazaar catalog", "No data"],
       ["Bazaar search", "No data"],
-      ["Hosted MCP", "Operational"],
-      ["Explorer", "Operational"],
+      ["Hosted MCP", "Up"],
+      ["Explorer", "Up"],
       ["Documentation", "No data"],
     ]);
     // The Explorer serves both networks: its one check shows in both sections.
-    expect(rowsOf("testnet")).toContainEqual(["Explorer", "Operational"]);
-    expect(text("overall")).toBe("Some services are down");
+    expect(rowsOf("testnet")).toContainEqual(["Explorer", "Up"]);
+    expect(text("overall")).toBe("Mainnet facilitator is down");
+    expect(text("sum-pubnet")).toBe("8 checks · 1 down");
     expect(text("fig-mainnet")).toBe("98.95%");
     expect(text("ledger-pubnet")).not.toMatch(/not live/i);
   });
@@ -204,9 +216,10 @@ describe("the status page", () => {
     expect(rowsOf("testnet").slice(0, 4)).toEqual([
       ["Facilitator", "Down"],
       ["Network readiness", "Slow"],
-      ["Service health", "Operational"],
+      ["Service health", "Up"],
       ["Bazaar catalog", "No data"],
     ]);
+    expect(text("overall-badge")).toBe("Major outage");
     const latest = all("#ledger-testnet .bars").map((bars) =>
       Array.from(bars.querySelectorAll(".day")).at(-1)?.getAttribute("class"),
     );
@@ -224,11 +237,11 @@ describe("the status page", () => {
     const cells = Array.from(bars?.querySelectorAll(".cell") ?? []);
     cells.at(-1)?.dispatchEvent(new window.MouseEvent("mouseover", { bubbles: true }));
     expect(tip?.hidden).toBe(false);
-    expect(tip?.textContent).toContain("Major outage1 h 4 min");
+    expect(tip?.textContent).toContain("Major outage1 h 4 min down");
     expect(tip?.textContent).toContain("RelatedTestnet facilitator does not answer");
 
     bars?.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
-    expect(tip?.textContent).toContain("No downtime0 min");
+    expect(tip?.textContent).toContain("No downtime0 min down");
     expect(tip?.textContent).not.toContain("Related");
     bars?.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(tip?.hidden).toBe(true);
@@ -240,13 +253,15 @@ describe("the status page", () => {
     expect(rowsOf("pubnet").every(([, badge]) => badge === "No data")).toBe(true);
 
     await load(null);
-    expect(text("overall")).toBe("Status data could not be fetched");
+    expect(text("overall")).toBe("Status could not be fetched");
     expect(text("overall-notice")).toContain("data_unavailable");
-    expect(text("ledger-pubnet")).toContain("The checks for stellar:pubnet could not be fetched");
-    expect(text("ledger-testnet")).toContain("The checks for stellar:testnet could not be fetched");
-    expect(all(".row")).toHaveLength(0);
+    // Every row stays, with no figure and no state claimed for it.
+    expect(rowsOf("pubnet").every(([, badge]) => badge === "Unknown")).toBe(true);
+    expect(all(".row .day:not(.nodata)")).toHaveLength(0);
+    expect(text("ledger-testnet")).not.toMatch(/\d+\.\d\d%/);
     expect(text("fig-mainnet")).toBe("—");
-    expect(text("incident-list")).toBe("Incidents could not be fetched with the check data.");
+    expect(text("fig-open")).toBe("—");
+    expect(text("incident-list")).toContain("Incidents could not be fetched with the check data.");
   });
 
   it("shows each incident as a card with its state, title, description and times", async () => {
@@ -264,14 +279,40 @@ describe("the status page", () => {
       Array.from(card.querySelectorAll("dd")).map((dd) => dd.textContent),
     ]);
     expect(cards[0]?.slice(0, 3)).toEqual(["Ongoing", "Open", "What is affected."]);
-    expect(cards[0]?.[3]?.slice(0, 2)).toEqual(["2026-10-26 10:00 UTC", "—"]);
+    expect(cards[0]?.[3]?.slice(0, 2)).toEqual(["10:00 UTC", "not yet"]);
     expect(cards[0]?.[3]?.[2]).toMatch(/ so far$/);
-    expect(cards[1]).toEqual([
-      "Resolved",
-      "Closed",
-      null,
-      ["2026-10-25 10:00 UTC", "2026-10-25 11:20 UTC", "1 h 20 min"],
+    expect(cards[1]).toEqual(["Resolved", "Closed", null, ["10:00 UTC", "11:20 UTC", "1 h 20 min"]]);
+    // Grouped by month, dated in words; an ongoing one is also named in the band.
+    expect(all("#incident-list .month-name").map((name) => name.textContent)).toContain("October 2026");
+    expect(all("#incident-list .incident-date").map((date) => date.textContent)).toEqual([
+      "26 October 2026",
+      "25 October 2026",
     ]);
+    expect(text("fig-open")).toBe("1");
+    expect(text("overall-notice")).toContain("OngoingOpensince 26 October 2026, 10:00 UTC");
+  });
+
+  it("names the one affected check, the network it spares and when the checks last ran", async () => {
+    await load(
+      [
+        { url: `${T}/supported`, status: "down", uptimeWeek: "98.95%", dailyMinutesDown: { [today]: 64 } },
+        { url: `${M}/supported`, status: "up", uptimeWeek: "100.00%", dailyMinutesDown: {} },
+      ],
+      [],
+      "Wed, 04 Nov 2026 14:05:00 GMT",
+    );
+    expect(text("overall")).toBe("Testnet facilitator is down");
+    expect(text("overall-sub")).toMatch(
+      /^1 of \d+ checks down · mainnet is not affected · last run 4 November 2026, 14:05 UTC$/,
+    );
+    expect(text("sum-testnet")).toBe("10 checks · 1 down");
+    expect(all("#ledger-testnet .row")[0]?.getAttribute("data-state")).toBe("down");
+
+    await load([{ url: `${T}/supported`, status: "up", uptimeWeek: "100.00%", dailyMinutesDown: {} }]);
+    expect(text("overall")).toBe("All systems operational");
+    // Without a Last-Modified header no run time is claimed.
+    expect(text("overall-sub")).not.toContain("last run");
+    expect(text("incident-list")).toContain("No incidents posted.");
   });
 
   it("offers a GitHub issue and an email from its help dialog", () => {

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'sha256-tsFiml+Quil8b37Vhff4ifL4Wq7qia2LXz/Vn2sraPk='; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'self'; script-src 'sha256-QG2ScleOWDbcGK/Mqp/pXi+yj8GnODRaRo9IK5PmZXI='; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light" />
@@ -41,7 +41,7 @@
           <span class="r4-brand-name">Rail402</span>
           <span class="r4-brand-product">Status</span>
         </a>
-        <nav class="r4-nav" aria-label="Rail402">
+        <nav class="r4-nav site-nav" aria-label="Rail402">
           <a class="ext" href="https://docs.rail402.dev" target="_blank" rel="noopener"
             ><svg class="nav-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
               <path
@@ -84,68 +84,82 @@
         >
       </div>
 
-      <section class="r4-card summary" aria-live="polite" aria-labelledby="overall">
-        <div class="summary-head">
-          <span class="r4-badge" id="overall-badge">Loading</span>
-          <h1 class="title" id="overall">Loading status…</h1>
+      <section class="r4-stage hero" data-theme="dark" aria-live="polite" aria-labelledby="overall">
+        <div class="hero-top">
+          <div class="hero-head">
+            <span class="r4-badge" id="overall-badge">Loading</span>
+            <h1 class="hero-title" id="overall">Loading status…</h1>
+            <p class="hero-sub" id="overall-sub">Checked from outside the service, every 5 minutes</p>
+          </div>
+          <dl class="hero-figs">
+            <div>
+              <dt class="r4-eyebrow">Open incidents</dt>
+              <dd class="hero-fig" id="fig-open">—</dd>
+            </div>
+            <div>
+              <dt class="r4-eyebrow">Measured since</dt>
+              <dd class="hero-fig" id="fig-since">—</dd>
+            </div>
+          </dl>
         </div>
-        <p class="summary-sub body" id="overall-sub">Checked from outside the service, every 5 minutes</p>
         <div id="overall-notice"></div>
-        <dl class="figures">
-          <div>
-            <dt class="r4-eyebrow">stellar:pubnet · lowest 7-day</dt>
-            <dd class="figure-value" id="fig-mainnet">—</dd>
-          </div>
-          <div>
-            <dt class="r4-eyebrow">stellar:testnet · lowest 7-day</dt>
-            <dd class="figure-value" id="fig-testnet">—</dd>
-          </div>
-          <div>
-            <dt class="r4-eyebrow">Measured since (UTC)</dt>
-            <dd class="figure-value" id="fig-since" data-quiet>—</dd>
-          </div>
-        </dl>
+        <div class="strips" id="strips"></div>
       </section>
 
-      <section class="net" id="mainnet" aria-labelledby="mainnet-title">
-        <h2 class="r4-h2" id="mainnet-title">
-          Mainnet<span class="r4-badge" data-network="stellar:pubnet">stellar:pubnet</span>
-        </h2>
-        <p class="net-note small">
-          One bar per UTC day for the last 30 days, oldest on the left, today on the right.
+      <section class="checks" id="checks" aria-labelledby="checks-title">
+        <div class="section-head">
+          <div class="section-title">
+            <p class="r4-eyebrow" data-tone="accent" id="checks-count">Every 5 minutes</p>
+            <h2 class="section-h" id="checks-title">Every check, by network</h2>
+          </div>
+          <ul class="legend" aria-label="Legend">
+            <li>
+              <span class="key" aria-hidden="true"><i class="day"></i></span>No downtime
+            </li>
+            <li>
+              <span class="key" aria-hidden="true"><i class="day partial"></i></span>Up to 30 min down
+            </li>
+            <li>
+              <span class="key" aria-hidden="true"><i class="day down"></i></span>Over 30 min down
+            </li>
+            <li>
+              <span class="key" aria-hidden="true"><i class="day nodata"></i></span>Not measured
+            </li>
+          </ul>
+        </div>
+        <div class="board">
+          <div class="cols board-head" aria-hidden="true">
+            <span>Check</span><span>Last 30 days</span><span class="num">Today</span
+            ><span class="num">7 days</span><span class="num wide-only">Since start</span
+            ><span class="num">Now</span>
+          </div>
+          <div class="group" id="group-pubnet">
+            <span class="group-name"
+              >Mainnet<span class="r4-badge" data-network="stellar:pubnet">stellar:pubnet</span></span
+            >
+            <span class="group-sum" id="sum-pubnet"></span>
+          </div>
+          <ol class="rows" id="ledger-pubnet" aria-label="Mainnet checks"></ol>
+          <div class="group" id="group-testnet">
+            <span class="group-name"
+              >Testnet<span class="r4-badge" data-network="stellar:testnet">stellar:testnet</span></span
+            >
+            <span class="group-sum" id="sum-testnet"></span>
+          </div>
+          <ol class="rows" id="ledger-testnet" aria-label="Testnet checks"></ol>
+        </div>
+        <p class="note">
+          One bar per UTC day, oldest on the left. Hover or focus a bar for that day's minutes down and any
+          incident posted for it.
         </p>
-        <div id="ledger-pubnet"></div>
       </section>
 
-      <section class="net" id="testnet" aria-labelledby="testnet-title">
-        <h2 class="r4-h2" id="testnet-title">
-          Testnet<span class="r4-badge" data-network="stellar:testnet">stellar:testnet</span>
-        </h2>
-        <p class="net-note small">
-          One bar per UTC day for the last 30 days, oldest on the left, today on the right.
-        </p>
-        <div id="ledger-testnet"></div>
-      </section>
-
-      <ul class="legend small" aria-label="Legend">
-        <li>
-          <span class="key" aria-hidden="true"><i class="day"></i></span>No downtime
-        </li>
-        <li>
-          <span class="key" aria-hidden="true"><i class="day partial"></i></span>Up to 30 min down
-        </li>
-        <li>
-          <span class="key" aria-hidden="true"><i class="day down"></i></span>Over 30 min down
-        </li>
-        <li>
-          <span class="key" aria-hidden="true"><i class="day nodata"></i></span>Not measured
-        </li>
-      </ul>
-
-      <section class="net" id="incidents" aria-labelledby="incidents-title">
-        <h2 class="r4-h2" id="incidents-title">Incidents</h2>
-        <p class="net-note small">Posted by the operators after review.</p>
-        <div class="incidents" id="incident-list"></div>
+      <section class="history" id="incidents" aria-labelledby="incidents-title">
+        <div class="section-head">
+          <h2 class="section-h" id="incidents-title">Incident history</h2>
+          <p class="note">Posted by the operators after review</p>
+        </div>
+        <div id="incident-list"></div>
       </section>
     </main>
 
@@ -154,42 +168,48 @@
     <dialog class="help" id="help" aria-labelledby="help-title">
       <div class="help-body">
         <div class="help-head">
-          <h2 class="r4-card-title" id="help-title">Have a problem?</h2>
+          <h2 class="help-title" id="help-title">Have a problem?</h2>
           <button class="r4-icon-button" type="button" id="help-close" aria-label="Close">
             <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
               <path d="M3 3l8 8M11 3l-8 8" />
             </svg>
           </button>
         </div>
-        <p class="r4-card-body">
-          Tell us what went wrong. The network, the endpoint and the time in UTC help us find it fast.
+        <p class="help-lead">
+          If a check is green but a payment fails, tell us the network, the time in UTC and what you sent.
         </p>
-        <div class="help-options">
-          <a
-            class="r4-card"
-            href="https://github.com/tolgayayci/rail402/issues/new"
-            target="_blank"
-            rel="noopener"
+        <a
+          class="help-option"
+          href="https://github.com/tolgayayci/rail402/issues/new"
+          target="_blank"
+          rel="noopener"
+        >
+          <span class="help-icon" aria-hidden="true"
+            ><svg class="fill" width="18" height="18" viewBox="0 0 16 16">
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+              /></svg
+          ></span>
+          <span class="help-text"
+            ><span class="r4-eyebrow">GitHub</span><b>Open an issue</b
+            ><span class="help-sub">Public, on tolgayayci/rail402</span></span
           >
-            <p class="r4-eyebrow" data-tone="accent">GitHub</p>
-            <h3 class="r4-card-title ext">
-              Open an issue<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                <path d="M4 2h6v6M10 2L3 9" /></svg
-              ><span class="sr">(opens in a new tab)</span>
-            </h3>
-            <p class="r4-card-body">
-              Report a bug or an outage in public on tolgayayci/rail402, where others can follow it.
-            </p>
-          </a>
-          <a class="r4-card" href="mailto:tolga@yk-labs.com">
-            <p class="r4-eyebrow" data-tone="accent">Email</p>
-            <h3 class="r4-card-title">Reach us by email</h3>
-            <p class="r4-card-body">
-              Write to <span class="data">tolga@yk-labs.com</span> for anything you would rather not post in
-              public.
-            </p>
-          </a>
-        </div>
+          <span class="sr">(opens in a new tab)</span>
+          <svg class="ext-arrow" width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+            <path d="M4 2H9V7M9 2L3 8" />
+          </svg>
+        </a>
+        <a class="help-option" href="mailto:tolga@yk-labs.com">
+          <span class="help-icon" aria-hidden="true"
+            ><svg width="18" height="18" viewBox="0 0 16 16">
+              <rect x="1.5" y="3" width="13" height="10" rx="1.5" />
+              <path d="m2 4 6 5 6-5" /></svg
+          ></span>
+          <span class="help-text"
+            ><span class="r4-eyebrow">Email</span><b>Reach us by email</b
+            ><span class="help-sub">tolga@yk-labs.com</span></span
+          >
+        </a>
       </div>
     </dialog>
 
@@ -203,6 +223,10 @@
         var M = "https://mainnet.rail402.dev";
         var EXPLORER = "https://explorer.rail402.dev/health";
         var DOCS = "https://docs.rail402.dev/";
+        var NETS = [
+          { key: "pubnet", name: "Mainnet", caip: "stellar:pubnet" },
+          { key: "testnet", name: "Testnet", caip: "stellar:testnet" },
+        ];
         // Each row is matched to a check of deploy/status/upptimerc.yml by its URL. The Explorer and the
         // documentation serve both networks, so their one check shows in both sections.
         var COMPONENTS = [
@@ -285,7 +309,22 @@
           },
           { net: "testnet", name: "Documentation", check: "GET docs.rail402.dev", url: DOCS },
         ];
-        var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        var MONTHS = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+        var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        var STAMP = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/;
 
         function $(id) {
           return document.getElementById(id);
@@ -305,9 +344,28 @@
           for (var i = DAYS - 1; i >= 0; i--) out.push(day(new Date(base - i * 86400000)));
           return out;
         }
+        // Dates are written out: 5 October 2026; a day of the hover card also names its weekday.
         function longDate(d) {
-          var p = d.split("-");
+          var p = String(d).split("-");
           return Number(p[2]) + " " + MONTHS[Number(p[1]) - 1] + " " + p[0];
+        }
+        function weekDate(d) {
+          return WEEKDAYS[new Date(d + "T00:00:00Z").getUTCDay()] + ", " + longDate(d);
+        }
+        function monthName(m) {
+          var p = m.split("-");
+          return MONTHS[Number(p[1]) - 1] + " " + p[0];
+        }
+        // An incident time as posted (YYYY-MM-DDTHH:MMZ): its clock time, or its date and time.
+        function clock(v) {
+          var m = STAMP.exec(String(v || ""));
+          return m ? m[4] + ":" + m[5] + " UTC" : String(v || "");
+        }
+        function dateTime(v) {
+          var m = STAMP.exec(String(v || ""));
+          return m
+            ? longDate(m[1] + "-" + m[2] + "-" + m[3]) + ", " + m[4] + ":" + m[5] + " UTC"
+            : String(v || "");
         }
         function pct(s) {
           var n = parseFloat(String(s || "").replace("%", ""));
@@ -330,17 +388,9 @@
         function minutes(m) {
           return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min";
         }
-        function sinceText(since) {
-          if (!since) return null;
-          var start = Date.parse(since + "T00:00:00Z");
-          if (!isFinite(start)) return null;
-          var today = Date.parse(day(new Date()) + "T00:00:00Z");
-          var n = Math.max(0, Math.round((today - start) / 86400000)) + 1;
-          return since + " · " + n + (n === 1 ? " day" : " days");
-        }
         // Each state is a word as well as a colour; the badge styles come from the design system.
         var STATE = {
-          up: { label: "Operational", badge: "settled" },
+          up: { label: "Up", badge: "settled" },
           degraded: { label: "Slow", badge: "pending" },
           down: { label: "Down", badge: "failed" },
         };
@@ -350,80 +400,69 @@
           down: ["failed", "Major outage"],
           nodata: ["", "Not measured"],
         };
-        function badge(status) {
-          var s = STATE[status];
-          if (!s) return '<span class="r4-badge">' + (status ? "Unknown" : "No data") + "</span>";
-          return '<span class="r4-badge" data-status="' + s.badge + '">' + s.label + "</span>";
+        var RANK = { nodata: 0, up: 1, partial: 2, down: 3 };
+        function badgeHtml(status, label) {
+          return (
+            '<span class="r4-badge"' +
+            (status ? ' data-status="' + status + '"' : "") +
+            ">" +
+            esc(label) +
+            "</span>"
+          );
         }
         function setBadge(el, status, label) {
-          var s = STATE[status];
-          if (s) el.setAttribute("data-status", s.badge);
+          if (status) el.setAttribute("data-status", status);
           else el.removeAttribute("data-status");
-          el.textContent = label || (s ? s.label : "No data");
+          el.textContent = label;
         }
-        function notice(kind, code, reason) {
+        function notice(code, reason) {
           return (
-            '<div class="r4-notice"' +
-            (kind ? ' data-kind="' + kind + '"' : "") +
-            '><span class="r4-notice-code">' +
+            '<div class="r4-notice" data-theme="light"><span class="r4-notice-code">' +
             esc(code) +
             '</span><span class="r4-notice-reason">' +
             esc(reason) +
             "</span></div>"
           );
         }
+        function dayCells(days, row) {
+          return days
+            .map(function (d, i) {
+              var bar = '<i class="day' + (d.state === "up" ? "" : " " + d.state) + '"></i>';
+              return row === undefined
+                ? bar
+                : '<span class="cell" data-row="' + row + '" data-day="' + i + '">' + bar + "</span>";
+            })
+            .join("");
+        }
 
         // The days of every row, for the hover card: rows[i][d] = { date, state, minutes }.
         var rows = [];
         var issuesShown = [];
 
-        function record(entry, since) {
+        function record(entry, since, failed) {
           var down = (entry && entry.dailyMinutesDown) || {};
           return lastDays().map(function (d) {
-            if (!entry || (since && d < since)) return { date: d, state: "nodata", minutes: 0 };
+            if (failed || !entry || (since && d < since)) return { date: d, state: "nodata", minutes: 0 };
             // The history file is data from outside the page: only a count of minutes is used.
             var m = Math.max(0, Math.round(Number(down[d]) || 0));
             return { date: d, state: m === 0 ? "up" : m <= 30 ? "partial" : "down", minutes: m };
           });
         }
 
-        function fact(k, v, title) {
-          return (
-            '<span class="fact" title="' +
-            esc(title) +
-            '"><span class="fact-k caption">' +
-            esc(k) +
-            '</span><span class="data">' +
-            esc(v) +
-            "</span></span>"
-          );
-        }
-
-        function row(c, entry, since) {
-          var status = entry ? entry.status : null;
-          var week = entry ? shown(entry.uptimeWeek) : null;
-          var all = entry ? shown(entry.uptime) : null;
+        function row(c, entry, days, failed) {
+          var status = entry && !failed ? entry.status : null;
+          var state = STATE[status];
+          var week = entry && !failed ? shown(entry.uptimeWeek) : null;
+          var all = entry && !failed ? shown(entry.uptime) : null;
           var ms =
-            entry && entry.timeDay !== "" && isFinite(Number(entry.timeDay))
-              ? Math.round(Number(entry.timeDay))
+            entry && !failed && entry.timeDay !== "" && isFinite(Number(entry.timeDay))
+              ? Math.round(Number(entry.timeDay)) + " ms"
               : null;
-          var days = record(entry, since);
           var index = rows.push(days) - 1;
           var count = { up: 0, partial: 0, down: 0, nodata: 0 };
-          var cells = days
-            .map(function (d, i) {
-              count[d.state]++;
-              return (
-                '<span class="cell" data-row="' +
-                index +
-                '" data-day="' +
-                i +
-                '"><i class="day' +
-                (d.state === "up" ? "" : " " + d.state) +
-                '"></i></span>'
-              );
-            })
-            .join("");
+          days.forEach(function (d) {
+            count[d.state]++;
+          });
           var said =
             count.up +
             " days without downtime, " +
@@ -434,63 +473,109 @@
             count.nodata +
             " not measured";
           return (
-            '<div class="row">' +
-            '<div class="row-head"><div class="who"><p class="who-name">' +
+            '<li class="cols row"' +
+            (status === "down" ? ' data-state="down"' : "") +
+            ">" +
+            '<div class="who"><p class="who-name">' +
             esc(c.name) +
-            '</p><span class="who-check code">' +
+            '</p><p class="who-check">' +
             esc(c.check) +
-            "</span></div>" +
-            '<div class="facts">' +
-            (ms !== null ? fact("today", ms + " ms", "Average response time today") : "") +
-            (week !== null ? fact("7 days", week, "Uptime over the last 7 days") : "") +
-            (all !== null ? fact("since start", all, "Uptime since the checks began") : "") +
-            badge(status) +
-            "</div></div>" +
-            '<div class="bars" tabindex="0" role="img" data-row="' +
+            "</p></div>" +
+            '<div class="bar-cell"><div class="bars" tabindex="0" role="img" data-row="' +
             index +
             '" aria-label="' +
             esc(c.name + ", last 30 days: " + said + ". Use the arrow keys for each day.") +
             '">' +
-            cells +
-            "</div>" +
-            '<div class="axis caption" aria-hidden="true"><span>30 days ago</span><span class="axis-line"></span>' +
-            (all !== null ? "<span>" + esc(all) + ' uptime</span><span class="axis-line"></span>' : "") +
-            "<span>Today</span></div>" +
+            dayCells(days, index) +
+            "</div></div>" +
+            '<p class="num" title="Average response time today">' +
+            esc(ms || "—") +
+            "</p>" +
+            '<p class="num" title="Uptime over the last 7 days">' +
+            esc(week || "—") +
+            "</p>" +
+            '<p class="num wide-only" title="Uptime since the checks began">' +
+            esc(all || "—") +
+            "</p>" +
+            '<p class="mini"><span>today <b>' +
+            esc(ms || "—") +
+            "</b></span><span>7 days <b>" +
+            esc(week || "—") +
+            "</b></span><span>since start <b>" +
+            esc(all || "—") +
+            "</b></span></p>" +
+            '<span class="now">' +
+            (state ? badgeHtml(state.badge, state.label) : badgeHtml("", failed ? "Unknown" : "No data")) +
+            "</span>" +
+            "</li>"
+          );
+        }
+
+        // What a network's checks say now: a word for its badge and a line for its group.
+        function netNow(list, failed) {
+          var measured = list.filter(function (r) {
+            return r.entry;
+          });
+          var down = measured.filter(function (r) {
+            return r.entry.status === "down";
+          }).length;
+          var slow = measured.filter(function (r) {
+            return r.entry.status === "degraded";
+          }).length;
+          if (failed || !measured.length) return { status: "", word: "No data" };
+          if (down) return { status: "failed", word: down + " down" };
+          if (slow) return { status: "pending", word: slow + " slow" };
+          if (measured.length < list.length) return { status: "settled", word: measured.length + " up" };
+          return { status: "settled", word: "All up" };
+        }
+
+        function strip(net, list, failed) {
+          var worst = lastDays().map(function (d, i) {
+            var pick = { date: d, state: "nodata" };
+            list.forEach(function (r) {
+              if (RANK[r.days[i].state] > RANK[pick.state]) pick = r.days[i];
+            });
+            return pick;
+          });
+          var now = netNow(list, failed);
+          var week = failed
+            ? null
+            : lowest(
+                list
+                  .filter(function (r) {
+                    return r.entry;
+                  })
+                  .map(function (r) {
+                    return r.entry.uptimeWeek;
+                  }),
+              );
+          return (
+            '<div class="strip">' +
+            '<div class="strip-name"><p class="strip-title">' +
+            esc(net.name) +
+            '</p><span class="strip-badges"><span class="r4-badge" data-network="' +
+            net.caip +
+            '">' +
+            net.caip +
+            "</span>" +
+            badgeHtml(now.status, now.word) +
+            "</span></div>" +
+            '<div class="strip-bars"><div class="bars tall" role="img" aria-label="' +
+            esc(net.name + ": the worst check of each day, last 30 days") +
+            '">' +
+            dayCells(worst) +
+            '</div><div class="axis" aria-hidden="true"><span>30 days ago</span><span class="wide-only">worst of ' +
+            list.length +
+            " checks each day</span><span>Today</span></div></div>" +
+            '<div class="strip-fig"><p class="strip-value" id="fig-' +
+            (net.key === "pubnet" ? "mainnet" : "testnet") +
+            '">' +
+            esc(week || "—") +
+            '</p><p class="strip-label">lowest 7-day</p></div>' +
             "</div>"
           );
         }
 
-        function ledger(net, byUrl, since, failed) {
-          var el = $("ledger-" + net);
-          if (failed) {
-            el.className = "";
-            el.innerHTML = notice(
-              "",
-              "data_unavailable",
-              "The checks for stellar:" +
-                net +
-                " could not be fetched, so no figures are shown. Reload the page in a few minutes.",
-            );
-            return;
-          }
-          el.className = "r4-card";
-          el.innerHTML =
-            '<div class="rows">' +
-            COMPONENTS.filter(function (c) {
-              return c.net === net;
-            })
-              .map(function (c) {
-                return row(c, byUrl[c.url], since);
-              })
-              .join("") +
-            "</div>";
-        }
-
-        function when(v) {
-          return String(v || "")
-            .slice(0, 16)
-            .replace("T", " ");
-        }
         function span(i) {
           var start = Date.parse(i.start || "");
           var end = i.end ? Date.parse(i.end) : Date.now();
@@ -499,101 +584,204 @@
         }
         function incident(i) {
           var open = !i.end;
+          var start = String(i.start || "");
+          var sameDay = !open && String(i.end).slice(0, 10) === start.slice(0, 10);
           return (
-            '<article class="r4-card incident">' +
-            '<div class="incident-head"><span class="r4-badge" data-status="' +
-            (open ? "failed" : "settled") +
-            '">' +
-            (open ? "Ongoing" : "Resolved") +
-            '</span><span class="incident-date data">' +
-            esc(String(i.start || "").slice(0, 10)) +
+            '<article class="r4-card incident"' +
+            (open ? ' data-state="open"' : "") +
+            ">" +
+            '<div class="incident-head">' +
+            badgeHtml(open ? "failed" : "settled", open ? "Ongoing" : "Resolved") +
+            '<span class="incident-date">' +
+            esc(STAMP.test(start) ? longDate(start.slice(0, 10)) : start.slice(0, 10)) +
             "</span></div>" +
             '<h3 class="r4-card-title">' +
             esc(i.title) +
             "</h3>" +
             (i.summary ? '<p class="r4-card-body">' + esc(i.summary) + "</p>" : "") +
             '<dl class="incident-facts">' +
-            '<div><dt class="r4-eyebrow">Started</dt><dd class="data">' +
-            esc(when(i.start) + " UTC") +
+            '<div><dt class="r4-eyebrow">Started</dt><dd>' +
+            esc(clock(start)) +
             "</dd></div>" +
-            '<div><dt class="r4-eyebrow">Resolved</dt><dd class="data">' +
-            esc(open ? "—" : when(i.end) + " UTC") +
+            '<div><dt class="r4-eyebrow">Resolved</dt><dd>' +
+            esc(open ? "not yet" : sameDay ? clock(i.end) : dateTime(i.end)) +
             "</dd></div>" +
-            '<div><dt class="r4-eyebrow">Duration</dt><dd class="data">' +
+            '<div><dt class="r4-eyebrow">Duration</dt><dd>' +
             esc(span(i)) +
             "</dd></div>" +
             "</dl></article>"
           );
         }
+        // The history, one block per month from this month back to the first check: the incidents
+        // posted in it, or a line saying there were none. Empty months older than a year are left out.
+        function history(issues, since) {
+          var thisMonth = day(new Date()).slice(0, 7);
+          var byMonth = {};
+          var first = since ? since.slice(0, 7) : thisMonth;
+          issues.forEach(function (i) {
+            var m = STAMP.test(String(i.start || "")) ? String(i.start).slice(0, 7) : thisMonth;
+            (byMonth[m] = byMonth[m] || []).push(i);
+            if (m < first) first = m;
+          });
+          var out = "";
+          var y = Number(thisMonth.slice(0, 4)),
+            mo = Number(thisMonth.slice(5, 7));
+          for (var n = 0; ; n++) {
+            var key = y + "-" + (mo < 10 ? "0" : "") + mo;
+            if (key < first) break;
+            var list = (byMonth[key] || []).sort(function (a, b) {
+              return String(b.start).localeCompare(String(a.start));
+            });
+            if (list.length || n < 12) {
+              out +=
+                '<div class="month"><h3 class="month-name">' +
+                esc(monthName(key)) +
+                '</h3><div class="month-body">' +
+                (list.length ? list.map(incident).join("") : '<p class="quiet">No incidents posted.</p>') +
+                "</div></div>";
+            }
+            if (--mo === 0) {
+              mo = 12;
+              y--;
+            }
+          }
+          if (since) {
+            out +=
+              '<div class="month"><h3 class="month-name quiet">Before</h3><div class="month-body"><p class="quiet">Checks started on ' +
+              esc(longDate(since)) +
+              ".</p></div></div>";
+          }
+          return out;
+        }
 
-        function render(summary, issues, since, failed) {
+        // A check named for the headline: the network and the check, or only the check when it serves both.
+        function headName(c) {
+          var shared = COMPONENTS.filter(function (o) {
+            return o.url === c.url;
+          }).length;
+          if (shared > 1) return c.name;
+          var net = c.net === "pubnet" ? "Mainnet" : "Testnet";
+          return net + " " + c.name.charAt(0).toLowerCase() + c.name.slice(1);
+        }
+
+        function render(summary, issues, since, failed, updated) {
           rows = [];
           var byUrl = {};
           summary.forEach(function (s) {
             if (s && typeof s.url === "string") byUrl[s.url] = s;
           });
-          ledger("pubnet", byUrl, since, failed);
-          ledger("testnet", byUrl, since, failed);
-
-          var measured = COMPONENTS.map(function (c) {
-            return byUrl[c.url];
-          }).filter(Boolean);
-          var h = $("overall"),
-            b = $("overall-badge");
-          if (failed) {
-            h.textContent = "Status data could not be fetched";
-            setBadge(b, null);
-          } else if (!measured.length) {
-            h.textContent = "No checks recorded yet";
-            setBadge(b, null);
-          } else if (
-            measured.some(function (s) {
-              return s.status === "down";
-            })
-          ) {
-            h.textContent = "Some services are down";
-            setBadge(b, "down");
-          } else if (
-            measured.some(function (s) {
-              return s.status === "degraded";
-            })
-          ) {
-            h.textContent = "Some services are slow";
-            setBadge(b, "degraded");
-          } else {
-            h.textContent = "All systems operational";
-            setBadge(b, "up");
-          }
-          ["pubnet", "testnet"].forEach(function (net) {
-            var week = lowest(
-              COMPONENTS.filter(function (c) {
-                return c.net === net && byUrl[c.url];
-              }).map(function (c) {
-                return byUrl[c.url].uptimeWeek;
-              }),
-            );
-            $(net === "pubnet" ? "fig-mainnet" : "fig-testnet").textContent = week || "—";
+          var urls = [];
+          COMPONENTS.forEach(function (c) {
+            if (urls.indexOf(c.url) < 0) urls.push(c.url);
           });
-          $("fig-since").textContent = sinceText(since) || "—";
-          $("overall-sub").textContent = failed
-            ? "No figures are shown until the check data loads."
-            : measured.length
-              ? "Checked from outside the service, every 5 minutes"
-              : "The first check run has not finished.";
+          $("checks-count").textContent = urls.length + " checks · every 5 minutes";
+
+          var strips = "";
+          NETS.forEach(function (net) {
+            var list = COMPONENTS.filter(function (c) {
+              return c.net === net.key;
+            }).map(function (c) {
+              var entry = failed ? null : byUrl[c.url] || null;
+              return { c: c, entry: entry, days: record(entry, since, failed) };
+            });
+            $("ledger-" + net.key).innerHTML = list
+              .map(function (r) {
+                return row(r.c, r.entry, r.days, failed);
+              })
+              .join("");
+            var now = netNow(list, failed);
+            $("sum-" + net.key).textContent =
+              list.length + " checks · " + (now.word === "All up" ? "all up" : now.word.toLowerCase());
+            strips += strip(net, list, failed);
+          });
+          $("strips").innerHTML = strips;
+
+          // The headline: the worst state of any check, naming it when only one is affected.
+          var measured = urls.filter(function (u) {
+            return !failed && byUrl[u];
+          });
+          var hit = function (state) {
+            return measured.filter(function (u) {
+              return byUrl[u].status === state;
+            });
+          };
+          var down = hit("down"),
+            slow = hit("degraded");
+          var h = $("overall"),
+            b = $("overall-badge"),
+            sub = "";
+          var base = urls.length + " checks from outside the service, every 5 minutes";
+          var ran = updated ? " · last run " + dateTime(updated) : "";
+          if (failed) {
+            setBadge(b, "", "Unknown");
+            h.textContent = "Status could not be fetched";
+            sub = "The checks keep running; this page could not load their results.";
+          } else if (!measured.length) {
+            setBadge(b, "", "No data");
+            h.textContent = "No checks recorded yet";
+            sub = "The first check run has not finished.";
+          } else if (down.length || slow.length) {
+            var bad = down.length ? down : slow;
+            var first = COMPONENTS.filter(function (c) {
+              return c.url === bad[0];
+            })[0];
+            setBadge(b, down.length ? "failed" : "pending", down.length ? "Major outage" : "Degraded");
+            h.textContent =
+              bad.length === 1
+                ? headName(first) + (down.length ? " is down" : " is slow")
+                : down.length
+                  ? "Some services are down"
+                  : "Some services are slow";
+            var nets = {};
+            down.concat(slow).forEach(function (u) {
+              COMPONENTS.forEach(function (c) {
+                if (c.url === u) nets[c.net] = true;
+              });
+            });
+            var spared = NETS.filter(function (n) {
+              return !nets[n.key];
+            }).map(function (n) {
+              return n.name.toLowerCase() + " is not affected";
+            });
+            sub =
+              (down.length ? down.length + " of " + urls.length + " checks down" : "") +
+              (down.length && slow.length ? ", " : "") +
+              (slow.length ? slow.length + " of " + urls.length + " checks slow" : "") +
+              (spared.length === 1 ? " · " + spared[0] : "") +
+              ran;
+          } else {
+            setBadge(b, "settled", "Operational");
+            h.textContent = "All systems operational";
+            sub = base + ran;
+          }
+          $("overall-sub").textContent = sub;
+
+          issuesShown = failed ? [] : (issues || []).slice(0, 24);
+          var open = issuesShown.filter(function (i) {
+            return !i.end;
+          });
+          $("fig-open").textContent = failed ? "—" : String(open.length);
+          $("fig-since").textContent = since ? longDate(since) : "—";
           $("overall-notice").innerHTML = failed
             ? notice(
-                "",
                 "data_unavailable",
-                "The check data could not be fetched. Reload the page in a few minutes.",
+                "The check history could not be fetched. Nothing below is current; reload the page in a few minutes.",
               )
-            : "";
+            : open.length
+              ? '<div class="callout" data-theme="light"><span class="callout-text">' +
+                badgeHtml("failed", "Ongoing") +
+                '<b class="callout-title">' +
+                esc(open[0].title) +
+                '</b><span class="callout-when">since ' +
+                esc(dateTime(open[0].start)) +
+                " · " +
+                esc(span(open[0])) +
+                '</span></span><a class="callout-link" href="#incidents">Read the incident</a></div>'
+              : "";
 
-          issuesShown = (issues || []).slice(0, 12);
           $("incident-list").innerHTML = failed
-            ? '<div class="r4-card incident-empty"><p class="quiet body">Incidents could not be fetched with the check data.</p></div>'
-            : issuesShown.length
-              ? issuesShown.map(incident).join("")
-              : '<div class="r4-card incident-empty"><p class="quiet body">No incidents posted.</p></div>';
+            ? '<div class="month"><h3 class="month-name">Incidents</h3><div class="month-body"><p class="quiet">Incidents could not be fetched with the check data.</p></div></div>'
+            : history(issuesShown, since);
           bindBars();
         }
 
@@ -633,23 +821,25 @@
           tip.textContent = "";
           var arrow = el("span", "day-tip-arrow");
           tip.appendChild(arrow);
-          tip.appendChild(el("p", "day-tip-date", longDate(d.date)));
+          tip.appendChild(el("p", "day-tip-date", weekDate(d.date)));
           var line = el("div", "day-tip-state");
           var b = el("span", "r4-badge", state[1]);
           if (state[0]) b.setAttribute("data-status", state[0]);
           line.appendChild(b);
-          line.appendChild(el("span", "data", d.state === "nodata" ? "—" : minutes(d.minutes)));
+          line.appendChild(
+            el("span", "day-tip-min", d.state === "nodata" ? "—" : minutes(d.minutes) + " down"),
+          );
           tip.appendChild(line);
           var titles = d.state === "nodata" ? [] : related(d.date);
           if (titles.length) {
             var rel = el("div", "day-tip-related");
             rel.appendChild(el("p", "r4-eyebrow", "Related"));
             titles.slice(0, 3).forEach(function (t) {
-              rel.appendChild(el("p", "body", t));
+              rel.appendChild(el("p", "day-tip-title", t));
             });
             tip.appendChild(rel);
           } else if (d.minutes > 0) {
-            tip.appendChild(el("p", "caption quiet", "No incident posted for this day."));
+            tip.appendChild(el("p", "day-tip-none", "No incident posted for this day."));
           }
           tip.hidden = false;
           var box = cell.getBoundingClientRect();
@@ -667,7 +857,7 @@
           clearActive();
         }
         function bindBars() {
-          var bars = document.querySelectorAll(".bars");
+          var bars = document.querySelectorAll(".bars[data-row]");
           for (var k = 0; k < bars.length; k++) {
             bars[k].addEventListener("mouseover", function (e) {
               var cell = e.target.closest(".cell");
@@ -731,7 +921,7 @@
               dailyMinutesDown: downs(k + 1),
             });
           });
-          return { summary: summary, issues: [], since: since };
+          return { summary: summary, issues: [], since: since, updated: new Date().toISOString() };
         }
 
         var host = location.hostname;
@@ -739,12 +929,16 @@
         if (!live) {
           var s = sample();
           $("preview").hidden = false;
-          render(s.summary, s.issues, s.since, false);
+          render(s.summary, s.issues, s.since, false, s.updated);
           return;
         }
+        // When the history file was last written: the end of the last check run, from the server's header.
+        var updated = null;
         Promise.all([
           fetch("history/summary.json", { cache: "no-store" }).then(function (r) {
             if (!r.ok) throw new Error(r.status);
+            var at = Date.parse(r.headers.get("last-modified") || "");
+            if (isFinite(at)) updated = new Date(at).toISOString();
             return r.json();
           }),
           // Only incidents the operators have reviewed and posted; nothing from the checks is published on its own.
@@ -762,10 +956,11 @@
               Array.isArray(res[1]) ? res[1] : [],
               MEASURED_SINCE,
               false,
+              updated,
             );
           })
           .catch(function () {
-            render([], [], MEASURED_SINCE, true);
+            render([], [], MEASURED_SINCE, true, null);
           });
       })();
     </script>
