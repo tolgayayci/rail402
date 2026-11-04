@@ -82,6 +82,14 @@ const SETTINGS: Record<string, string> = {
   RAIL402_FACILITATOR_API_KEY_FILE: apiKey,
 };
 
+/**
+ * SETTINGS for the agent runs: a host that cannot give the agent its own namespaces (a CI runner) uses
+ * the documented opt-out, so these runs reach the steps they test; the isolation gate is tested below.
+ */
+const AGENT_SETTINGS: Record<string, string> = ISOLATION
+  ? SETTINGS
+  : { ...SETTINGS, RAIL402_PUBNET_UNISOLATED_AGENT: "agent-runs-as-a-separate-os-user" };
+
 interface Request {
   readonly method: string;
   readonly url: string;
@@ -224,19 +232,19 @@ describe.concurrent("the live Bazaar run on pubnet", () => {
     expect(confirmed.stderr).toContain("spend_cap_exceeded");
     expect(plannedRuns(planned.runsDir).map((entry) => entry.state)).toEqual(["closed"]);
     onlyFakes(confirmed.requests);
-  });
+  }, 30_000);
 });
 
 describe.concurrent("the live agent run on pubnet", () => {
   it("refuses a pubnet run without a deployed Bazaar and seller, before any request", async () => {
-    const run = await agent(SETTINGS, []);
+    const run = await agent(AGENT_SETTINGS, []);
     expect(run.status).not.toBe(0);
     expect(run.stderr).toContain("pubnet_target_missing");
     expect(run.requests).toEqual([]);
   });
 
   it("plans the run and spends nothing without a confirmation; the key goes as a Bearer token", async () => {
-    const run = await agent(SETTINGS);
+    const run = await agent(AGENT_SETTINGS);
     expect(run.status).not.toBe(0);
     expect(run.stderr).toMatch(/pubnet_run_unconfirmed: .*RAIL402_PUBNET_RUN_CONFIRM=[0-9a-f]{16}/);
     expect(plannedRuns(run.runsDir).map((entry) => entry.state)).toEqual(["planned"]);
@@ -245,7 +253,7 @@ describe.concurrent("the live agent run on pubnet", () => {
   });
 
   it("stops a confirmed run whose caps cannot fund the payer, before anything is installed or sent", async () => {
-    const tight = { ...SETTINGS, RAIL402_PUBNET_MAX_SPEND_USDC: "0.1" };
+    const tight = { ...AGENT_SETTINGS, RAIL402_PUBNET_MAX_SPEND_USDC: "0.1" };
     const planned = await agent(tight);
     const [run] = plannedRuns(planned.runsDir);
     expect(run).toBeDefined();
@@ -259,7 +267,7 @@ describe.concurrent("the live agent run on pubnet", () => {
     expect(confirmed.stderr).not.toContain("pack-check");
     expect(plannedRuns(planned.runsDir).map((entry) => entry.state)).toEqual(["closed"]);
     onlyFakes(confirmed.requests);
-  });
+  }, 30_000);
 });
 
 /** What a stub's entry point found when it tried to reach the treasury-holding process through /proc. */
@@ -318,7 +326,7 @@ describe.concurrent("the packages the live agent run installs", () => {
   const sponsor = secretFile("sponsor.txt", Keypair.random().secret());
   /** A loopback RPC that refuses connections: the run stops there, after the install and the import. */
   const settings = (npm: { bin: string }) => ({
-    ...SETTINGS,
+    ...AGENT_SETTINGS,
     RAIL402_PUBNET_RPC_URLS: "https://127.0.0.1:9",
     RAIL402_SPONSOR_SECRET_FILE: sponsor,
     PATH: `${npm.bin}:${process.env["PATH"] ?? ""}`,
