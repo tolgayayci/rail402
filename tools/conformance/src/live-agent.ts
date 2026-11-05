@@ -1201,6 +1201,8 @@ async function runAgent(
             allowPrivateNetwork: "loopback",
           },
       onEvent: (event) => events.push(event),
+      // On pubnet the SDK asks for a confirmation choice; the run, not a person, confirms payments.
+      ...(PUBNET ? { confirmPolicy: "never" as const } : {}),
       ...overrides,
     });
     const buyer = await sdk.createBuyer(buyerOptions());
