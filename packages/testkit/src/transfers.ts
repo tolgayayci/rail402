@@ -39,10 +39,13 @@ export interface TransferOptions {
   readonly noAuthorization?: boolean;
   /** Appends an address-credential entry for another account over the same invocation. */
   readonly extraAuthorization?: { readonly signer: Keypair; readonly sign: boolean };
+  /** The network the transfer is signed for; testnet by default. */
+  readonly passphrase?: string;
 }
 
 /** Builds an x402 exact transfer transaction offline, as a stock client would after simulation. */
 export async function buildTransfer(options: TransferOptions = {}) {
+  const passphrase = options.passphrase ?? PASSPHRASE;
   const payer = options.payer ?? Keypair.random();
   const asset = options.asset ?? randomContractId();
   const to = options.to ?? Keypair.random().publicKey();
@@ -89,7 +92,7 @@ export async function buildTransfer(options: TransferOptions = {}) {
 
   const expiration = options.expirationLedger ?? 1_000;
   if (options.sign !== false && options.credential !== "source_account") {
-    entry = await authorizeEntry(entry, payer, expiration, PASSPHRASE);
+    entry = await authorizeEntry(entry, payer, expiration, passphrase);
   }
   const entries = options.noAuthorization === true ? [] : [entry];
   if (options.extraAuthorization !== undefined) {
@@ -105,12 +108,12 @@ export async function buildTransfer(options: TransferOptions = {}) {
       ),
       rootInvocation,
     });
-    entries.push(sign ? await authorizeEntry(extra, signer, expiration, PASSPHRASE) : extra);
+    entries.push(sign ? await authorizeEntry(extra, signer, expiration, passphrase) : extra);
   }
 
   const builder = new TransactionBuilder(new Account(options.source ?? payer.publicKey(), "100"), {
     fee: "100",
-    networkPassphrase: PASSPHRASE,
+    networkPassphrase: passphrase,
     ...(options.ledgerBounds ? { ledgerbounds: options.ledgerBounds } : {}),
   })
     .setTimeout(60)

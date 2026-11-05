@@ -277,6 +277,7 @@ const offline = async (payer: Keypair, payTo: string, amount: bigint) => {
     amount,
     nonce: BigInt(Math.floor(Math.random() * 2 ** 40)),
     expirationLedger: (await net.latestLedger()) + 10,
+    passphrase: net.passphrase,
   });
   const requirements = requirementsOn(NETWORK, USDC_ADDRESS, payTo, amount);
   const payload = {
