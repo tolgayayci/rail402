@@ -34,7 +34,8 @@ describe.skipIf(!available)("a network on a protocol this SDK cannot read", () =
   afterAll(async () => {
     await service.stop();
     await proxy.close().catch(() => undefined);
-  });
+    // Stopping reconciles once more against the network; on a loaded runner that has taken past 120 s.
+  }, 300_000);
 
   it("fails readiness while the newest ledger header cannot be decoded, and passes again after", async () => {
     // The network's own answer with a header this SDK cannot read, as protocol 30's were to 16.3.0.
