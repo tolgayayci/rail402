@@ -334,7 +334,14 @@ export class LocalNetwork {
       .addOperation(call)
       .setTimeout(60)
       .build();
-    const simulation = await this.server.simulateTransaction(transaction);
+    let simulation = await this.server.simulateTransaction(transaction);
+    // The local RPC can answer from a snapshot that lacks the network settings for a moment after a ledger.
+    for (let retry = 0; retry < 5; retry++) {
+      if (!rpc.Api.isSimulationError(simulation) || !simulation.error.includes("not present in the snapshot"))
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      simulation = await this.server.simulateTransaction(transaction);
+    }
     // A G-account without a trustline holds none of a classic asset (SAC error #13).
     if (rpc.Api.isSimulationError(simulation) && simulation.error.includes("Error(Contract, #13)")) return 0n;
     if (!rpc.Api.isSimulationSuccess(simulation) || simulation.result === undefined) {

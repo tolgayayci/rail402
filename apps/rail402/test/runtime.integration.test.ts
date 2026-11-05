@@ -72,9 +72,10 @@ describe.skipIf(!available)("service runtime", () => {
   beforeAll(async () => {
     usdc = await net.issueAsset("USDC");
   });
+  // Stopping reconciles once more against the network; on a loaded runner that has taken past 120 s.
   afterEach(async () => {
     for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
-  });
+  }, 300_000);
 
   /** A runtime on the local network with the in-memory store, lexical search and a funded sponsor. */
   async function runtimeWith(env: Record<string, string> = {}, options: { fund?: boolean } = {}) {

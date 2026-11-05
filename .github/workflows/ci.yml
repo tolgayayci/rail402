@@ -202,7 +202,7 @@ jobs:
         run: |
           for lock in contracts/*/*/Cargo.lock; do
             echo "::group::${lock}"
-            cargo audit --file "$lock" --ignore RUSTSEC-2024-0436 --ignore RUSTSEC-2026-0387
+            cargo audit --file "$lock" --ignore RUSTSEC-2024-0436 --ignore RUSTSEC-2026-0387 --ignore RUSTSEC-2026-0441
             echo "::endgroup::"
           done
 

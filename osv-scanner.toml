@@ -10,3 +10,8 @@ reason = "paste is unmaintained, with no known vulnerability; soroban-sdk uses i
 id = "RUSTSEC-2026-0387"
 ignoreUntil = 2027-02-28
 reason = "crypto-bigint 0.5 reaches the contract crates only through soroban-env-host, the local test and simulation host of soroban-sdk; it is not in any contract's WASM and handles no secrets there. A fixed release needs elliptic-curve 0.14, which soroban-sdk does not use yet."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0441"
+ignoreUntil = 2027-04-30
+reason = "pin-utils is unmaintained, with no known vulnerability; futures-util pulls it into the contract crates' lockfiles, and no fixed version exists"
