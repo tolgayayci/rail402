@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -815,6 +818,25 @@ describe("demo seller on pubnet", () => {
 });
 
 describe("demo seller configuration", () => {
+  it("reads the facilitator's API key from a file and refuses one it cannot use", () => {
+    const dir = mkdtempSync(join(tmpdir(), "demo-seller-key-"));
+    try {
+      const file = join(dir, "key");
+      writeFileSync(file, "r402_demo_key\n");
+      expect(sellerConfig({ PAY_TO: payTo, FACILITATOR_API_KEY_FILE: file }).facilitatorApiKey).toBe(
+        "r402_demo_key",
+      );
+      writeFileSync(file, "\n");
+      expect(() => sellerConfig({ PAY_TO: payTo, FACILITATOR_API_KEY_FILE: file })).toThrow(/is empty/);
+      expect(() => sellerConfig({ PAY_TO: payTo, FACILITATOR_API_KEY_FILE: join(dir, "gone") })).toThrow(
+        /cannot be read/,
+      );
+      expect(sellerConfig({ PAY_TO: payTo }).facilitatorApiKey).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   const payTo = Keypair.random().publicKey();
 
   it("defaults to testnet, the hosted facilitator and metered routes", () => {

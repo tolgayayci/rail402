@@ -253,7 +253,7 @@ describe.concurrent("the live agent run on pubnet", () => {
   });
 
   it("stops a confirmed run whose caps cannot fund the payer, before anything is installed or sent", async () => {
-    const tight = { ...AGENT_SETTINGS, RAIL402_PUBNET_MAX_SPEND_USDC: "0.1" };
+    const tight = { ...AGENT_SETTINGS, RAIL402_PUBNET_MAX_SPEND_USDC: "0.05" };
     const planned = await agent(tight);
     const [run] = plannedRuns(planned.runsDir);
     expect(run).toBeDefined();

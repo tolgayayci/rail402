@@ -31,7 +31,7 @@ import {
   provisionChannels,
   retireChannels,
 } from "@rail402.dev/facilitator";
-import { networkPassphrase } from "@rail402.dev/stellar";
+import { PUBNET, networkPassphrase } from "@rail402.dev/stellar";
 import {
   PostgresChannelPool,
   PostgresSettlementLedger,
@@ -76,7 +76,8 @@ async function main(): Promise<void> {
   const db =
     config.store.kind === "postgres" ? createDatabase({ connectionString: config.store.url }) : undefined;
   try {
-    if (db !== undefined) await migrate(db);
+    // With pubnet the service's role cannot change the schema: migrations are their own step.
+    if (db !== undefined && !config.networks.some((network) => network.network === PUBNET)) await migrate(db);
     for (const network of networks) {
       const sponsor = Keypair.fromSecret(network.sponsorSecret);
       const channels = deriveChannelKeypairs(sponsor, network.network, count ?? network.channelCount);

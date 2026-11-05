@@ -1295,7 +1295,7 @@ independent of Rail402.
 
 With `--network pubnet` (and `--bazaar` and `--seller`, both https) the run pays a deployed seller through a
 deployed Rail402 from a payer the operator treasury funds through the run's ledger with
-0.25 USDC, all its session may spend. The payer is derived from the treasury seed and the run id, fresh for
+0.1 USDC, all its session may spend. The payer is derived from the treasury seed and the run id, fresh for
 each run, since its seed reaches the installed packages: `rail402 keys import` puts its
 seed into a key file tagged for pubnet, `rail402` pays with `--yes`, `rail402-mcp` runs with
 `RAIL402_MCP_CONFIRM=never` and the advertised `upto` authority pinned, and each payment counts against the
@@ -1560,8 +1560,11 @@ described above: Friendbot-funded accounts, USDC from the testnet XLM/USDC pool,
 `tools/conformance/src/network.ts` holds what differs per network: the CAIP-2 id, the passphrase, the RPC
 URLs, the USDC contract, the `upto` contract and how accounts are funded.
 
-A pubnet run never uses Friendbot or the DEX. It funds from an operator treasury, an account that already
-holds XLM and USDC, and refuses to start without:
+A pubnet run never uses Friendbot or the DEX. It moves small amounts: `live-matrix` divides every USDC amount
+by 100, so a 0.1 USDC payment is 0.001 (`--usdc-divisor` sets the divisor and rehearses it on testnet),
+`canonical` funds each buyer with 0.01 USDC, to pair with `--price '$0.001'`, and `live-agent` funds its payer
+with 0.1 USDC. It funds from an operator treasury, an account that already holds XLM and USDC, and is never
+the fee sponsor: the checks require the sponsor to hold no USDC. It refuses to start without:
 
 | Setting                                                         | What it is                                                                                                                              |
 | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |

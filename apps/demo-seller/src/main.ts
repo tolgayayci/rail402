@@ -17,7 +17,17 @@ createSeller({
   trustProxy: config.trustProxy,
   metered: config.metered,
   paidLimits: config.paidLimits,
-  facilitator: new HTTPFacilitatorClient({ url: facilitatorUrl }),
+  facilitator: new HTTPFacilitatorClient({
+    url: facilitatorUrl,
+    ...(config.facilitatorApiKey === undefined
+      ? {}
+      : {
+          createAuthHeaders: () => {
+            const headers = { Authorization: `Bearer ${config.facilitatorApiKey ?? ""}` };
+            return Promise.resolve({ verify: headers, settle: headers, supported: headers });
+          },
+        }),
+  }),
   facilitatorUrl,
   ...(config.asset === undefined ? {} : { asset: config.asset }),
   ...(config.publicUrl === undefined ? {} : { publicUrl: config.publicUrl }),

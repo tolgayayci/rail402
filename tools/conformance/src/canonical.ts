@@ -122,6 +122,10 @@ const PAYERS = list("payer", args.payer, ["g", "c"]).map((payer) => payer.toUppe
 const provenance = args.write ? harnessProvenance({ allowBranch: args["allow-branch"] }) : undefined;
 
 const PROFILE = resolveProfile(parseNetworkId(args.network), { needsUpto: SCHEMES.includes("upto") });
+/** What a USDC buyer starts with: a pubnet run moves real funds, and its prices are 0.001 USDC (`--price`). */
+const BUYER_USDC = PROFILE.id === "testnet" ? "1" : "0.01";
+/** The same in base units, for a smart account funded by transfer. */
+const SMART_BUYER_USDC = PROFILE.id === "testnet" ? 1_000_000n : 100_000n;
 const NETWORK = PROFILE.caip2;
 if (PROFILE.id !== "testnet" && ASSETS.includes("test6")) {
   throw new ProfileError(
@@ -228,13 +232,13 @@ async function main() {
   const treasury = await startRun("canonical", PROFILE, net, { facilitators: [target.facilitatorUrl] });
   const accounts: Record<string, string> = { treasury: treasury.keypair.publicKey() };
   // What the run needs at most, checked against the caps before anything is sent: a seller, a buyer
-  // and a settlement per case, 1 USDC per buyer.
+  // and a settlement per case, each buyer funded with `BUYER_USDC`.
   const runs = offers.length * PAYERS.length;
   treasury.meter.ensure(
     {
       settlements: runs,
       newAccounts: 1 + runs,
-      usdcBaseUnits: 10_000_000n * BigInt(runs),
+      usdcBaseUnits: (PROFILE.id === "testnet" ? 10_000_000n : 100_000n) * BigInt(runs),
       xlmStroops: offers.reduce(
         (sum, offer) => sum + feeCeilingStroops(PROFILE, offer.scheme) * BigInt(PAYERS.length),
         0n,
@@ -459,12 +463,15 @@ interface Buyer {
 async function stockBuyer(treasury: Funder, offer: Offer): Promise<Buyer> {
   const { asset, price } = offer;
   const usdc = asset.contract === USDC.contract;
-  const [buyer] = await treasury.accounts(1, usdc ? "1" : "0", usdc);
+  const [buyer] = await treasury.accounts(1, usdc ? BUYER_USDC : "0", usdc);
   if (buyer === undefined) throw new Error("no buyer account");
   if (!usdc) await test6Faucet(net, treasury.keypair, buyer.publicKey());
   const paying = wrapFetchWithPaymentFromConfig(fetch, {
     schemes: [
-      { network: NETWORK, client: new ExactStellarClient(createEd25519Signer(buyer.secret(), NETWORK)) },
+      {
+        network: NETWORK,
+        client: new ExactStellarClient(createEd25519Signer(buyer.secret(), NETWORK), { url: net.rpcUrl }),
+      },
     ],
     // USDC is a default asset of the stock client; another token is opted in with a per-payment cap.
     ...(usdc
@@ -503,7 +510,7 @@ async function smartAccountBuyer(
   // The owner key is the funder's (derived from the treasury seed on pubnet), so the account's
   // USDC goes back to the treasury at the end of the run.
   const { address: account, owner } = await treasury.smartAccount("exact-payer");
-  if (asset.contract === USDC.contract) await treasury.transfer(account, 1_000_000n);
+  if (asset.contract === USDC.contract) await treasury.transfer(account, SMART_BUYER_USDC);
   else await test6Faucet(net, treasury.keypair, account);
   accounts["smartAccountOwner"] = owner.publicKey();
   return {
@@ -558,7 +565,7 @@ async function uptoBuyer(
   let address: string;
   let client: UptoStellarClient;
   if (payer === "G") {
-    const [buyer] = await treasury.accounts(1, usdc ? "1" : "0", usdc);
+    const [buyer] = await treasury.accounts(1, usdc ? BUYER_USDC : "0", usdc);
     if (buyer === undefined) throw new Error("no buyer account");
     if (!usdc) await test6Faucet(net, treasury.keypair, buyer.publicKey());
     address = buyer.publicKey();
@@ -570,7 +577,7 @@ async function uptoBuyer(
     const smart = await treasury.smartAccount("upto-payer");
     const owner = smart.owner;
     address = smart.address;
-    if (usdc) await treasury.transfer(address, 1_000_000n);
+    if (usdc) await treasury.transfer(address, SMART_BUYER_USDC);
     else await test6Faucet(net, treasury.keypair, address);
     accounts["uptoSmartAccountOwner"] = owner.publicKey();
     client = new UptoStellarClient(

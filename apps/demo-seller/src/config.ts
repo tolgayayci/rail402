@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { StrKey } from "@stellar/stellar-sdk";
 import { DEFAULT_PAID_LIMITS, type PaidLimits } from "./limits.ts";
 import type { StellarNetwork } from "./metered.ts";
@@ -8,6 +9,8 @@ export interface DemoSellerConfig {
   readonly network: StellarNetwork;
   /** Undefined: Rail402's hosted testnet facilitator (testnet only; pubnet must name one). */
   readonly facilitatorUrl: string | undefined;
+  /** Sent as a Bearer token on every facilitator call; a keyed facilitator (pubnet) needs one. */
+  readonly facilitatorApiKey: string | undefined;
   /** Undefined: Circle's USDC on the network. */
   readonly asset: { readonly contract: string; readonly decimals: number } | undefined;
   readonly publicUrl: string | undefined;
@@ -23,6 +26,7 @@ export interface DemoSellerConfig {
  * - `PAY_TO`: the G… account or C… contract paid (required);
  * - `NETWORK`: `stellar:testnet` (default) or `stellar:pubnet`;
  * - `FACILITATOR_URL`: https on pubnet, where it is required;
+ * - `FACILITATOR_API_KEY_FILE`: a file holding the facilitator's API key, read once at startup;
  * - `ASSET`: `C…:DECIMALS` of the token prices are paid in (default: Circle's USDC on the network);
  * - `PUBLIC_URL`: the public origin the MCP tools are declared at;
  * - `METERED`: serve the `upto` route and tool (default true on testnet, false on pubnet);
@@ -57,6 +61,17 @@ export function sellerConfig(env: Readonly<Record<string, string | undefined>>):
     }
   }
 
+  const keyFile = read("FACILITATOR_API_KEY_FILE");
+  let facilitatorApiKey: string | undefined;
+  if (keyFile !== undefined) {
+    try {
+      facilitatorApiKey = readFileSync(keyFile, "utf8").trim();
+    } catch {
+      throw new Error("FACILITATOR_API_KEY_FILE cannot be read");
+    }
+    if (facilitatorApiKey === "") throw new Error("FACILITATOR_API_KEY_FILE is empty");
+  }
+
   const assetText = read("ASSET");
   let asset: DemoSellerConfig["asset"];
   if (assetText !== undefined) {
@@ -86,6 +101,7 @@ export function sellerConfig(env: Readonly<Record<string, string | undefined>>):
     payTo,
     network,
     facilitatorUrl,
+    facilitatorApiKey,
     asset,
     publicUrl,
     metered: meteredText === "true",

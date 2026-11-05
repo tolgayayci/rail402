@@ -132,6 +132,8 @@ interface NetworkState {
   };
   sponsorBalance?: bigint;
   rpcHealthy: boolean;
+  /** The protocol version whose ledgers this SDK has decoded. */
+  decodedProtocol?: string;
   channelsProvisioned: boolean;
   lastError?: string;
   latestLedger?: number;
@@ -984,9 +986,14 @@ export async function createRuntime(
     }
     try {
       await state.server.getHealth();
-      // Decodes the newest ledger header and its metadata: after a protocol upgrade whose XDR this
-      // SDK does not know, every verification fails, and this read fails with them.
-      await state.server.getLatestLedger();
+      // One ledger header and its metadata are decoded per protocol version (megabytes on pubnet, so
+      // never every poll): after an upgrade whose XDR this SDK does not know, every verification fails,
+      // and this read fails with them until the service is upgraded.
+      const { protocolVersion } = await state.server.getNetwork();
+      if (state.decodedProtocol !== protocolVersion) {
+        await state.server.getLatestLedger();
+        state.decodedProtocol = protocolVersion;
+      }
       state.rpcHealthy = true;
       const probe = await state.server.getTransaction(ABSENT_TRANSACTION);
       state.latestLedger = probe.latestLedger;

@@ -1,6 +1,17 @@
 # Changelog
 
-## 0.5.2 — unreleased
+## 0.5.3 — unreleased
+
+Service and tooling only: no npm package changes.
+
+- The network poll decodes a ledger header once per protocol version, so a network whose XDR this SDK cannot
+  read fails `/ready` instead of only failing every verification.
+- `channels` no longer runs migrations when pubnet is served: with split database roles the service's role
+  cannot change the schema, and migrations are their own step.
+- The demo seller reads a facilitator API key from `FACILITATOR_API_KEY_FILE`, so it can sell through a keyed
+  facilitator.
+
+## 0.5.2 — 2026-11-04
 
 Moves to x402 2.29.0, whose `zod` 4.6.6 fixes memory exhaustion while validating oversized collections
 (GHSA-mrhx-c7xc-m3w5); 2.28.0 still depended on `zod` 3, which has no fix. Every package moves to 0.5.2; apply

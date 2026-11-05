@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "network": "stellar:pubnet",
-  "registryVersion": "2026-11-04.1",
+  "registryVersion": "2026-11-04.2",
   "epochs": [
     {
       "id": "pubnet",
@@ -11,6 +11,76 @@
     }
   ],
   "facilitators": [
+    {
+      "id": "rail402",
+      "name": "Rail402 hosted service",
+      "tier": "rail402",
+      "sharedRelayer": false,
+      "urls": ["https://mainnet.rail402.dev"],
+      "note": "The sponsor, channel accounts and upto settlement authority the hosted service advertises in /supported. Self-hosted Rail402 instances are not listed.",
+      "accounts": [
+        {
+          "address": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "role": "sponsor",
+          "epoch": "pubnet",
+          "validFromLedger": 65307980,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://mainnet.rail402.dev/supported",
+              "sha256": "b8875266288e4b6506c33f8b649c0fa723a3a378bdb00d3ce30b21b429217497",
+              "archivedAt": "2026-11-04T22:06:00Z",
+              "archive": "registry/evidence/b8875266288e4b6506c33f8b649c0fa723a3a378bdb00d3ce30b21b429217497.json"
+            }
+          ]
+        },
+        {
+          "address": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "role": "channel",
+          "epoch": "pubnet",
+          "validFromLedger": 65308562,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://mainnet.rail402.dev/supported",
+              "sha256": "b8875266288e4b6506c33f8b649c0fa723a3a378bdb00d3ce30b21b429217497",
+              "archivedAt": "2026-11-04T22:06:00Z",
+              "archive": "registry/evidence/b8875266288e4b6506c33f8b649c0fa723a3a378bdb00d3ce30b21b429217497.json"
+            }
+          ]
+        },
+        {
+          "address": "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "role": "channel",
+          "epoch": "pubnet",
+          "validFromLedger": 65308562,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://mainnet.rail402.dev/supported",
+              "sha256": "b8875266288e4b6506c33f8b649c0fa723a3a378bdb00d3ce30b21b429217497",
+              "archivedAt": "2026-11-04T22:06:00Z",
+              "archive": "registry/evidence/b8875266288e4b6506c33f8b649c0fa723a3a378bdb00d3ce30b21b429217497.json"
+            }
+          ]
+        },
+        {
+          "address": "GB4Q4CNTXRVWAMN6O5B4QPK2IMO3Z5DOXG4II43H6BUIPQFSMZS3AOJ4",
+          "role": "upto-authority",
+          "epoch": "pubnet",
+          "validFromLedger": 65308407,
+          "validToLedger": null,
+          "evidence": [
+            {
+              "url": "https://mainnet.rail402.dev/supported",
+              "sha256": "b8875266288e4b6506c33f8b649c0fa723a3a378bdb00d3ce30b21b429217497",
+              "archivedAt": "2026-11-04T22:06:00Z",
+              "archive": "registry/evidence/b8875266288e4b6506c33f8b649c0fa723a3a378bdb00d3ce30b21b429217497.json"
+            }
+          ]
+        }
+      ]
+    },
     {
       "id": "rail402-beta",
       "name": "Rail402 beta (concluded)",
@@ -124,6 +194,23 @@
           "sha256": "b404924a42c863afcedc5bd25eee60c156deb5de3a2370fddd486387ef3b45f2",
           "archivedAt": "2026-10-22T16:13:00Z",
           "archive": "registry/evidence/b404924a42c863afcedc5bd25eee60c156deb5de3a2370fddd486387ef3b45f2.json"
+        }
+      ]
+    },
+    {
+      "contract": "CAHZA4BYDJFQLNYX43LVPKN676IDELNIKP7BOYF2CT7MR2OG2BAZZHT4",
+      "wasmSha256": "cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797",
+      "epoch": "pubnet",
+      "validFromLedger": 65308171,
+      "validToLedger": null,
+      "rule": "R-UPTO",
+      "deploymentRecord": "contracts/stellar/deployments/pubnet.json",
+      "evidence": [
+        {
+          "url": "https://raw.githubusercontent.com/tolgayayci/rail402/29cafaeb7004b3c4d2324403de5e16fddba42b8a/contracts/stellar/deployments/pubnet.json",
+          "sha256": "186dc2faffeaf443985a7434555af25a190fb91f15375c13893f6ba3968a2aca",
+          "archivedAt": "2026-11-04T22:06:00Z",
+          "archive": "registry/evidence/186dc2faffeaf443985a7434555af25a190fb91f15375c13893f6ba3968a2aca.json"
         }
       ]
     }

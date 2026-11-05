@@ -90,6 +90,7 @@ const { values: args } = parseArgs({
     only: { type: "string" },
     write: { type: "boolean", default: false },
     "allow-branch": { type: "string" },
+    "usdc-divisor": { type: "string" },
     ...NETWORK_OPTION,
   },
 });
@@ -124,8 +125,21 @@ const net = new ProfileNetwork({
     ? { funding: { ...PROFILE.funding, friendbotUrl: args.friendbot ?? TESTNET_FRIENDBOT_URL } }
     : {}),
 });
-/** Each payer starts with 2 USDC, in base units. */
-const STARTING_USDC = 20_000_000n;
+/**
+ * What every USDC amount of a run is divided by: a pubnet run moves real funds, so a 0.1 USDC payment is
+ * 0.001 there. `--usdc-divisor` rehearses those amounts on testnet.
+ */
+const USDC_DIVISOR = BigInt(args["usdc-divisor"] ?? (PROFILE.id === "testnet" ? "1" : "100"));
+if (USDC_DIVISOR < 1n) throw new Error(`--usdc-divisor ${String(args["usdc-divisor"])}: expected 1 or more`);
+function scaled(baseUnits: bigint): bigint {
+  return baseUnits / USDC_DIVISOR;
+}
+/** A scaled amount as the decimal USDC string funding takes. */
+function scaledUsdc(baseUnits: bigint): string {
+  return (Number(scaled(baseUnits)) / 10_000_000).toFixed(7);
+}
+/** Each payer starts with 2 USDC before scaling, in base units. */
+const STARTING_USDC = scaled(20_000_000n);
 
 // ---------------------------------------------------------------------------------------------
 // Results
@@ -397,8 +411,11 @@ async function main() {
   );
 
   const exactRun = SCHEMES.includes("exact");
-  // Exact payers hold 2 USDC each; upto payers and smart accounts 1 each; the seller 2.
-  const usdc = String((exactRun ? 40 : 0) + (SCHEMES.includes("upto") ? 12 : 0));
+  // Exact payers hold 2 USDC each; upto payers and smart accounts 1 each; the seller 2 (before scaling).
+  const usdcBaseUnits = scaled(
+    BigInt((exactRun ? 40 : 0) + (SCHEMES.includes("upto") ? 12 : 0)) * 10_000_000n,
+  );
+  const usdc = (Number(usdcBaseUnits) / 10_000_000).toFixed(7);
   treasury = await startRun("live-matrix", PROFILE, net, { usdc, facilitators: [FACILITATOR] });
   // What the run needs at most, checked against the caps before anything is sent; each settlement is
   // debited again when its /settle is sent.
@@ -406,14 +423,14 @@ async function main() {
   treasury.meter.ensure(
     {
       settlements: bound,
-      usdcBaseUnits: BigInt(usdc) * 10_000_000n,
+      usdcBaseUnits,
       xlmStroops: feeCeilingStroops(PROFILE, SCHEMES.includes("upto") ? "upto" : "exact") * BigInt(bound),
     },
     `up to ${String(bound)} settlements`,
   );
   let seller: Keypair | undefined;
   const sweep = await withRun(treasury, async () => {
-    [seller] = await treasury.accounts(1, "2", true, { role: "seller" });
+    [seller] = await treasury.accounts(1, scaledUsdc(20_000_000n), true, { role: "seller" });
     if (seller === undefined) throw new Error("no seller account");
     if (exactRun) await exactCases(seller);
     if (SCHEMES.includes("upto")) await uptoCases(target.supported, seller);
@@ -472,7 +489,7 @@ async function main() {
 /** Every `exact` case, paying `seller`. */
 async function exactCases(seller: Keypair) {
   const [payerA, payerB, payerC, payerD, payerE, payerF, payerG, payerH, payerI, payerJ] =
-    (await treasury.accounts(10, "2")) as [
+    (await treasury.accounts(10, scaledUsdc(20_000_000n))) as [
       Keypair,
       Keypair,
       Keypair,
@@ -490,7 +507,7 @@ async function exactCases(seller: Keypair) {
     "G… payer, 7-decimal amount (1.2345678 USDC); non-custody on chain",
     ["scheme-exact", "payload-transaction", "fees-sponsored"],
     async () => {
-      const { payload, requirements } = await pay(payerA, seller.publicKey(), 12_345_678n);
+      const { payload, requirements } = await pay(payerA, seller.publicKey(), scaled(12_345_678n));
       await settleAndProve(payload, requirements, payerA.publicKey());
     },
   );
@@ -510,7 +527,7 @@ async function exactCases(seller: Keypair) {
     "the same payment settled twice moves funds once, same result",
     ["idempotency"],
     async () => {
-      const { payload, requirements } = await pay(payerC, seller.publicKey(), 1_000_000n);
+      const { payload, requirements } = await pay(payerC, seller.publicKey(), scaled(1_000_000n));
       const { hash } = await settleAndProve(payload, requirements, payerC.publicKey());
       const before = await balance(payerC.publicKey());
       const again = await settle(payload, requirements);
@@ -530,7 +547,7 @@ async function exactCases(seller: Keypair) {
     "the same payment settled twice at once moves funds once; both answers name one transaction",
     ["idempotency", "concurrency"],
     async () => {
-      const { payload, requirements } = await pay(payerI, seller.publicKey(), 1_000_000n);
+      const { payload, requirements } = await pay(payerI, seller.publicKey(), scaled(1_000_000n));
       const before = await balance(payerI.publicKey());
       const answers = await Promise.all([settle(payload, requirements), settle(payload, requirements)]);
       for (const answer of answers) strictEqual(answer.body.success, true, JSON.stringify(answer.body));
@@ -541,13 +558,13 @@ async function exactCases(seller: Keypair) {
         1,
         "exactly one answer is marked as a repeat",
       );
-      strictEqual(await balance(payerI.publicKey()), before - 1_000_000n, "debited once");
+      strictEqual(await balance(payerI.publicKey()), before - scaled(1_000_000n), "debited once");
       current?.transaction(
         await settledTransaction(net, first.body.transaction ?? "", {
           scheme: "exact",
           asset: USDC_ADDRESS,
           decimals: 7,
-          amount: 1_000_000n,
+          amount: scaled(1_000_000n),
           payerType: "G",
         }),
       );
@@ -561,7 +578,13 @@ async function exactCases(seller: Keypair) {
     async () => {
       // The longest window the service accepts: the replay must reach the nonce check while the
       // authorization is still live, however slowly the settlement and its proof answer.
-      const { payload, requirements } = await pay(payerD, seller.publicKey(), 1_000_000n, undefined, 300);
+      const { payload, requirements } = await pay(
+        payerD,
+        seller.publicKey(),
+        scaled(1_000_000n),
+        undefined,
+        300,
+      );
       await settleAndProve(payload, requirements, payerD.publicKey());
       const before = await balance(payerD.publicKey());
       const original = TransactionBuilder.fromXDR(payload.payload.transaction, net.passphrase) as Transaction;
@@ -581,19 +604,21 @@ async function exactCases(seller: Keypair) {
     "a changed amount fails the payer's signed authorization",
     ["rejection-codes"],
     async () => {
-      const { payload } = await pay(payerE, seller.publicKey(), 1_000_000n);
-      const tampered = requirementsOn(NETWORK, USDC_ADDRESS, seller.publicKey(), 9_000_000n);
+      const { payload } = await pay(payerE, seller.publicKey(), scaled(1_000_000n));
+      const tampered = requirementsOn(NETWORK, USDC_ADDRESS, seller.publicKey(), scaled(9_000_000n));
       const envelope = xdr.TransactionEnvelope.fromXDR(payload.payload.transaction, "base64");
       const operation = envelope.v1().tx().operations()[0]?.body().invokeHostFunctionOp();
       if (operation === undefined) throw new Error("fixture");
-      operation.hostFunction().invokeContract().args()[2] = nativeToScVal(9_000_000n, { type: "i128" });
+      operation.hostFunction().invokeContract().args()[2] = nativeToScVal(scaled(9_000_000n), {
+        type: "i128",
+      });
       const opOnly = { ...payload, accepted: tampered, payload: { transaction: envelope.toXDR("base64") } };
       await expectRejected("verify", opOnly, tampered, [
         "invalid_exact_stellar_payload_auth_invocation_mismatch",
       ]);
       const signed = operation.auth()[0]?.rootInvocation().function().contractFn();
       if (signed === undefined) throw new Error("fixture");
-      signed.args()[2] = nativeToScVal(9_000_000n, { type: "i128" });
+      signed.args()[2] = nativeToScVal(scaled(9_000_000n), { type: "i128" });
       const both = { ...opOnly, payload: { transaction: envelope.toXDR("base64") } };
       await expectRejected("verify", both, tampered, ["invalid_exact_stellar_payload_invalid_signature"]);
       await expectRejected("settle", both, tampered, ["invalid_exact_stellar_payload_invalid_signature"]);
@@ -607,8 +632,8 @@ async function exactCases(seller: Keypair) {
     ["rejection-codes"],
     async () => {
       const attacker = Keypair.random().publicKey();
-      const { payload } = await pay(payerE, seller.publicKey(), 1_000_000n);
-      const redirected = requirementsOn(NETWORK, USDC_ADDRESS, attacker, 1_000_000n);
+      const { payload } = await pay(payerE, seller.publicKey(), scaled(1_000_000n));
+      const redirected = requirementsOn(NETWORK, USDC_ADDRESS, attacker, scaled(1_000_000n));
       const envelope = xdr.TransactionEnvelope.fromXDR(payload.payload.transaction, "base64");
       const operation = envelope.v1().tx().operations()[0]?.body().invokeHostFunctionOp();
       const signed = operation?.auth()[0]?.rootInvocation().function().contractFn();
@@ -627,8 +652,8 @@ async function exactCases(seller: Keypair) {
     "a payment that does not match the requirements is refused",
     ["rejection-codes"],
     async () => {
-      const { payload } = await pay(payerE, seller.publicKey(), 1_000_000n);
-      const other = requirementsOn(NETWORK, USDC_ADDRESS, seller.publicKey(), 2_000_000n);
+      const { payload } = await pay(payerE, seller.publicKey(), scaled(1_000_000n));
+      const other = requirementsOn(NETWORK, USDC_ADDRESS, seller.publicKey(), scaled(2_000_000n));
       await expectRejected("verify", payload, other, [
         "invalid_exact_stellar_payload_accepted_mismatch",
         "invalid_exact_stellar_payload_wrong_amount",
@@ -708,13 +733,15 @@ async function exactCases(seller: Keypair) {
     ["expiration"],
     async () => {
       // Signed by the unmodified client: expiration = latest + ceil(maxTimeoutSeconds / est).
-      const client = new ExactStellarClient(createEd25519Signer(payerH.secret(), NETWORK));
+      const client = new ExactStellarClient(createEd25519Signer(payerH.secret(), NETWORK), {
+        url: net.rpcUrl,
+      });
       const stock = async (maxTimeoutSeconds: number) => {
         const requirements = requirementsOn(
           NETWORK,
           USDC_ADDRESS,
           seller.publicKey(),
-          1_000_000n,
+          scaled(1_000_000n),
           maxTimeoutSeconds,
         );
         const before = await net.latestLedger();
@@ -783,7 +810,7 @@ async function exactCases(seller: Keypair) {
       // Short enough to wait out, long enough that building and settling the payment over a slow RPC
       // still leaves the facilitator's minimum margin.
       const expiration = (await net.latestLedger()) + 12;
-      const { payload, requirements } = await pay(payerJ, seller.publicKey(), 1_000_000n, expiration);
+      const { payload, requirements } = await pay(payerJ, seller.publicKey(), scaled(1_000_000n), expiration);
       const { hash } = await settleAndProve(payload, requirements, payerJ.publicKey());
       const deadline = Date.now() + 180_000;
       while ((await net.latestLedger()) <= expiration) {
@@ -824,8 +851,8 @@ async function exactCases(seller: Keypair) {
     ["scheme-exact", "fees-sponsored"],
     async () => {
       ({ address: smartAccount, owner } = await treasury.smartAccount("exact-payer"));
-      await treasury.transfer(smartAccount, 5_000_000n);
-      const requirements = requirementsOn(NETWORK, USDC_ADDRESS, seller.publicKey(), 1_234_567n);
+      await treasury.transfer(smartAccount, scaled(5_000_000n));
+      const requirements = requirementsOn(NETWORK, USDC_ADDRESS, seller.publicKey(), scaled(1_234_567n));
       const payload = await smartAccountPayment(net, {
         account: smartAccount,
         owner,
@@ -867,7 +894,7 @@ async function exactCases(seller: Keypair) {
     ["scheme-exact"],
     async () => {
       if (smartAccount === "") throw new Error("no smart account");
-      const { payload, requirements } = await pay(payerG, smartAccount, 2_500_000n);
+      const { payload, requirements } = await pay(payerG, smartAccount, scaled(2_500_000n));
       await settleAndProve(payload, requirements, payerG.publicKey());
     },
     { payer: "G", payTo: "C" },
@@ -924,7 +951,7 @@ interface UptoRequirements {
 
 /** Every `upto` case, paying `seller` in USDC with `@rail402.dev/upto`'s client. */
 async function uptoCases(supported: unknown, seller: Keypair) {
-  const CAP = 1_000_000n; // 0.1 USDC
+  const CAP = scaled(1_000_000n); // 0.1 USDC before scaling
   const kind = (
     supported as { kinds?: { scheme?: string; network?: string; extra?: Record<string, unknown> }[] }
   ).kinds?.find((entry) => entry.scheme === "upto" && entry.network === NETWORK);
@@ -994,7 +1021,7 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     const at = (amount: bigint): UptoRequirements => ({ ...published, amount: amount.toString() });
     return { payload, published, at, expiration, before, after };
   };
-  const payers = (await treasury.accounts(7, "1")) as [
+  const payers = (await treasury.accounts(7, scaledUsdc(10_000_000n))) as [
     Keypair,
     Keypair,
     Keypair,
@@ -1004,7 +1031,7 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     Keypair,
   ];
   const [partial, max, zero, overCap, repeat, window, concurrent] = payers;
-  const START = 10_000_000n; // 1 USDC
+  const START = scaled(10_000_000n); // 1 USDC before scaling
 
   await upto(
     "upto-partial",
@@ -1012,7 +1039,7 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     ["scheme-upto", "fees-sponsored"],
     async () => {
       const { payload, published, at } = await payUpto(partial);
-      await settleAndProve(payload, at(400_000n), partial.publicKey(), published);
+      await settleAndProve(payload, at(scaled(400_000n)), partial.publicKey(), published);
     },
   );
 
@@ -1080,14 +1107,14 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     ["scheme-upto", "idempotency", "rejection-codes"],
     async () => {
       const { payload, published, at } = await payUpto(repeat);
-      const { hash } = await settleAndProve(payload, at(300_000n), repeat.publicKey(), published);
-      const again = await settle(payload, at(300_000n));
+      const { hash } = await settleAndProve(payload, at(scaled(300_000n)), repeat.publicKey(), published);
+      const again = await settle(payload, at(scaled(300_000n)));
       strictEqual(again.body.transaction, hash, "the repeat answers the original transaction");
       deepStrictEqual(again.extensions?.rail402?.settlement, { repeat: true, settledBy: "rail402" });
-      const other = await settle(payload, at(500_000n));
+      const other = await settle(payload, at(scaled(500_000n)));
       strictEqual(other.body.errorReason, "settle_upto_stellar_idempotency_conflict");
       ok((other.body.errorMessage ?? "").includes(hash), "the conflict names the recorded transaction");
-      strictEqual(await balance(repeat.publicKey()), START - 300_000n, "debited once");
+      strictEqual(await balance(repeat.publicKey()), START - scaled(300_000n), "debited once");
     },
   );
 
@@ -1097,7 +1124,9 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     ["scheme-upto", "idempotency", "concurrency"],
     async () => {
       const { payload, published, at } = await payUpto(concurrent);
-      const answers = await Promise.all(Array.from({ length: 5 }, () => settle(payload, at(250_000n))));
+      const answers = await Promise.all(
+        Array.from({ length: 5 }, () => settle(payload, at(scaled(250_000n)))),
+      );
       for (const answer of answers) strictEqual(answer.body.success, true, JSON.stringify(answer.body));
       const hashes = new Set(answers.map((answer) => answer.body.transaction));
       strictEqual(hashes.size, 1, "every answer names the same transaction");
@@ -1112,18 +1141,18 @@ async function uptoCases(supported: unknown, seller: Keypair) {
             contract: USDC_ADDRESS,
             from: concurrent.publicKey(),
             to: seller.publicKey(),
-            amount: 250_000n,
+            amount: scaled(250_000n),
           },
         ],
         "one transfer",
       );
-      strictEqual(await balance(concurrent.publicKey()), START - 250_000n, "debited once");
+      strictEqual(await balance(concurrent.publicKey()), START - scaled(250_000n), "debited once");
       current?.transaction(
         await settledTransaction(net, hash, {
           scheme: "upto",
           asset: USDC_ADDRESS,
           decimals: 7,
-          amount: 250_000n,
+          amount: scaled(250_000n),
           payerType: "G",
         }),
       );
@@ -1148,7 +1177,7 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     ["scheme-upto", "fees-sponsored"],
     async () => {
       const { payload, published, at } = await payUpto(smart);
-      await settleAndProve(payload, at(400_000n), smart.address, published);
+      await settleAndProve(payload, at(scaled(400_000n)), smart.address, published);
     },
   );
   await cUpto(
@@ -1212,7 +1241,7 @@ async function uptoCases(supported: unknown, seller: Keypair) {
       await expectRejected("verify", payload, published, [
         "invalid_upto_stellar_payload_smart_account_rejected",
       ]);
-      await expectRejected("settle", payload, at(100_000n), [
+      await expectRejected("settle", payload, at(scaled(100_000n)), [
         "invalid_upto_stellar_payload_smart_account_rejected",
       ]);
       strictEqual(await balance(account.address), START, "nothing moved");
@@ -1245,13 +1274,13 @@ async function uptoCases(supported: unknown, seller: Keypair) {
       await expectRejected("verify", short.payload, short.published, [
         "invalid_upto_stellar_signature_expired",
       ]);
-      await expectRejected("settle", short.payload, short.at(100_000n), [
+      await expectRejected("settle", short.payload, short.at(scaled(100_000n)), [
         "invalid_upto_stellar_signature_expired",
       ]);
       strictEqual(await balance(window.publicKey()), START, "nothing moved");
 
       const fresh = await payUpto(window, 60);
-      await settleAndProve(fresh.payload, fresh.at(100_000n), window.publicKey(), fresh.published);
+      await settleAndProve(fresh.payload, fresh.at(scaled(100_000n)), window.publicKey(), fresh.published);
       for (const [key, value] of Object.entries({
         estimatedLedgerSeconds: estimate,
         shortTimeoutSeconds: 10,

@@ -213,7 +213,7 @@ const OTHER_ASSET = PUBNET
   ? Asset.native().contractId(PASSPHRASE)
   : "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK";
 /** What a pubnet payer is funded with: the most the run's agent can spend, and its session budget. */
-const PUBNET_PAYER_USDC = "0.25";
+const PUBNET_PAYER_USDC = "0.1";
 /** The most payments a pubnet run makes, counted against the run's settlement cap. */
 const PUBNET_MAX_PAYMENTS = 30;
 /** The agent's session budget: on pubnet, all the payer holds. */

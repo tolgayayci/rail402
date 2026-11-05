@@ -216,7 +216,10 @@ describe("the published entries", () => {
     const pubnet = REGISTRIES["stellar:pubnet"];
     expect(pubnet.facilitator("built-on-stellar")?.sharedRelayer).toBe(true);
     expect(pubnet.accountAt(ADDRESSES.beta, "pubnet", 63_985_581)?.facilitator.tier).toBe("rail402-beta");
-    expect(pubnet.document.facilitators.some((entry) => entry.tier === "rail402")).toBe(false);
+    expect(pubnet.facilitator("rail402")?.tier).toBe("rail402");
+    expect(pubnet.facilitator("rail402")?.accounts.map((account) => account.address)).not.toContain(
+      ADDRESSES.beta,
+    );
     expect(pubnet.uptoContractAt(ADDRESSES.betaUpto, "pubnet", 63_985_589)?.rule).toBe("R-UPTO-BETA");
   });
 });
