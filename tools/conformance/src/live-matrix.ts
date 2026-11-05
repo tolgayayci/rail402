@@ -924,7 +924,8 @@ async function exactCases(seller: Keypair) {
       strictEqual(garbled.body.invalidReason, "invalid_payload");
       const wrongType = await call("verify", "x", "text/plain");
       strictEqual(wrongType.status, 415);
-      await expectRejected("verify", payload, { ...requirements, network: "stellar:pubnet" }, [
+      const otherNetwork = NETWORK === "stellar:pubnet" ? "stellar:testnet" : "stellar:pubnet";
+      await expectRejected("verify", payload, { ...requirements, network: otherNetwork }, [
         "invalid_network",
       ]);
       await expectRejected("settle", payload, { ...requirements, scheme: "escrow" }, ["unsupported_scheme"]);
