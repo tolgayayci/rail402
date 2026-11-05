@@ -74,6 +74,10 @@ sites:
     expectedStatusCodes: [405]
     __dangerous__body_down_if_text_missing: '"method_not_allowed"'
     tags: [pubnet, mcp]
+  - name: Mainnet demo seller
+    url: https://demo-mainnet.rail402.dev/weather
+    expectedStatusCodes: [402]
+    tags: [pubnet, demo]
   # --- other public services ---
   - name: Demo seller
     url: https://demo.rail402.dev/weather

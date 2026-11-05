@@ -191,13 +191,14 @@ describe("the status page", () => {
       ["Bazaar catalog", "No data"],
       ["Bazaar search", "No data"],
       ["Hosted MCP", "Up"],
+      ["Demo seller", "No data"],
       ["Explorer", "Up"],
       ["Documentation", "No data"],
     ]);
     // The Explorer serves both networks: its one check shows in both sections.
     expect(rowsOf("testnet")).toContainEqual(["Explorer", "Up"]);
     expect(text("overall")).toBe("Mainnet facilitator is down");
-    expect(text("sum-pubnet")).toBe("8 checks · 1 down");
+    expect(text("sum-pubnet")).toBe("9 checks · 1 down");
     expect(text("fig-mainnet")).toBe("98.95%");
     expect(text("ledger-pubnet")).not.toMatch(/not live/i);
   });

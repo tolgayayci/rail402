@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'sha256-QG2ScleOWDbcGK/Mqp/pXi+yj8GnODRaRo9IK5PmZXI='; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'self'; script-src 'sha256-vEXqxq53GLtMOsc3fY7vOxIBn0XodZiVCJvwddAnF24='; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light" />
@@ -260,6 +260,12 @@
             name: "Hosted MCP",
             check: "GET /mcp/pubnet · route answers",
             url: M + "/mcp/pubnet",
+          },
+          {
+            net: "pubnet",
+            name: "Demo seller",
+            check: "GET demo-mainnet.rail402.dev/weather · answers 402",
+            url: "https://demo-mainnet.rail402.dev/weather",
           },
           { net: "pubnet", name: "Explorer", check: "GET explorer.rail402.dev/health", url: EXPLORER },
           { net: "pubnet", name: "Documentation", check: "GET docs.rail402.dev", url: DOCS },
