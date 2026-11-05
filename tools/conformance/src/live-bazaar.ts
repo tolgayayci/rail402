@@ -172,9 +172,9 @@ const UPTO_CHARGE = 40_000n;
 /** What both of the second seller's routes are about, for search. */
 const TIDES_QUERY = "tide tables for a harbour";
 /** Buyer accounts; each pays a handful of the run's settlements. */
-const BUYERS = 10;
+const BUYERS = PUBNET ? 2 : 10;
 /** Payments one pubnet buyer is funded for, at the seller's highest price. */
-const PAYMENTS_PER_BUYER = 8;
+const PAYMENTS_PER_BUYER = 20;
 /** The most settlements a pubnet run sends: its cases need fewer, a retry or two included. */
 const PUBNET_MAX_SETTLEMENTS = 70;
 
