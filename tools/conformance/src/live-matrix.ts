@@ -717,7 +717,8 @@ async function exactCases(seller: Keypair) {
     ["expiration", "rejection-codes"],
     async () => {
       const latest = await net.latestLedger();
-      const expired = await pay(payerF, seller.publicKey(), 1_000n, latest - 1);
+      // Well past: the facilitator's RPC may be a ledger or two behind this run's.
+      const expired = await pay(payerF, seller.publicKey(), 1_000n, latest - 10);
       await expectRejected("verify", expired.payload, expired.requirements, [
         "invalid_exact_stellar_signature_expired",
       ]);
