@@ -288,20 +288,24 @@ function liveBox(context: PageContext, model: HomeModel): Node {
   const report = context.report;
   const state = model.overview.state;
   const latest = model.latest[0];
-  const ledger = state?.ledger ?? report?.range.to;
+  const ledger = state?.syncedThrough ?? state?.ledger ?? report?.range.to;
   const failed = report?.failedLedgers.length ?? 0;
   return h(
     "div",
-    { class: "live", "aria-label": "Network status" },
+    {
+      class: "live",
+      "aria-label": "Network status",
+      "data-status": `/api/v1/${context.layout.view.slug}/status`,
+    },
     h(
       "div",
       null,
-      h("small", null, h("span", { class: "dot" }), "Latest indexed ledger"),
-      h("b", null, ledger === undefined ? "none yet" : groupThousands(ledger)),
+      h("small", null, h("span", { class: "dot" }), "Latest ledger"),
+      h("b", { "data-status-ledger": "" }, ledger === undefined ? "none yet" : groupThousands(ledger)),
     ),
     h(
       "div",
-      null,
+      { "data-status-indexed": "" },
       h("small", null, "Indexed"),
       state === undefined
         ? h("b", null, report === undefined ? "not yet" : `to ${groupThousands(report.range.to)}`)

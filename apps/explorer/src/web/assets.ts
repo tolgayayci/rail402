@@ -78,7 +78,8 @@ ${styleFile("pages-c.css")}
 /**
  * Copy buttons, hidden until this script runs, so a page never shows a control that does nothing; and
  * the search box's live results: `form[data-suggest]` asks `<data-suggest>?q=` for JSON and lists the
- * matches under the box. Every value is set as text, never as markup.
+ * matches under the box; and the overview's status (`[data-status]`), refreshed every 5 seconds while the
+ * tab is visible. Every value is set as text, never as markup.
  */
 const JS = `
 document.querySelectorAll("[data-copy]").forEach(function (button) {
@@ -92,6 +93,27 @@ document.querySelectorAll("[data-copy]").forEach(function (button) {
       setTimeout(function () { button.classList.remove("done"); if (label) button.setAttribute("aria-label", label); }, 1500);
     });
   });
+});
+document.querySelectorAll("[data-status]").forEach(function (box) {
+  var ledger = box.querySelector("[data-status-ledger]");
+  var indexed = box.querySelector("[data-status-indexed] b");
+  function poll() {
+    if (document.hidden) return;
+    fetch(box.getAttribute("data-status"), { headers: { accept: "application/json" } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (status) {
+        if (!status) return;
+        var newest = status.latestLedger === null ? status.indexedThrough : status.latestLedger;
+        if (ledger && newest !== null) ledger.textContent = newest.toLocaleString("en-US");
+        if (!indexed || status.behindLedgers === null) return;
+        var behind = status.pending || status.behindLedgers > 12;
+        indexed.className = behind ? "a-warn" : "ok";
+        indexed.textContent = behind ? status.behindLedgers.toLocaleString("en-US") + " ledgers behind" : "up to date";
+      })
+      .catch(function () {});
+  }
+  poll();
+  setInterval(poll, 5000);
 });
 document.querySelectorAll("form[data-autosubmit] select").forEach(function (select) {
   select.addEventListener("change", function () { if (select.form) select.form.submit(); });

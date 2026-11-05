@@ -18,7 +18,7 @@ import type { ExplorerDatabase } from "../src/db.ts";
 import { settlementToRow } from "../src/store.ts";
 import { reportOf } from "./bazaar.ts";
 import { dropDatabase, freshDatabase, testName } from "./database.ts";
-import { MemoryReader, TRANSACTIONS, rowOf, testApp } from "./web.ts";
+import { MemoryReader, REGISTRY, TRANSACTIONS, rowOf, testApp } from "./web.ts";
 
 const exact = rowOf(TRANSACTIONS["rail402-exact"]);
 const NETWORK = exact.network;
@@ -153,7 +153,29 @@ describe("pages over the database", () => {
     expect(html).toContain(`href="/testnet/account/${exact.payTo}"`);
     expect(html).toContain("1 buyer<");
     expect(html).toContain("up to date");
+    expect(html).toContain('data-status="/api/v1/testnet/status"');
     expect(html.match(/class="col"/g)).toHaveLength(7);
+  });
+
+  it("reports how far the index has read, on ledgers without payments too", async () => {
+    await db
+      .insertInto("discovery_routes")
+      .values({
+        network: "stellar:testnet",
+        epoch: REGISTRY.document.epochs.at(-1)?.id ?? "",
+        kind: "account",
+        address: "GSTATUSROUTE",
+        from_ledger: 1,
+        scanned_through: 99_999_999,
+      })
+      .onConflict((conflict) => conflict.doNothing())
+      .execute();
+    const status = (await (await app().request("/api/v1/testnet/status")).json()) as Record<string, unknown>;
+    expect(status["indexedThrough"]).toBe(99_999_999);
+    expect(status["network"]).toBe("stellar:testnet");
+    expect(status["latestLedger"]).toBeNull();
+    expect(status["behindLedgers"]).toBeNull();
+    await db.deleteFrom("discovery_routes").where("address", "=", "GSTATUSROUTE").execute();
   });
 
   it("pages an account's payments ten at a time and names its counterparties", async () => {

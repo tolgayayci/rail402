@@ -16,6 +16,7 @@ import { createExplorerApp, type ServedNetwork } from "./app.ts";
 import { BazaarClient } from "./bazaar.ts";
 import { webConfig } from "./config.ts";
 import { HoldingsClient } from "./holdings.ts";
+import { ChainTip } from "./chain-tip.ts";
 import { LiveLookup } from "./live-lookup.ts";
 import { WebMetrics } from "./metrics.ts";
 import { ReportCache } from "./report-cache.ts";
@@ -53,6 +54,7 @@ async function main(): Promise<void> {
       registry,
       epoch,
       publicRpcUrl: settings.publicRpcUrl,
+      tip: new ChainTip(settings.publicRpcUrl),
       lookup:
         settings.lookupRpcUrl === undefined
           ? undefined

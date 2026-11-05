@@ -217,6 +217,18 @@ export function openApiDocument(publicUrl: string) {
           },
         },
       },
+      "/api/v1/{network}/status": {
+        get: {
+          summary: "The chain's newest ledger and how far the index has read",
+          description:
+            "`latestLedger` is read from the network's public RPC and is null when it cannot be read; `indexedThrough` counts ledgers without payments too.",
+          parameters: [network],
+          responses: {
+            ...ok(ref("Status"), "The status."),
+            ...errorResponses("explorer_not_found", ...common),
+          },
+        },
+      },
       "/api/v1/{network}/report": {
         get: {
           summary: "The Ecosystem Report's numbers",
@@ -370,6 +382,17 @@ export function openApiDocument(publicUrl: string) {
           properties: {
             items: { type: "array", maxItems: MAX_LIMIT, items: ref("Settlement") },
             nextCursor: nullable({ type: "string" }),
+          },
+        },
+        Status: {
+          type: "object",
+          required: ["network", "latestLedger", "indexedThrough", "behindLedgers", "pending"],
+          properties: {
+            network: { type: "string" },
+            latestLedger: { type: ["integer", "null"] },
+            indexedThrough: { type: ["integer", "null"] },
+            behindLedgers: { type: ["integer", "null"] },
+            pending: { type: ["boolean", "null"] },
           },
         },
         Report: {

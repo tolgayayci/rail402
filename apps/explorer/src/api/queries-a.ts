@@ -84,10 +84,12 @@ export interface IndexState {
   readonly ledger: number | null;
   readonly closedAt: string | null;
   readonly pending: boolean;
+  /** The newest ledger any open route was read through: ledgers without payments count too. */
+  readonly syncedThrough: number | null;
 }
 
 export async function indexState(db: Db, network: IndexNetwork, epoch: string): Promise<IndexState> {
-  const [latest, pending] = await guarded(() =>
+  const [latest, pending, synced] = await guarded(() =>
     Promise.all([
       db
         .selectFrom("indexed_ledgers")
@@ -106,6 +108,13 @@ export async function indexState(db: Db, network: IndexNetwork, epoch: string): 
         .where("status", "<>", "indexed")
         .limit(1)
         .executeTakeFirst(),
+      db
+        .selectFrom("discovery_routes")
+        .select(sql<string | null>`max(scanned_through)`.as("ledger"))
+        .where("network", "=", network)
+        .where("epoch", "=", epoch)
+        .where("to_ledger", "is", null)
+        .executeTakeFirst(),
     ]),
   );
   return {
@@ -113,6 +122,7 @@ export async function indexState(db: Db, network: IndexNetwork, epoch: string): 
     closedAt:
       latest === undefined || latest.closed_at === null ? null : new Date(latest.closed_at).toISOString(),
     pending: pending !== undefined,
+    syncedThrough: synced?.ledger === null || synced?.ledger === undefined ? null : Number(synced.ledger),
   };
 }
 

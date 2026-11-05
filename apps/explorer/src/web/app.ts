@@ -35,7 +35,7 @@ import type { LiveLookup } from "./live-lookup.ts";
 import { TokenBuckets } from "./live-lookup.ts";
 import type { WebMetrics } from "./metrics.ts";
 import { accountPage, FEE_ROLES } from "./pages/account.ts";
-import { accountSample, readerDatabase, topAccounts } from "../api/queries-a.ts";
+import { accountSample, indexState, readerDatabase, topAccounts } from "../api/queries-a.ts";
 import { usdcContract, type PageContext } from "./pages/context.ts";
 import { ecosystemPage } from "./pages/ecosystem.ts";
 import {
@@ -98,6 +98,8 @@ export interface ServedNetwork {
   /** Live lookups of hashes not indexed yet; off when undefined. */
   readonly lookup: LiveLookup | undefined;
   readonly publicRpcUrl: string;
+  /** The chain's newest ledger, for the overview's status; left out of the status when undefined. */
+  readonly tip?: { latest(): Promise<number | undefined> } | undefined;
   /** The Bazaar's read API: what payments bought, listings; no Bazaar data when undefined. */
   readonly bazaar?: BazaarClient | undefined;
   /** Live holdings (Lumeus Assets); off when undefined. */
@@ -153,6 +155,9 @@ interface Served extends ServedNetwork {
 const FACILITATOR_ID = /^[a-z0-9][a-z0-9-]{0,62}$/;
 const EXEMPT = new Set([
   "/health",
+  // An open overview polls these; each answer is shared, so a viewer's poll costs next to nothing.
+  "/api/v1/pubnet/status",
+  "/api/v1/testnet/status",
   "/robots.txt",
   FAVICON_ASSET.path,
   ...ASSETS.map((asset) => asset.path),
@@ -850,6 +855,33 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     if (report === undefined) throw explorerError("explorer_report_unavailable");
     return report;
   }
+
+  // What the overview polls: the chain's newest ledger and how far the index has read. Never cached by
+  // a proxy, and cheap: one shared RPC read per few seconds and one indexed query.
+  app.get("/api/v1/:network/status", async (c) => {
+    const entry = apiNetwork(c.req.param("network"));
+    keyset("status", queryOf(c));
+    const database = readerDatabase(options.reader);
+    const [latestLedger, state] = await Promise.all([
+      entry.tip?.latest(),
+      database === undefined
+        ? undefined
+        : indexState(database, entry.network, entry.epoch.id).catch(() => undefined),
+    ]);
+    const indexedThrough = state?.syncedThrough ?? null;
+    const behindLedgers =
+      latestLedger === undefined || indexedThrough === null
+        ? null
+        : Math.max(0, latestLedger - indexedThrough);
+    c.header("Cache-Control", "no-store");
+    return c.json({
+      network: entry.network,
+      latestLedger: latestLedger ?? null,
+      indexedThrough,
+      behindLedgers,
+      pending: state?.pending ?? null,
+    });
+  });
 
   app.get("/api/v1/:network/report", (c) => {
     const entry = apiNetwork(c.req.param("network"));
