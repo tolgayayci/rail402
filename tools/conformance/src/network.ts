@@ -731,6 +731,8 @@ export interface Funder {
    * when `trust` is false).
    */
   accounts(count: number, usdc: string, trust?: boolean, options?: AccountOptions): Promise<Keypair[]>;
+  /** Returns a run account's funds and merges it now, so a run holds few accounts at once. */
+  close(account: Keypair): Promise<void>;
   /** USDC from the funder to any address (G… or C…). */
   transfer(to: string, amount: bigint): Promise<void>;
   /** The owner key of a contract account the run deploys (derived on pubnet, so it is never lost). */
@@ -781,6 +783,10 @@ export class FriendbotFunder implements Funder {
 
   accounts(count: number, usdc: string, trust = true): Promise<Keypair[]> {
     return this.treasury.accounts(count, usdc, trust);
+  }
+
+  async close(): Promise<void> {
+    // Testnet funds are Friendbot's; nothing is returned.
   }
 
   transfer(to: string, amount: bigint): Promise<void> {
@@ -848,6 +854,8 @@ export class TreasuryFunder implements Funder {
   readonly #used = new Map<string, Keypair>();
   /** Run accounts this run saw on the network: one that is gone at the sweep was merged by its key. */
   readonly #existed = new Set<string>();
+  /** The merges of accounts closed during the run. */
+  readonly #closed: string[] = [];
   readonly #contracts = new Map<string, TrackedContract>();
   readonly #ownerPaths = new Map<string, string>();
   readonly #counters = new Map<string, number>();
@@ -1144,6 +1152,45 @@ export class TreasuryFunder implements Funder {
     return { address, owner };
   }
 
+  /** One account's USDC back to the treasury and the account merged into it; the merge's hash. */
+  async #merge(account: Keypair, reserved = 0n): Promise<string> {
+    const address = account.publicKey();
+    const trusted = await this.#hasTrustline(address);
+    const balance = trusted ? await this.#usdcBalance(address) : 0n;
+    const native = await this.net.nativeBalance(address);
+    const operations = [
+      ...(balance > 0n
+        ? [
+            Operation.payment({
+              destination: this.keypair.publicKey(),
+              asset: this.#asset,
+              amount: unitsToDecimal(balance),
+            }),
+          ]
+        : []),
+      ...(trusted ? [Operation.changeTrust({ asset: this.#asset, limit: "0" })] : []),
+      Operation.accountMerge({ destination: this.keypair.publicKey() }),
+    ];
+    const result = await this.net.classic(account, operations);
+    this.meter.credit({
+      usdcBaseUnits: balance,
+      xlmStroops: native - result.resultXdr.feeCharged().toBigInt() - reserved,
+    });
+    return result.txHash;
+  }
+
+  async close(account: Keypair): Promise<void> {
+    const address = account.publicKey();
+    if (!this.#used.has(address)) throw new Error(`${address} is not an account of this run`);
+    // Its starting balance is back, so it no longer counts against the caps; only its fees do.
+    const reserved = BigInt(PUBNET_STARTING_BALANCE_XLM) * XLM;
+    this.#closed.push(await this.#merge(account, reserved));
+    this.meter.release(reserved);
+    this.#used.delete(address);
+    this.#existed.delete(address);
+    this.ledger?.markClosed(address);
+  }
+
   /** Every run account's and contract account's USDC back to the treasury, and the accounts merged into it. */
   sweepBack(options: { merge?: boolean } = {}): Promise<SweepResult> {
     this.#sweep ??= this.#sweepOnce(options.merge !== false);
@@ -1151,9 +1198,9 @@ export class TreasuryFunder implements Funder {
   }
 
   async #sweepOnce(merge: boolean): Promise<SweepResult> {
-    const transactions: string[] = [];
+    const transactions = [...this.#closed];
     const problems: string[] = [];
-    if (this.#used.size === 0 && this.#contracts.size === 0) {
+    if (this.#used.size === 0 && this.#contracts.size === 0 && this.#closed.length === 0) {
       return { status: "not-needed", transactions, problems, stranded: NOTHING_STRANDED };
     }
     for (const contract of this.#contracts.values()) {
@@ -1182,33 +1229,14 @@ export class TreasuryFunder implements Funder {
           }
           continue;
         }
-        const trusted = await this.#hasTrustline(address);
-        const balance = trusted ? await this.#usdcBalance(address) : 0n;
         if (!merge) {
+          const trusted = await this.#hasTrustline(address);
+          const balance = trusted ? await this.#usdcBalance(address) : 0n;
           const hash = await this.#returnUsdc(account, balance);
           if (hash !== undefined) transactions.push(hash);
           continue;
         }
-        const native = await this.net.nativeBalance(address);
-        const operations = [
-          ...(balance > 0n
-            ? [
-                Operation.payment({
-                  destination: this.keypair.publicKey(),
-                  asset: this.#asset,
-                  amount: unitsToDecimal(balance),
-                }),
-              ]
-            : []),
-          ...(trusted ? [Operation.changeTrust({ asset: this.#asset, limit: "0" })] : []),
-          Operation.accountMerge({ destination: this.keypair.publicKey() }),
-        ];
-        const result = await this.net.classic(account, operations);
-        this.meter.credit({
-          usdcBaseUnits: balance,
-          xlmStroops: native - result.resultXdr.feeCharged().toBigInt(),
-        });
-        transactions.push(result.txHash);
+        transactions.push(await this.#merge(account));
       } catch (error) {
         problems.push(`${address}: ${messageOf(error)}`);
       }

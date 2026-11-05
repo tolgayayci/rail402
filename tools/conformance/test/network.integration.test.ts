@@ -6,7 +6,7 @@
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Keypair, Operation, xdr } from "@stellar/stellar-sdk";
+import { Keypair, Operation, rpc, xdr } from "@stellar/stellar-sdk";
 import {
   LOCAL_RPC_URL,
   LocalNetwork,
@@ -103,6 +103,26 @@ describe("the pubnet treasury funder", () => {
     const [other] = await last.accounts(1, "2", true, { role: "another" });
     expect(other?.publicKey()).not.toBe(rich.publicKey());
     expect((await last.sweepBack()).status).toBe("done");
+  });
+
+  it("closes an account during the run: funds back, caps freed, the sweep expects it gone", async () => {
+    const label = `close-${Date.now()}`;
+    const run = funder(label);
+    const before = await usdc(treasury.publicKey());
+    const [account] = await run.accounts(1, "1");
+    if (account === undefined) throw new Error("no account");
+    const treasuryXlm = await xlm(treasury.publicKey());
+    await run.close(account);
+    await expect(
+      new rpc.Server(setup.rpcUrl, { allowHttp: true }).getAccount(account.publicKey()),
+    ).rejects.toThrow();
+    expect(await usdc(treasury.publicKey())).toBe(before);
+    expect(await xlm(treasury.publicKey())).toBeGreaterThan(treasuryXlm);
+    expect(run.meter.spent.xlmStroops).toBeLessThan(10_000_000n);
+    await expect(run.close(account)).rejects.toThrow("not an account of this run");
+    const swept = await run.sweepBack();
+    expect(swept.status).toBe("done");
+    expect(swept.transactions.length).toBeGreaterThan(0);
   });
 
   it("refuses a funding step past a cap before submitting it", async () => {
@@ -282,6 +302,28 @@ describe("the pubnet treasury funder", () => {
     expect(sweep.status).toBe("partial");
     expect(sweep.problems).toEqual([expect.stringContaining(account.publicKey())]);
     expect(sweep.problems[0]).toMatch(/merged outside the run/);
+  });
+
+  it("a recovery does not report an account the run closed itself", async () => {
+    const runs = mkdtempSync(join(dir, "recover-closed-"));
+    const material = {
+      commit: "c0ffee",
+      network: "stellar:testnet",
+      treasury: treasury.publicKey(),
+      runCaps: { maxNetXlmStroops: 1_000_000_000n, maxNetUsdcBaseUnits: 100_000_000n },
+      settings: {},
+    };
+    const { runId } = planRun(material, runs);
+    const ledger = RunLedger.claim(runId, material, "crash", runs);
+    const run = funder(`recover-closed-${Date.now()}`, roomy, ledger);
+    const [account] = await run.accounts(1, "1", true, { role: "payer", perRun: true });
+    if (account === undefined) throw new Error("no account");
+    await run.close(account);
+    expect(ledger.seenAddresses()).not.toContain(account.publicKey());
+    const recovery = funder(`recovery-closed-${Date.now()}`);
+    recovery.recover(ledger.registry(), ledger.seenAddresses());
+    const sweep = await recovery.sweepBack();
+    expect(sweep.problems).toEqual([]);
   });
 
   it("refuses to fund a contract account the run does not track, or whose owner it did not derive", async () => {

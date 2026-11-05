@@ -177,6 +177,9 @@ export function ledgerPath(runId: string, dir = PUBNET_RUNS_DIR): string {
   return join(dir, runId, "ledger.json");
 }
 
+/** What the registry notes about a run account: it was seen on the network, or the run merged it. */
+type RunAccountMark = { kind: "seen" | "closed"; address: string };
+
 export class RunLedger {
   readonly path: string;
   readonly runId: string;
@@ -329,27 +332,40 @@ export class RunLedger {
     this.#append({ kind: "seen", address });
   }
 
-  #append(entry: RegistryEntry | { kind: "seen"; address: string }): void {
+  /** Records that the run returned an account's funds and merged it, so a recovery sweep expects it gone. */
+  markClosed(address: string): void {
+    this.#seen.delete(address);
+    this.#append({ kind: "closed", address });
+  }
+
+  #append(entry: RegistryEntry | RunAccountMark): void {
     appendFileSync(join(this.dir, "accounts.jsonl"), `${JSON.stringify(entry)}\n`, { mode: 0o600 });
   }
 
-  #entries(): (RegistryEntry | { kind: "seen"; address: string })[] {
+  #entries(): (RegistryEntry | RunAccountMark)[] {
     const file = join(this.dir, "accounts.jsonl");
     if (!existsSync(file)) return [];
     return readFileSync(file, "utf8")
       .split("\n")
       .filter((line) => line.trim() !== "")
-      .map((line) => JSON.parse(line) as RegistryEntry | { kind: "seen"; address: string });
+      .map((line) => JSON.parse(line) as RegistryEntry | RunAccountMark);
   }
 
   /** Every run account registered so far, by any harness of the run. */
   registry(): RegistryEntry[] {
-    return this.#entries().filter((entry): entry is RegistryEntry => entry.kind !== "seen");
+    return this.#entries().filter(
+      (entry): entry is RegistryEntry => entry.kind !== "seen" && entry.kind !== "closed",
+    );
   }
 
   /** Every run account seen to exist on the network, for a recovery sweep's merged-away check. */
   seenAddresses(): string[] {
-    return this.#entries().flatMap((entry) => (entry.kind === "seen" ? [entry.address] : []));
+    const seen = new Set<string>();
+    for (const entry of this.#entries()) {
+      if (entry.kind === "seen") seen.add(entry.address);
+      if (entry.kind === "closed") seen.delete(entry.address);
+    }
+    return [...seen];
   }
 
   /** Closes the run: every later debit is refused. */

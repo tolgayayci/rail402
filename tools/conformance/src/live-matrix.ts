@@ -488,20 +488,10 @@ async function main() {
 
 /** Every `exact` case, paying `seller`. */
 async function exactCases(seller: Keypair) {
-  const [payerA, payerB, payerC, payerD, payerE, payerF, payerG, payerH, payerI, payerJ] =
-    (await treasury.accounts(10, scaledUsdc(20_000_000n))) as [
-      Keypair,
-      Keypair,
-      Keypair,
-      Keypair,
-      Keypair,
-      Keypair,
-      Keypair,
-      Keypair,
-      Keypair,
-      Keypair,
-    ];
+  // Each payer is opened for its cases and merged after them, so a run holds few accounts at once.
+  const payer = async () => (await treasury.accounts(1, scaledUsdc(20_000_000n)))[0] as Keypair;
 
+  const payerA = await payer();
   await check(
     "g-payer-settles",
     "G… payer, 7-decimal amount (1.2345678 USDC); non-custody on chain",
@@ -511,7 +501,9 @@ async function exactCases(seller: Keypair) {
       await settleAndProve(payload, requirements, payerA.publicKey());
     },
   );
+  await treasury.close(payerA);
 
+  const payerB = await payer();
   await check(
     "smallest-unit",
     "SEP-41 amount of one base unit (0.0000001 USDC)",
@@ -521,7 +513,9 @@ async function exactCases(seller: Keypair) {
       await settleAndProve(payload, requirements, payerB.publicKey());
     },
   );
+  await treasury.close(payerB);
 
+  const payerC = await payer();
   await check(
     "replay-idempotent",
     "the same payment settled twice moves funds once, same result",
@@ -541,7 +535,9 @@ async function exactCases(seller: Keypair) {
       strictEqual(await balance(payerC.publicKey()), before, "no second debit");
     },
   );
+  await treasury.close(payerC);
 
+  const payerI = await payer();
   await check(
     "replay-concurrent",
     "the same payment settled twice at once moves funds once; both answers name one transaction",
@@ -570,7 +566,9 @@ async function exactCases(seller: Keypair) {
       );
     },
   );
+  await treasury.close(payerI);
 
+  const payerD = await payer();
   await check(
     "replay-rejected",
     "a settled authorization in a new envelope is refused; verify names the replay",
@@ -598,7 +596,9 @@ async function exactCases(seller: Keypair) {
       strictEqual(await balance(payerD.publicKey()), before, "no second debit");
     },
   );
+  await treasury.close(payerD);
 
+  const payerE = await payer();
   await check(
     "tamper-amount",
     "a changed amount fails the payer's signed authorization",
@@ -660,6 +660,7 @@ async function exactCases(seller: Keypair) {
       ]);
     },
   );
+  await treasury.close(payerE);
 
   await check(
     "payer-no-trustline",
@@ -674,9 +675,11 @@ async function exactCases(seller: Keypair) {
       await expectRejected("settle", payload, requirements, [
         "invalid_exact_stellar_payload_payer_trustline_missing",
       ]);
+      await treasury.close(bare);
     },
   );
 
+  const payerF = await payer();
   await check(
     "payto-no-trustline",
     "a payTo without a USDC trustline is named",
@@ -690,6 +693,7 @@ async function exactCases(seller: Keypair) {
       await expectRejected("settle", payload, requirements, [
         "invalid_exact_stellar_payload_recipient_trustline_missing",
       ]);
+      await treasury.close(bare);
     },
   );
 
@@ -702,6 +706,7 @@ async function exactCases(seller: Keypair) {
       const { payload, requirements } = await offline(poor, seller.publicKey(), 1_000n);
       await expectRejected("verify", payload, requirements, ["insufficient_funds"]);
       await expectRejected("settle", payload, requirements, ["insufficient_funds"]);
+      await treasury.close(poor);
     },
   );
 
@@ -727,6 +732,7 @@ async function exactCases(seller: Keypair) {
     },
   );
 
+  const payerH = await payer();
   await check(
     "expiry-window",
     "the stock client's expiry from maxTimeoutSeconds: refused once passed, nothing moves; a fresh payment settles",
@@ -801,7 +807,9 @@ async function exactCases(seller: Keypair) {
       }
     },
   );
+  await treasury.close(payerH);
 
+  const payerJ = await payer();
   await check(
     "replay-late",
     "a repeat after the authorization expired returns the original success and moves nothing",
@@ -829,6 +837,7 @@ async function exactCases(seller: Keypair) {
       current?.observe("expirationLedger", expiration);
     },
   );
+  await treasury.close(payerJ);
 
   await check(
     "self-payment",
@@ -841,6 +850,7 @@ async function exactCases(seller: Keypair) {
       strictEqual(await balance(payerF.publicKey()), STARTING_USDC, "nothing moved");
     },
   );
+  await treasury.close(payerF);
 
   // --- smart accounts ----------------------------------------------------------------------
   let owner = Keypair.random();
@@ -888,6 +898,7 @@ async function exactCases(seller: Keypair) {
     { payer: "C", payTo: "G" },
   );
 
+  const payerG = await payer();
   await check(
     "c-payto",
     "a C… payTo (contract address) is credited",
@@ -928,6 +939,7 @@ async function exactCases(seller: Keypair) {
       ]);
     },
   );
+  await treasury.close(payerG);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1021,18 +1033,10 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     const at = (amount: bigint): UptoRequirements => ({ ...published, amount: amount.toString() });
     return { payload, published, at, expiration, before, after };
   };
-  const payers = (await treasury.accounts(7, scaledUsdc(10_000_000n))) as [
-    Keypair,
-    Keypair,
-    Keypair,
-    Keypair,
-    Keypair,
-    Keypair,
-    Keypair,
-  ];
-  const [partial, max, zero, overCap, repeat, window, concurrent] = payers;
+  const payer = async () => (await treasury.accounts(1, scaledUsdc(10_000_000n)))[0] as Keypair;
   const START = scaled(10_000_000n); // 1 USDC before scaling
 
+  const partial = await payer();
   await upto(
     "upto-partial",
     "upto: settles part of the cap; only that amount moves",
@@ -1042,11 +1046,14 @@ async function uptoCases(supported: unknown, seller: Keypair) {
       await settleAndProve(payload, at(scaled(400_000n)), partial.publicKey(), published);
     },
   );
+  await treasury.close(partial);
 
+  const max = await payer();
   await upto("upto-max", "upto: settles the whole cap", ["scheme-upto"], async () => {
     const { payload, published, at } = await payUpto(max);
     await settleAndProve(payload, at(CAP), max.publicKey(), published);
   });
+  await treasury.close(max);
 
   /**
    * Settles zero: on chain (the default) a transaction with no transfer, proven like any settlement;
@@ -1081,13 +1088,16 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     await expectRejected("verify", payload, published, ["invalid_upto_stellar_payload_nonce_already_used"]);
   };
 
+  const zero = await payer();
   await upto(
     "upto-zero",
     "upto: settles zero; nothing moves and the authorization is used up",
     ["scheme-upto", "idempotency"],
     () => settleZero(zero),
   );
+  await treasury.close(zero);
 
+  const overCap = await payer();
   await upto(
     "upto-over-cap",
     "upto: a charge above the cap is refused and nothing moves",
@@ -1100,7 +1110,9 @@ async function uptoCases(supported: unknown, seller: Keypair) {
       strictEqual(await balance(overCap.publicKey()), START, "nothing moved");
     },
   );
+  await treasury.close(overCap);
 
+  const repeat = await payer();
   await upto(
     "upto-repeat-different-amount",
     "upto: a repeat for the same amount answers the original; another amount is a conflict, never a second charge",
@@ -1117,7 +1129,9 @@ async function uptoCases(supported: unknown, seller: Keypair) {
       strictEqual(await balance(repeat.publicKey()), START - scaled(300_000n), "debited once");
     },
   );
+  await treasury.close(repeat);
 
+  const concurrent = await payer();
   await upto(
     "upto-concurrent-same-authorization",
     "upto: one authorization settled five times at once lands one transaction and moves the amount once",
@@ -1163,11 +1177,18 @@ async function uptoCases(supported: unknown, seller: Keypair) {
       await expectRejected("verify", payload, published, ["invalid_upto_stellar_payload_nonce_already_used"]);
     },
   );
+  await treasury.close(concurrent);
 
   // A smart account (C…): a simple custom account whose owner key signs its entries.
-  const deployed = await treasury.smartAccount("upto-payer");
-  const smart: SmartPayer = { address: deployed.address, sign: simpleAccountSigner(deployed.owner) };
-  await treasury.transfer(smart.address, START);
+  // Deployed by the first case that pays with it: its code and storage are the run's dearest cost.
+  let deployedPayer: SmartPayer | undefined;
+  const smartPayer = async (): Promise<SmartPayer> => {
+    if (deployedPayer !== undefined) return deployedPayer;
+    const deployed = await treasury.smartAccount("upto-payer");
+    deployedPayer = { address: deployed.address, sign: simpleAccountSigner(deployed.owner) };
+    await treasury.transfer(deployedPayer.address, START);
+    return deployedPayer;
+  };
   const cUpto = (id: string, title: string, checks: readonly CheckId[], run: () => Promise<void>) =>
     check(id, title, checks, run, { payer: "C", payTo: "G" }, "upto");
 
@@ -1176,6 +1197,7 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     "upto from a smart account (C…): settles part of the cap; only that amount moves",
     ["scheme-upto", "fees-sponsored"],
     async () => {
+      const smart = await smartPayer();
       const { payload, published, at } = await payUpto(smart);
       await settleAndProve(payload, at(scaled(400_000n)), smart.address, published);
     },
@@ -1185,6 +1207,7 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     "upto from a smart account (C…): settles the whole cap",
     ["scheme-upto"],
     async () => {
+      const smart = await smartPayer();
       const { payload, published, at } = await payUpto(smart);
       await settleAndProve(payload, at(CAP), smart.address, published);
     },
@@ -1193,7 +1216,7 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     "upto-c-zero",
     "upto from a smart account (C…): settles zero; nothing moves and the authorization is used up",
     ["scheme-upto", "idempotency"],
-    () => settleZero(smart),
+    async () => settleZero(await smartPayer()),
   );
   await cUpto(
     "upto-c-over-limit",
@@ -1250,18 +1273,21 @@ async function uptoCases(supported: unknown, seller: Keypair) {
     },
   );
 
+  const window = await payer();
   await upto(
     "upto-expiry-window",
     "upto: the client's expiry from maxTimeoutSeconds: refused once passed, nothing moves; a fresh payment settles",
     ["scheme-upto", "expiration"],
     async () => {
       const estimate = await getEstimatedLedgerCloseTimeSeconds(NETWORK);
-      const short = await payUpto(window, 10);
+      // Short enough to wait out, long enough that a verification over a slow RPC answers inside it.
+      const shortTimeout = 30;
+      const short = await payUpto(window, shortTimeout);
       if (short.expiration === undefined) throw new Error("the payment carries no expiration");
-      const offset = Math.ceil(10 / estimate);
+      const offset = Math.ceil(shortTimeout / estimate);
       ok(
         short.expiration >= short.before + offset && short.expiration <= short.after + offset,
-        `expiration ${short.expiration} is not latest + ceil(10 / ${estimate}) (latest ${short.before}–${short.after})`,
+        `expiration ${short.expiration} is not latest + ceil(${shortTimeout} / ${estimate}) (latest ${short.before}–${short.after})`,
       );
       const verified = await verify(short.payload, short.published);
       deepStrictEqual(verified.body, { isValid: true, payer: window.publicKey() });
@@ -1283,7 +1309,7 @@ async function uptoCases(supported: unknown, seller: Keypair) {
       await settleAndProve(fresh.payload, fresh.at(scaled(100_000n)), window.publicKey(), fresh.published);
       for (const [key, value] of Object.entries({
         estimatedLedgerSeconds: estimate,
-        shortTimeoutSeconds: 10,
+        shortTimeoutSeconds: shortTimeout,
         shortExpirationLedger: short.expiration,
         shortLatestLedgerAtSigning: short.before,
         freshTimeoutSeconds: 60,
@@ -1293,6 +1319,7 @@ async function uptoCases(supported: unknown, seller: Keypair) {
       }
     },
   );
+  await treasury.close(window);
 }
 
 /** The settlement contract an upto payload's authorization entry calls. */
