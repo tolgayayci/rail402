@@ -63,15 +63,15 @@ From `tools/conformance/evidence/ops-local-stellar-testnet.json`: **45 of 45 exe
 | `ceiling-refusal` A settlement above the fee ceiling                                                        | S3         | Private Stellar network (1 s ledgers)                                               | Passed    | n/a           |
 | `budget-trip` The hourly fee budget is reached                                                              | S4         | Private Stellar network (1 s ledgers)                                               | Passed    | n/a           |
 | `sponsor-floor` The sponsor below its reserve                                                               | S5         | The Rail402 service on the private network                                          | Passed    | n/a           |
-| `ssrf-origin` Origin checks and SEP-1 fetches to private addresses                                          | X1, X5     | Local sockets and a stub resolver                                                   | Passed    | not recorded  |
-| `ssrf-rebinding` DNS rebinding                                                                              | X2         | Local sockets and a stub resolver                                                   | Passed    | not recorded  |
+| `ssrf-origin` Origin checks and SEP-1 fetches to private addresses                                          | X1, X5     | Local sockets and a stub resolver                                                   | Passed    | 3 of 3 passed |
+| `ssrf-rebinding` DNS rebinding                                                                              | X2         | Local sockets and a stub resolver                                                   | Passed    | 1 of 1 passed |
 | `ssrf-redirect` Redirects to private or other destinations                                                  | X3         | Local sockets and a stub resolver                                                   | Passed    | 1 of 2 passed |
 | `ssrf-oversized` Oversized, compressed and slow answers                                                     | X4         | Local sockets and a stub resolver                                                   | Passed    | n/a           |
 | `catalog-takeover` Another payTo pays for a listed resource                                                 | P2         | The Rail402 service on the private network                                          | Passed    | 1 of 1 passed |
-| `forged-metadata` Echoed metadata that the origin does not confirm                                          | P1         | Postgres                                                                            | Passed    | 1 of 3 passed |
+| `forged-metadata` Echoed metadata that the origin does not confirm                                          | P1         | Postgres                                                                            | Passed    | 2 of 3 passed |
 | `mcp-tool-planting` A payer plants content under a seller's MCP tool                                        | P9         | Postgres                                                                            | Passed    | 1 of 1 passed |
 | `schema-redos` Hostile JSON Schema                                                                          | P3         | In-process, with the RPC or store simulated                                         | Passed    | 1 of 1 passed |
-| `route-traversal` Encoded traversal in route templates and parameters                                       | P4         | Postgres                                                                            | Passed    | 1 of 4 passed |
+| `route-traversal` Encoded traversal in route templates and parameters                                       | P4         | Postgres                                                                            | Passed    | 4 of 4 passed |
 | `crash-k0` Killed after the network accepted the transaction                                                | O1         | Rail402 service processes over Postgres on the private network, killed with SIGKILL | Passed    | 2 of 2 passed |
 | `crash-k1` Killed before the broadcast left                                                                 | O1         | Rail402 service processes over Postgres on the private network, killed with SIGKILL | Passed    | 2 of 2 passed |
 | `crash-k2` Killed after inclusion, before confirmation                                                      | O1         | Rail402 service processes over Postgres on the private network, killed with SIGKILL | Passed    | n/a           |
@@ -90,7 +90,7 @@ From `tools/conformance/evidence/ops-local-stellar-testnet.json`: **45 of 45 exe
 | `mcp-ssrf` Paid calls to private destinations                                                               | X6         | Local sockets and a stub resolver                                                   | Passed    | 1 of 1 passed |
 | `mcp-secret-scan` Canary key scan of the MCP server, SDK and CLI                                            | M3         | Private Stellar network (1 s ledgers)                                               | Passed    | n/a           |
 | `upto-over-cap` An upto settlement above the cap                                                            | U1         | In-process, with the RPC or store simulated                                         | Passed    | 2 of 2 passed |
-| `upto-zero` Zero upto settlements                                                                           | R5, U6     | Private Stellar network (1 s ledgers)                                               | Passed    | 3 of 3 passed |
+| `upto-zero` Zero upto settlements                                                                           | R5, U6     | Private Stellar network (1 s ledgers)                                               | Passed    | 2 of 3 passed |
 | `upto-concurrent` Concurrent upto requests for different amounts                                            | U3, F5     | Private Stellar network (1 s ledgers) and Postgres                                  | Passed    | 2 of 2 passed |
 | `upto-third-party-amount` An upto settlement landed first by another holder of the authority                | F4         | Private Stellar network (1 s ledgers)                                               | Passed    | n/a           |
 | `rotation-channels` The channel steps of a sponsor rotation                                                 | O6         | Private Stellar network (1 s ledgers) and Postgres                                  | Passed    | n/a           |
@@ -119,8 +119,8 @@ Threats R1 · Private Stellar network (1 s ledgers) and Postgres
 
 **On the public testnet**
 
-- `live-matrix` case `replay-idempotent`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
-- `live-matrix` case `replay-late`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
+- `live-matrix` case `replay-idempotent`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-pubnet.json`)
+- `live-matrix` case `replay-late`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-pubnet.json`)
 
 ### `replay-concurrent` Concurrent copies of one payment
 
@@ -142,7 +142,7 @@ Threats R1, S6 · Private Stellar network (1 s ledgers) and Postgres
 
 **On the public testnet**
 
-- `live-matrix` case `replay-concurrent`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
+- `live-matrix` case `replay-concurrent`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-pubnet.json`)
 
 ### `replay-new-envelope` A settled authorization in a new envelope
 
@@ -164,7 +164,7 @@ Threats R2 · Private Stellar network (1 s ledgers) and Postgres
 
 **On the public testnet**
 
-- `live-matrix` case `replay-rejected`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
+- `live-matrix` case `replay-rejected`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-pubnet.json`)
 
 ### `replay-upfront` One payment signature sent twice to a seller
 
@@ -332,8 +332,8 @@ Threats S2 · Private Stellar network (1 s ledgers)
 
 **On the public testnet**
 
-- `live-matrix` case `expiry-window`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
-- `live-matrix` case `upto-expiry-window`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
+- `live-matrix` case `expiry-window`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-pubnet.json`)
+- `live-matrix` case `upto-expiry-window`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-pubnet.json`)
 
 ### `ceiling-refusal` A settlement above the fee ceiling
 
@@ -415,9 +415,9 @@ Threats X1, X5 · Local sockets and a stub resolver
 
 **On the public testnet**
 
-- `live-bazaar` case `unsafe-private-address`: not recorded in the current evidence format yet
-- `live-bazaar` case `unsafe-loopback`: not recorded in the current evidence format yet
-- `live-bazaar` case `ssrf-private-name`: not recorded in the current evidence format yet
+- `live-bazaar` case `unsafe-private-address`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
+- `live-bazaar` case `unsafe-loopback`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
+- `live-bazaar` case `ssrf-private-name`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
 
 ### `ssrf-rebinding` DNS rebinding
 
@@ -437,7 +437,7 @@ Threats X2 · Local sockets and a stub resolver
 
 **On the public testnet**
 
-- `live-bazaar` case `ssrf-private-name`: not recorded in the current evidence format yet
+- `live-bazaar` case `ssrf-private-name`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
 
 ### `ssrf-redirect` Redirects to private or other destinations
 
@@ -460,7 +460,7 @@ Threats X3 · Local sockets and a stub resolver
 **On the public testnet**
 
 - `rejection-audit` case `mcp-redirect-private`: Passed (`tools/conformance/evidence/rejection-audit-hosted-stellar-testnet.json`)
-- `live-bazaar` case `ssrf-redirect`: not recorded in the current evidence format yet
+- `live-bazaar` case `ssrf-redirect`: Skipped (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
 
 ### `ssrf-oversized` Oversized, compressed and slow answers
 
@@ -502,7 +502,7 @@ Threats P2 · The Rail402 service on the private network
 
 **On the public testnet**
 
-- `live-bazaar` case `owner-conflict`: Passed (`tools/conformance/evidence/live-bazaar-stellar-testnet.json`)
+- `live-bazaar` case `owner-conflict`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
 
 ### `forged-metadata` Echoed metadata that the origin does not confirm
 
@@ -524,9 +524,9 @@ Threats P1 · Postgres
 
 **On the public testnet**
 
-- `live-bazaar` case `forged-metadata`: Passed (`tools/conformance/evidence/live-bazaar-stellar-testnet.json`)
-- `live-bazaar` case `forged-price`: not recorded in the current evidence format yet
-- `live-bazaar` case `forged-asset`: not recorded in the current evidence format yet
+- `live-bazaar` case `forged-metadata`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
+- `live-bazaar` case `forged-price`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
+- `live-bazaar` case `forged-asset`: Skipped (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
 
 ### `mcp-tool-planting` A payer plants content under a seller's MCP tool
 
@@ -550,7 +550,7 @@ Threats P9 · Postgres
 
 **On the public testnet**
 
-- `live-bazaar` case `mcp-tool`: Passed (`tools/conformance/evidence/live-bazaar-stellar-testnet.json`)
+- `live-bazaar` case `mcp-tool`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
 
 ### `schema-redos` Hostile JSON Schema
 
@@ -574,7 +574,7 @@ Threats P3 · In-process, with the RPC or store simulated
 
 **On the public testnet**
 
-- `live-bazaar` case `schema-rejected`: Passed (`tools/conformance/evidence/live-bazaar-stellar-testnet.json`)
+- `live-bazaar` case `schema-rejected`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
 
 ### `route-traversal` Encoded traversal in route templates and parameters
 
@@ -598,10 +598,10 @@ Threats P4 · Postgres
 
 **On the public testnet**
 
-- `live-bazaar` case `route-template`: Passed (`tools/conformance/evidence/live-bazaar-stellar-testnet.json`)
-- `live-bazaar` case `traversal-route-template`: not recorded in the current evidence format yet
-- `live-bazaar` case `traversal-dot-segments`: not recorded in the current evidence format yet
-- `live-bazaar` case `traversal-encoded-separators`: not recorded in the current evidence format yet
+- `live-bazaar` case `route-template`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
+- `live-bazaar` case `traversal-route-template`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
+- `live-bazaar` case `traversal-dot-segments`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
+- `live-bazaar` case `traversal-encoded-separators`: Passed (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
 
 ### `crash-k0` Killed after the network accepted the transaction
 
@@ -941,7 +941,7 @@ Threats U1 · In-process, with the RPC or store simulated
 
 **On the public testnet**
 
-- `live-matrix` case `upto-over-cap`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
+- `live-matrix` case `upto-over-cap`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-pubnet.json`)
 - `rejection-audit` case `upto-settle-over-cap`: Passed (`tools/conformance/evidence/rejection-audit-hosted-stellar-testnet.json`)
 
 ### `upto-zero` Zero upto settlements
@@ -964,9 +964,9 @@ Threats R5, U6 · Private Stellar network (1 s ledgers)
 
 **On the public testnet**
 
-- `live-matrix` case `upto-zero`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
+- `live-matrix` case `upto-zero`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-pubnet.json`)
 - `live-matrix` case `upto-c-zero`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
-- `live-bazaar` case `upto-offchain-zero`: Passed (`tools/conformance/evidence/live-bazaar-stellar-testnet.json`)
+- `live-bazaar` case `upto-offchain-zero`: Skipped (`tools/conformance/evidence/live-bazaar-hosted-stellar-pubnet.json`)
 
 ### `upto-concurrent` Concurrent upto requests for different amounts
 
@@ -988,8 +988,8 @@ Threats U3, F5 · Private Stellar network (1 s ledgers) and Postgres
 
 **On the public testnet**
 
-- `live-matrix` case `upto-repeat-different-amount`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
-- `live-matrix` case `upto-concurrent-same-authorization`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-testnet.json`)
+- `live-matrix` case `upto-repeat-different-amount`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-pubnet.json`)
+- `live-matrix` case `upto-concurrent-same-authorization`: Passed (`tools/conformance/evidence/live-matrix-hosted-stellar-pubnet.json`)
 
 ### `upto-third-party-amount` An upto settlement landed first by another holder of the authority
 

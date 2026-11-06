@@ -1,0 +1,1838 @@
+{
+  "schemaVersion": 2,
+  "kind": "live-agent",
+  "runId": "cee1acfa-6e8f-48a7-86ff-03c0394aff2a",
+  "startedAt": "2026-11-06T13:39:15.433Z",
+  "finishedAt": "2026-11-06T13:42:43.641Z",
+  "network": "stellar:pubnet",
+  "target": {
+    "mode": "hosted",
+    "facilitatorUrl": "https://mainnet.rail402.dev",
+    "healthVersion": "0.5.3",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:pubnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GB4Q4CNTXRVWAMN6O5B4QPK2IMO3Z5DOXG4II43H6BUIPQFSMZS3AOJ4"
+          }
+        }
+      ],
+      "extensions": [
+        "bazaar"
+      ],
+      "signers": {
+        "stellar:*": [
+          "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "GB4Q4CNTXRVWAMN6O5B4QPK2IMO3Z5DOXG4II43H6BUIPQFSMZS3AOJ4"
+        ]
+      }
+    }
+  },
+  "harness": {
+    "commit": "53f3650393e6b394b6ecb0dc9e97b7387e3cda73",
+    "dirty": false
+  },
+  "profile": {
+    "id": "pubnet",
+    "funding": "treasury",
+    "rpcProviders": [
+      "mainnet.sorobanrpc.com"
+    ],
+    "caps": {
+      "maxXlmStroops": "80000000",
+      "maxUsdcBaseUnits": "1000000",
+      "maxSettlements": 30,
+      "maxNewAccounts": 3
+    },
+    "spent": {
+      "xlmStroops": "25700300",
+      "usdcBaseUnits": "500000",
+      "settlements": 12,
+      "newAccounts": 1
+    },
+    "returned": {
+      "xlmStroops": "19999700",
+      "usdcBaseUnits": "377000"
+    },
+    "sweep": {
+      "status": "done",
+      "transactions": [
+        "839612ec948d5cda6bf67a75fceef3e03205b8d93536b3280d74a1f2fa328bab"
+      ],
+      "stranded": {
+        "usdcBaseUnits": "0",
+        "xlmStroops": "0"
+      }
+    },
+    "run": {
+      "id": "7ff1ee642dc831f5",
+      "spent": {
+        "xlmStroops": "25700300",
+        "usdcBaseUnits": "500000",
+        "settlements": 12,
+        "newAccounts": 1
+      },
+      "returned": {
+        "xlmStroops": "19999700",
+        "usdcBaseUnits": "377000"
+      },
+      "caps": {
+        "maxNetXlmStroops": "70000000",
+        "maxNetUsdcBaseUnits": "1000000"
+      }
+    }
+  },
+  "packages": {
+    "@rail402.dev/sdk": "0.5.2",
+    "@rail402.dev/cli": "0.5.2",
+    "@rail402.dev/mcp": "0.5.2",
+    "@rail402.dev/safe-fetch": "0.5.2",
+    "@rail402.dev/upto": "0.5.2",
+    "@x402/core": "2.29.0",
+    "@x402/stellar": "2.29.0",
+    "@stellar/stellar-sdk": "16.4.1",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/server": "2.3.1"
+  },
+  "command": "node --conditions=@rail402/source tools/conformance/src/live-agent.ts --bazaar https://mainnet.rail402.dev --seller https://demo-mainnet.rail402.dev --network pubnet",
+  "config": {
+    "mode": "hosted",
+    "rail402": "https://mainnet.rail402.dev",
+    "apiKey": "bearer, from a file",
+    "payerFunding": "0.05 USDC from the operator treasury, returned at the end",
+    "confirmations": "rail402 --yes; RAIL402_MCP_CONFIRM=never (the run confirms)",
+    "bazaar": "https://mainnet.rail402.dev",
+    "seller": "https://demo-mainnet.rail402.dev",
+    "explorer": "the Rail402 Explorer (receipt links, the packages' default); stellar.expert as an on-chain cross-check",
+    "packagesFrom": "npm install of the pnpm pack tarballs",
+    "searchEmbeddings": true,
+    "maxTxFeeStroops": 1000000,
+    "buyerMaxPerCall": "0.05 USDC",
+    "buyerMaxTotal": "0.05 USDC",
+    "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+    "tarball @rail402.dev/bazaar": "sha512-98lj7nic0elHk/gie952qoOGi3FE3fHcLG7mwo3AXGP+hwLIOA/35D7BlXGvqnuFfQlK1eRNW5edKzsv38/96Q==",
+    "tarball @rail402.dev/cli": "sha512-J5DVYV2K1Fuasdo7VdAa5xYzIadJe2Yp1ntGAhJpOQI8uCtBEqjn2xjHZEVgbFccnPvUVEZ4M4pixJQkfPU7Sg==",
+    "tarball @rail402.dev/errors": "sha512-HV8POYC4go38uLUUbezre+GbZuxRZi99ElJZkaL9r/Nf6gsp044dQbfoUXTsR7tMf+sv6DKhAuBvsnPwR31lfA==",
+    "tarball @rail402.dev/facilitator": "sha512-ar3pCZ8KZlNMNP/XpduGHQuF7yGJQrW16AEyvbko/vEdSdVeqzF9i/Q6yRMqFVXN0dn8wQ1ZeTJlYUFXQ38J9w==",
+    "tarball @rail402.dev/mcp": "sha512-+v0YZn/5XEqr9TH/ddwoglWzaRoJ6r0/IlxtbXxJ/KKA+93rfukMCqT/gWGZDrykTZvpzLgmY5OZOXUfOHrgTg==",
+    "tarball @rail402.dev/safe-fetch": "sha512-GyN3SVRoZsj/LE3HVYpclXcFuu9ydScs/OtF/3YYoAo5/0xocugo1BjVhlI/OgCJqXoIJwwTLOhcDhJNkhxvlw==",
+    "tarball @rail402.dev/sdk": "sha512-mUSvrVBYKNOaHL9iBxwVLdtgzOJ63BGu1TvhxV/4qrweoIG77a/S2/hKbUOJ/zdBKgIF7fLXHmgPpw8R8+E1yQ==",
+    "tarball @rail402.dev/search": "sha512-NKcE6TWweRaf8uOIycqdXdya+AGlxB8Y6LpAAmAuLkIrntnqII+rDJUPYcpyXkN0o8S0sc89NvQhupzBx2R+1A==",
+    "tarball @rail402.dev/stellar": "sha512-29GZAKFb/9EGslo0d+Tn4FanI2w7/4jEEwWRZ6lSMxFTOJr6uj1n+I/++D4cvwIol7IzVFG80X4FEZnsoyQCqA==",
+    "tarball @rail402.dev/store-postgres": "sha512-2BSAEmjsYQmTHe3NTL0G6pQes816m1RehWXtugmwCIrQH6rdrKMd8cisvaVjMI5cnLG8LcY5uQEHGASqxsArCQ==",
+    "tarball @rail402.dev/upto": "sha512-HdJ7esu+f1Req0TJBhqFb6Cica/2RQ4vwWSpxv+SWBVas+vmSiUjaMNaqsSFrGbumq+oNUMK2a+MRinQ1z07UQ==",
+    "tarball @rail402.dev/x402-index": "sha512-wMQSL/A9jeleAeboh0+Y5cIKYE/pP4ajC/8hqtlo7NH1Eg+W1qVNt33XtoLylz8D54ZxoQ4+he0MTXW2N0i6rg=="
+  },
+  "accounts": {
+    "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+    "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+    "uptoAuthority": "GB4Q4CNTXRVWAMN6O5B4QPK2IMO3Z5DOXG4II43H6BUIPQFSMZS3AOJ4",
+    "treasury": "GDGPIU7FOU6N7N7PSCWLFIGR2YSH6AKQ4U7YFKGMM4AFOW3SP6QIT2LU"
+  },
+  "summary": {
+    "total": 23,
+    "passed": 21,
+    "failed": 0,
+    "skipped": 2
+  },
+  "cases": [
+    {
+      "id": "onboarding",
+      "title": "The CLI imports a funded key into a key file tagged for pubnet and reads its 0.05 USDC from the chain",
+      "checks": [
+        "agent-payments"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 18346,
+      "observations": {
+        "surface": "cli",
+        "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+        "assets": [
+          {
+            "asset": "USDC",
+            "contract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+            "trustline": true,
+            "authorized": true,
+            "balance": "0.05"
+          }
+        ],
+        "cli": [
+          {
+            "command": "rail402 keys import --key-file <home>/payer.key --network stellar:pubnet --json",
+            "exit": 0,
+            "ok": true
+          },
+          {
+            "command": "rail402 account status --json",
+            "exit": 0,
+            "ok": true
+          },
+          {
+            "command": "rail402 purchase \"air quality for a city\" --pick 775f2596-f17e-4f2b-b868-d73971ef7849 --args {\"city\":\"Van\",\"pollutant\":\"pm10\"} --max \"0.01 USDC\" --json",
+            "exit": 0,
+            "ok": true
+          },
+          {
+            "command": "rail402 purchase \"current weather for a city\" --pick 10238c14-f9f6-437f-8ee6-5143f8203c14 --query city=Trabzon --max \"0.01 USDC\" --json",
+            "exit": 0,
+            "ok": true
+          },
+          {
+            "command": "rail402 pay https://demo-mainnet.rail402.dev/translate --method POST --data {\"text\":\"Hello\",\"to\":\"tr\"} --max \"0.01 USDC\" --idempotency-key live-agent-mw50wca0 --json",
+            "exit": 0,
+            "ok": true
+          },
+          {
+            "command": "rail402 pay https://demo-mainnet.rail402.dev/translate --method POST --data {\"text\":\"Hello\",\"to\":\"tr\"} --max \"0.01 USDC\" --idempotency-key live-agent-mw50wca0 --json",
+            "exit": 0,
+            "ok": true
+          },
+          {
+            "command": "rail402 tx 9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81 --json",
+            "exit": 0,
+            "ok": true
+          },
+          {
+            "command": "rail402 pay https://demo-mainnet.rail402.dev/history?city=Van&days=2 --max \"0.02 USDC\" --json",
+            "exit": 0,
+            "ok": true
+          },
+          {
+            "command": "rail402 pay https://demo-mainnet.rail402.dev/weather?city=Ankara --max \"0.0001 USDC\" --verbose --json",
+            "exit": 3,
+            "ok": false,
+            "code": "payment_per_call_cap_exceeded"
+          },
+          {
+            "command": "rail402 pay https://169.254.169.254/latest/meta-data/ --max \"0.01 USDC\" --json",
+            "exit": 3,
+            "ok": false,
+            "code": "egress_destination_not_allowed"
+          },
+          {
+            "command": "rail402 session start --name tiny --max-total \"0.0015 USDC\" --json",
+            "exit": 0,
+            "ok": true
+          },
+          {
+            "command": "rail402 pay https://demo-mainnet.rail402.dev/weather?city=Ankara --max \"0.01 USDC\" --session tiny --json",
+            "exit": 0,
+            "ok": true
+          },
+          {
+            "command": "rail402 pay https://demo-mainnet.rail402.dev/weather?city=Ankara --max \"0.01 USDC\" --session tiny --verbose --json",
+            "exit": 3,
+            "ok": false,
+            "code": "payment_session_cap_exceeded"
+          },
+          {
+            "command": "rail402 pay http://127.0.0.1:43823/network --max \"0.01 USDC\" --json",
+            "exit": 2,
+            "ok": false,
+            "code": "payment_policy_invalid"
+          },
+          {
+            "command": "rail402 pay https://demo-mainnet.rail402.dev/weather?city=Ankara --max \"0.01 USDC\" --verbose --json",
+            "exit": 3,
+            "ok": false,
+            "code": "payment_recipient_not_permitted"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sdk-http-cataloged",
+      "title": "SDK: pays an HTTP API; search finds its listing, cataloged by a settlement to its payTo, which counts the payment",
+      "checks": [
+        "agent-payments",
+        "scheme-exact",
+        "discovery"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 20261,
+      "transactions": [
+        {
+          "hash": "6506db26990e73be5188e1bc8685ee9627af2ea1943d625d1cd721c2adcbe905",
+          "ledger": 65337270,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "12203",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "innerSequence": "280498137938788501",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/6506db26990e73be5188e1bc8685ee9627af2ea1943d625d1cd721c2adcbe905"
+        }
+      ],
+      "observations": {
+        "surface": "sdk",
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "settled": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "6506db26990e73be5188e1bc8685ee9627af2ea1943d625d1cd721c2adcbe905",
+          "explorerUrl": "https://explorer.rail402.dev/tx/6506db26990e73be5188e1bc8685ee9627af2ea1943d625d1cd721c2adcbe905",
+          "verifiedOnChain": true
+        },
+        "cataloging": {
+          "listingId": "10238c14-f9f6-437f-8ee6-5143f8203c14",
+          "firstCataloged": "2026-11-05T06:17:35.700Z",
+          "settlements": 61,
+          "lastSettled": "2026-11-06T13:39:54.011Z",
+          "versions": [
+            {
+              "version": 1,
+              "createdAt": "2026-11-05T06:17:35.700Z",
+              "cause": "settlement",
+              "owner": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "trust": "settled",
+              "state": "pending"
+            },
+            {
+              "version": 2,
+              "createdAt": "2026-11-05T06:17:37.228Z",
+              "cause": "origin_verification",
+              "owner": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "trust": "origin_verified",
+              "state": "published"
+            },
+            {
+              "version": 3,
+              "createdAt": "2026-11-05T18:17:40.734Z",
+              "cause": "domain_verification",
+              "owner": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "trust": "domain_verified",
+              "state": "published"
+            }
+          ]
+        },
+        "resourceType": "http",
+        "listingId": "10238c14-f9f6-437f-8ee6-5143f8203c14",
+        "search": {
+          "query": "current weather for a city",
+          "rank": 1,
+          "hits": 2
+        },
+        "trust": "domain_verified"
+      }
+    },
+    {
+      "id": "sdk-mcp-cataloged",
+      "title": "SDK: pays an MCP tool; search finds its listing, keyed by endpoint and tool name and cataloged by a settlement to its payTo, which counts the payment",
+      "checks": [
+        "agent-payments",
+        "scheme-exact",
+        "discovery",
+        "mcp"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 15477,
+      "transactions": [
+        {
+          "hash": "55c3dcfffcb75682e4eb6406fda5a129b26b3fd1d50f3679056069e780810d54",
+          "ledger": 65337273,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "12203",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "innerSequence": "280498137938788501",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/55c3dcfffcb75682e4eb6406fda5a129b26b3fd1d50f3679056069e780810d54"
+        }
+      ],
+      "observations": {
+        "surface": "sdk",
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "settled": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "55c3dcfffcb75682e4eb6406fda5a129b26b3fd1d50f3679056069e780810d54",
+          "explorerUrl": "https://explorer.rail402.dev/tx/55c3dcfffcb75682e4eb6406fda5a129b26b3fd1d50f3679056069e780810d54",
+          "verifiedOnChain": true
+        },
+        "cataloging": {
+          "listingId": "775f2596-f17e-4f2b-b868-d73971ef7849",
+          "firstCataloged": "2026-11-05T09:18:55.807Z",
+          "settlements": 7,
+          "lastSettled": "2026-11-06T13:40:09.414Z",
+          "versions": [
+            {
+              "version": 1,
+              "createdAt": "2026-11-05T09:18:55.807Z",
+              "cause": "settlement",
+              "owner": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "trust": "settled",
+              "state": "pending"
+            },
+            {
+              "version": 2,
+              "createdAt": "2026-11-05T09:18:57.711Z",
+              "cause": "origin_verification",
+              "owner": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "trust": "origin_verified",
+              "state": "published"
+            },
+            {
+              "version": 3,
+              "createdAt": "2026-11-05T15:19:00.342Z",
+              "cause": "domain_verification",
+              "owner": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "trust": "domain_verified",
+              "state": "published"
+            }
+          ]
+        },
+        "resourceType": "mcp",
+        "listingId": "775f2596-f17e-4f2b-b868-d73971ef7849",
+        "search": {
+          "query": "air quality for a city",
+          "rank": 1,
+          "hits": 3
+        }
+      }
+    },
+    {
+      "id": "sdk-search-and-pay",
+      "title": "SDK: searches for the HTTP API and pays it through its listing",
+      "checks": [
+        "agent-payments",
+        "scheme-exact",
+        "discovery"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 14039,
+      "transactions": [
+        {
+          "hash": "ecc00268a17443386d11ad1e465d19363798fb76ec1d55db4803e2844d0b87e6",
+          "ledger": 65337276,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "12203",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "innerSequence": "280498137938788502",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/ecc00268a17443386d11ad1e465d19363798fb76ec1d55db4803e2844d0b87e6"
+        }
+      ],
+      "observations": {
+        "surface": "sdk",
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "settled": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "ecc00268a17443386d11ad1e465d19363798fb76ec1d55db4803e2844d0b87e6",
+          "explorerUrl": "https://explorer.rail402.dev/tx/ecc00268a17443386d11ad1e465d19363798fb76ec1d55db4803e2844d0b87e6",
+          "verifiedOnChain": true
+        },
+        "resourceType": "http",
+        "listingId": "10238c14-f9f6-437f-8ee6-5143f8203c14"
+      }
+    },
+    {
+      "id": "mcp-server-search-and-pay-tool",
+      "title": "MCP server: search_stellar_resources finds the MCP tool; pay_and_call pays it through its listing",
+      "checks": [
+        "agent-payments",
+        "scheme-exact",
+        "discovery",
+        "mcp"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 13976,
+      "transactions": [
+        {
+          "hash": "b1b9a9d5be036b7ab82ffe31dd8fa40d0c96d23af6ee89f0b2328b2356545cc2",
+          "ledger": 65337279,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "12203",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "innerSequence": "280498137938788502",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/b1b9a9d5be036b7ab82ffe31dd8fa40d0c96d23af6ee89f0b2328b2356545cc2"
+        }
+      ],
+      "observations": {
+        "surface": "mcp-server",
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "settled": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "b1b9a9d5be036b7ab82ffe31dd8fa40d0c96d23af6ee89f0b2328b2356545cc2",
+          "explorerUrl": "https://explorer.rail402.dev/tx/b1b9a9d5be036b7ab82ffe31dd8fa40d0c96d23af6ee89f0b2328b2356545cc2",
+          "verifiedOnChain": true
+        },
+        "resourceType": "mcp",
+        "listingId": "775f2596-f17e-4f2b-b868-d73971ef7849",
+        "search": {
+          "query": "air quality for a city",
+          "rank": 1,
+          "hits": 3
+        },
+        "tools": [
+          "search_stellar_resources",
+          "pay_and_call",
+          "get_budget"
+        ]
+      }
+    },
+    {
+      "id": "mcp-server-pay-api",
+      "title": "MCP server: pay_and_call pays the HTTP API through its listing",
+      "checks": [
+        "agent-payments",
+        "scheme-exact",
+        "mcp"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 15527,
+      "transactions": [
+        {
+          "hash": "727ebc445cd70d3a54c6e93afdc769f1b6330c5d5d8bec581fbe242cb9fd96df",
+          "ledger": 65337282,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "12203",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "innerSequence": "280498137938788503",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/727ebc445cd70d3a54c6e93afdc769f1b6330c5d5d8bec581fbe242cb9fd96df"
+        }
+      ],
+      "observations": {
+        "surface": "mcp-server",
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "settled": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "727ebc445cd70d3a54c6e93afdc769f1b6330c5d5d8bec581fbe242cb9fd96df",
+          "explorerUrl": "https://explorer.rail402.dev/tx/727ebc445cd70d3a54c6e93afdc769f1b6330c5d5d8bec581fbe242cb9fd96df",
+          "verifiedOnChain": true
+        },
+        "resourceType": "http",
+        "listingId": "10238c14-f9f6-437f-8ee6-5143f8203c14",
+        "budget": {
+          "ok": true,
+          "network": "stellar:pubnet",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "policy": {
+            "assets": [
+              {
+                "asset": "USDC",
+                "contract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+                "decimals": 7,
+                "perCallCap": "0.05",
+                "sessionCap": "0.05"
+              }
+            ],
+            "schemes": [
+              "exact",
+              "upto"
+            ],
+            "uptoContracts": [
+              "CAHZA4BYDJFQLNYX43LVPKN676IDELNIKP7BOYF2CT7MR2OG2BAZZHT4"
+            ],
+            "uptoFacilitators": [
+              "GB4Q4CNTXRVWAMN6O5B4QPK2IMO3Z5DOXG4II43H6BUIPQFSMZS3AOJ4"
+            ],
+            "recipients": "any",
+            "maxAuthorizationSeconds": 300,
+            "requireCatalogListing": false,
+            "minTrust": {
+              "http": "origin_verified",
+              "mcp": "domain_verified"
+            }
+          },
+          "payments": "enabled",
+          "budget": {
+            "session": "default",
+            "window": "3e756ab2-0993-41ec-8d67-efedd844744b",
+            "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+            "startedAt": "2026-11-06T13:40:27.165Z",
+            "expiresAt": "2026-11-07T13:40:27.165Z",
+            "autoRenew": false,
+            "assets": [
+              {
+                "asset": "USDC",
+                "contract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+                "decimals": 7,
+                "perCallCap": "0.05",
+                "sessionCap": "0.05",
+                "spent": "0.002",
+                "pending": "0",
+                "remaining": "0.048"
+              }
+            ],
+            "awaitingProof": 0,
+            "falseClaims": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "cli-purchase-tool",
+      "title": "CLI: purchase finds the MCP tool by search and pays it through its listing",
+      "checks": [
+        "agent-payments",
+        "scheme-exact",
+        "mcp",
+        "discovery"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 14122,
+      "transactions": [
+        {
+          "hash": "db43a84109b45029da621e9c14078cc263f988ad6e70b35004a8374fa592314e",
+          "ledger": 65337285,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "12203",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "innerSequence": "280498137938788503",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/db43a84109b45029da621e9c14078cc263f988ad6e70b35004a8374fa592314e"
+        }
+      ],
+      "observations": {
+        "surface": "cli",
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "settled": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "db43a84109b45029da621e9c14078cc263f988ad6e70b35004a8374fa592314e",
+          "explorerUrl": "https://explorer.rail402.dev/tx/db43a84109b45029da621e9c14078cc263f988ad6e70b35004a8374fa592314e",
+          "verifiedOnChain": true
+        },
+        "resourceType": "mcp",
+        "listingId": "775f2596-f17e-4f2b-b868-d73971ef7849"
+      }
+    },
+    {
+      "id": "cli-purchase-api",
+      "title": "CLI: purchase finds the HTTP API by search and pays it through its listing",
+      "checks": [
+        "agent-payments",
+        "scheme-exact",
+        "discovery"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 15064,
+      "transactions": [
+        {
+          "hash": "3936c9dc87cc9be509b3cf5cb1b39c27b236181322052a388cb547f574896954",
+          "ledger": 65337288,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "12203",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "innerSequence": "280498137938788504",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/3936c9dc87cc9be509b3cf5cb1b39c27b236181322052a388cb547f574896954"
+        }
+      ],
+      "observations": {
+        "surface": "cli",
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "settled": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "3936c9dc87cc9be509b3cf5cb1b39c27b236181322052a388cb547f574896954",
+          "explorerUrl": "https://explorer.rail402.dev/tx/3936c9dc87cc9be509b3cf5cb1b39c27b236181322052a388cb547f574896954",
+          "verifiedOnChain": true
+        },
+        "resourceType": "http",
+        "listingId": "10238c14-f9f6-437f-8ee6-5143f8203c14"
+      }
+    },
+    {
+      "id": "cli-pay-idempotent",
+      "title": "CLI: pay with an idempotency key pays once; the repeat replays the stored result",
+      "checks": [
+        "agent-payments",
+        "scheme-exact",
+        "idempotency"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 11163,
+      "transactions": [
+        {
+          "hash": "9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81",
+          "ledger": 65337290,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "20000",
+          "payerType": "G",
+          "feeChargedStroops": "12203",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "innerSequence": "280498137938788504",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "20000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81"
+        }
+      ],
+      "observations": {
+        "surface": "cli",
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.002",
+            "atomic": "20000"
+          },
+          "settled": {
+            "amount": "0.002",
+            "atomic": "20000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81",
+          "explorerUrl": "https://explorer.rail402.dev/tx/9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81",
+          "verifiedOnChain": true
+        },
+        "replayed": true
+      }
+    },
+    {
+      "id": "cli-tx",
+      "title": "CLI: tx explains a settlement and attributes it to the facilitator",
+      "checks": [
+        "agent-payments",
+        "fees-sponsored"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 867,
+      "observations": {
+        "report": {
+          "hash": "9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81",
+          "network": "stellar:pubnet",
+          "status": "SUCCESS",
+          "ledger": 65337290,
+          "closedAt": "2026-11-06T13:41:32.000Z",
+          "feeBump": {
+            "outerHash": "9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81",
+            "innerHash": "02b592fa6810e04360e155e9745dbc686dcfa25e048985b0d0d325df2c1cc69b",
+            "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+            "feeCharged": "12203"
+          },
+          "source": "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "operations": [
+            {
+              "type": "invokeHostFunction",
+              "contract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+              "function": "transfer",
+              "args": [
+                "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+                "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+                "20000"
+              ]
+            }
+          ],
+          "authorizations": [
+            {
+              "address": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "credential": "address",
+              "nonce": "6260017251680421132",
+              "expirationLedger": 65337348,
+              "signed": true,
+              "subInvocations": 0
+            }
+          ],
+          "transfers": [
+            {
+              "contract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+              "symbol": "USDC",
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": {
+                "atomic": "20000",
+                "decimal": "0.002"
+              }
+            }
+          ],
+          "x402": {
+            "shape": "exact",
+            "checks": [
+              "one token transfer invocation",
+              "authorized by GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY alone",
+              "no sub-invocations",
+              "one transfer from the payer"
+            ]
+          },
+          "facilitator": {
+            "url": "https://mainnet.rail402.dev",
+            "attributed": true
+          },
+          "explorerUrl": "https://explorer.rail402.dev/tx/9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81"
+        }
+      }
+    },
+    {
+      "id": "sdk-upto-api",
+      "title": "SDK: a metered API paid with upto settles the days returned, not the cap",
+      "checks": [
+        "agent-payments",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 8156,
+      "transactions": [
+        {
+          "hash": "3d4d18510d4b2e1c44e5a0e9e0736d16950a3f2b55734b8b9f5a3fd5f1c9861e",
+          "ledger": 65337292,
+          "scheme": "upto",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "9000",
+          "payerType": "G",
+          "feeChargedStroops": "21980",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "innerSequence": "280498137938788505",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "9000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/3d4d18510d4b2e1c44e5a0e9e0736d16950a3f2b55734b8b9f5a3fd5f1c9861e"
+        }
+      ],
+      "observations": {
+        "surface": "sdk",
+        "receipt": {
+          "status": "settled",
+          "scheme": "upto",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.01",
+            "atomic": "100000"
+          },
+          "settled": {
+            "amount": "0.0009",
+            "atomic": "9000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "3d4d18510d4b2e1c44e5a0e9e0736d16950a3f2b55734b8b9f5a3fd5f1c9861e",
+          "explorerUrl": "https://explorer.rail402.dev/tx/3d4d18510d4b2e1c44e5a0e9e0736d16950a3f2b55734b8b9f5a3fd5f1c9861e",
+          "verifiedOnChain": true
+        },
+        "budget": {
+          "asset": "USDC",
+          "contract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "perCallCap": "0.05",
+          "sessionCap": "0.05",
+          "spent": "0.0039",
+          "pending": "0",
+          "remaining": "0.0461"
+        }
+      }
+    },
+    {
+      "id": "mcp-server-upto-tool",
+      "title": "MCP server: a metered MCP tool paid with upto settles the hours returned; its listing, cataloged by a settlement to its payTo, is listed at its cap",
+      "checks": [
+        "agent-payments",
+        "scheme-upto",
+        "mcp",
+        "discovery"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 11703,
+      "transactions": [
+        {
+          "hash": "5c06123898b1871fd095e027ed9c13b15f9cce258b47fa7314708b30e87571fc",
+          "ledger": 65337294,
+          "scheme": "upto",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "8000",
+          "payerType": "G",
+          "feeChargedStroops": "18663",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "innerSequence": "280498137938788505",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "8000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/5c06123898b1871fd095e027ed9c13b15f9cce258b47fa7314708b30e87571fc"
+        }
+      ],
+      "observations": {
+        "surface": "mcp-server",
+        "receipt": {
+          "status": "settled",
+          "scheme": "upto",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.01",
+            "atomic": "100000"
+          },
+          "settled": {
+            "amount": "0.0008",
+            "atomic": "8000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "5c06123898b1871fd095e027ed9c13b15f9cce258b47fa7314708b30e87571fc",
+          "explorerUrl": "https://explorer.rail402.dev/tx/5c06123898b1871fd095e027ed9c13b15f9cce258b47fa7314708b30e87571fc",
+          "verifiedOnChain": true
+        },
+        "meteredListingId": "66898955-a2ea-4394-867c-2b588df246e6",
+        "cataloging": {
+          "listingId": "66898955-a2ea-4394-867c-2b588df246e6",
+          "firstCataloged": "2026-11-05T09:19:06.671Z",
+          "settlements": 5,
+          "lastSettled": "2026-11-06T13:41:54.511Z",
+          "versions": [
+            {
+              "version": 1,
+              "createdAt": "2026-11-05T09:19:06.671Z",
+              "cause": "settlement",
+              "owner": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "trust": "settled",
+              "state": "pending"
+            },
+            {
+              "version": 2,
+              "createdAt": "2026-11-05T09:19:07.595Z",
+              "cause": "origin_verification",
+              "owner": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "trust": "origin_verified",
+              "state": "published"
+            },
+            {
+              "version": 3,
+              "createdAt": "2026-11-05T15:19:10.342Z",
+              "cause": "domain_verification",
+              "owner": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "trust": "domain_verified",
+              "state": "published"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "cli-upto-api",
+      "title": "CLI: pay settles a metered API with upto for the days returned",
+      "checks": [
+        "agent-payments",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 8823,
+      "transactions": [
+        {
+          "hash": "b8912821b79bcbc27fb8cea05f0b18139df6e8bedaf1d09e644e03a345379da6",
+          "ledger": 65337296,
+          "scheme": "upto",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "6000",
+          "payerType": "G",
+          "feeChargedStroops": "18663",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "innerSequence": "280498137938788506",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "6000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/b8912821b79bcbc27fb8cea05f0b18139df6e8bedaf1d09e644e03a345379da6"
+        }
+      ],
+      "observations": {
+        "surface": "cli",
+        "receipt": {
+          "status": "settled",
+          "scheme": "upto",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.01",
+            "atomic": "100000"
+          },
+          "settled": {
+            "amount": "0.0006",
+            "atomic": "6000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "b8912821b79bcbc27fb8cea05f0b18139df6e8bedaf1d09e644e03a345379da6",
+          "explorerUrl": "https://explorer.rail402.dev/tx/b8912821b79bcbc27fb8cea05f0b18139df6e8bedaf1d09e644e03a345379da6",
+          "verifiedOnChain": true
+        }
+      }
+    },
+    {
+      "id": "listing-required",
+      "title": "By default a pubnet buyer pays only what it selected from a Bazaar listing, before signing",
+      "checks": [
+        "agent-payments",
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 1248,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "sdk: pay outside a listing",
+          "code": "payment_listing_required",
+          "reason": "The spending policy only pays resources selected from a Bazaar listing; use payListing."
+        }
+      ],
+      "observations": {
+        "balancesUnchanged": true
+      }
+    },
+    {
+      "id": "cap-below-price",
+      "title": "A spending cap below the price is refused before signing, on every surface",
+      "checks": [
+        "agent-payments",
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 4141,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "sdk: pay below the price",
+          "code": "payment_per_call_cap_exceeded",
+          "reason": "The price is 0.001 USDC, above the per-call cap of 0.0001."
+        },
+        {
+          "surface": "mcp",
+          "operation": "mcp-server: pay_and_call below the price",
+          "code": "payment_per_call_cap_exceeded",
+          "reason": "The price is 0.001 USDC, above the per-call cap of 0.0001."
+        },
+        {
+          "surface": "http",
+          "operation": "cli: pay below the price",
+          "code": "payment_per_call_cap_exceeded",
+          "reason": "The price is 0.001 USDC, above the per-call cap of 0.0001."
+        }
+      ],
+      "observations": {
+        "signing": [
+          {
+            "surface": "sdk",
+            "operation": "pay below the price",
+            "code": "payment_per_call_cap_exceeded",
+            "signedEvents": 0,
+            "refusedEvents": [
+              "payment_per_call_cap_exceeded"
+            ]
+          },
+          {
+            "surface": "mcp-server",
+            "operation": "pay_and_call below the price",
+            "code": "payment_per_call_cap_exceeded",
+            "signedEvents": 0,
+            "refusedEvents": [
+              "payment_per_call_cap_exceeded"
+            ]
+          },
+          {
+            "surface": "cli",
+            "operation": "pay below the price",
+            "code": "payment_per_call_cap_exceeded",
+            "signedEvents": 0,
+            "refusedEvents": [
+              "payment_per_call_cap_exceeded"
+            ]
+          }
+        ],
+        "balancesUnchanged": true
+      }
+    },
+    {
+      "id": "ssrf-literals",
+      "title": "Private, loopback and metadata destinations, plain http and odd ports are refused before any request",
+      "checks": [
+        "agent-payments",
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 6279,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "sdk: pay https://169.254.169.254/latest/meta-data/",
+          "code": "egress_destination_not_allowed",
+          "reason": "The host 169.254.169.254 is a private, local or reserved destination."
+        },
+        {
+          "surface": "http",
+          "operation": "sdk: pay https://0x7f.1/",
+          "code": "egress_destination_not_allowed",
+          "reason": "The host 127.0.0.1 is a private, local or reserved destination."
+        },
+        {
+          "surface": "http",
+          "operation": "sdk: pay https://2130706433/",
+          "code": "egress_destination_not_allowed",
+          "reason": "The host 127.0.0.1 is a private, local or reserved destination."
+        },
+        {
+          "surface": "http",
+          "operation": "sdk: pay https://[::ffff:127.0.0.1]/",
+          "code": "egress_destination_not_allowed",
+          "reason": "The host [::ffff:7f00:1] is a private, local or reserved destination."
+        },
+        {
+          "surface": "http",
+          "operation": "sdk: pay https://localhost/",
+          "code": "egress_destination_not_allowed",
+          "reason": "The host localhost is a private, local or reserved destination."
+        },
+        {
+          "surface": "http",
+          "operation": "sdk: pay http://example.com/",
+          "code": "egress_scheme_not_allowed",
+          "reason": "The scheme http is not allowed; allowed: https."
+        },
+        {
+          "surface": "http",
+          "operation": "sdk: pay https://example.com:8443/",
+          "code": "egress_port_not_allowed",
+          "reason": "Port 8443 is not allowed; allowed: 443."
+        },
+        {
+          "surface": "mcp",
+          "operation": "mcp-server: pay_and_call https://127.0.0.1/",
+          "code": "egress_destination_not_allowed",
+          "reason": "The host 127.0.0.1 is a private, local or reserved destination."
+        },
+        {
+          "surface": "http",
+          "operation": "cli: pay the metadata address",
+          "code": "egress_destination_not_allowed",
+          "reason": "The host 169.254.169.254 is a private, local or reserved destination."
+        }
+      ],
+      "observations": {
+        "balancesUnchanged": true
+      }
+    },
+    {
+      "id": "session-cap",
+      "title": "A named session with a tiny budget pays until the next payment would exceed it; then the CLI, the SDK and the MCP server sharing its ledger refuse",
+      "checks": [
+        "agent-payments",
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 16737,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "cli: pay beyond the tiny session",
+          "code": "payment_session_cap_exceeded",
+          "reason": "The price is 0.001 USDC, but only 0.0005 is left in the session."
+        },
+        {
+          "surface": "http",
+          "operation": "sdk: pay beyond the tiny session",
+          "code": "payment_session_cap_exceeded",
+          "reason": "The price is 0.001 USDC, but only 0.0005 is left in the session."
+        },
+        {
+          "surface": "mcp",
+          "operation": "mcp-server: pay_and_call beyond the tiny session",
+          "code": "payment_session_cap_exceeded",
+          "reason": "The price is 0.001 USDC, but only 0.0005 is left in the session."
+        }
+      ],
+      "transactions": [
+        {
+          "hash": "8d257c3b491b5e824ed039d108562010b5381a69863c19ea699b767475665c6c",
+          "ledger": 65337301,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "12203",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "innerSequence": "280498137938788506",
+          "transfers": [
+            {
+              "from": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+              "to": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/8d257c3b491b5e824ed039d108562010b5381a69863c19ea699b767475665c6c"
+        }
+      ],
+      "observations": {
+        "surface": "cli",
+        "receipt": {
+          "status": "settled",
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "asset": "USDC",
+          "assetContract": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "authorized": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "settled": {
+            "amount": "0.001",
+            "atomic": "10000"
+          },
+          "payTo": "GDHHQIRALXCYTDSSLTY5JX5RXRINF2VRDUT5TF2436QNJINY7Z54PQA2",
+          "payer": "GCKPDM4ICZCHNPQTY33PGJ3QB5FD5RLQZ4XFNPODRK3B4NNFQ5FGGLYY",
+          "transaction": "8d257c3b491b5e824ed039d108562010b5381a69863c19ea699b767475665c6c",
+          "explorerUrl": "https://explorer.rail402.dev/tx/8d257c3b491b5e824ed039d108562010b5381a69863c19ea699b767475665c6c",
+          "verifiedOnChain": true
+        },
+        "signing": [
+          {
+            "surface": "cli",
+            "operation": "pay beyond the tiny session",
+            "code": "payment_session_cap_exceeded",
+            "signedEvents": 0,
+            "refusedEvents": [
+              "payment_session_cap_exceeded"
+            ]
+          },
+          {
+            "surface": "sdk",
+            "operation": "pay beyond the tiny session",
+            "code": "payment_session_cap_exceeded",
+            "signedEvents": 0,
+            "refusedEvents": [
+              "payment_session_cap_exceeded"
+            ]
+          },
+          {
+            "surface": "mcp-server",
+            "operation": "pay_and_call beyond the tiny session",
+            "code": "payment_session_cap_exceeded",
+            "signedEvents": 0,
+            "refusedEvents": [
+              "payment_session_cap_exceeded"
+            ]
+          }
+        ],
+        "balancesUnchanged": true
+      }
+    },
+    {
+      "id": "policy-refusals",
+      "title": "A network, asset, recipient or amount outside the spending policy is refused before signing, on every surface",
+      "checks": [
+        "agent-payments",
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 3576,
+      "rejections": [
+        {
+          "surface": "http",
+          "operation": "cli: plain http and loopback on pubnet",
+          "code": "payment_policy_invalid",
+          "reason": "Invalid configuration: plain http and private-network destinations are never allowed on pubnet."
+        },
+        {
+          "surface": "http",
+          "operation": "sdk: pay a denied recipient",
+          "code": "payment_recipient_not_permitted",
+          "reason": "The recipient is invalid, is the payer itself, or is excluded by the policy's recipient allow or deny list."
+        },
+        {
+          "surface": "mcp",
+          "operation": "mcp-server: pay_and_call a denied recipient",
+          "code": "payment_recipient_not_permitted",
+          "reason": "The recipient is invalid, is the payer itself, or is excluded by the policy's recipient allow or deny list."
+        },
+        {
+          "surface": "http",
+          "operation": "cli: pay a denied recipient",
+          "code": "payment_recipient_not_permitted",
+          "reason": "The recipient is invalid, is the payer itself, or is excluded by the policy's recipient allow or deny list."
+        }
+      ],
+      "observations": {
+        "offersOutOfReach": [
+          "payment_network_not_permitted",
+          "payment_asset_not_permitted",
+          "payment_amount_not_permitted"
+        ],
+        "signing": [
+          {
+            "surface": "sdk",
+            "operation": "pay a denied recipient",
+            "code": "payment_recipient_not_permitted",
+            "signedEvents": 0,
+            "refusedEvents": [
+              "payment_recipient_not_permitted"
+            ]
+          },
+          {
+            "surface": "mcp-server",
+            "operation": "pay_and_call a denied recipient",
+            "code": "payment_recipient_not_permitted",
+            "signedEvents": 0,
+            "refusedEvents": [
+              "payment_recipient_not_permitted"
+            ]
+          },
+          {
+            "surface": "cli",
+            "operation": "pay a denied recipient",
+            "code": "payment_recipient_not_permitted",
+            "signedEvents": 0,
+            "refusedEvents": [
+              "payment_recipient_not_permitted"
+            ]
+          }
+        ],
+        "balancesUnchanged": true
+      }
+    },
+    {
+      "id": "listing-impostor",
+      "title": "A listing whose live payment requirements do not pay its owner is refused before signing",
+      "checks": [
+        "agent-payments",
+        "rejection-codes",
+        "discovery"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "skipped",
+      "skipReason": "no --impostor-listing was given",
+      "skipCategory": "environment",
+      "elapsedMs": 0
+    },
+    {
+      "id": "non-custodial",
+      "title": "The seller received exactly what was settled, all of it from the payer; the sponsor paid fees only",
+      "checks": [
+        "agent-payments",
+        "fees-sponsored"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "skipped",
+      "skipReason": "a hosted seller may be paid by others during the run; each settlement's transfer from the payer is checked instead",
+      "skipCategory": "not-applicable",
+      "elapsedMs": 0
+    },
+    {
+      "id": "explorer",
+      "title": "Every receipt's Rail402 Explorer link answers 200 naming the same hash; every transaction of the run also opens in stellar.expert (its API answers 200 with the hash and ledger), an on-chain cross-check independent of Rail402",
+      "checks": [
+        "agent-payments"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 2815,
+      "observations": {
+        "receiptLinks": [
+          {
+            "hash": "6506db26990e73be5188e1bc8685ee9627af2ea1943d625d1cd721c2adcbe905",
+            "link": "https://explorer.rail402.dev/tx/6506db26990e73be5188e1bc8685ee9627af2ea1943d625d1cd721c2adcbe905",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "55c3dcfffcb75682e4eb6406fda5a129b26b3fd1d50f3679056069e780810d54",
+            "link": "https://explorer.rail402.dev/tx/55c3dcfffcb75682e4eb6406fda5a129b26b3fd1d50f3679056069e780810d54",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "ecc00268a17443386d11ad1e465d19363798fb76ec1d55db4803e2844d0b87e6",
+            "link": "https://explorer.rail402.dev/tx/ecc00268a17443386d11ad1e465d19363798fb76ec1d55db4803e2844d0b87e6",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "b1b9a9d5be036b7ab82ffe31dd8fa40d0c96d23af6ee89f0b2328b2356545cc2",
+            "link": "https://explorer.rail402.dev/tx/b1b9a9d5be036b7ab82ffe31dd8fa40d0c96d23af6ee89f0b2328b2356545cc2",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "727ebc445cd70d3a54c6e93afdc769f1b6330c5d5d8bec581fbe242cb9fd96df",
+            "link": "https://explorer.rail402.dev/tx/727ebc445cd70d3a54c6e93afdc769f1b6330c5d5d8bec581fbe242cb9fd96df",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "db43a84109b45029da621e9c14078cc263f988ad6e70b35004a8374fa592314e",
+            "link": "https://explorer.rail402.dev/tx/db43a84109b45029da621e9c14078cc263f988ad6e70b35004a8374fa592314e",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "3936c9dc87cc9be509b3cf5cb1b39c27b236181322052a388cb547f574896954",
+            "link": "https://explorer.rail402.dev/tx/3936c9dc87cc9be509b3cf5cb1b39c27b236181322052a388cb547f574896954",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81",
+            "link": "https://explorer.rail402.dev/tx/9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "3d4d18510d4b2e1c44e5a0e9e0736d16950a3f2b55734b8b9f5a3fd5f1c9861e",
+            "link": "https://explorer.rail402.dev/tx/3d4d18510d4b2e1c44e5a0e9e0736d16950a3f2b55734b8b9f5a3fd5f1c9861e",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "5c06123898b1871fd095e027ed9c13b15f9cce258b47fa7314708b30e87571fc",
+            "link": "https://explorer.rail402.dev/tx/5c06123898b1871fd095e027ed9c13b15f9cce258b47fa7314708b30e87571fc",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "b8912821b79bcbc27fb8cea05f0b18139df6e8bedaf1d09e644e03a345379da6",
+            "link": "https://explorer.rail402.dev/tx/b8912821b79bcbc27fb8cea05f0b18139df6e8bedaf1d09e644e03a345379da6",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          },
+          {
+            "hash": "8d257c3b491b5e824ed039d108562010b5381a69863c19ea699b767475665c6c",
+            "link": "https://explorer.rail402.dev/tx/8d257c3b491b5e824ed039d108562010b5381a69863c19ea699b767475665c6c",
+            "status": 200,
+            "namesHash": true,
+            "attempts": 1
+          }
+        ],
+        "transactions": [
+          {
+            "hash": "6506db26990e73be5188e1bc8685ee9627af2ea1943d625d1cd721c2adcbe905",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/6506db26990e73be5188e1bc8685ee9627af2ea1943d625d1cd721c2adcbe905",
+            "apiStatus": 200,
+            "ledger": 65337270,
+            "attempts": 1
+          },
+          {
+            "hash": "55c3dcfffcb75682e4eb6406fda5a129b26b3fd1d50f3679056069e780810d54",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/55c3dcfffcb75682e4eb6406fda5a129b26b3fd1d50f3679056069e780810d54",
+            "apiStatus": 200,
+            "ledger": 65337273,
+            "attempts": 1
+          },
+          {
+            "hash": "ecc00268a17443386d11ad1e465d19363798fb76ec1d55db4803e2844d0b87e6",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/ecc00268a17443386d11ad1e465d19363798fb76ec1d55db4803e2844d0b87e6",
+            "apiStatus": 200,
+            "ledger": 65337276,
+            "attempts": 1
+          },
+          {
+            "hash": "b1b9a9d5be036b7ab82ffe31dd8fa40d0c96d23af6ee89f0b2328b2356545cc2",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/b1b9a9d5be036b7ab82ffe31dd8fa40d0c96d23af6ee89f0b2328b2356545cc2",
+            "apiStatus": 200,
+            "ledger": 65337279,
+            "attempts": 1
+          },
+          {
+            "hash": "727ebc445cd70d3a54c6e93afdc769f1b6330c5d5d8bec581fbe242cb9fd96df",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/727ebc445cd70d3a54c6e93afdc769f1b6330c5d5d8bec581fbe242cb9fd96df",
+            "apiStatus": 200,
+            "ledger": 65337282,
+            "attempts": 1
+          },
+          {
+            "hash": "db43a84109b45029da621e9c14078cc263f988ad6e70b35004a8374fa592314e",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/db43a84109b45029da621e9c14078cc263f988ad6e70b35004a8374fa592314e",
+            "apiStatus": 200,
+            "ledger": 65337285,
+            "attempts": 1
+          },
+          {
+            "hash": "3936c9dc87cc9be509b3cf5cb1b39c27b236181322052a388cb547f574896954",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/3936c9dc87cc9be509b3cf5cb1b39c27b236181322052a388cb547f574896954",
+            "apiStatus": 200,
+            "ledger": 65337288,
+            "attempts": 1
+          },
+          {
+            "hash": "9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/9b53ec070eb54581e6e08de1063f14579d34648f0443dd76330c2a5874aa2a81",
+            "apiStatus": 200,
+            "ledger": 65337290,
+            "attempts": 1
+          },
+          {
+            "hash": "3d4d18510d4b2e1c44e5a0e9e0736d16950a3f2b55734b8b9f5a3fd5f1c9861e",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/3d4d18510d4b2e1c44e5a0e9e0736d16950a3f2b55734b8b9f5a3fd5f1c9861e",
+            "apiStatus": 200,
+            "ledger": 65337292,
+            "attempts": 1
+          },
+          {
+            "hash": "5c06123898b1871fd095e027ed9c13b15f9cce258b47fa7314708b30e87571fc",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/5c06123898b1871fd095e027ed9c13b15f9cce258b47fa7314708b30e87571fc",
+            "apiStatus": 200,
+            "ledger": 65337294,
+            "attempts": 1
+          },
+          {
+            "hash": "b8912821b79bcbc27fb8cea05f0b18139df6e8bedaf1d09e644e03a345379da6",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/b8912821b79bcbc27fb8cea05f0b18139df6e8bedaf1d09e644e03a345379da6",
+            "apiStatus": 200,
+            "ledger": 65337296,
+            "attempts": 1
+          },
+          {
+            "hash": "8d257c3b491b5e824ed039d108562010b5381a69863c19ea699b767475665c6c",
+            "explorerUrl": "https://stellar.expert/explorer/public/tx/8d257c3b491b5e824ed039d108562010b5381a69863c19ea699b767475665c6c",
+            "apiStatus": 200,
+            "ledger": 65337301,
+            "attempts": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "secret-scan",
+      "title": "No channel an agent or a user sees carries the payer's seed, a signature, a preimage or a signed authorization",
+      "checks": [
+        "agent-payments"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 34,
+      "observations": {
+        "secretScan": {
+          "channels": 59,
+          "needles": 30,
+          "hits": 0
+        }
+      }
+    },
+    {
+      "id": "sweep-back",
+      "title": "the run's USDC is back in the operator treasury and its accounts are merged",
+      "checks": [
+        "pubnet-config"
+      ],
+      "status": "passed",
+      "elapsedMs": 0,
+      "observations": {
+        "sweep": {
+          "status": "done",
+          "transactions": [
+            "839612ec948d5cda6bf67a75fceef3e03205b8d93536b3280d74a1f2fa328bab"
+          ],
+          "problems": 0,
+          "stranded": {
+            "usdcBaseUnits": "0",
+            "xlmStroops": "0",
+            "accounts": []
+          }
+        }
+      }
+    }
+  ]
+}

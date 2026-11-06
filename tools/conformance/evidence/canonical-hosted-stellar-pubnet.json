@@ -1,0 +1,358 @@
+{
+  "schemaVersion": 2,
+  "kind": "canonical",
+  "runId": "52fd7703-2c9d-4992-b716-a6e0c47d7e7d",
+  "startedAt": "2026-11-06T13:55:01.874Z",
+  "finishedAt": "2026-11-06T13:56:19.752Z",
+  "network": "stellar:pubnet",
+  "target": {
+    "mode": "hosted",
+    "facilitatorUrl": "https://mainnet.rail402.dev",
+    "healthVersion": "0.5.3",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:pubnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GB4Q4CNTXRVWAMN6O5B4QPK2IMO3Z5DOXG4II43H6BUIPQFSMZS3AOJ4"
+          }
+        }
+      ],
+      "extensions": [
+        "bazaar"
+      ],
+      "signers": {
+        "stellar:*": [
+          "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "GB4Q4CNTXRVWAMN6O5B4QPK2IMO3Z5DOXG4II43H6BUIPQFSMZS3AOJ4"
+        ]
+      }
+    }
+  },
+  "harness": {
+    "commit": "53f3650393e6b394b6ecb0dc9e97b7387e3cda73",
+    "dirty": false
+  },
+  "profile": {
+    "id": "pubnet",
+    "funding": "treasury",
+    "rpcProviders": [
+      "mainnet.sorobanrpc.com"
+    ],
+    "caps": {
+      "maxXlmStroops": "80000000",
+      "maxUsdcBaseUnits": "1000000",
+      "maxSettlements": 30,
+      "maxNewAccounts": 4
+    },
+    "spent": {
+      "xlmStroops": "61300800",
+      "usdcBaseUnits": "200000",
+      "settlements": 2,
+      "newAccounts": 3
+    },
+    "returned": {
+      "xlmStroops": "59999100",
+      "usdcBaseUnits": "200000"
+    },
+    "sweep": {
+      "status": "done",
+      "transactions": [
+        "624937b5a534aff2e502e8e1f3cc2c4b2918d8d94be5e9a6b6f134b5257de92a",
+        "5098e6bc1846b2ec86c3a2c76e6681e9e69dd276dd43a84c4b535c5630f5434b",
+        "b93314b051f854a378cce548108f2e6921d25a494912101bcad497b585695da0"
+      ],
+      "stranded": {
+        "usdcBaseUnits": "0",
+        "xlmStroops": "0"
+      }
+    },
+    "run": {
+      "id": "b437b7239766b5e0",
+      "spent": {
+        "xlmStroops": "61300800",
+        "usdcBaseUnits": "200000",
+        "settlements": 2,
+        "newAccounts": 3
+      },
+      "returned": {
+        "xlmStroops": "59999100",
+        "usdcBaseUnits": "200000"
+      },
+      "caps": {
+        "maxNetXlmStroops": "70000000",
+        "maxNetUsdcBaseUnits": "1000000"
+      }
+    }
+  },
+  "packages": {
+    "@x402/core": "2.29.0",
+    "@x402/fetch": "2.29.0",
+    "@x402/express": "2.29.0",
+    "@x402/stellar": "2.29.0",
+    "@stellar/stellar-sdk": "16.4.1",
+    "@rail402.dev/upto": "0.5.2"
+  },
+  "command": "node tools/conformance/src/canonical.ts --facilitator https://mainnet.rail402.dev --scheme exact,upto --asset usdc --payer g --network pubnet",
+  "config": {
+    "usdc.price": "$0.001",
+    "usdc.resource": "GET /weather",
+    "upto.usdc.cap": "$0.001",
+    "upto.usdc.resource": "GET /metered-weather",
+    "upto.usdc.charge": "50%"
+  },
+  "accounts": {
+    "treasury": "GDGPIU7FOU6N7N7PSCWLFIGR2YSH6AKQ4U7YFKGMM4AFOW3SP6QIT2LU",
+    "payTo": "GB72Y4B7M3AR2L5PGA6AEO2UVE7DDHC7MUI64RBMGUXPDZUHYFPUODEA",
+    "exact-usdc-g-payer": "GAQ77SZDSBGE2VRRKI22HVPD7TAZOACMM3KT34IBIZ35J775FMO5JEMX",
+    "upto-usdc-g-payer": "GCB23YFYUSDPU5YQF6G55C5ITK6TY7OEN6K4USXCGKY34KK47XRX4MQB"
+  },
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "supported",
+      "title": "/supported advertises exact on stellar:pubnet with areFeesSponsored, like x402.org's Stellar kind",
+      "checks": [
+        "supported",
+        "fees-sponsored"
+      ],
+      "status": "passed",
+      "elapsedMs": 400,
+      "observations": {
+        "reference": {
+          "url": "https://x402.org/facilitator/supported",
+          "available": true,
+          "stellarKinds": [
+            {
+              "x402Version": 2,
+              "scheme": "exact",
+              "network": "stellar:testnet",
+              "extra": {
+                "areFeesSponsored": true
+              }
+            }
+          ],
+          "sameShape": false
+        }
+      }
+    },
+    {
+      "id": "supported-upto",
+      "title": "/supported advertises upto on stellar:pubnet with areFeesSponsored and its settlement authority as a signer",
+      "checks": [
+        "supported",
+        "fees-sponsored",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "status": "passed",
+      "elapsedMs": 0,
+      "observations": {
+        "kind": {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:pubnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GB4Q4CNTXRVWAMN6O5B4QPK2IMO3Z5DOXG4II43H6BUIPQFSMZS3AOJ4"
+          }
+        }
+      }
+    },
+    {
+      "id": "exact-usdc-g-payer",
+      "title": "the stock @x402/fetch client pays a stock @x402/express seller in USDC (G… payer)",
+      "checks": [
+        "canonical-client",
+        "payload-transaction",
+        "scheme-exact",
+        "fees-sponsored"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 25863,
+      "transactions": [
+        {
+          "hash": "e117ad3230268f347dc4870388407771a521f7b882dc01cf008b56691e468e1f",
+          "ledger": 65337459,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "12203",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "innerSequence": "280498137938788532",
+          "transfers": [
+            {
+              "from": "GAQ77SZDSBGE2VRRKI22HVPD7TAZOACMM3KT34IBIZ35J775FMO5JEMX",
+              "to": "GB72Y4B7M3AR2L5PGA6AEO2UVE7DDHC7MUI64RBMGUXPDZUHYFPUODEA",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/e117ad3230268f347dc4870388407771a521f7b882dc01cf008b56691e468e1f",
+          "envelopeXdr": "AAAABQAAAADaRlaoyRoNWawyAvLRrEKmsa6FpdREG8PGbHTUo5WQIQAAAAAAAEShAAAAAgAAAAD5w2Sto8Rbr2eLVVu8sdgkKfxWa/G3JQt+uhFamMYpDgAAQ9kD5IeSAAAAtAAAAAEAAAAAAAAAAAAAAABq7d2EAAAAAAAAAAEAAAAAAAAAGAAAAAAAAAABre/OWa7lKWj3YGHUlMJSW3Vln6QpamX0me8p5WR35JYAAAAIdHJhbnNmZXIAAAADAAAAEgAAAAAAAAAAIf/LI5BMTVYxUjWj1eP8wZcATGbVPfEBRnfU//0rHdQAAAASAAAAAAAAAAB/rHA/ZsEdL68wPAI7VKk+MZxfZRHuRCw1LvHmh8FfRwAAAAoAAAAAAAAAAAAAAAAAACcQAAAAAQAAAAEAAAAAAAAAACH/yyOQTE1WMVI1o9Xj/MGXAExm1T3xAUZ31P/9Kx3UVPRInFjDu3ID5PitAAAAEAAAAAEAAAABAAAAEQAAAAEAAAACAAAADwAAAApwdWJsaWNfa2V5AAAAAAANAAAAICH/yyOQTE1WMVI1o9Xj/MGXAExm1T3xAUZ31P/9Kx3UAAAADwAAAAlzaWduYXR1cmUAAAAAAAANAAAAQBx84Ac6p4lEWaWoQAbMXeI+dd02Wixxo2+O12E8OjgR+AWN6yuZaZz3tZcexzlMblIX8M2SAaCcOzvhLgMQMQsAAAAAAAAAAa3vzlmu5Slo92Bh1JTCUlt1ZZ+kKWpl9JnvKeVkd+SWAAAACHRyYW5zZmVyAAAAAwAAABIAAAAAAAAAACH/yyOQTE1WMVI1o9Xj/MGXAExm1T3xAUZ31P/9Kx3UAAAAEgAAAAAAAAAAf6xwP2bBHS+vMDwCO1SpPjGcX2UR7kQsNS7x5ofBX0cAAAAKAAAAAAAAAAAAAAAAAAAnEAAAAAAAAAABAAAAAAAAAAIAAAAAAAAAACH/yyOQTE1WMVI1o9Xj/MGXAExm1T3xAUZ31P/9Kx3UAAAABgAAAAGt785ZruUpaPdgYdSUwlJbdWWfpClqZfSZ7ynlZHfklgAAABQAAAABAAAAAwAAAAEAAAAAIf/LI5BMTVYxUjWj1eP8wZcATGbVPfEBRnfU//0rHdQAAAABVVNEQwAAAAA7mRE4Dv6Yi6CokA6xz+RPNm99vpRr7QdyQPf2JN8VxQAAAAEAAAAAf6xwP2bBHS+vMDwCO1SpPjGcX2UR7kQsNS7x5ofBX0cAAAABVVNEQwAAAAA7mRE4Dv6Yi6CokA6xz+RPNm99vpRr7QdyQPf2JN8VxQAAAAYAAAAAAAAAACH/yyOQTE1WMVI1o9Xj/MGXAExm1T3xAUZ31P/9Kx3UAAAAFVT0SJxYw7tyAAAAAAAQZigAAAF4AAABNAAAAAAAAEMRAAAAAZjGKQ4AAABAYSE3qztNBiWTta7g22SeAmURts1utyaRRQuqHgqIMpq0pyZ7st+lxN0GeIdI+kNIEInlCSRNID309NLgzoLiBgAAAAAAAAABo5WQIQAAAED62wSmTrLFgqmKqQ2san/xppmzx93TDpnVuH6r1wdeTiV4PF1oUuvw/pcKEAAH5RmcwJ22hSCU6v/gUm7HRN0N",
+          "resultXdr": "AAAAAAAAL6sAAAABVpTFTiurK0HNMwPXcFF8ZbBktXqYbTAeFZ+5smsVcKgAAAAAAAAAAAAAAAAAAAABAAAAAAAAABgAAAAA0C0uAXqr9TyHBJkodlcqsLCQjKiv9OxtWbKSfXUD9DMAAAAAAAAAAA=="
+        }
+      ],
+      "observations": {
+        "client": "@x402/fetch wrapFetchWithPaymentFromConfig + @x402/stellar ExactStellarScheme (unmodified)",
+        "elapsedMs": 8997,
+        "wire": {
+          "scheme": "exact",
+          "payloadKeys": [
+            "transaction"
+          ],
+          "forwardedByteEqual": true,
+          "verifyStatus": 200,
+          "settleStatus": 200,
+          "paymentResponse": {
+            "success": true,
+            "payer": "GAQ77SZDSBGE2VRRKI22HVPD7TAZOACMM3KT34IBIZ35J775FMO5JEMX",
+            "transaction": "e117ad3230268f347dc4870388407771a521f7b882dc01cf008b56691e468e1f",
+            "network": "stellar:pubnet"
+          },
+          "authorizationEntryByteEqual": true,
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/supported",
+              "status": 200
+            },
+            {
+              "method": "POST",
+              "path": "/verify",
+              "status": 200
+            },
+            {
+              "method": "POST",
+              "path": "/settle",
+              "status": 200
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "upto-usdc-g-payer",
+      "title": "a G… payer authorizes an upto cap with the stock @x402/fetch client and @rail402.dev/upto; a stock @x402/express seller charges half of it in USDC",
+      "checks": [
+        "scheme-upto",
+        "fees-sponsored"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 20779,
+      "transactions": [
+        {
+          "hash": "ccc5ad8cf6a48b50003861b9a23f0eb59bad380b26377dbdf0bc181eeccf9ea9",
+          "ledger": 65337463,
+          "scheme": "upto",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "5000",
+          "payerType": "G",
+          "feeChargedStroops": "21981",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "innerSequence": "280498137938788533",
+          "transfers": [
+            {
+              "from": "GCB23YFYUSDPU5YQF6G55C5ITK6TY7OEN6K4USXCGKY34KK47XRX4MQB",
+              "to": "GB72Y4B7M3AR2L5PGA6AEO2UVE7DDHC7MUI64RBMGUXPDZUHYFPUODEA",
+              "amount": "5000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/ccc5ad8cf6a48b50003861b9a23f0eb59bad380b26377dbdf0bc181eeccf9ea9",
+          "envelopeXdr": "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",
+          "resultXdr": "AAAAAAAAVd0AAAABIkT5HMPXVw9QsVe3oBWJ2U6Fd3PKlh6QTMnkmU8/CVsAAAAAAAAAAAAAAAAAAAABAAAAAAAAABgAAAAA+LDfJRVcXnK/WArqG/hz4tmkg68lzOkzw62odztSVvQAAAAAAAAAAA=="
+        }
+      ],
+      "observations": {
+        "client": "@x402/fetch wrapFetchWithPaymentFromConfig + @rail402.dev/upto UptoStellarScheme client (unmodified)",
+        "elapsedMs": 5632,
+        "wire": {
+          "scheme": "upto",
+          "payloadKeys": [
+            "authorization"
+          ],
+          "cap": "10000",
+          "settledAmount": "5000",
+          "forwardedByteEqual": true,
+          "verifyStatus": 200,
+          "settleStatus": 200,
+          "paymentResponse": {
+            "success": true,
+            "payer": "GCB23YFYUSDPU5YQF6G55C5ITK6TY7OEN6K4USXCGKY34KK47XRX4MQB",
+            "transaction": "ccc5ad8cf6a48b50003861b9a23f0eb59bad380b26377dbdf0bc181eeccf9ea9",
+            "network": "stellar:pubnet",
+            "amount": "5000"
+          },
+          "authorizationEntryByteEqual": true,
+          "exchanges": [
+            {
+              "method": "POST",
+              "path": "/verify",
+              "status": 200
+            },
+            {
+              "method": "POST",
+              "path": "/settle",
+              "status": 200
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "sweep-back",
+      "title": "the run's USDC is back in the operator treasury and its accounts are merged",
+      "checks": [
+        "pubnet-config"
+      ],
+      "status": "passed",
+      "elapsedMs": 0,
+      "observations": {
+        "sweep": {
+          "status": "done",
+          "transactions": [
+            "624937b5a534aff2e502e8e1f3cc2c4b2918d8d94be5e9a6b6f134b5257de92a",
+            "5098e6bc1846b2ec86c3a2c76e6681e9e69dd276dd43a84c4b535c5630f5434b",
+            "b93314b051f854a378cce548108f2e6921d25a494912101bcad497b585695da0"
+          ],
+          "problems": 0,
+          "stranded": {
+            "usdcBaseUnits": "0",
+            "xlmStroops": "0",
+            "accounts": []
+          }
+        }
+      }
+    }
+  ]
+}
