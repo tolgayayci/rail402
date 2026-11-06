@@ -85,6 +85,7 @@ import {
   loadDeploymentRecord,
   renderDeploymentRecord,
   renderDeployments,
+  UPTO_PUBNET_DEPLOYMENT_RECORD,
   type DeploymentRecord,
 } from "./render-deployment.ts";
 
@@ -93,6 +94,8 @@ export interface ReportContext {
   readonly threats: ThreatRegistry;
   /** The `upto` settlement contract's testnet deployment record. */
   readonly deployment: DeploymentRecord;
+  /** The `upto` settlement contract's pubnet deployment record. */
+  readonly pubnetDeployment: DeploymentRecord;
 }
 
 const THREAT_TOPICS = [
@@ -288,8 +291,9 @@ export const PAGES: readonly PageSpec[] = [
   {
     path: "docs/reference/upto-contract.mdx",
     blocks: {
-      deployments: ({ deployment }) => renderDeployments(deployment),
+      deployments: ({ deployment, pubnetDeployment }) => renderDeployments(deployment, pubnetDeployment),
       "deployment-record": ({ deployment }) => renderDeploymentRecord(deployment),
+      "pubnet-deployment-record": ({ pubnetDeployment }) => renderDeploymentRecord(pubnetDeployment),
     },
   },
   {
@@ -364,6 +368,7 @@ export async function renderAll(root = REPO_ROOT, pages = PAGES): Promise<Render
     evidence,
     threats: loadThreats(root),
     deployment: loadDeploymentRecord(root),
+    pubnetDeployment: loadDeploymentRecord(root, UPTO_PUBNET_DEPLOYMENT_RECORD),
   };
   const rendered: RenderedFile[] = [];
   for (const spec of pages) {

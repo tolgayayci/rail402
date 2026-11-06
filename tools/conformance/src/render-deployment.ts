@@ -9,6 +9,9 @@ import { z } from "zod";
 /** The `upto` settlement contract's testnet deployment record. */
 export const UPTO_DEPLOYMENT_RECORD = "contracts/stellar/deployments/testnet.json";
 
+/** The `upto` settlement contract's pubnet deployment record. */
+export const UPTO_PUBNET_DEPLOYMENT_RECORD = "contracts/stellar/deployments/pubnet.json";
+
 const transaction = z.object({ tx: z.string().regex(/^[0-9a-f]{64}$/), ledger: z.number().int().positive() });
 
 const liveUntil = z.object({ instance: z.number().int(), code: z.number().int() });
@@ -87,16 +90,20 @@ const code = (value: string | number): string => `\`${String(value)}\``;
 const revision = (repository: string, commit: string): string =>
   `[${code(commit)}](${repository.replace(/\/$/, "")}/commit/${commit})`;
 
-/** The network, address and code hash of the deployment, with a link to it in an explorer. */
-export function renderDeployments(record: DeploymentRecord): string {
-  const network = record.caip2.replace(/^stellar:/, "");
-  return [
-    table(
-      ["Network", "Contract", "WASM SHA-256"],
-      [[code(record.caip2), code(record.contract_id), code(record.wasm_sha256)]],
-    ),
-    `[View it on stellar.expert](https://stellar.expert/explorer/${network}/contract/${record.contract_id}).`,
-  ].join("\n\n");
+/** stellar.expert's page for a contract; it names pubnet `public`. */
+const explorerUrl = (record: DeploymentRecord): string =>
+  `https://stellar.expert/explorer/${record.caip2 === "stellar:pubnet" ? "public" : record.caip2.replace(/^stellar:/, "")}/contract/${record.contract_id}`;
+
+/** The network, address and code hash of each deployment, each linked to its page in an explorer. */
+export function renderDeployments(...records: readonly DeploymentRecord[]): string {
+  return table(
+    ["Network", "Contract", "WASM SHA-256"],
+    records.map((record) => [
+      code(record.caip2),
+      `[${code(record.contract_id)}](${explorerUrl(record)})`,
+      code(record.wasm_sha256),
+    ]),
+  );
 }
 
 /** Every provenance field of the deployment record. */

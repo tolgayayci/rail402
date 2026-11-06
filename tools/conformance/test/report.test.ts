@@ -17,7 +17,12 @@ import {
   renderUpstreamRuns,
 } from "../src/render-report.ts";
 import { HOSTED_BAZAAR_NOT_APPLICABLE } from "../src/upstream-e2e-output.ts";
-import { loadDeploymentRecord, renderDeploymentRecord, renderDeployments } from "../src/render-deployment.ts";
+import {
+  loadDeploymentRecord,
+  renderDeploymentRecord,
+  renderDeployments,
+  UPTO_PUBNET_DEPLOYMENT_RECORD,
+} from "../src/render-deployment.ts";
 
 describe("generated pages", () => {
   // Rendering every page reads all the evidence and formats each page: seconds on a loaded runner.
@@ -58,6 +63,13 @@ describe("the settlement contract page", () => {
     expect(revision(renderDeploymentRecord(moved))).not.toContain(record.commit);
     expect(renderDeployments(record)).toContain(
       `https://stellar.expert/explorer/testnet/contract/${record.contract_id}`,
+    );
+    const pubnet = loadDeploymentRecord(REPO_ROOT, UPTO_PUBNET_DEPLOYMENT_RECORD);
+    for (const value of [pubnet.contract_id, pubnet.commit, pubnet.transactions.deploy.tx]) {
+      expect(page).toContain(value);
+    }
+    expect(renderDeployments(record, pubnet)).toContain(
+      `https://stellar.expert/explorer/public/contract/${pubnet.contract_id}`,
     );
   });
 
@@ -444,7 +456,12 @@ describe("report sections across runs", () => {
     ];
     expect(block).toBeDefined();
     const render = (set: EvidenceSet) =>
-      block?.({ evidence: set, threats: {} as never, deployment: {} as never }) ?? "";
+      block?.({
+        evidence: set,
+        threats: {} as never,
+        deployment: {} as never,
+        pubnetDeployment: {} as never,
+      }) ?? "";
     const both = render(setOf([runFileName(local), local], [runFileName(hosted), hosted]));
     expect(both).toContain("`tools/conformance/evidence/rejection-audit-stellar-testnet.json`");
     expect(both).toContain("`tools/conformance/evidence/rejection-audit-hosted-stellar-testnet.json`");

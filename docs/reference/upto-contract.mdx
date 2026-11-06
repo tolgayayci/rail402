@@ -13,20 +13,17 @@ source is [`contracts/stellar/upto`](https://github.com/tolgayayci/rail402/tree/
 
 {/* generated:begin deployments */}
 
-| Network           | Contract                                                   | WASM SHA-256                                                       |
-| ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
-| `stellar:testnet` | `CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U` | `cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797` |
-
-[View it on stellar.expert](https://stellar.expert/explorer/testnet/contract/CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U).
+| Network           | Contract                                                                                                                                                                | WASM SHA-256                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `stellar:testnet` | [`CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U`](https://stellar.expert/explorer/testnet/contract/CBTVKCHLSGQ3WSV3NKSU6FZR4FZMC6ENMDMXUS5XQ66HYVUUHYE3TU7U) | `cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797` |
+| `stellar:pubnet`  | [`CAHZA4BYDJFQLNYX43LVPKN676IDELNIKP7BOYF2CT7MR2OG2BAZZHT4`](https://stellar.expert/explorer/public/contract/CAHZA4BYDJFQLNYX43LVPKN676IDELNIKP7BOYF2CT7MR2OG2BAZZHT4)  | `cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797` |
 
 {/* generated:end */}
 
-On pubnet the same WASM is deployed at
-[`CAHZA4BYDJFQLNYX43LVPKN676IDELNIKP7BOYF2CT7MR2OG2BAZZHT4`](https://stellar.expert/explorer/public/contract/CAHZA4BYDJFQLNYX43LVPKN676IDELNIKP7BOYF2CT7MR2OG2BAZZHT4),
-from the attested release, verified against its source. Its record, with the source commit and every
-transaction, is `contracts/stellar/deployments/pubnet.json`. `@rail402.dev/upto` reserves
-`UPTO_PUBNET_DEPLOYMENT` for it, and it is `undefined` until a release sets it. A facilitator serving `upto` on
-pubnet configures its contract and WASM hash
+Both networks run the same WASM. The pubnet contract was deployed from the attested release and verified
+against its source; its record is below. `@rail402.dev/upto` leaves `UPTO_PUBNET_DEPLOYMENT` undefined, so
+`upto` on pubnet is always opted into explicitly: a buyer names the contract (`uptoContracts`), and a
+facilitator serving `upto` on pubnet configures its contract and WASM hash
 (`PUBNET_UPTO_CONTRACT`, `PUBNET_UPTO_WASM_HASH`), and refuses to start (or, serving several networks,
 holds pubnet) if the live contract is absent or runs other code.
 
@@ -90,6 +87,30 @@ the same source built with the SEP-58 recipe of the test contracts (no `--optimi
 metadata); that contract stays on chain unchanged, but `@rail402.dev/upto` no longer names it.
 `@rail402.dev/upto` exports the deployment as `UPTO_TESTNET_DEPLOYMENT`, and a Rail402 service uses it on
 testnet unless `TESTNET_UPTO_CONTRACT` names another contract.
+
+The pubnet deployment record is
+[`contracts/stellar/deployments/pubnet.json`](https://github.com/tolgayayci/rail402/blob/main/contracts/stellar/deployments/pubnet.json).
+Verify it with `scripts/contracts/verify.sh --network pubnet`.
+
+{/* generated:begin pubnet-deployment-record */}
+
+| Field                  | Value                                                                                                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source revision        | [`30438fc2eb85c18ef3d7b0076654fcfa8f966f55`](https://github.com/tolgayayci/rail402/commit/30438fc2eb85c18ef3d7b0076654fcfa8f966f55) (`contracts/stellar/upto`) |
+| Source archive SHA-256 | `c783ef0838c7d2c235ded5c4e28b8303e7d7e387362ff868f0a3cc5018802343`                                                                                             |
+| Build image            | `docker.io/stellar/stellar-cli:28.0.0-rust1.98.0-slim-trixie-amd64-0@sha256:3901802ef2324ff9563a50995279818ca4b98938b45e1dab0e1e7c5d69adb5a9`                  |
+| Build options          | `--locked` `--optimize`                                                                                                                                        |
+| Build CLI              | `stellar` 28.1.0                                                                                                                                               |
+| WASM size              | 4,451 bytes                                                                                                                                                    |
+| Deployer               | `GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY`                                                                                                     |
+| Salt                   | `sha256("x402-upto-stellar/v1.1")` = `379714072c27ad068d175a4e64017065e569fb9fd33b9c7c8b59428741f7330b`                                                        |
+| Upload                 | `6e7e9967844f8b73e31cc3a85209adca1e7ec89ee4b412e3fe13c28354989f55` (ledger 65308169)                                                                           |
+| Deploy                 | `c05705aa9d28ee9be02847d384e5ee115e72ac57bb9ea76a04182b5576af9746` (ledger 65308171)                                                                           |
+| Instance TTL extension | `c0b77b40de3a3678d66c9bc6a4886e41a7d48d49bb09b3648f0e6959b55e06b2` (ledger 65308173), live until ledger 68418572                                               |
+| Code TTL extension     | `9c7fef426fb601d92c8f130c23dead7506a6abb7a7dfab4ab77096a6285851a5` (ledger 65308175), live until ledger 68418574                                               |
+| Deployment CLI         | `stellar` 28.0.0                                                                                                                                               |
+
+{/* generated:end */}
 
 ## Interface
 

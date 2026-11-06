@@ -27,6 +27,7 @@ interface DeploymentRecord {
 
 const read = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 const RECORD = read("../../../contracts/stellar/deployments/testnet.json") as DeploymentRecord;
+const PUBNET_RECORD = read("../../../contracts/stellar/deployments/pubnet.json") as DeploymentRecord;
 const TEST6_RECORD = read("../../../contracts/testing/deployments/test6-testnet.json") as DeploymentRecord & {
   constructor: { symbol: string; decimals: number };
 };
@@ -82,6 +83,25 @@ describe("testnet deployment", () => {
     const deployed = RECORD.transactions["deploy"]?.ledger ?? Infinity;
     expect(RECORD.live_until_ledger.instance).toBeGreaterThan(deployed + 3_000_000);
     expect(RECORD.live_until_ledger.code).toBeGreaterThan(deployed + 3_000_000);
+  });
+});
+
+describe("pubnet deployment", () => {
+  it("matches its deployment record and runs the same wasm as testnet", () => {
+    expect(PUBNET_RECORD).toMatchObject({ contract: "upto", network: "pubnet", caip2: "stellar:pubnet" });
+    expect(PUBNET_RECORD.network_passphrase).toBe(Networks.PUBLIC);
+    expect(PUBNET_RECORD.wasm_sha256).toBe(PROVENANCE.wasm_sha256);
+    expect(PUBNET_RECORD.source_sha256).toBe(PROVENANCE.source_sha256);
+  });
+
+  it("sits at the address derived from the deployer and the canonical salt", () => {
+    expect(PUBNET_RECORD.salt).toBe(UPTO_DEPLOYMENT_SALT_HEX);
+    expect(
+      contractAddress(PUBNET_RECORD.network_passphrase, PUBNET_RECORD.deployer, PUBNET_RECORD.salt),
+    ).toBe(PUBNET_RECORD.contract_id);
+    for (const step of ["upload", "deploy", "extend_instance", "extend_code"]) {
+      expect(PUBNET_RECORD.transactions[step]?.tx, step).toMatch(/^[0-9a-f]{64}$/);
+    }
   });
 });
 
