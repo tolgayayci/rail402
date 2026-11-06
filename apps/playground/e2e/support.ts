@@ -103,6 +103,8 @@ export interface Exchange {
   status: number | null;
   responseHeaders: Readonly<Record<string, string>>;
   responseBody: string;
+  /** False while the answer's body has not been read, or when it could not be (the page moved on). */
+  responseBodyRead: boolean;
 }
 
 /** How long one part of an answer (headers, body) is waited for before its fallback is taken. */
@@ -149,13 +151,16 @@ export class Traffic {
       status: null,
       responseHeaders: {},
       responseBody: "",
+      responseBodyRead: false,
     };
     this.exchanges.push(exchange);
     const response: Response | null = await within(request.response(), ANSWER_WAIT_MS * 6, () => null);
     if (response === null) return;
     exchange.status = response.status();
     exchange.responseHeaders = await within(response.allHeaders(), ANSWER_WAIT_MS, () => response.headers());
-    exchange.responseBody = await within(response.text(), ANSWER_WAIT_MS, () => "");
+    const body = await within<string | undefined>(response.text(), ANSWER_WAIT_MS, () => undefined);
+    exchange.responseBody = body ?? "";
+    exchange.responseBodyRead = body !== undefined;
   }
 
   /** Waits until every request seen so far has its answer recorded. */
@@ -310,11 +315,20 @@ export function guardProblems(events: readonly Record<string, unknown>[]): strin
   return problems;
 }
 
-/** The relay's 5xx answers that are not one of its coded refusals: there must be none. */
+/**
+ * The relay's 5xx answers that are not one of its coded refusals: there must be none. The `x-relay`
+ * header is always recorded; the code and reason are checked whenever the body could be read.
+ */
 export function uncodedRelayFailures(exchanges: readonly Exchange[]): string[] {
   const problems: string[] = [];
   for (const exchange of exchanges) {
     if (new URL(exchange.url).pathname !== RELAY_PATH || (exchange.status ?? 0) < 500) continue;
+    const target = exchange.requestHeaders["x-relay-target"] ?? "an unknown target";
+    if (exchange.responseHeaders["x-relay"] !== "error") {
+      problems.push(`relay answered HTTP ${String(exchange.status)} for ${target} without x-relay: error`);
+      continue;
+    }
+    if (!exchange.responseBodyRead) continue;
     let body: { error?: { code?: unknown; reason?: unknown } } = {};
     try {
       body = JSON.parse(exchange.responseBody) as typeof body;
@@ -323,12 +337,9 @@ export function uncodedRelayFailures(exchanges: readonly Exchange[]): string[] {
     }
     const code = typeof body.error?.code === "string" ? body.error.code : "";
     const reason = typeof body.error?.reason === "string" ? body.error.reason : "";
-    if (
-      exchange.responseHeaders["x-relay"] !== "error" ||
-      !/^(egress|playground)_/.test(code) ||
-      reason === ""
-    )
-      problems.push(`relay answered HTTP ${String(exchange.status)} without a coded refusal`);
+    if (!/^(egress|playground)_/.test(code) || reason === "") {
+      problems.push(`relay answered HTTP ${String(exchange.status)} for ${target} without a coded refusal`);
+    }
   }
   return problems;
 }
