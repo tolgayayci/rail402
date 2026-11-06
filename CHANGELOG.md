@@ -1,6 +1,20 @@
 # Changelog
 
-## 0.5.3 — unreleased
+## 0.5.4 — 2026-11-06
+
+Service and tooling only: no npm package changes.
+
+- The Explorer overview shows the network's latest ledger next to how far the index has read, refreshed every
+  five seconds, from a new `GET /api/v1/{network}/status`. The ledger it showed before was the newest ledger
+  with activity, which stands still while the network has none.
+- The settlement contract page lists the pubnet `upto` deployment with its full record.
+- The status page opens with a status band over one board of checks, which now includes the pubnet demo
+  seller, and lists incidents.
+- The live conformance runs open and close their accounts per case, so a pubnet run holds little XLM, and
+  sign their offline transfers for the network the run is on. The pubnet agent run checks the buyer
+  defaults: a paid resource must be listed, and the MCP server and CLI require a verified domain.
+
+## 0.5.3 — 2026-11-05
 
 Service and tooling only: no npm package changes.
 
