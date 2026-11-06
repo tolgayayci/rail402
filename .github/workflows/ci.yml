@@ -44,9 +44,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm pack:check
 
+  # Four shards, each with its own Postgres and private Stellar network: the suites spend most of their
+  # time waiting for ledgers, so one runner was the whole wait.
   integration:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -66,13 +72,14 @@ jobs:
       - name: Fetch and verify the embedding model
         run: pnpm models:fetch
       - name: Search evaluation gate
+        if: matrix.shard == 1
         run: pnpm eval:check
       - name: Start Postgres and a private Stellar network
         run: docker compose --profile stellar up -d --wait --wait-timeout 300
       # The self-host test runs this image with no internet access (apps/rail402/test/image.integration.test.ts).
       - name: Build the service image for the self-host test
         run: docker build -t rail402:selfhost .
-      - run: pnpm test:integration
+      - run: pnpm test:integration --shard=${{ matrix.shard }}/4
         env:
           RAIL402_IMAGE: rail402:selfhost
       - name: Service logs on failure
