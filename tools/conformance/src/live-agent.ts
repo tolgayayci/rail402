@@ -118,6 +118,7 @@ import {
   ProfileNetwork,
   assertSwept,
   feeCeilingStroops,
+  UPTO_PUBNET_RECORD,
   parseNetworkId,
   profileEvidence,
   resolveProfile,
@@ -213,7 +214,11 @@ const OTHER_ASSET = PUBNET
   ? Asset.native().contractId(PASSPHRASE)
   : "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK";
 /** What a pubnet payer is funded with: the most the run's agent can spend, and its session budget. */
-const PUBNET_PAYER_USDC = "0.1";
+const PUBNET_PAYER_USDC = "0.05";
+/** The upto contract a pubnet buyer pins: the published deployment record, which the agent process can read. */
+const PUBNET_UPTO_CONTRACT = PUBNET
+  ? (JSON.parse(readFileSync(UPTO_PUBNET_RECORD, "utf8")) as { contract_id: string }).contract_id
+  : "";
 /** The most payments a pubnet run makes, counted against the run's settlement cap. */
 const PUBNET_MAX_PAYMENTS = 30;
 /** The agent's session budget: on pubnet, all the payer holds. */
@@ -1030,7 +1035,10 @@ async function runAgent(
         ? {
             // Pubnet pins the upto settlement authorities; the run, not a person, confirms payments.
             RAIL402_UPTO_FACILITATORS: authority,
+            RAIL402_UPTO_CONTRACTS: PUBNET_UPTO_CONTRACT,
             RAIL402_MCP_CONFIRM: "never",
+            // Direct payments are what most cases exercise; `listing-required` proves the pubnet default.
+            RAIL402_REQUIRE_LISTING: "false",
           }
         : {
             // The hosted seller is https on 443; plain http and loopback stay allowed for the impostor.
@@ -1191,6 +1199,13 @@ async function runAgent(
             sessionTotal: SESSION_TOTAL,
           },
         ],
+        ...(PUBNET
+          ? {
+              requireCatalogListing: false,
+              uptoContracts: [PUBNET_UPTO_CONTRACT],
+              uptoFacilitators: [authority],
+            }
+          : {}),
       },
       // On pubnet only the default egress policy: https on 443 to public addresses.
       egress: PUBNET
@@ -1421,19 +1436,22 @@ async function runAgent(
       strictEqual(first.version, 1);
       strictEqual(first.cause, "settlement", "version 1 was created by a settlement");
       strictEqual(first.owner, payTo, "the settlement that cataloged it paid the listing's owner");
-      const catalogedBy = first.transaction ?? "";
-      ok(/^[0-9a-f]{64}$/.test(catalogedBy), "version 1 names its settlement transaction");
+      const catalogedBy = first.transaction;
+      // Pubnet publishes usage counts only: its history never links a settlement, and so a payer, to a listing.
+      if (PUBNET) strictEqual(catalogedBy, undefined, "a pubnet history names no settlement");
+      else ok(/^[0-9a-f]{64}$/.test(catalogedBy ?? ""), "version 1 names its settlement transaction");
       ok(
         Math.abs(Date.parse(first.createdAt) - Date.parse(summary.firstCataloged)) < 1_000,
         "version 1 is the listing's first cataloging",
       );
       if (hosted === undefined) strictEqual(catalogedBy, payment.hash, "this run's payment cataloged it");
-      explorerHashes.add(catalogedBy);
+      if (catalogedBy !== undefined) explorerHashes.add(catalogedBy);
       context.observe("cataloging", {
         listingId,
         firstCataloged: summary.firstCataloged,
-        catalogedBy,
-        catalogedByThisRun: catalogedBy === payment.hash,
+        ...(catalogedBy === undefined
+          ? {}
+          : { catalogedBy, catalogedByThisRun: catalogedBy === payment.hash }),
         settlements: summary.settlements,
         lastSettled: summary.lastSettled,
         versions: versions.map((version) => ({
@@ -1845,6 +1863,37 @@ async function runAgent(
       ok(result.isError, JSON.stringify(result.content));
       return result.content["error"] as { code: string; reason: string; paid: string };
     };
+    if (PUBNET) {
+      await recorder.run(
+        spec(
+          "listing-required",
+          "By default a pubnet buyer pays only what it selected from a Bazaar listing, before signing",
+          agentChecks("rejection-codes"),
+        ),
+        async (context) => {
+          const options = buyerOptions();
+          const { requireCatalogListing: _requireCatalogListing, ...policy } =
+            options.policy as Sdk.SpendingPolicyInput;
+          const strict = await sdk.createBuyer({ ...options, policy });
+          const before = await balances();
+          try {
+            await refused(context, "sdk", "pay outside a listing", "payment_listing_required", () =>
+              sdkFailure(
+                strict.pay(
+                  { kind: "http", url: `${seller}/weather`, query: { city: "Ankara" } },
+                  { maxAmount },
+                ),
+              ),
+            );
+          } finally {
+            await strict.close();
+          }
+          strictEqual((await balances()).payer, before.payer, "nothing moved");
+          context.observe("balancesUnchanged", true);
+        },
+      );
+    }
+
     await recorder.run(
       spec(
         "cap-below-price",
@@ -2129,6 +2178,7 @@ async function runAgent(
                 },
               ],
               recipients: { deny: [payTo] },
+              ...(PUBNET ? { requireCatalogListing: false } : {}),
             },
           }),
         );

@@ -233,7 +233,19 @@ export function liveAgentProblems(evidence: Evidence): string[] {
     if (cataloging !== undefined) {
       const [first] = Array.isArray(cataloging.versions) ? cataloging.versions : [];
       const by = cataloging.catalogedBy;
-      if (typeof by !== "string" || first?.cause !== "settlement" || first.transaction !== by) {
+      // A pubnet history links no settlement, so its first version names none.
+      if (
+        evidence.network === "stellar:pubnet" &&
+        by === undefined &&
+        first?.cause === "settlement" &&
+        first.transaction === undefined
+      ) {
+        if (typeof cataloging.firstCataloged !== "string") {
+          problems.push(`${entry.id}: the cataloging record has no first cataloging time`);
+        } else if (typeof kind === "string" && entry.status === "passed") {
+          cataloged.add(kind);
+        }
+      } else if (typeof by !== "string" || first?.cause !== "settlement" || first.transaction !== by) {
         problems.push(`${entry.id}: the cataloging record does not name the settlement of version 1`);
       } else if (typeof cataloging.firstCataloged !== "string") {
         problems.push(`${entry.id}: the cataloging record has no first cataloging time`);
