@@ -5,6 +5,8 @@
  * page prints these reasons.
  */
 export const UNEXERCISED: Readonly<Record<string, string>> = {
+  explorer_internal_error:
+    "The Explorer's catch-all for an exception no route expected; every failure a test or run provokes (a bad parameter or cursor, a busy lookup, an unavailable index, a rate limit) answers with its own code.",
   method_not_allowed:
     "Part of the shared HTTP set; the service does not return it. A method a route does not serve is answered like an unknown route, with `not_found` (rejection audit case `unknown-route`).",
 };
