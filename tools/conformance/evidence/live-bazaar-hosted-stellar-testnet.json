@@ -1,0 +1,2630 @@
+{
+  "schemaVersion": 2,
+  "kind": "live-bazaar",
+  "runId": "86b5bb50-d70c-437e-a396-a102dd6acdb4",
+  "startedAt": "2026-11-07T11:41:46.774Z",
+  "finishedAt": "2026-11-07T12:02:30.230Z",
+  "network": "stellar:testnet",
+  "target": {
+    "mode": "hosted",
+    "facilitatorUrl": "https://testnet.rail402.dev",
+    "healthVersion": "0.5.4",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:testnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GBAQ3BGTI3THOPSLXCAAJNHOH7LGU477RFXOQ6NVECNVOTCABEAEI6SX"
+          }
+        }
+      ],
+      "extensions": [
+        "bazaar"
+      ],
+      "signers": {
+        "stellar:*": [
+          "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "GBELAB7H5MOJQLEZLC4UE4MKKL3K6QDOLHY6UWE3AJOEZXHXI7YJG52A",
+          "GARF3UCQO2RRAMFEAEMWJYYU3SHAAAP57HY5YX5GQ4NXBAWSGF2HIDLZ",
+          "GCZSK2TAJPXVJNPQCCTMAJOQJLCL24JAASCQRUCHHBYJ6VJTXL3KZGHM",
+          "GB2IEXLDAE6W4YGJPWJHFXBSO4T4YQBDMXEBOAPOLBTTFUWTQETFV6SI",
+          "GAJKK6RUBWRBWR3P7BXYMZ3ARY4V7MIA7R6DYS5APG74Q3QEQZXW5H7F",
+          "GBJJN6OD7OXKQHBIT4GSOK2OHSGUGVH73ARQKSBLCRLXB53YK5TLJ7OA",
+          "GBYJEY2I7WWFTFQF5LDGEQVO2QEG74FBEAB3XF4T2PLFNDUXI5LRSK7J",
+          "GBIRIZ4GG3ENX4ZXOYLNEK3LPLX2WBYOQVOVIYVG4KC5YVEIVYL2OQXV",
+          "GCHZZHJS6ECQE3ZLL2GTEAPB2WRDBSIPK6K7LKIU5TD2VEHEPNJVGAB6",
+          "GA3O6DK775F3OWQ35XJ2QOKLVJF52GXX3GMRAKSA5UPDJXMU7HIEOWXM",
+          "GD7NFBCSZC6R6UVHYP4LGYMFXKFZFQZUXORLGKKOHXOXEUTNOSKSQFXN",
+          "GARNQRUPOIG6O5QXZTNGZR2WSILAH4EKWN5GCXK22HJMPISCMPCVALCO",
+          "GBSNDNN3HLXW633VD43LRGH6F4UE576ZYOL7JFUEANYHJ7X6W4V3LFW4",
+          "GCYS6VN4X4WTTWWDNHIUBZFEZBXJX5KJHUVSLRLZZ2DUGIEPAHAHMFM4",
+          "GAYEVWAGRDU537EDK7NAWOHW7NSNND4TUCEAOZJDRQX6VK4VXDKKMLNZ",
+          "GCZFSLFOHITZTMJYA6ZETN6K7GTC6UCM6N6MR4KAP6RSXJRBCZ5XX5UX",
+          "GBI2AUZWQ2GIMRYFSJDIA6HMPLH33CHLCYLSN6AA7X2VXCLKENOXY5OO",
+          "GA7MU3FIE7MSS4K4BMX6PKYCLAMQLONHUFT5XKLC623777KA3UAROCJZ",
+          "GDV2R6IGJSSE4MPDATO7H7NTQ6NNBIB42BGNPQUWQLEZD3HMKHMJ6XDJ",
+          "GDJPZO5EMARR63RF2LPRRORYO4DDIUTSQIKJNPJD4OVAOGCDVE3Y2M4Y",
+          "GB6PPHXE2UOHJGKFFNKRG4SNSRTE3GIJ5R26AZTJW53Y5MQ2JWC67KXL",
+          "GBJTKAOUKF37YKU5MAT4F25HVD55B2NVGCPEDHIBPZJQGZKMQWNV3UDB",
+          "GCEVJHVAWRAVFRWZXMLZBLRSDTQYLEUMGXQ3AUIVYLAWNPAOHEM34BKJ",
+          "GAQYXF2SZAGZ4366PX5GYXKVRBIIY6E5KAVTGAYI5HQAGMCJS6IOXEKQ",
+          "GBAQ3BGTI3THOPSLXCAAJNHOH7LGU477RFXOQ6NVECNVOTCABEAEI6SX"
+        ]
+      }
+    }
+  },
+  "harness": {
+    "commit": "a05e902d55a6890a459a556d5c447db82bf0366b",
+    "dirty": false
+  },
+  "upstreamDrift": {
+    "fingerprint": "3557568c42955b14eb4bfe423fe33631fbb29800cbee694f39499ffa6a6c34ed"
+  },
+  "packages": {
+    "@x402/core": "2.29.0",
+    "@x402/express": "2.29.0",
+    "@x402/extensions": "2.29.0",
+    "@x402/stellar": "2.29.0",
+    "@stellar/stellar-sdk": "16.4.1",
+    "@rail402.dev/sdk": "0.5.2",
+    "@rail402.dev/upto": "0.5.2"
+  },
+  "command": "node --conditions=@rail402/source tools/conformance/src/live-bazaar.ts --facilitator https://testnet.rail402.dev --seller https://demo.rail402.dev",
+  "config": {
+    "seller": "https://demo.rail402.dev",
+    "secondSeller": "started by the run on 127.0.0.1",
+    "redirectingSeller": "started by the run on 127.0.0.1",
+    "test6.price": "0.01 TEST6 (6 decimals) at GET /tides",
+    "upto.cap": "0.01 USDC at GET /metered-tides",
+    "upto.charge": "40000 base units",
+    "apiKey": "none",
+    "mcpClaimantAccount": "derived"
+  },
+  "accounts": {
+    "treasury": "GBR3ODOTFOPGAAD6E5MJYHQYD6KBCNVJNVFVQ56EPERLQM7R7HATUSHW",
+    "secondSellerPayTo": "GAFUVALZNSE4272CC5QTQU6ZP7N63HPV6ULHCW2GGCMIOUIAFULKWQV3",
+    "mcpClaimant": "GA2JQYNKGB263KHZJAGTHQ6YVOQ24ZPOXDASPDEVGLHSGNL2WV5IT2SW",
+    "test6": "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK"
+  },
+  "summary": {
+    "total": 31,
+    "passed": 24,
+    "failed": 0,
+    "skipped": 7
+  },
+  "cases": [
+    {
+      "id": "http-listed",
+      "title": "an HTTP resource is cataloged after settlement and listed once its own 402 confirms it",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 18730,
+      "transactions": [
+        {
+          "hash": "f79e1c91428ff903cb39e64ff2d22c1db70d20531c1fa1bc8a483867f562cfd0",
+          "ledger": 5605628,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GAJKK6RUBWRBWR3P7BXYMZ3ARY4V7MIA7R6DYS5APG74Q3QEQZXW5H7F",
+          "innerSequence": "23034072817205301",
+          "transfers": [
+            {
+              "from": "GAEFF2RI7JMHVDBYKCG6E7CJMSD3O2DVZRD6T25LFGRP7HFP4Z2N4CKJ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/f79e1c91428ff903cb39e64ff2d22c1db70d20531c1fa1bc8a483867f562cfd0"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "f79e1c91428ff903cb39e64ff2d22c1db70d20531c1fa1bc8a483867f562cfd0",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 152
+          }
+        ],
+        "listing": {
+          "id": "96eab768-fe71-47c4-9325-8907a4d6da78",
+          "state": "published",
+          "trust": "domain_verified",
+          "resource": "https://demo.rail402.dev/weather",
+          "version": 4
+        },
+        "versions": [
+          {
+            "version": 1,
+            "cause": "settlement",
+            "state": "pending"
+          },
+          {
+            "version": 2,
+            "cause": "origin_verification",
+            "state": "published"
+          },
+          {
+            "version": 3,
+            "cause": "domain_verification",
+            "state": "published"
+          },
+          {
+            "version": 4,
+            "cause": "origin_verification",
+            "state": "published"
+          }
+        ]
+      }
+    },
+    {
+      "id": "duplicate-settlement",
+      "title": "a repeated settlement is recorded once and creates no listing",
+      "checks": [
+        "discovery",
+        "idempotency"
+      ],
+      "status": "passed",
+      "elapsedMs": 12109,
+      "transactions": [
+        {
+          "hash": "d28565efaffbed47322104df7491d2e124e004fe8376068d2eda480f248c58b7",
+          "ledger": 5605631,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GARNQRUPOIG6O5QXZTNGZR2WSILAH4EKWN5GCXK22HJMPISCMPCVALCO",
+          "innerSequence": "23034072817205302",
+          "transfers": [
+            {
+              "from": "GCBJT3BBVKJI665VABCQUIZWLN2RSRKFIPGY3JM3SMLLNOFVYXKNBUA7",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/d28565efaffbed47322104df7491d2e124e004fe8376068d2eda480f248c58b7"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "d28565efaffbed47322104df7491d2e124e004fe8376068d2eda480f248c58b7",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 152
+          },
+          {
+            "transaction": "d28565efaffbed47322104df7491d2e124e004fe8376068d2eda480f248c58b7",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 236
+          }
+        ]
+      }
+    },
+    {
+      "id": "settlement-reused",
+      "title": "one settlement catalogs at most one resource",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 14740,
+      "transactions": [
+        {
+          "hash": "c0dd26b90202851ffc868a421b2790c3886808d2cc215c15cc03f4fffc701d29",
+          "ledger": 5605634,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GAYEVWAGRDU537EDK7NAWOHW7NSNND4TUCEAOZJDRQX6VK4VXDKKMLNZ",
+          "innerSequence": "23034072817205302",
+          "transfers": [
+            {
+              "from": "GBXJUVHUBFOHMPVQJEEKU5R6T5XG6VNOVWTOMY4LJCKPEOLIAS7MDRQ4",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/c0dd26b90202851ffc868a421b2790c3886808d2cc215c15cc03f4fffc701d29"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "c0dd26b90202851ffc868a421b2790c3886808d2cc215c15cc03f4fffc701d29",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 152
+          },
+          {
+            "transaction": "c0dd26b90202851ffc868a421b2790c3886808d2cc215c15cc03f4fffc701d29",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_settlement_reused",
+              "rejectedReason": "This settlement already cataloged another resource; one payment catalogs at most one resource."
+            },
+            "headerBytes": 324
+          }
+        ]
+      }
+    },
+    {
+      "id": "route-template",
+      "title": "a route with parameters is one listing under its route template",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 31030,
+      "transactions": [
+        {
+          "hash": "9a810d8fdd4a2eb4b949e8b06ad0502a0e79734134c140770494b6bf70acc775",
+          "ledger": 5605637,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBI2AUZWQ2GIMRYFSJDIA6HMPLH33CHLCYLSN6AA7X2VXCLKENOXY5OO",
+          "innerSequence": "23034072817205304",
+          "transfers": [
+            {
+              "from": "GDJ7DXWWHTRNJFO2C2EA5PAWOPT4UKBTEM5DJOJFDLRJA74SP42WASGQ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/9a810d8fdd4a2eb4b949e8b06ad0502a0e79734134c140770494b6bf70acc775"
+        },
+        {
+          "hash": "3d68a08064b2999d5274402994a735815bba9ac46fa289156cbad31491a18bc3",
+          "ledger": 5605640,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GA7MU3FIE7MSS4K4BMX6PKYCLAMQLONHUFT5XKLC623777KA3UAROCJZ",
+          "innerSequence": "23034072817205303",
+          "transfers": [
+            {
+              "from": "GCI6YRXBQP75LQ27ALISN2FBRVPYWLMEA2EJ6QLS43CGLUKRGWQARXN6",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/3d68a08064b2999d5274402994a735815bba9ac46fa289156cbad31491a18bc3"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "9a810d8fdd4a2eb4b949e8b06ad0502a0e79734134c140770494b6bf70acc775",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "a26c5676-c0f7-416c-87c1-10d776040246",
+              "version": 4
+            },
+            "headerBytes": 152
+          },
+          {
+            "transaction": "3d68a08064b2999d5274402994a735815bba9ac46fa289156cbad31491a18bc3",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "a26c5676-c0f7-416c-87c1-10d776040246",
+              "version": 4
+            },
+            "headerBytes": 152
+          }
+        ],
+        "listing": {
+          "id": "a26c5676-c0f7-416c-87c1-10d776040246",
+          "state": "published",
+          "trust": "domain_verified",
+          "resource": "https://demo.rail402.dev/users/:id",
+          "version": 4
+        },
+        "versions": [
+          {
+            "version": 1,
+            "cause": "settlement",
+            "state": "pending"
+          },
+          {
+            "version": 2,
+            "cause": "origin_verification",
+            "state": "published"
+          },
+          {
+            "version": 3,
+            "cause": "domain_verification",
+            "state": "published"
+          },
+          {
+            "version": 4,
+            "cause": "origin_verification",
+            "state": "published"
+          }
+        ]
+      }
+    },
+    {
+      "id": "post-body",
+      "title": "a POST resource with a JSON body is listed with its method",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 20390,
+      "transactions": [
+        {
+          "hash": "e4b69ed9d535a64c90053ca0732fa7e1153c5ec94e39299c3acecf70f3e943b2",
+          "ledger": 5605644,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "20000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GAQYXF2SZAGZ4366PX5GYXKVRBIIY6E5KAVTGAYI5HQAGMCJS6IOXEKQ",
+          "innerSequence": "23034077112172599",
+          "transfers": [
+            {
+              "from": "GDWL3K46TNRXSFQZGHOGT2HGYJD5C2HIE572TM2HXPJOPABAVO42AXHT",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "20000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/e4b69ed9d535a64c90053ca0732fa7e1153c5ec94e39299c3acecf70f3e943b2"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "e4b69ed9d535a64c90053ca0732fa7e1153c5ec94e39299c3acecf70f3e943b2",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "06bcaaa2-2b6e-4e71-b3b3-87ee443de7ee",
+              "version": 4
+            },
+            "headerBytes": 152
+          }
+        ],
+        "listing": {
+          "id": "06bcaaa2-2b6e-4e71-b3b3-87ee443de7ee",
+          "state": "published",
+          "trust": "domain_verified",
+          "resource": "https://demo.rail402.dev/translate",
+          "version": 4
+        },
+        "versions": [
+          {
+            "version": 1,
+            "cause": "settlement",
+            "state": "pending"
+          },
+          {
+            "version": 2,
+            "cause": "origin_verification",
+            "state": "published"
+          },
+          {
+            "version": 3,
+            "cause": "domain_verification",
+            "state": "published"
+          },
+          {
+            "version": 4,
+            "cause": "origin_verification",
+            "state": "published"
+          }
+        ]
+      }
+    },
+    {
+      "id": "owner-conflict",
+      "title": "a different payTo cannot take over or modify a listing",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 30064,
+      "transactions": [
+        {
+          "hash": "b7b4487d7ac500f887301957c5cd27bb697d245d33a544a4a557cf0500c4143c",
+          "ledger": 5605647,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GA3O6DK775F3OWQ35XJ2QOKLVJF52GXX3GMRAKSA5UPDJXMU7HIEOWXM",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GAUH6LDLVLW5AG5EK3OEKQAQFV7VVPKXBJXATZAI6LLPUVSYDADIMBCQ",
+              "to": "GA2JQYNKGB263KHZJAGTHQ6YVOQ24ZPOXDASPDEVGLHSGNL2WV5IT2SW",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/b7b4487d7ac500f887301957c5cd27bb697d245d33a544a4a557cf0500c4143c"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "b7b4487d7ac500f887301957c5cd27bb697d245d33a544a4a557cf0500c4143c",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_owner_conflict",
+              "rejectedReason": "This resource is cataloged for a different payTo. The resource's own 402 response will be checked; the listing changes owner only if it names this payTo.",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78"
+            },
+            "headerBytes": 384
+          }
+        ]
+      }
+    },
+    {
+      "id": "forged-metadata",
+      "title": "metadata echoed by a buyer never changes a listing on its own",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 37967,
+      "transactions": [
+        {
+          "hash": "e2fe2e9fe3de0cb38817130dd6182e1d278fcb1e4d7f83d8542ad1fc15460448",
+          "ledger": 5605654,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GB6PPHXE2UOHJGKFFNKRG4SNSRTE3GIJ5R26AZTJW53Y5MQ2JWC67KXL",
+          "innerSequence": "23034077112172602",
+          "transfers": [
+            {
+              "from": "GB37LGC3HMI5OW3V6QBYUMVYDNCRE6B62O527JGVMEU4ZRLFDRXKC7UW",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/e2fe2e9fe3de0cb38817130dd6182e1d278fcb1e4d7f83d8542ad1fc15460448"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "e2fe2e9fe3de0cb38817130dd6182e1d278fcb1e4d7f83d8542ad1fc15460448",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The listing's metadata or price changed; the change is published once the resource's own 402 response confirms it.",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 348
+          }
+        ]
+      }
+    },
+    {
+      "id": "soft-drop",
+      "title": "invalid optional metadata is dropped without failing the payment",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 23930,
+      "transactions": [
+        {
+          "hash": "c777582f8a4ab96391196dea9c0a3a5432a36fb7f4084a9823e0c1f1f1d053af",
+          "ledger": 5605662,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GDJPZO5EMARR63RF2LPRRORYO4DDIUTSQIKJNPJD4OVAOGCDVE3Y2M4Y",
+          "innerSequence": "23034077112172602",
+          "transfers": [
+            {
+              "from": "GAEFF2RI7JMHVDBYKCG6E7CJMSD3O2DVZRD6T25LFGRP7HFP4Z2N4CKJ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/c777582f8a4ab96391196dea9c0a3a5432a36fb7f4084a9823e0c1f1f1d053af"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "c777582f8a4ab96391196dea9c0a3a5432a36fb7f4084a9823e0c1f1f1d053af",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4,
+              "dropped": [
+                "serviceName",
+                "tags"
+              ]
+            },
+            "headerBytes": 196
+          }
+        ]
+      }
+    },
+    {
+      "id": "schema-rejected",
+      "title": "metadata is validated against its schema; a rejection never fails the payment",
+      "checks": [
+        "discovery",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 28725,
+      "transactions": [
+        {
+          "hash": "88eb9c679e1d7ab480fbc4faf20957d45d530eefd4b73b07ce3e69d056b551b9",
+          "ledger": 5605668,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GDV2R6IGJSSE4MPDATO7H7NTQ6NNBIB42BGNPQUWQLEZD3HMKHMJ6XDJ",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GCBJT3BBVKJI665VABCQUIZWLN2RSRKFIPGY3JM3SMLLNOFVYXKNBUA7",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/88eb9c679e1d7ab480fbc4faf20957d45d530eefd4b73b07ce3e69d056b551b9"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "88eb9c679e1d7ab480fbc4faf20957d45d530eefd4b73b07ce3e69d056b551b9",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_schema_external_reference",
+              "rejectedReason": "The bazaar `schema` references \"https://example.com/schema.json\"; only same-document references (#…) are allowed."
+            },
+            "headerBytes": 284
+          }
+        ]
+      }
+    },
+    {
+      "id": "header-bounded",
+      "title": "an outcome quoting a huge buyer input stays within any HTTP client's header limit",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 18844,
+      "transactions": [
+        {
+          "hash": "9dace7586f78552fe0b3794d9b858fd37a54f74a68ec45ecdc7e31c1a03bc4e5",
+          "ledger": 5605672,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GARF3UCQO2RRAMFEAEMWJYYU3SHAAAP57HY5YX5GQ4NXBAWSGF2HIDLZ",
+          "innerSequence": "23034072817205370",
+          "transfers": [
+            {
+              "from": "GBXJUVHUBFOHMPVQJEEKU5R6T5XG6VNOVWTOMY4LJCKPEOLIAS7MDRQ4",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/9dace7586f78552fe0b3794d9b858fd37a54f74a68ec45ecdc7e31c1a03bc4e5"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "9dace7586f78552fe0b3794d9b858fd37a54f74a68ec45ecdc7e31c1a03bc4e5",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_info_unsupported",
+              "rejectedReason": "info.input.type must be \"http\" or \"mcp\", got \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            },
+            "headerBytes": 520
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-x402",
+      "title": "a URL that is not an x402 resource is never listed",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 18426,
+      "transactions": [
+        {
+          "hash": "028652446be4f4622857acdd9c98d24c19f47f7c6f0427d24d47a580e17a8d4d",
+          "ledger": 5605675,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GD7NFBCSZC6R6UVHYP4LGYMFXKFZFQZUXORLGKKOHXOXEUTNOSKSQFXN",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GDJ7DXWWHTRNJFO2C2EA5PAWOPT4UKBTEM5DJOJFDLRJA74SP42WASGQ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/028652446be4f4622857acdd9c98d24c19f47f7c6f0427d24d47a580e17a8d4d"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "028652446be4f4622857acdd9c98d24c19f47f7c6f0427d24d47a580e17a8d4d",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "4f7d8243-5a6c-4156-b78f-9568e6f6745e",
+              "version": 1
+            },
+            "headerBytes": 320
+          }
+        ],
+        "listing": {
+          "id": "4f7d8243-5a6c-4156-b78f-9568e6f6745e",
+          "state": "quarantined",
+          "trust": "settled",
+          "resource": "https://demo.rail402.dev/health",
+          "version": 2
+        },
+        "versions": [
+          {
+            "version": 1,
+            "cause": "settlement",
+            "state": "pending"
+          },
+          {
+            "version": 2,
+            "cause": "quarantine",
+            "state": "quarantined"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mcp-tool",
+      "title": "an MCP tool is listed once its own unpaid call confirms it, keyed by endpoint and tool name and scoped to its owner",
+      "checks": [
+        "discovery",
+        "mcp"
+      ],
+      "status": "passed",
+      "elapsedMs": 44236,
+      "transactions": [
+        {
+          "hash": "fd886cc0a99e6876b23a7b430c643ab727a6cb5f2dfc4461ffeb4020894a9e9d",
+          "ledger": 5605680,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GCZSK2TAJPXVJNPQCCTMAJOQJLCL24JAASCQRUCHHBYJ6VJTXL3KZGHM",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GCI6YRXBQP75LQ27ALISN2FBRVPYWLMEA2EJ6QLS43CGLUKRGWQARXN6",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/fd886cc0a99e6876b23a7b430c643ab727a6cb5f2dfc4461ffeb4020894a9e9d"
+        },
+        {
+          "hash": "354ac8517aa84823a2d3f5ee74855764ae4388ab101f39f9d8875de6fa4f9a66",
+          "ledger": 5605684,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBELAB7H5MOJQLEZLC4UE4MKKL3K6QDOLHY6UWE3AJOEZXHXI7YJG52A",
+          "innerSequence": "23034072817205469",
+          "transfers": [
+            {
+              "from": "GDWL3K46TNRXSFQZGHOGT2HGYJD5C2HIE572TM2HXPJOPABAVO42AXHT",
+              "to": "GA2JQYNKGB263KHZJAGTHQ6YVOQ24ZPOXDASPDEVGLHSGNL2WV5IT2SW",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/354ac8517aa84823a2d3f5ee74855764ae4388ab101f39f9d8875de6fa4f9a66"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "fd886cc0a99e6876b23a7b430c643ab727a6cb5f2dfc4461ffeb4020894a9e9d",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "34a3139b-2e76-4e86-a94c-2012560f4bf9",
+              "version": 8
+            },
+            "headerBytes": 152
+          },
+          {
+            "transaction": "354ac8517aa84823a2d3f5ee74855764ae4388ab101f39f9d8875de6fa4f9a66",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "bdbe5631-f20b-4225-a8b8-d9cd66e00ffb",
+              "version": 1
+            },
+            "headerBytes": 320
+          }
+        ],
+        "listing": {
+          "id": "34a3139b-2e76-4e86-a94c-2012560f4bf9",
+          "state": "published",
+          "trust": "domain_verified",
+          "resource": "https://demo.rail402.dev/mcp",
+          "version": 8
+        },
+        "versions": [
+          {
+            "version": 1,
+            "cause": "settlement",
+            "state": "published"
+          },
+          {
+            "version": 2,
+            "cause": "domain_verification",
+            "state": "published"
+          },
+          {
+            "version": 3,
+            "cause": "quarantine",
+            "state": "quarantined"
+          },
+          {
+            "version": 4,
+            "cause": "origin_verification",
+            "state": "published"
+          },
+          {
+            "version": 5,
+            "cause": "domain_verification",
+            "state": "published"
+          },
+          {
+            "version": 6,
+            "cause": "domain_verification",
+            "state": "published"
+          },
+          {
+            "version": 7,
+            "cause": "domain_verification",
+            "state": "published"
+          },
+          {
+            "version": 8,
+            "cause": "domain_verification",
+            "state": "published"
+          }
+        ]
+      }
+    },
+    {
+      "id": "stellar-facts",
+      "title": "a listing carries its token's on-chain facts, whether payTo can receive it, and its domain's SEP-1 claim",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 330,
+      "observations": {
+        "listing": {
+          "id": "96eab768-fe71-47c4-9325-8907a4d6da78",
+          "state": "published",
+          "trust": "domain_verified",
+          "resource": "https://demo.rail402.dev/weather",
+          "version": 4
+        },
+        "versions": [
+          {
+            "version": 1,
+            "cause": "settlement",
+            "state": "pending"
+          },
+          {
+            "version": 2,
+            "cause": "origin_verification",
+            "state": "published"
+          },
+          {
+            "version": 3,
+            "cause": "domain_verification",
+            "state": "published"
+          },
+          {
+            "version": 4,
+            "cause": "origin_verification",
+            "state": "published"
+          }
+        ]
+      }
+    },
+    {
+      "id": "discovery",
+      "title": "GET /discovery/resources filters by type, payTo, network and extensions and pages stably",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 1792,
+      "observations": {
+        "catalog": [
+          {
+            "resource": "https://demo.rail402.dev/weather",
+            "type": "http",
+            "extensions": [
+              "bazaar"
+            ],
+            "listings": [
+              {
+                "id": "96eab768-fe71-47c4-9325-8907a4d6da78",
+                "network": "stellar:testnet",
+                "trust": "domain_verified",
+                "version": 4,
+                "settlements": 760
+              }
+            ]
+          },
+          {
+            "resource": "https://demo.rail402.dev/users/:id",
+            "type": "http",
+            "extensions": [
+              "bazaar"
+            ],
+            "listings": [
+              {
+                "id": "a26c5676-c0f7-416c-87c1-10d776040246",
+                "network": "stellar:testnet",
+                "trust": "domain_verified",
+                "version": 4,
+                "settlements": 266
+              }
+            ]
+          },
+          {
+            "resource": "https://demo.rail402.dev/translate",
+            "type": "http",
+            "extensions": [
+              "bazaar",
+              "payment-identifier"
+            ],
+            "listings": [
+              {
+                "id": "06bcaaa2-2b6e-4e71-b3b3-87ee443de7ee",
+                "network": "stellar:testnet",
+                "trust": "domain_verified",
+                "version": 4,
+                "settlements": 33
+              }
+            ]
+          },
+          {
+            "resource": "https://demo.rail402.dev/mcp",
+            "type": "mcp",
+            "extensions": [
+              "bazaar"
+            ],
+            "listings": [
+              {
+                "id": "34a3139b-2e76-4e86-a94c-2012560f4bf9",
+                "network": "stellar:testnet",
+                "trust": "domain_verified",
+                "version": 8,
+                "settlements": 6
+              }
+            ]
+          },
+          {
+            "resource": "https://demo.rail402.dev/mcp",
+            "type": "mcp",
+            "extensions": [
+              "bazaar"
+            ],
+            "listings": [
+              {
+                "id": "74afa4c2-e780-456f-aeb2-3fc12c9cfa8a",
+                "network": "stellar:testnet",
+                "trust": "domain_verified",
+                "version": 3,
+                "settlements": 55
+              }
+            ]
+          },
+          {
+            "resource": "https://demo.rail402.dev/history",
+            "type": "http",
+            "extensions": [
+              "bazaar"
+            ],
+            "listings": [
+              {
+                "id": "c53c2877-9d6b-432f-85e7-9b73a8e7f1d2",
+                "network": "stellar:testnet",
+                "trust": "domain_verified",
+                "version": 8,
+                "settlements": 55
+              }
+            ]
+          },
+          {
+            "resource": "https://demo.rail402.dev/mcp",
+            "type": "mcp",
+            "extensions": [
+              "bazaar"
+            ],
+            "listings": [
+              {
+                "id": "87445c2b-5e40-48ce-b4e7-c93651e2fbc7",
+                "network": "stellar:testnet",
+                "trust": "domain_verified",
+                "version": 6,
+                "settlements": 32
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsafe-private-address",
+      "title": "a resource on a private, carrier-grade NAT, link-local, metadata, IPv6 unique-local or local-only host, also spelled as a decimal, hex or IPv4-mapped address, is refused",
+      "checks": [
+        "discovery",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 285600,
+      "rejections": [
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://10.0.0.1/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"10.0.0.1\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://172.16.0.1/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"172.16.0.1\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://192.168.1.10/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"192.168.1.10\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://100.64.0.1/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"100.64.0.1\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://169.254.169.254/latest/meta-data/",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"169.254.169.254\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://[fd00:ec2::254]/latest/meta-data/",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"[fd00:ec2::254]\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://[fe80::1]/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"[fe80::1]\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://[::ffff:10.0.0.1]/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"[::ffff:a00:1]\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://167772161/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"10.0.0.1\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://0xa9fea9fe/latest/meta-data/",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"169.254.169.254\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://metadata.google.internal/computeMetadata/v1/",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"metadata.google.internal\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://intranet/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"intranet\" is not a public host."
+        }
+      ],
+      "transactions": [
+        {
+          "hash": "15e504b1bf9ecb24035c0a93ec91531d79f1400fc9b42bd31f395a46d299dd5b",
+          "ledger": 5605693,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GCYS6VN4X4WTTWWDNHIUBZFEZBXJX5KJHUVSLRLZZ2DUGIEPAHAHMFM4",
+          "innerSequence": "23034072817205304",
+          "transfers": [
+            {
+              "from": "GAEFF2RI7JMHVDBYKCG6E7CJMSD3O2DVZRD6T25LFGRP7HFP4Z2N4CKJ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/15e504b1bf9ecb24035c0a93ec91531d79f1400fc9b42bd31f395a46d299dd5b"
+        },
+        {
+          "hash": "5a9dd4fe83f840a85263f592267fc40f93182419cd1711524d7efd3ce1ef024b",
+          "ledger": 5605697,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GCHZZHJS6ECQE3ZLL2GTEAPB2WRDBSIPK6K7LKIU5TD2VEHEPNJVGAB6",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GCBJT3BBVKJI665VABCQUIZWLN2RSRKFIPGY3JM3SMLLNOFVYXKNBUA7",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/5a9dd4fe83f840a85263f592267fc40f93182419cd1711524d7efd3ce1ef024b"
+        },
+        {
+          "hash": "89c563c54bf5f4ca07f1db14e930999f54ecf32509dcc945ade1b01b5ced6e4f",
+          "ledger": 5605701,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GCEVJHVAWRAVFRWZXMLZBLRSDTQYLEUMGXQ3AUIVYLAWNPAOHEM34BKJ",
+          "innerSequence": "23034077112172601",
+          "transfers": [
+            {
+              "from": "GBXJUVHUBFOHMPVQJEEKU5R6T5XG6VNOVWTOMY4LJCKPEOLIAS7MDRQ4",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/89c563c54bf5f4ca07f1db14e930999f54ecf32509dcc945ade1b01b5ced6e4f"
+        },
+        {
+          "hash": "8d3bae061eead4df6162e302c27c3f41849e9f8826817f5de7a06cc95d7d4878",
+          "ledger": 5605704,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBYJEY2I7WWFTFQF5LDGEQVO2QEG74FBEAB3XF4T2PLFNDUXI5LRSK7J",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GDJ7DXWWHTRNJFO2C2EA5PAWOPT4UKBTEM5DJOJFDLRJA74SP42WASGQ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/8d3bae061eead4df6162e302c27c3f41849e9f8826817f5de7a06cc95d7d4878"
+        },
+        {
+          "hash": "f6a7a3f2571d87b3c2e9065a04b3d95106b710859ca1531f8589795ea379e105",
+          "ledger": 5605707,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBJTKAOUKF37YKU5MAT4F25HVD55B2NVGCPEDHIBPZJQGZKMQWNV3UDB",
+          "innerSequence": "23034077112172601",
+          "transfers": [
+            {
+              "from": "GCI6YRXBQP75LQ27ALISN2FBRVPYWLMEA2EJ6QLS43CGLUKRGWQARXN6",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/f6a7a3f2571d87b3c2e9065a04b3d95106b710859ca1531f8589795ea379e105"
+        },
+        {
+          "hash": "97a4a24c4f1f731b64370201272d0325d198e65ff30a4afdcd570dbc72f59696",
+          "ledger": 5605712,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBSNDNN3HLXW633VD43LRGH6F4UE576ZYOL7JFUEANYHJ7X6W4V3LFW4",
+          "innerSequence": "23034072817205304",
+          "transfers": [
+            {
+              "from": "GDWL3K46TNRXSFQZGHOGT2HGYJD5C2HIE572TM2HXPJOPABAVO42AXHT",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/97a4a24c4f1f731b64370201272d0325d198e65ff30a4afdcd570dbc72f59696"
+        },
+        {
+          "hash": "034bbc0561b00c6d5ba43f34628479d8fba4dc4a3b5c8cdeb6da486f3ed282cf",
+          "ledger": 5605717,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBJJN6OD7OXKQHBIT4GSOK2OHSGUGVH73ARQKSBLCRLXB53YK5TLJ7OA",
+          "innerSequence": "23034072817205306",
+          "transfers": [
+            {
+              "from": "GAUH6LDLVLW5AG5EK3OEKQAQFV7VVPKXBJXATZAI6LLPUVSYDADIMBCQ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/034bbc0561b00c6d5ba43f34628479d8fba4dc4a3b5c8cdeb6da486f3ed282cf"
+        },
+        {
+          "hash": "c23646377dad09db45690a7fc5a63d62f0e0922e1017f568ee7636253e6dae66",
+          "ledger": 5605724,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBIRIZ4GG3ENX4ZXOYLNEK3LPLX2WBYOQVOVIYVG4KC5YVEIVYL2OQXV",
+          "innerSequence": "23034072817205304",
+          "transfers": [
+            {
+              "from": "GB37LGC3HMI5OW3V6QBYUMVYDNCRE6B62O527JGVMEU4ZRLFDRXKC7UW",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/c23646377dad09db45690a7fc5a63d62f0e0922e1017f568ee7636253e6dae66"
+        },
+        {
+          "hash": "56f80668361c21a7deaa710a5083051dc1f65d2d5f2573c108de06c9e54cfede",
+          "ledger": 5605731,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GB2IEXLDAE6W4YGJPWJHFXBSO4T4YQBDMXEBOAPOLBTTFUWTQETFV6SI",
+          "innerSequence": "23034072817205304",
+          "transfers": [
+            {
+              "from": "GBYCSOQ4MYFSYBA4LYPKBO22XTW4HP57MSCAPLHEIOIH4HLBVDKXOIKP",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/56f80668361c21a7deaa710a5083051dc1f65d2d5f2573c108de06c9e54cfede"
+        },
+        {
+          "hash": "2891db6278583be5d7902e88febffd121757962df03c693c9db398065da472e2",
+          "ledger": 5605736,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GAJKK6RUBWRBWR3P7BXYMZ3ARY4V7MIA7R6DYS5APG74Q3QEQZXW5H7F",
+          "innerSequence": "23034072817205302",
+          "transfers": [
+            {
+              "from": "GAUTWM3CPQJZHMZ4DMM4ZYWZIWTDGUZDCI4BTC5VSP4F2KO6KTKLG262",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/2891db6278583be5d7902e88febffd121757962df03c693c9db398065da472e2"
+        },
+        {
+          "hash": "55c3f5ea2bb507377bd69d8eddc289aab83c0fa0bd2a35c6490d4e5410606465",
+          "ledger": 5605742,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GARNQRUPOIG6O5QXZTNGZR2WSILAH4EKWN5GCXK22HJMPISCMPCVALCO",
+          "innerSequence": "23034072817205303",
+          "transfers": [
+            {
+              "from": "GAEFF2RI7JMHVDBYKCG6E7CJMSD3O2DVZRD6T25LFGRP7HFP4Z2N4CKJ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/55c3f5ea2bb507377bd69d8eddc289aab83c0fa0bd2a35c6490d4e5410606465"
+        },
+        {
+          "hash": "6f960c60e31755b8786c972631ff5fce6bb756011eb02b0c02046ce380124dae",
+          "ledger": 5605747,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GAYEVWAGRDU537EDK7NAWOHW7NSNND4TUCEAOZJDRQX6VK4VXDKKMLNZ",
+          "innerSequence": "23034072817205303",
+          "transfers": [
+            {
+              "from": "GCBJT3BBVKJI665VABCQUIZWLN2RSRKFIPGY3JM3SMLLNOFVYXKNBUA7",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/6f960c60e31755b8786c972631ff5fce6bb756011eb02b0c02046ce380124dae"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "15e504b1bf9ecb24035c0a93ec91531d79f1400fc9b42bd31f395a46d299dd5b",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"10.0.0.1\" is not a public host."
+            },
+            "headerBytes": 164
+          },
+          {
+            "transaction": "5a9dd4fe83f840a85263f592267fc40f93182419cd1711524d7efd3ce1ef024b",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"172.16.0.1\" is not a public host."
+            },
+            "headerBytes": 168
+          },
+          {
+            "transaction": "89c563c54bf5f4ca07f1db14e930999f54ecf32509dcc945ade1b01b5ced6e4f",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"192.168.1.10\" is not a public host."
+            },
+            "headerBytes": 172
+          },
+          {
+            "transaction": "8d3bae061eead4df6162e302c27c3f41849e9f8826817f5de7a06cc95d7d4878",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"100.64.0.1\" is not a public host."
+            },
+            "headerBytes": 168
+          },
+          {
+            "transaction": "f6a7a3f2571d87b3c2e9065a04b3d95106b710859ca1531f8589795ea379e105",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"169.254.169.254\" is not a public host."
+            },
+            "headerBytes": 176
+          },
+          {
+            "transaction": "97a4a24c4f1f731b64370201272d0325d198e65ff30a4afdcd570dbc72f59696",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"[fd00:ec2::254]\" is not a public host."
+            },
+            "headerBytes": 176
+          },
+          {
+            "transaction": "034bbc0561b00c6d5ba43f34628479d8fba4dc4a3b5c8cdeb6da486f3ed282cf",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"[fe80::1]\" is not a public host."
+            },
+            "headerBytes": 168
+          },
+          {
+            "transaction": "c23646377dad09db45690a7fc5a63d62f0e0922e1017f568ee7636253e6dae66",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"[::ffff:a00:1]\" is not a public host."
+            },
+            "headerBytes": 172
+          },
+          {
+            "transaction": "56f80668361c21a7deaa710a5083051dc1f65d2d5f2573c108de06c9e54cfede",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"10.0.0.1\" is not a public host."
+            },
+            "headerBytes": 164
+          },
+          {
+            "transaction": "2891db6278583be5d7902e88febffd121757962df03c693c9db398065da472e2",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"169.254.169.254\" is not a public host."
+            },
+            "headerBytes": 176
+          },
+          {
+            "transaction": "55c3f5ea2bb507377bd69d8eddc289aab83c0fa0bd2a35c6490d4e5410606465",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"metadata.google.internal\" is not a public host."
+            },
+            "headerBytes": 188
+          },
+          {
+            "transaction": "6f960c60e31755b8786c972631ff5fce6bb756011eb02b0c02046ce380124dae",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"intranet\" is not a public host."
+            },
+            "headerBytes": 164
+          }
+        ],
+        "urls": [
+          "https://10.0.0.1/weather",
+          "https://172.16.0.1/weather",
+          "https://192.168.1.10/weather",
+          "https://100.64.0.1/weather",
+          "https://169.254.169.254/latest/meta-data/",
+          "https://[fd00:ec2::254]/latest/meta-data/",
+          "https://[fe80::1]/weather",
+          "https://[::ffff:10.0.0.1]/weather",
+          "https://167772161/weather",
+          "https://0xa9fea9fe/latest/meta-data/",
+          "https://metadata.google.internal/computeMetadata/v1/",
+          "https://intranet/weather"
+        ]
+      }
+    },
+    {
+      "id": "unsafe-loopback",
+      "title": "a resource on a loopback host is refused",
+      "checks": [
+        "discovery",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 70068,
+      "rejections": [
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://127.0.0.1/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"127.0.0.1\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://127.1/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"127.0.0.1\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://localhost/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"localhost\" is not a public host."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://[::1]/weather",
+          "code": "bazaar_resource_unsafe",
+          "reason": "Host \"[::1]\" is not a public host."
+        }
+      ],
+      "transactions": [
+        {
+          "hash": "0e214eb63664b16bc569bedf096e18d45f826df151b5a54755bfea5de3705f12",
+          "ledger": 5605751,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBI2AUZWQ2GIMRYFSJDIA6HMPLH33CHLCYLSN6AA7X2VXCLKENOXY5OO",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GBXJUVHUBFOHMPVQJEEKU5R6T5XG6VNOVWTOMY4LJCKPEOLIAS7MDRQ4",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/0e214eb63664b16bc569bedf096e18d45f826df151b5a54755bfea5de3705f12"
+        },
+        {
+          "hash": "d4efada2bc50cad7fac06fe1b0b3830064b2733ffd33a2e6dd8772b8bc2947f0",
+          "ledger": 5605755,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GA7MU3FIE7MSS4K4BMX6PKYCLAMQLONHUFT5XKLC623777KA3UAROCJZ",
+          "innerSequence": "23034072817205304",
+          "transfers": [
+            {
+              "from": "GDJ7DXWWHTRNJFO2C2EA5PAWOPT4UKBTEM5DJOJFDLRJA74SP42WASGQ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/d4efada2bc50cad7fac06fe1b0b3830064b2733ffd33a2e6dd8772b8bc2947f0"
+        },
+        {
+          "hash": "902acc8c6f0e9a59ccaf74eea51b98d1fd22dfc5d1935793f5907dbb4cae2d7e",
+          "ledger": 5605758,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GAQYXF2SZAGZ4366PX5GYXKVRBIIY6E5KAVTGAYI5HQAGMCJS6IOXEKQ",
+          "innerSequence": "23034077112172600",
+          "transfers": [
+            {
+              "from": "GCI6YRXBQP75LQ27ALISN2FBRVPYWLMEA2EJ6QLS43CGLUKRGWQARXN6",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/902acc8c6f0e9a59ccaf74eea51b98d1fd22dfc5d1935793f5907dbb4cae2d7e"
+        },
+        {
+          "hash": "5218dab83979a2a67f5e8236b2f045bc3d3989594b7f150735146102f5a2d662",
+          "ledger": 5605761,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GA3O6DK775F3OWQ35XJ2QOKLVJF52GXX3GMRAKSA5UPDJXMU7HIEOWXM",
+          "innerSequence": "23034072817205306",
+          "transfers": [
+            {
+              "from": "GDWL3K46TNRXSFQZGHOGT2HGYJD5C2HIE572TM2HXPJOPABAVO42AXHT",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/5218dab83979a2a67f5e8236b2f045bc3d3989594b7f150735146102f5a2d662"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "0e214eb63664b16bc569bedf096e18d45f826df151b5a54755bfea5de3705f12",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"127.0.0.1\" is not a public host."
+            },
+            "headerBytes": 168
+          },
+          {
+            "transaction": "d4efada2bc50cad7fac06fe1b0b3830064b2733ffd33a2e6dd8772b8bc2947f0",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"127.0.0.1\" is not a public host."
+            },
+            "headerBytes": 168
+          },
+          {
+            "transaction": "902acc8c6f0e9a59ccaf74eea51b98d1fd22dfc5d1935793f5907dbb4cae2d7e",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"localhost\" is not a public host."
+            },
+            "headerBytes": 168
+          },
+          {
+            "transaction": "5218dab83979a2a67f5e8236b2f045bc3d3989594b7f150735146102f5a2d662",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_unsafe",
+              "rejectedReason": "Host \"[::1]\" is not a public host."
+            },
+            "headerBytes": 160
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsafe-credentials",
+      "title": "a resource URL carrying credentials is refused",
+      "checks": [
+        "discovery",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 30359,
+      "rejections": [
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://<credentials>@demo.rail402.dev/weather",
+          "code": "bazaar_resource_invalid",
+          "reason": "resource.url must not contain credentials."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog https://<credentials>@demo.rail402.dev/weather",
+          "code": "bazaar_resource_invalid",
+          "reason": "resource.url must not contain credentials."
+        }
+      ],
+      "transactions": [
+        {
+          "hash": "7a44ed26530455f7ff0538a79196a96325147ab69083345e981c61148ea0b3f3",
+          "ledger": 5605764,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GB6PPHXE2UOHJGKFFNKRG4SNSRTE3GIJ5R26AZTJW53Y5MQ2JWC67KXL",
+          "innerSequence": "23034077112172603",
+          "transfers": [
+            {
+              "from": "GAUH6LDLVLW5AG5EK3OEKQAQFV7VVPKXBJXATZAI6LLPUVSYDADIMBCQ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/7a44ed26530455f7ff0538a79196a96325147ab69083345e981c61148ea0b3f3"
+        },
+        {
+          "hash": "3c206e772be7299ab526a08df4fd30b404b18187dedac18f6d1b373b56f69eb3",
+          "ledger": 5605767,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GDJPZO5EMARR63RF2LPRRORYO4DDIUTSQIKJNPJD4OVAOGCDVE3Y2M4Y",
+          "innerSequence": "23034077112172603",
+          "transfers": [
+            {
+              "from": "GB37LGC3HMI5OW3V6QBYUMVYDNCRE6B62O527JGVMEU4ZRLFDRXKC7UW",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/3c206e772be7299ab526a08df4fd30b404b18187dedac18f6d1b373b56f69eb3"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "7a44ed26530455f7ff0538a79196a96325147ab69083345e981c61148ea0b3f3",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_invalid",
+              "rejectedReason": "resource.url must not contain credentials."
+            },
+            "headerBytes": 172
+          },
+          {
+            "transaction": "3c206e772be7299ab526a08df4fd30b404b18187dedac18f6d1b373b56f69eb3",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_invalid",
+              "rejectedReason": "resource.url must not contain credentials."
+            },
+            "headerBytes": 172
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsafe-scheme",
+      "title": "a resource URL in a scheme other than http(s) is refused",
+      "checks": [
+        "discovery",
+        "rejection-codes"
+      ],
+      "status": "passed",
+      "elapsedMs": 60673,
+      "rejections": [
+        {
+          "surface": "bazaar",
+          "operation": "catalog file:///etc/passwd",
+          "code": "bazaar_resource_invalid",
+          "reason": "resource.url must use https or http."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog gopher://demo.rail402.dev/weather",
+          "code": "bazaar_resource_invalid",
+          "reason": "resource.url must use https or http."
+        },
+        {
+          "surface": "bazaar",
+          "operation": "catalog ftp://demo.rail402.dev/weather",
+          "code": "bazaar_resource_invalid",
+          "reason": "resource.url must use https or http."
+        }
+      ],
+      "transactions": [
+        {
+          "hash": "46e077916bac1efd2301554b65fa4b1561cc394c05e43bbfe35b6177c1e6dacf",
+          "ledger": 5605770,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GDV2R6IGJSSE4MPDATO7H7NTQ6NNBIB42BGNPQUWQLEZD3HMKHMJ6XDJ",
+          "innerSequence": "23034072817205306",
+          "transfers": [
+            {
+              "from": "GBYCSOQ4MYFSYBA4LYPKBO22XTW4HP57MSCAPLHEIOIH4HLBVDKXOIKP",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/46e077916bac1efd2301554b65fa4b1561cc394c05e43bbfe35b6177c1e6dacf"
+        },
+        {
+          "hash": "d24b5ffe07ca8ab0005a4c882378d83f575398eea27b0789f2151fceb6abb857",
+          "ledger": 5605774,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GARF3UCQO2RRAMFEAEMWJYYU3SHAAAP57HY5YX5GQ4NXBAWSGF2HIDLZ",
+          "innerSequence": "23034072817205371",
+          "transfers": [
+            {
+              "from": "GAUTWM3CPQJZHMZ4DMM4ZYWZIWTDGUZDCI4BTC5VSP4F2KO6KTKLG262",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/d24b5ffe07ca8ab0005a4c882378d83f575398eea27b0789f2151fceb6abb857"
+        },
+        {
+          "hash": "5faaa0d6ec460508865b30b2377d9f815828e7e7edd7970b2f3991855316931d",
+          "ledger": 5605779,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GD7NFBCSZC6R6UVHYP4LGYMFXKFZFQZUXORLGKKOHXOXEUTNOSKSQFXN",
+          "innerSequence": "23034072817205306",
+          "transfers": [
+            {
+              "from": "GAEFF2RI7JMHVDBYKCG6E7CJMSD3O2DVZRD6T25LFGRP7HFP4Z2N4CKJ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/5faaa0d6ec460508865b30b2377d9f815828e7e7edd7970b2f3991855316931d"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "46e077916bac1efd2301554b65fa4b1561cc394c05e43bbfe35b6177c1e6dacf",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_invalid",
+              "rejectedReason": "resource.url must use https or http."
+            },
+            "headerBytes": 164
+          },
+          {
+            "transaction": "d24b5ffe07ca8ab0005a4c882378d83f575398eea27b0789f2151fceb6abb857",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_invalid",
+              "rejectedReason": "resource.url must use https or http."
+            },
+            "headerBytes": 164
+          },
+          {
+            "transaction": "5faaa0d6ec460508865b30b2377d9f815828e7e7edd7970b2f3991855316931d",
+            "outcome": {
+              "status": "rejected",
+              "code": "bazaar_resource_invalid",
+              "rejectedReason": "resource.url must use https or http."
+            },
+            "headerBytes": 164
+          }
+        ]
+      }
+    },
+    {
+      "id": "pubnet-https-only",
+      "title": "on pubnet a resource served over plain http is refused",
+      "checks": [
+        "discovery",
+        "rejection-codes"
+      ],
+      "status": "skipped",
+      "skipReason": "the https-only rule applies on stellar:pubnet; testnet lists http resources",
+      "skipCategory": "not-applicable",
+      "elapsedMs": 0
+    },
+    {
+      "id": "pubnet-mcp-originless",
+      "title": "on pubnet an MCP tool under an mcp:// URL, which has no origin to check, is refused",
+      "checks": [
+        "discovery",
+        "mcp",
+        "rejection-codes"
+      ],
+      "status": "skipped",
+      "skipReason": "testnet lists an mcp:// tool on settlement at trust settled, as documented; pubnet refuses it",
+      "skipCategory": "not-applicable",
+      "elapsedMs": 0
+    },
+    {
+      "id": "ssrf-private-name",
+      "title": "a resource on a public DNS name that resolves to a private address is never fetched into a listing: it is held, never published",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 43642,
+      "transactions": [
+        {
+          "hash": "0cd8dd1bc6811f27422977b170285ae91846a992ea52c799ba944b4b680559a2",
+          "ledger": 5605783,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GCZSK2TAJPXVJNPQCCTMAJOQJLCL24JAASCQRUCHHBYJ6VJTXL3KZGHM",
+          "innerSequence": "23034072817205306",
+          "transfers": [
+            {
+              "from": "GCBJT3BBVKJI665VABCQUIZWLN2RSRKFIPGY3JM3SMLLNOFVYXKNBUA7",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/0cd8dd1bc6811f27422977b170285ae91846a992ea52c799ba944b4b680559a2"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "0cd8dd1bc6811f27422977b170285ae91846a992ea52c799ba944b4b680559a2",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "f913f552-8453-4d8a-9512-e58f730312de",
+              "version": 1
+            },
+            "headerBytes": 320
+          }
+        ],
+        "resolved": [
+          "169.254.169.254"
+        ],
+        "listing": {
+          "id": "f913f552-8453-4d8a-9512-e58f730312de",
+          "state": "pending",
+          "trust": "settled",
+          "resource": "https://169.254.169.254.nip.io/latest/meta-data/",
+          "version": 1
+        },
+        "versions": [
+          {
+            "version": 1,
+            "cause": "settlement",
+            "state": "pending"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ssrf-redirect",
+      "title": "a resource whose server redirects is never followed: the redirect target is never requested and the listing is withdrawn",
+      "checks": [
+        "discovery"
+      ],
+      "status": "skipped",
+      "skipReason": "needs a seller that redirects, which this run serves on 127.0.0.1, and this catalog does not reach 127.0.0.1; the local run proves it",
+      "skipCategory": "environment",
+      "elapsedMs": 0
+    },
+    {
+      "id": "traversal-dot-segments",
+      "title": "percent-encoded dot segments in a resource path are resolved before the catalog keys it: the spelling joins the listing it names",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 80158,
+      "transactions": [
+        {
+          "hash": "764985969e25b92598e45c9bb0b46fbe23ad18d0b6052db6932735c5fbf38893",
+          "ledger": 5605792,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBELAB7H5MOJQLEZLC4UE4MKKL3K6QDOLHY6UWE3AJOEZXHXI7YJG52A",
+          "innerSequence": "23034072817205470",
+          "transfers": [
+            {
+              "from": "GBXJUVHUBFOHMPVQJEEKU5R6T5XG6VNOVWTOMY4LJCKPEOLIAS7MDRQ4",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/764985969e25b92598e45c9bb0b46fbe23ad18d0b6052db6932735c5fbf38893"
+        },
+        {
+          "hash": "ccceef94de5ff8bf2c7d4d1998a7c3a9fc811571f38ef2de822bd445c7a8860a",
+          "ledger": 5605796,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GCZFSLFOHITZTMJYA6ZETN6K7GTC6UCM6N6MR4KAP6RSXJRBCZ5XX5UX",
+          "innerSequence": "23034072817205306",
+          "transfers": [
+            {
+              "from": "GDJ7DXWWHTRNJFO2C2EA5PAWOPT4UKBTEM5DJOJFDLRJA74SP42WASGQ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/ccceef94de5ff8bf2c7d4d1998a7c3a9fc811571f38ef2de822bd445c7a8860a"
+        },
+        {
+          "hash": "59f8a0ef93fdb68bf1992d5f27ff20034e7e730742c2995b774fba5f2794aae6",
+          "ledger": 5605800,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GCYS6VN4X4WTTWWDNHIUBZFEZBXJX5KJHUVSLRLZZ2DUGIEPAHAHMFM4",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GCI6YRXBQP75LQ27ALISN2FBRVPYWLMEA2EJ6QLS43CGLUKRGWQARXN6",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/59f8a0ef93fdb68bf1992d5f27ff20034e7e730742c2995b774fba5f2794aae6"
+        },
+        {
+          "hash": "7491cd9dda77477a925ee9c305da9ee2feced17355a872847ccb0b5fc1b5cb17",
+          "ledger": 5605803,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GCHZZHJS6ECQE3ZLL2GTEAPB2WRDBSIPK6K7LKIU5TD2VEHEPNJVGAB6",
+          "innerSequence": "23034072817205306",
+          "transfers": [
+            {
+              "from": "GDWL3K46TNRXSFQZGHOGT2HGYJD5C2HIE572TM2HXPJOPABAVO42AXHT",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/7491cd9dda77477a925ee9c305da9ee2feced17355a872847ccb0b5fc1b5cb17"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "764985969e25b92598e45c9bb0b46fbe23ad18d0b6052db6932735c5fbf38893",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 152
+          },
+          {
+            "transaction": "ccceef94de5ff8bf2c7d4d1998a7c3a9fc811571f38ef2de822bd445c7a8860a",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 152
+          },
+          {
+            "transaction": "59f8a0ef93fdb68bf1992d5f27ff20034e7e730742c2995b774fba5f2794aae6",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 152
+          },
+          {
+            "transaction": "7491cd9dda77477a925ee9c305da9ee2feced17355a872847ccb0b5fc1b5cb17",
+            "outcome": {
+              "status": "success",
+              "code": "recorded",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 152
+          }
+        ]
+      }
+    },
+    {
+      "id": "traversal-encoded-separators",
+      "title": "double-encoded dot segments, an encoded slash, backslash or NUL stay literal: the path never climbs and the listing is withdrawn",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 77944,
+      "transactions": [
+        {
+          "hash": "6a8a5c9ae6e8a70bd716924f4e1b4b129a24f5bf6d608deab5801e3da4c8dff5",
+          "ledger": 5605808,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GCEVJHVAWRAVFRWZXMLZBLRSDTQYLEUMGXQ3AUIVYLAWNPAOHEM34BKJ",
+          "innerSequence": "23034077112172602",
+          "transfers": [
+            {
+              "from": "GAUH6LDLVLW5AG5EK3OEKQAQFV7VVPKXBJXATZAI6LLPUVSYDADIMBCQ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/6a8a5c9ae6e8a70bd716924f4e1b4b129a24f5bf6d608deab5801e3da4c8dff5"
+        },
+        {
+          "hash": "1bc84f11725bc3c2a4a045ebb7fb713c69c8b3b9e5859ae56074bc61789bdc03",
+          "ledger": 5605813,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBYJEY2I7WWFTFQF5LDGEQVO2QEG74FBEAB3XF4T2PLFNDUXI5LRSK7J",
+          "innerSequence": "23034072817205306",
+          "transfers": [
+            {
+              "from": "GB37LGC3HMI5OW3V6QBYUMVYDNCRE6B62O527JGVMEU4ZRLFDRXKC7UW",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/1bc84f11725bc3c2a4a045ebb7fb713c69c8b3b9e5859ae56074bc61789bdc03"
+        },
+        {
+          "hash": "e2736b78a1f5b3be4f17b6a402e26eb45642e883475e19a6be070f8bb5595849",
+          "ledger": 5605816,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBJTKAOUKF37YKU5MAT4F25HVD55B2NVGCPEDHIBPZJQGZKMQWNV3UDB",
+          "innerSequence": "23034077112172602",
+          "transfers": [
+            {
+              "from": "GBYCSOQ4MYFSYBA4LYPKBO22XTW4HP57MSCAPLHEIOIH4HLBVDKXOIKP",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/e2736b78a1f5b3be4f17b6a402e26eb45642e883475e19a6be070f8bb5595849"
+        },
+        {
+          "hash": "5dbc2eedc51c4fdd905538d846fc7e7ef0deb82e74a425f6aa4bc776ee7b9731",
+          "ledger": 5605819,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBSNDNN3HLXW633VD43LRGH6F4UE576ZYOL7JFUEANYHJ7X6W4V3LFW4",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GAUTWM3CPQJZHMZ4DMM4ZYWZIWTDGUZDCI4BTC5VSP4F2KO6KTKLG262",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/5dbc2eedc51c4fdd905538d846fc7e7ef0deb82e74a425f6aa4bc776ee7b9731"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "6a8a5c9ae6e8a70bd716924f4e1b4b129a24f5bf6d608deab5801e3da4c8dff5",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "38633d5b-557a-4378-8bd8-b2799b2b2969",
+              "version": 1
+            },
+            "headerBytes": 320
+          },
+          {
+            "transaction": "1bc84f11725bc3c2a4a045ebb7fb713c69c8b3b9e5859ae56074bc61789bdc03",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "38ae003e-8c15-48d9-a97a-35f6aab4341d",
+              "version": 1
+            },
+            "headerBytes": 320
+          },
+          {
+            "transaction": "e2736b78a1f5b3be4f17b6a402e26eb45642e883475e19a6be070f8bb5595849",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "757d90e6-0783-4b6c-b243-5721e9738fba",
+              "version": 1
+            },
+            "headerBytes": 320
+          },
+          {
+            "transaction": "5dbc2eedc51c4fdd905538d846fc7e7ef0deb82e74a425f6aa4bc776ee7b9731",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "2b158577-d550-42f4-a48f-52ebcf4bf829",
+              "version": 1
+            },
+            "headerBytes": 320
+          }
+        ],
+        "resources": [
+          "https://demo.rail402.dev/x/%252e%252e/weather",
+          "https://demo.rail402.dev/weather%2F..%2Fadmin",
+          "https://demo.rail402.dev/x/%5C..%5Cweather",
+          "https://demo.rail402.dev/weather%00"
+        ]
+      }
+    },
+    {
+      "id": "traversal-route-template",
+      "title": "a route template that is unsafe once percent-decoded is dropped: the payment lists the concrete path it paid",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 90782,
+      "transactions": [
+        {
+          "hash": "9ba841dc1819c92e6a46fee6b499b007871f9b6e45a7e4dccb547a5582d7119f",
+          "ledger": 5605823,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBJJN6OD7OXKQHBIT4GSOK2OHSGUGVH73ARQKSBLCRLXB53YK5TLJ7OA",
+          "innerSequence": "23034072817205307",
+          "transfers": [
+            {
+              "from": "GAEFF2RI7JMHVDBYKCG6E7CJMSD3O2DVZRD6T25LFGRP7HFP4Z2N4CKJ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/9ba841dc1819c92e6a46fee6b499b007871f9b6e45a7e4dccb547a5582d7119f"
+        },
+        {
+          "hash": "36ff72d2d4e9363f80473f3e252d6b0e8680f456b97bf2ad935419fec9d66f0b",
+          "ledger": 5605827,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GBIRIZ4GG3ENX4ZXOYLNEK3LPLX2WBYOQVOVIYVG4KC5YVEIVYL2OQXV",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GCBJT3BBVKJI665VABCQUIZWLN2RSRKFIPGY3JM3SMLLNOFVYXKNBUA7",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/36ff72d2d4e9363f80473f3e252d6b0e8680f456b97bf2ad935419fec9d66f0b"
+        },
+        {
+          "hash": "f2a1d2b4ae5f87bb9d112e7f0768e5313acbceaae1a748dce11e1101f8e05244",
+          "ledger": 5605831,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GB2IEXLDAE6W4YGJPWJHFXBSO4T4YQBDMXEBOAPOLBTTFUWTQETFV6SI",
+          "innerSequence": "23034072817205305",
+          "transfers": [
+            {
+              "from": "GBXJUVHUBFOHMPVQJEEKU5R6T5XG6VNOVWTOMY4LJCKPEOLIAS7MDRQ4",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/f2a1d2b4ae5f87bb9d112e7f0768e5313acbceaae1a748dce11e1101f8e05244"
+        },
+        {
+          "hash": "4ecf07c67697228d093074d1b51593b51039c638269253aa37b26d108650472d",
+          "ledger": 5605837,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GAJKK6RUBWRBWR3P7BXYMZ3ARY4V7MIA7R6DYS5APG74Q3QEQZXW5H7F",
+          "innerSequence": "23034072817205303",
+          "transfers": [
+            {
+              "from": "GDJ7DXWWHTRNJFO2C2EA5PAWOPT4UKBTEM5DJOJFDLRJA74SP42WASGQ",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/4ecf07c67697228d093074d1b51593b51039c638269253aa37b26d108650472d"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "9ba841dc1819c92e6a46fee6b499b007871f9b6e45a7e4dccb547a5582d7119f",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "72fe0ec8-c0ac-4ac5-9b77-9cda78dea73a",
+              "version": 1,
+              "dropped": [
+                "routeTemplate"
+              ]
+            },
+            "headerBytes": 356
+          },
+          {
+            "transaction": "36ff72d2d4e9363f80473f3e252d6b0e8680f456b97bf2ad935419fec9d66f0b",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "72fe0ec8-c0ac-4ac5-9b77-9cda78dea73a",
+              "version": 2,
+              "dropped": [
+                "routeTemplate"
+              ]
+            },
+            "headerBytes": 356
+          },
+          {
+            "transaction": "f2a1d2b4ae5f87bb9d112e7f0768e5313acbceaae1a748dce11e1101f8e05244",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "72fe0ec8-c0ac-4ac5-9b77-9cda78dea73a",
+              "version": 2,
+              "dropped": [
+                "routeTemplate"
+              ]
+            },
+            "headerBytes": 356
+          },
+          {
+            "transaction": "4ecf07c67697228d093074d1b51593b51039c638269253aa37b26d108650472d",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The resource is listed once its own 402 response confirms the payment options and metadata.",
+              "listingId": "72fe0ec8-c0ac-4ac5-9b77-9cda78dea73a",
+              "version": 2,
+              "dropped": [
+                "routeTemplate"
+              ]
+            },
+            "headerBytes": 356
+          }
+        ],
+        "resources": [
+          "https://demo.rail402.dev/users/42",
+          "https://demo.rail402.dev/users/42",
+          "https://demo.rail402.dev/users/42",
+          "https://demo.rail402.dev/users/42"
+        ]
+      }
+    },
+    {
+      "id": "forged-price",
+      "title": "a payment for less than the seller's price never lists that price: the listing keeps the price of the seller's own 402",
+      "checks": [
+        "discovery"
+      ],
+      "status": "passed",
+      "elapsedMs": 49901,
+      "transactions": [
+        {
+          "hash": "684eb4e222ff79b51edda3440a97b340afb4547df378eeed2353e6e02a104e5e",
+          "ledger": 5605843,
+          "scheme": "exact",
+          "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+          "decimals": 7,
+          "amount": "1",
+          "payerType": "G",
+          "feeChargedStroops": "11697",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GARNQRUPOIG6O5QXZTNGZR2WSILAH4EKWN5GCXK22HJMPISCMPCVALCO",
+          "innerSequence": "23034072817205304",
+          "transfers": [
+            {
+              "from": "GCI6YRXBQP75LQ27ALISN2FBRVPYWLMEA2EJ6QLS43CGLUKRGWQARXN6",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "1"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/684eb4e222ff79b51edda3440a97b340afb4547df378eeed2353e6e02a104e5e"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "684eb4e222ff79b51edda3440a97b340afb4547df378eeed2353e6e02a104e5e",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The listing's metadata or price changed; the change is published once the resource's own 402 response confirms it.",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 348
+          }
+        ],
+        "accepts": [
+          {
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "extra": {
+              "areFeesSponsored": true
+            },
+            "payTo": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+            "amount": "10000",
+            "scheme": "exact",
+            "network": "stellar:testnet",
+            "maxTimeoutSeconds": 300
+          }
+        ]
+      }
+    },
+    {
+      "id": "forged-asset",
+      "title": "a payment in an asset the seller's 402 does not ask for never lists that asset",
+      "checks": [
+        "discovery",
+        "second-asset"
+      ],
+      "status": "passed",
+      "elapsedMs": 66558,
+      "transactions": [
+        {
+          "hash": "edb9bdb80ccbe980701e3faa58eaceafe36afdcdbb1bd618cbb1ad4db0dba73a",
+          "ledger": 5605857,
+          "scheme": "exact",
+          "asset": "CDS45IRSWVDBV4JM2FPZ52EYXYO54J6DJL35GOSXOTRA4BYM6FFRK2BK",
+          "decimals": 6,
+          "amount": "1000",
+          "payerType": "G",
+          "feeChargedStroops": "83763",
+          "feeSource": "GDKMZDQWLPH466HID3JCZHV2TSPLYY2LOSQ4K2DUZTDUZQGVL6SEGH62",
+          "innerSource": "GAYEVWAGRDU537EDK7NAWOHW7NSNND4TUCEAOZJDRQX6VK4VXDKKMLNZ",
+          "innerSequence": "23034072817205304",
+          "transfers": [
+            {
+              "from": "GDLVD346XSGTJLNCLVPNSKK45PNDLTGVR2UJERCYEG5BSBJ2CYOE6ZLV",
+              "to": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+              "amount": "1000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/testnet/tx/edb9bdb80ccbe980701e3faa58eaceafe36afdcdbb1bd618cbb1ad4db0dba73a"
+        }
+      ],
+      "observations": {
+        "settlements": [
+          {
+            "transaction": "edb9bdb80ccbe980701e3faa58eaceafe36afdcdbb1bd618cbb1ad4db0dba73a",
+            "outcome": {
+              "status": "processing",
+              "code": "awaiting_origin_verification",
+              "reason": "The listing's metadata or price changed; the change is published once the resource's own 402 response confirms it.",
+              "listingId": "96eab768-fe71-47c4-9325-8907a4d6da78",
+              "version": 4
+            },
+            "headerBytes": 348
+          }
+        ],
+        "accepts": [
+          {
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "extra": {
+              "areFeesSponsored": true
+            },
+            "payTo": "GBSVTVRQ4AEFRNGH2MIOOWZSAVLZKOKNKI4UAGSMBZSNRP4I3FL3ELYP",
+            "amount": "10000",
+            "scheme": "exact",
+            "network": "stellar:testnet",
+            "maxTimeoutSeconds": 300
+          }
+        ]
+      }
+    },
+    {
+      "id": "second-asset",
+      "title": "a resource priced in a 6-decimal SEP-41 token is listed with the token's on-chain facts and found by its asset and price",
+      "checks": [
+        "discovery",
+        "second-asset"
+      ],
+      "status": "skipped",
+      "skipReason": "the facilitator does not catalog resources on 127.0.0.1 (DISCOVERY_ALLOW_LOOPBACK is off), where the run's second seller listens",
+      "skipCategory": "environment",
+      "elapsedMs": 0
+    },
+    {
+      "id": "upto-listing",
+      "title": "an upto resource is listed under the upto scheme, priced at its cap, whatever the settlement charged",
+      "checks": [
+        "discovery",
+        "scheme-upto"
+      ],
+      "status": "skipped",
+      "skipReason": "the facilitator does not catalog resources on 127.0.0.1 (DISCOVERY_ALLOW_LOOPBACK is off), where the run's second seller listens",
+      "skipCategory": "environment",
+      "elapsedMs": 0
+    },
+    {
+      "id": "upto-offchain-zero",
+      "title": "an upto payment settled for zero without a transaction catalogs nothing",
+      "checks": [
+        "discovery",
+        "scheme-upto"
+      ],
+      "status": "skipped",
+      "skipReason": "the facilitator does not catalog resources on 127.0.0.1 (DISCOVERY_ALLOW_LOOPBACK is off), where the run's second seller listens",
+      "skipCategory": "environment",
+      "elapsedMs": 0
+    },
+    {
+      "id": "usd-filter",
+      "title": "a price ceiling in US dollars matches USD-pegged assets only, never the TEST6 test token",
+      "checks": [
+        "discovery",
+        "second-asset"
+      ],
+      "status": "skipped",
+      "skipReason": "the facilitator does not catalog resources on 127.0.0.1 (DISCOVERY_ALLOW_LOOPBACK is off), where the run's second seller listens",
+      "skipCategory": "environment",
+      "elapsedMs": 0
+    }
+  ]
+}
