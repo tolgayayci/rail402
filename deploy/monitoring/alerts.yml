@@ -55,7 +55,7 @@ groups:
           severity: page
           owner: "primary on-call"
         annotations:
-          summary: "A network's /ready/<network> has failed for 5 minutes."
+          summary: "A network's `/ready/<network>` has failed for 5 minutes."
           runbook_url: "https://docs.rail402.dev/runbook#rail402networknotready"
       - alert: Rail402NetworkHeld
         expr: "rail402_network_serving == 0"

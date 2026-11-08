@@ -243,7 +243,7 @@ export const ALERTS: readonly Alert[] = [
     owner: "primary on-call",
     procedure: "#replica-or-network-outage",
     rollback: "configuration",
-    summary: "A network's /ready/<network> has failed for 5 minutes.",
+    summary: "A network's `/ready/<network>` has failed for 5 minutes.",
     meaning:
       "One network's checks fail (RPC, sponsor balance, assets, channels) while the process may still be ready: with two networks in one process, neither network gates the process-level /ready, so this is the per-network outage signal. Probes of a network the service does not serve are ignored.",
     firstStep: "Read `/ready/<network>` and `/health/private`: the failing check names the cause.",

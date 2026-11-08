@@ -1757,9 +1757,11 @@ run records a `sweep-back` case (check `pubnet-config`) that fails when anything
 treasury and says how much (`stranded`), or when a run account it saw is gone (merged by whoever holds its
 key, so its funds did not come back). The deployment fees and storage rent of a smart account are spent,
 not stranded.
-After a crash, `node --conditions=@rail402/source tools/conformance/src/pubnet-run.ts sweep --ledger
+After a crash, this returns the funds of every account in the registry:
 
-<file>` returns the funds of every account in the registry.
+```bash
+node --conditions=@rail402/source tools/conformance/src/pubnet-run.ts sweep --ledger <file>
+```
 
 The evidence of a pubnet run carries a `profile` block: the RPC host names, the caps, what was spent and
 returned, the sweep-back transactions and what was left, and the run's ledger totals (`run`). `pnpm

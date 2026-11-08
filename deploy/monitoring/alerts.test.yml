@@ -209,7 +209,7 @@ tests:
                 owner: "primary on-call",
               }
             exp_annotations:
-              summary: "A network's /ready/<network> has failed for 5 minutes."
+              summary: "A network's `/ready/<network>` has failed for 5 minutes."
               runbook_url: "https://docs.rail402.dev/runbook#rail402networknotready"
       - eval_time: 7m
         alertname: Rail402NotReady
