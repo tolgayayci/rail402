@@ -1,8 +1,10 @@
 # Changelog
 
-## 0.5.5 — 2026-11-09
+## 0.5.6 — 2026-11-09
 
-Service only; apply the new migration (`0037`) before deploying. The npm packages are not republished:
+The `v0.5.5` tag carries the same service changes but was not released: its build stopped at the check that
+every recorded evidence run comes from a commit on `main`. Service only; apply the new migration (`0037`)
+before deploying. The npm packages are not republished:
 `@rail402.dev/errors` gains `keySignupCodes`, which only the service returns.
 
 - **API keys through GitHub sign-in.** With `KEY_SIGNUP=github`, the host of `KEY_SIGNUP_NETWORK` serves

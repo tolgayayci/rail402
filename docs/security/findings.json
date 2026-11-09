@@ -2,8 +2,8 @@
   "$comment": "Findings register. docs/security/report.mdx renders from this file; tools/conformance/test/findings.test.ts checks it.",
   "schemaVersion": 1,
   "testedRevision": {
-    "tag": "v0.5.4",
-    "commit": "de666a20451a7f61110ad943a5f3467304741261",
+    "tag": "v0.5.6",
+    "commit": "b51e0582ec6200b083038e4acd1ceb4d1109771a",
     "images": {
       "ghcr.io/tolgayayci/rail402:0.5.2": "sha256:c3eef83591978394a797d029a68a5f60d590e299e1fd03d88075a5a2a3503724",
       "ghcr.io/tolgayayci/rail402-explorer:0.5.2": "sha256:2cf7dfd6ca0b42ceaef9f55af5a75c00b41946dd8d006a1ca638b02f647f99a4",
@@ -192,6 +192,15 @@
       "scope": ["facilitator", "operations"],
       "from": "2026-11-04",
       "to": "2026-11-04",
+      "report": null
+    },
+    {
+      "id": "REV-2026-11-key-signup",
+      "kind": "internal",
+      "by": "Internal review of access keys issued through GitHub sign-in before they went live on pubnet",
+      "scope": ["facilitator", "operations"],
+      "from": "2026-11-09",
+      "to": "2026-11-09",
       "report": null
     }
   ],
@@ -4591,6 +4600,65 @@
       "verifiedBy": null,
       "reportedAt": "2026-11-04",
       "resolvedAt": "2026-11-04"
+    },
+    {
+      "id": "F-2026-207",
+      "title": "A replaced or revoked issued key keeps working on other replicas for up to 10 seconds",
+      "severity": "low",
+      "component": "facilitator",
+      "review": "REV-2026-11-key-signup",
+      "status": "accepted",
+      "verifiedBy": null,
+      "reportedAt": "2026-11-09",
+      "resolvedAt": "2026-11-09",
+      "threats": ["Q2"],
+      "description": "Every replica re-reads the keys issued through GitHub sign-in every 10 seconds. The replica that issues a key accepts it at once, but when an account signs in again, or the operator revokes it or switches issued keys off, the other replicas keep the previous state until their next read. A leaked key can therefore pay through another replica for up to 10 seconds after it was replaced.",
+      "acceptance": {
+        "rationale": "The window is bounded and short, and within it the key keeps its own request limit and hourly fee budget; the payer's funds are never at risk, only sponsored fees within that budget.",
+        "mitigations": [
+          "Each issued key has its own requests-per-minute limit and hourly fee budget, enforced per settlement.",
+          "The network's hourly fee budget caps every key together.",
+          "The documentation states the 10-second window."
+        ],
+        "approvedBy": "Release approver",
+        "date": "2026-11-09"
+      },
+      "fix": {
+        "commit": null,
+        "tests": [
+          "apps/rail402/test/signup.test.ts::replaces an account's key no sooner than the interval, and the old key stops working"
+        ]
+      }
+    },
+    {
+      "id": "F-2026-208",
+      "title": "One person with several aged GitHub accounts can hold several keys",
+      "severity": "low",
+      "component": "facilitator",
+      "review": "REV-2026-11-key-signup",
+      "status": "accepted",
+      "verifiedBy": null,
+      "reportedAt": "2026-11-09",
+      "resolvedAt": "2026-11-09",
+      "threats": ["Q3"],
+      "description": "Sign-up issues one key per GitHub account older than KEY_SIGNUP_MIN_ACCOUNT_AGE_DAYS. Someone controlling several such accounts gets several keys, each with its own hourly fee budget, and can use more of the sponsor's fees than one key allows.",
+      "acceptance": {
+        "rationale": "GitHub accounts of a minimum age are a cost to obtain in number, and every path to sponsored fees stays capped: per key, per hour of new keys, and per network.",
+        "mitigations": [
+          "At most KEY_SIGNUP_PER_HOUR keys are issued per hour across the service, replacements included.",
+          "Each key's settlements are limited to its own hourly fee budget, and the network's hourly budget caps all of them.",
+          "The operator revokes an account with keys issued revoke, which also refuses it another key, or switches all issued keys off with issuedKeys: off in the key file."
+        ],
+        "approvedBy": "Release approver",
+        "date": "2026-11-09"
+      },
+      "fix": {
+        "commit": null,
+        "tests": [
+          "packages/store-postgres/test/stores.integration.test.ts::holds the cap across concurrent sign-ins",
+          "apps/rail402/test/signup.test.ts::no-new stops sign-up and keeps issued keys; off refuses them too; file keys never change"
+        ]
+      }
     }
   ]
 }

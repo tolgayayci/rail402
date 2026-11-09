@@ -19,8 +19,8 @@ version tag while a critical or high finding is open or accepted.
 
 | Item                                   | Value                                                                                                                                                                                                                                                                                                                                                                 |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Release tag                            | `v0.5.4`                                                                                                                                                                                                                                                                                                                                                              |
-| Commit                                 | [`de666a2`](https://github.com/tolgayayci/rail402/commit/de666a20451a7f61110ad943a5f3467304741261)                                                                                                                                                                                                                                                                    |
+| Release tag                            | `v0.5.6`                                                                                                                                                                                                                                                                                                                                                              |
+| Commit                                 | [`b51e058`](https://github.com/tolgayayci/rail402/commit/b51e0582ec6200b083038e4acd1ceb4d1109771a)                                                                                                                                                                                                                                                                    |
 | Images                                 | `ghcr.io/tolgayayci/rail402:0.5.2` `sha256:c3eef83591978394a797d029a68a5f60d590e299e1fd03d88075a5a2a3503724`<br />`ghcr.io/tolgayayci/rail402-explorer:0.5.2` `sha256:2cf7dfd6ca0b42ceaef9f55af5a75c00b41946dd8d006a1ca638b02f647f99a4`<br />`ghcr.io/tolgayayci/rail402-mcp:0.5.2` `sha256:c5aac847bcf7e2b3a984e1e0d1d2fa756948c91d19e63a916dd27e49bb13485b`         |
 | npm packages                           | `@rail402.dev/bazaar@0.5.2`, `@rail402.dev/cli@0.5.2`, `@rail402.dev/errors@0.5.2`, `@rail402.dev/facilitator@0.5.2`, `@rail402.dev/mcp@0.5.2`, `@rail402.dev/safe-fetch@0.5.2`, `@rail402.dev/sdk@0.5.2`, `@rail402.dev/search@0.5.2`, `@rail402.dev/stellar@0.5.2`, `@rail402.dev/store-postgres@0.5.2`, `@rail402.dev/upto@0.5.2`, `@rail402.dev/x402-index@0.5.2` |
 | upto contract WASM (`stellar:testnet`) | `cc2d2fefe77d1a470abe88be8563679a9d40f49c127683947784c0cb2d0ca797`                                                                                                                                                                                                                                                                                                    |
@@ -69,6 +69,7 @@ acceptance that names the mitigations and the role that approved it.
 | `REV-2026-10-local-drills`    | Internal | Recovery drills on the local stack: the Explorer indexer and RPC provider failover                                       | operations, explorer                                                                               | 2026-10-27               | 1        | not published |
 | `REV-2026-10-prelaunch`       | Internal | Internal pre-launch security review of the whole codebase before pubnet                                                  | facilitator, settlement, upto, discovery, search, sdk, mcp, cli, explorer, operations, conformance | 2026-10-28               | 35       | not published |
 | `REV-2026-11-protocol-30`     | Internal | Investigation of failed testnet payments after the Stellar testnet moved to protocol 30                                  | facilitator, operations                                                                            | 2026-11-04               | 1        | not published |
+| `REV-2026-11-key-signup`      | Internal | Internal review of access keys issued through GitHub sign-in before they went live on pubnet                             | facilitator, operations                                                                            | 2026-11-09               | 2        | not published |
 
 {/* generated:end */}
 
@@ -81,7 +82,7 @@ acceptance that names the mitigations and the role that approved it.
 | Critical | 0     | 0             | 0     |
 | High     | 18    | 0             | 18    |
 | Medium   | 82    | 1             | 83    |
-| Low      | 88    | 2             | 90    |
+| Low      | 88    | 4             | 92    |
 | Info     | 8     | 7             | 15    |
 
 {/* generated:end */}
@@ -296,6 +297,8 @@ acceptance that names the mitigations and the role that approved it.
 | [F-2026-204](#f-2026-204) | Low      | operations  | A contract release did not prove which revision of the third-party build workflow ran                           | Fixed         | [`32bb685`](https://github.com/tolgayayci/rail402/commit/32bb685ff9f0e50020ac3d789bbcf2954cbdd79b) |
 | [F-2026-205](#f-2026-205) | Medium   | operations  | The deploy gate accepted an image built for the tag name from another commit                                    | Fixed         | [`32bb685`](https://github.com/tolgayayci/rail402/commit/32bb685ff9f0e50020ac3d789bbcf2954cbdd79b) |
 | [F-2026-206](#f-2026-206) | Medium   | operations  | A protocol upgrade the SDK could not read stopped every verification while /health and /ready said healthy      | Fixed         | [`6079ae2`](https://github.com/tolgayayci/rail402/commit/6079ae274a4f963a777fa2ed6f0c1a84ff2dc17f) |
+| [F-2026-207](#f-2026-207) | Low      | facilitator | A replaced or revoked issued key keeps working on other replicas for up to 10 seconds                           | Accepted risk | —                                                                                                  |
+| [F-2026-208](#f-2026-208) | Low      | facilitator | One person with several aged GitHub accounts can hold several keys                                              | Accepted risk | —                                                                                                  |
 
 {/* generated:end */}
 
@@ -3109,5 +3112,42 @@ The Stellar testnet moved to protocol 30, whose ledger headers carry a StellarVa
 **Fixed in** [`6079ae2`](https://github.com/tolgayayci/rail402/commit/6079ae274a4f963a777fa2ed6f0c1a84ff2dc17f). **Tests**
 
 - [`apps/rail402/test/protocol-readiness.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/protocol-readiness.integration.test.ts): fails readiness while the newest ledger header cannot be decoded, and passes again after
+
+### F-2026-207
+
+**A replaced or revoked issued key keeps working on other replicas for up to 10 seconds**
+
+Low · facilitator · Accepted risk · found by `REV-2026-11-key-signup` on 2026-11-09, resolved 2026-11-09 · threats Q2
+
+Every replica re-reads the keys issued through GitHub sign-in every 10 seconds. The replica that issues a key accepts it at once, but when an account signs in again, or the operator revokes it or switches issued keys off, the other replicas keep the previous state until their next read. A leaked key can therefore pay through another replica for up to 10 seconds after it was replaced.
+
+**Tests**
+
+- [`apps/rail402/test/signup.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/signup.test.ts): replaces an account's key no sooner than the interval, and the old key stops working
+
+**Accepted** by the release approver on 2026-11-09. The window is bounded and short, and within it the key keeps its own request limit and hourly fee budget; the payer's funds are never at risk, only sponsored fees within that budget.
+
+- Each issued key has its own requests-per-minute limit and hourly fee budget, enforced per settlement.
+- The network's hourly fee budget caps every key together.
+- The documentation states the 10-second window.
+
+### F-2026-208
+
+**One person with several aged GitHub accounts can hold several keys**
+
+Low · facilitator · Accepted risk · found by `REV-2026-11-key-signup` on 2026-11-09, resolved 2026-11-09 · threats Q3
+
+Sign-up issues one key per GitHub account older than KEY_SIGNUP_MIN_ACCOUNT_AGE_DAYS. Someone controlling several such accounts gets several keys, each with its own hourly fee budget, and can use more of the sponsor's fees than one key allows.
+
+**Tests**
+
+- [`packages/store-postgres/test/stores.integration.test.ts`](https://github.com/tolgayayci/rail402/blob/main/packages/store-postgres/test/stores.integration.test.ts): holds the cap across concurrent sign-ins
+- [`apps/rail402/test/signup.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/rail402/test/signup.test.ts): no-new stops sign-up and keeps issued keys; off refuses them too; file keys never change
+
+**Accepted** by the release approver on 2026-11-09. GitHub accounts of a minimum age are a cost to obtain in number, and every path to sponsored fees stays capped: per key, per hour of new keys, and per network.
+
+- At most KEY_SIGNUP_PER_HOUR keys are issued per hour across the service, replacements included.
+- Each key's settlements are limited to its own hourly fee budget, and the network's hourly budget caps all of them.
+- The operator revokes an account with keys issued revoke, which also refuses it another key, or switches all issued keys off with issuedKeys: off in the key file.
 
 {/* generated:end */}
