@@ -4,5 +4,6 @@ export * from "./migrate.ts";
 export * from "./settlement-ledger.ts";
 export * from "./catalog-store.ts";
 export * from "./access.ts";
+export * from "./issued-keys.ts";
 export * from "./task-lock.ts";
 export * from "./roles.ts";

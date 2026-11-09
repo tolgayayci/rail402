@@ -88,6 +88,8 @@ export interface Config {
     /** Discovery requests per minute of a `discovery-internal` key whose record sets none. */
     readonly discoveryInternalPerMinute: number;
   };
+  /** Access keys issued to signed-in GitHub accounts (`KEY_SIGNUP=github`); undefined when off. */
+  readonly keySignup: KeySignupConfig | undefined;
   readonly observability: {
     /** SHA-256 hex digest of the bearer token /metrics requires; public when unset. */
     readonly metricsTokenSha256: string | undefined;
@@ -320,6 +322,20 @@ const baseSchema = z.object({
   ACCESS_KEYS_FUTURE_NETWORKS: bool.default(false),
   ACCESS_KEY_MAX_LIFETIME_DAYS: int(1, 3_650).default(400),
   ACCESS_KEYS_MAX: int(1, 100_000).default(1_000),
+  KEY_SIGNUP: z.enum(["off", "github"]).default("off"),
+  KEY_SIGNUP_GITHUB_CLIENT_ID: z
+    .string()
+    .regex(/^[A-Za-z0-9._-]{1,64}$/, "must be a GitHub OAuth client id")
+    .optional(),
+  KEY_SIGNUP_GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
+  KEY_SIGNUP_CALLBACK_URL: z.url().optional(),
+  KEY_SIGNUP_NETWORK: z.string().default(PUBNET),
+  KEY_SIGNUP_REQUESTS_PER_MINUTE: int(1, 100_000).default(60),
+  KEY_SIGNUP_SPONSOR_BUDGET_XLM_PER_HOUR: z.string().default("0.5"),
+  KEY_SIGNUP_DAYS: int(1, 3_650).default(90),
+  KEY_SIGNUP_PER_HOUR: int(1, 100_000).default(30),
+  KEY_SIGNUP_REISSUE_MINUTES: int(0, 525_600).default(60),
+  KEY_SIGNUP_MIN_ACCOUNT_AGE_DAYS: int(0, 3_650).default(30),
   DISCOVERY_INTERNAL_REQUESTS_PER_MINUTE: int(1, 1_000_000).default(6_000),
   SHUTDOWN_GRACE_MS: int(0, 600_000).default(30_000),
   RECONCILE_INTERVAL_MS: int(1_000, 600_000).default(5_000),
@@ -528,6 +544,7 @@ export function loadConfig(environment: Readonly<Record<string, string | undefin
       rateLimitPerMinute: base.RATE_LIMIT_PER_MINUTE,
       trustedProxyHops: base.TRUSTED_PROXY_HOPS,
     },
+    keySignup: keySignupConfig(base, networks),
     auth: {
       apiKeyHashes,
       keysFile,
@@ -956,6 +973,10 @@ function withSecrets(env: Readonly<Record<string, string | undefined>>): Record<
     resolveSecret(env, { name: "DATABASE_MIGRATION_URL", fileOnly: pubnet, options: privateFile }),
   );
   put(
+    "KEY_SIGNUP_GITHUB_CLIENT_SECRET",
+    resolveSecret(env, { name: "KEY_SIGNUP_GITHUB_CLIENT_SECRET", fileOnly: pubnet, options: privateFile }),
+  );
+  put(
     "SEARCH_CURSOR_SECRET",
     resolveSecret(env, { name: "SEARCH_CURSOR_SECRET", fileOnly: pubnet, options: privateFile }),
   );
@@ -988,6 +1009,74 @@ function withSecrets(env: Readonly<Record<string, string | undefined>>): Record<
     );
   }
   return resolved;
+}
+
+/** Access keys issued to signed-in GitHub accounts. */
+export interface KeySignupConfig {
+  readonly provider: "github";
+  readonly clientId: string;
+  readonly clientSecret: string;
+  /** Where GitHub sends the browser back: `https://<host>/keys/callback`, the host serving `network`. */
+  readonly callbackUrl: URL;
+  /** The network the keys are for. */
+  readonly network: StellarNetwork;
+  readonly requestsPerMinute: number;
+  readonly sponsorBudgetStroopsPerHour: bigint;
+  readonly lifetimeDays: number;
+  /** New keys per hour across the service. */
+  readonly perHour: number;
+  /** Shortest time between two keys of one account, in seconds. */
+  readonly reissueSeconds: number;
+  /** Youngest GitHub account issued a key, in days. */
+  readonly minAccountAgeDays: number;
+}
+
+function keySignupConfig(
+  base: z.infer<typeof baseSchema>,
+  networks: readonly string[],
+): KeySignupConfig | undefined {
+  if (base.KEY_SIGNUP === "off") return undefined;
+  const fail = (message: string): never => {
+    throw new ConfigError(`KEY_SIGNUP=github: ${message}`, "config_key_signup_invalid");
+  };
+  if (base.STORE !== "postgres") fail("needs STORE=postgres: issued keys are kept in the database");
+  const clientId = base.KEY_SIGNUP_GITHUB_CLIENT_ID ?? fail("KEY_SIGNUP_GITHUB_CLIENT_ID is required");
+  const clientSecret =
+    base.KEY_SIGNUP_GITHUB_CLIENT_SECRET ??
+    fail("KEY_SIGNUP_GITHUB_CLIENT_SECRET (or KEY_SIGNUP_GITHUB_CLIENT_SECRET_FILE) is required");
+  const network = base.KEY_SIGNUP_NETWORK;
+  if (!isStellarNetwork(network) || !networks.includes(network))
+    fail(`KEY_SIGNUP_NETWORK "${network}" is not a network listed in NETWORKS`);
+  const raw = base.KEY_SIGNUP_CALLBACK_URL ?? fail("KEY_SIGNUP_CALLBACK_URL is required");
+  const callbackUrl = new URL(raw);
+  if (
+    callbackUrl.protocol !== "https:" ||
+    callbackUrl.pathname !== "/keys/callback" ||
+    callbackUrl.search !== ""
+  )
+    fail("KEY_SIGNUP_CALLBACK_URL must be https://<host>/keys/callback");
+  const hosts = parsePublicHosts(base.PUBLIC_HOSTS, networks);
+  if (hosts.get(callbackUrl.host) !== network)
+    fail(`KEY_SIGNUP_CALLBACK_URL's host must be listed in PUBLIC_HOSTS for ${network}`);
+  if (base.KEY_SIGNUP_DAYS > base.ACCESS_KEY_MAX_LIFETIME_DAYS)
+    fail("KEY_SIGNUP_DAYS exceeds ACCESS_KEY_MAX_LIFETIME_DAYS");
+  return {
+    provider: "github",
+    clientId,
+    clientSecret,
+    callbackUrl,
+    network: network as StellarNetwork,
+    requestsPerMinute: base.KEY_SIGNUP_REQUESTS_PER_MINUTE,
+    sponsorBudgetStroopsPerHour: xlmToStroops(
+      base.KEY_SIGNUP_SPONSOR_BUDGET_XLM_PER_HOUR,
+      "KEY_SIGNUP_SPONSOR_BUDGET_XLM_PER_HOUR",
+      "config_key_signup_invalid",
+    ),
+    lifetimeDays: base.KEY_SIGNUP_DAYS,
+    perHour: base.KEY_SIGNUP_PER_HOUR,
+    reissueSeconds: base.KEY_SIGNUP_REISSUE_MINUTES * 60,
+    minAccountAgeDays: base.KEY_SIGNUP_MIN_ACCOUNT_AGE_DAYS,
+  };
 }
 
 /** The name of the key file inside `API_KEYS_DIR`. */

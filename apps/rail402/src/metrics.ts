@@ -447,6 +447,13 @@ export class Metrics {
   });
   // --- end discovery settings ---
 
+  readonly keySignups = new Counter({
+    name: "rail402_key_signups_total",
+    help: "Access-key sign-ups through GitHub by outcome: issued, or the error code that refused it.",
+    labelNames: ["outcome"] as const,
+    registers: [this.registry],
+  });
+
   readonly rateLimited = new Counter({
     name: "rail402_rate_limited_total",
     help: "Requests refused by a rate limit: scope ip (per client address, every route), key (an access key's own bucket on /verify and /settle), network (per key or address on one network) or discovery (an internal discovery identity or its forwarded client).",

@@ -183,6 +183,66 @@ shared by all of them. A spent caller budget is `settle_exact_stellar_caller_bud
 | `ACCESS_KEYS_MAX`                        | `1000`  | Most keys the file may hold (1–100000).                                                                                    |
 | `DISCOVERY_INTERNAL_REQUESTS_PER_MINUTE` | `6000`  | Discovery requests per minute of a `discovery-internal` key whose record sets no `discoveryRequestsPerMinute` (1–1000000). |
 
+## Keys through GitHub sign-in
+
+With `KEY_SIGNUP=github` the host that serves `KEY_SIGNUP_NETWORK` (a `PUBLIC_HOSTS` entry) issues access
+keys to anyone with a GitHub account, without an operator in the loop:
+
+1. `GET /keys/new` sends the browser to GitHub. No scope is asked for: only the public profile is read.
+2. GitHub sends it back to `GET /keys/callback`, which answers with JSON holding the key, shown once:
+
+```json
+{
+  "key": "r402_gh-1234567_…",
+  "keyId": "gh-1234567",
+  "github": "octocat",
+  "network": "stellar:pubnet",
+  "limits": { "requestsPerMinute": 60, "sponsorBudgetXlmPerHour": "0.5" },
+  "expiresAt": "2027-02-07T12:00:00.000Z",
+  "replacedPreviousKey": false,
+  "use": "Send it as \"Authorization: Bearer <key>\" to /verify and /settle on https://mainnet.rail402.dev. …"
+}
+```
+
+Each GitHub account holds one key, `gh-<GitHub user id>`, for `KEY_SIGNUP_NETWORK` only. Signing in again
+issues a new key and the previous one stops working, at most once per `KEY_SIGNUP_REISSUE_MINUTES`. The
+database keeps the key's SHA-256 and the account's id and login, never the key or the GitHub token. Every
+replica reads the issued keys every 10 seconds; the replica that issued a key accepts it at once. Issued
+keys are limited like file keys: their request limit and hourly fee budget apply per settlement. Metrics
+count them under one `key_id` label, `issued`.
+
+| Variable                                 | Default          | Meaning                                                                             |
+| ---------------------------------------- | ---------------- | ----------------------------------------------------------------------------------- |
+| `KEY_SIGNUP`                             | `off`            | `github` serves `/keys/new` and `/keys/callback`; needs `STORE=postgres`            |
+| `KEY_SIGNUP_GITHUB_CLIENT_ID`            |                  | The GitHub OAuth app's client id                                                    |
+| `KEY_SIGNUP_GITHUB_CLIENT_SECRET(_FILE)` |                  | Its client secret; from a file when pubnet is enabled                               |
+| `KEY_SIGNUP_CALLBACK_URL`                |                  | `https://<host>/keys/callback`, the OAuth app's callback URL, on the network's host |
+| `KEY_SIGNUP_NETWORK`                     | `stellar:pubnet` | The network issued keys may use                                                     |
+| `KEY_SIGNUP_REQUESTS_PER_MINUTE`         | `60`             | Each issued key's request limit on that network                                     |
+| `KEY_SIGNUP_SPONSOR_BUDGET_XLM_PER_HOUR` | `0.5`            | Each issued key's hourly fee budget                                                 |
+| `KEY_SIGNUP_DAYS`                        | `90`             | How long an issued key lives; at most `ACCESS_KEY_MAX_LIFETIME_DAYS`                |
+| `KEY_SIGNUP_PER_HOUR`                    | `30`             | New keys per hour across the service, replacements included                         |
+| `KEY_SIGNUP_REISSUE_MINUTES`             | `60`             | Shortest time between two keys of one account                                       |
+| `KEY_SIGNUP_MIN_ACCOUNT_AGE_DAYS`        | `30`             | Youngest GitHub account issued a key                                                |
+
+Sign-up requests are limited to 10 a minute per client address. The refusals are listed under
+[access-key sign-up](/reference/error-codes#access-key-sign-up) on the error-code page.
+
+**Switches.** The access-key file's top-level `issuedKeys` controls issued keys, and takes effect with the
+file's next reload (10 seconds, or at once on `SIGHUP`):
+
+| `issuedKeys`   | New keys                         | Keys already issued                                          |
+| -------------- | -------------------------------- | ------------------------------------------------------------ |
+| `on` (default) | issued                           | accepted                                                     |
+| `no-new`       | refused with `key_signup_closed` | accepted                                                     |
+| `off`          | refused with `key_signup_closed` | refused with HTTP 401, the reason says they are switched off |
+
+Keys in the file are never affected. To stop one holder, revoke the account:
+`node dist/keys.js issued revoke <gh-id or GitHub login>`; it is refused within 10 seconds on every
+replica and the account is issued no other key until `node dist/keys.js issued restore <…>`.
+`node dist/keys.js issued list` prints every issued key without its secret. These commands connect with
+`DATABASE_URL` (or `DATABASE_URL_FILE`). File key ids cannot start with `gh-`.
+
 ## Secrets from files
 
 Every secret can come from a file instead of the environment: set `<NAME>_FILE` to the file's absolute
@@ -364,46 +424,47 @@ surge pricing), `cause="stats_unavailable"` when fee stats could not be read and
 Configuration problems stop the service before it serves anything, with exit code 78 and
 `rail402: <code>: <message>` on stderr. The codes are stable:
 
-| Code                                           | Meaning                                                                                                                                                                                                                       |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `config_invalid`                               | A malformed value, an unknown network, or limits that contradict each other                                                                                                                                                   |
-| `config_rpc_missing`                           | `<NETWORK>_RPC_URL`, `<NETWORK>_RPC_URLS` and `<NETWORK>_RPC_URLS_FILE` are all unset, or `<NETWORK>_RPC_URLS` lists no provider                                                                                              |
-| `config_sponsor_secret_missing`                | A served network has no sponsor seed: `TESTNET_SPONSOR_SECRET` (or `_FILE`) or, with pubnet, `PUBNET_SPONSOR_SECRET_FILE` is not set                                                                                          |
-| `config_fee_bounds_invalid`                    | `INCLUSION_FEE_STROOPS`, `INCLUSION_FEE_CAP_STROOPS` and the fee ceilings are out of order                                                                                                                                    |
-| `config_pubnet_rpc_insecure`                   | `PUBNET_RPC_URL` does not use `https`                                                                                                                                                                                         |
-| `config_pubnet_api_key_policy_missing`         | `PUBNET_REQUIRE_API_KEY` is not set                                                                                                                                                                                           |
-| `config_pubnet_budget_missing`                 | `PUBNET_MAX_SPONSOR_SPEND_XLM_PER_HOUR` is not set                                                                                                                                                                            |
-| `config_pubnet_fee_ceiling_missing`            | `PUBNET_MAX_TX_FEE_STROOPS`, `PUBNET_INCLUSION_FEE_STROOPS` or, with `upto`, `PUBNET_UPTO_MAX_TX_FEE_STROOPS` or `PUBNET_UPTO_TTL_MAX_FEE_STROOPS` is not set                                                                 |
-| `config_pubnet_inclusion_floor_too_low`        | `PUBNET_INCLUSION_FEE_STROOPS` is below 200 without `PUBNET_ALLOW_INCLUSION_FEE_BELOW_FLOOR=true`                                                                                                                             |
-| `config_pubnet_assets_missing`                 | `PUBNET_ASSETS` is not set                                                                                                                                                                                                    |
-| `config_pubnet_asset_min_missing`              | A `PUBNET_ASSETS` entry has no minimum amount, or a minimum of 0                                                                                                                                                              |
-| `config_upto_contract_missing`                 | `upto` is enabled without the settlement contract it needs: `<NETWORK>_UPTO_CONTRACT` on a network without a canonical one, or `<NETWORK>_UPTO_WASM_HASH` with a non-canonical contract (on pubnet both are always required)  |
-| `config_pubnet_cold_signer_missing`            | `PUBNET_SPONSOR_COLD_SIGNER` is not set while the sponsor signer check is on                                                                                                                                                  |
-| `config_pubnet_sponsor_floor_invalid`          | `PUBNET_MIN_SPONSOR_BALANCE_XLM` is below 1                                                                                                                                                                                   |
-| `config_bazaar_policy_invalid`                 | `PUBNET_BAZAAR_ORIGINLESS_MCP` is set to `publish` (a value that is neither option is `config_invalid`)                                                                                                                       |
-| `config_secret_in_env`                         | A secret that must come from a file is set in the environment, or, with pubnet, `PUBNET_RPC_URL(S)` in the environment carries credentials in a URL                                                                           |
-| `config_secret_conflict`                       | Both `<NAME>` and `<NAME>_FILE` are set                                                                                                                                                                                       |
-| `config_secret_file_unreadable`                | A secret file is missing, unreadable, empty, larger than 4 KiB, not a regular file, or given as a relative path                                                                                                               |
-| `config_secret_file_insecure`                  | A secret file is writable by its group or others, a pubnet sponsor seed file is readable by anyone but its owner, or, with pubnet, a database URL or cursor secret file is readable by others                                 |
-| `config_secret_file_untagged`                  | The pubnet sponsor key file does not start with its network tag                                                                                                                                                               |
-| `config_secret_network_mismatch`               | A sponsor key file is tagged for another network                                                                                                                                                                              |
-| `config_rpc_conflict`                          | Both `<NETWORK>_RPC_URL` and `<NETWORK>_RPC_URLS` are set                                                                                                                                                                     |
-| `config_pubnet_rpc_fallback_missing`           | Several networks are served and `PUBNET_RPC_URLS` lists fewer than two providers, without `PUBNET_RPC_SINGLE_PROVIDER=true`                                                                                                   |
-| `config_pubnet_keyless_limits_missing`         | Pubnet serves keyless callers (`PUBNET_REQUIRE_API_KEY=false`) without `PUBNET_RATE_LIMIT_PER_MINUTE` and `PUBNET_KEYLESS_SPONSOR_BUDGET_XLM_PER_HOUR`                                                                        |
-| `config_access_keys_missing`                   | `REQUIRE_API_KEY=true` without any key, or pubnet requires keys without `API_KEYS_FILE` or `API_KEYS_DIR`                                                                                                                     |
-| `config_access_keys_invalid`                   | `API_KEYS_FILE` and `API_KEYS_DIR` are both set, or the key file is not an absolute path, cannot be read, is not a regular file of at most 1 MiB, is writable by its group or others, or holds an invalid key record          |
-| `config_legacy_api_keys_with_pubnet`           | `API_KEY_SHA256` is set with pubnet enabled: its keys would open every network                                                                                                                                                |
-| `config_metrics_private_token_missing`         | `METRICS_PRIVATE_TOKEN_SHA256` is not set with pubnet enabled                                                                                                                                                                 |
-| `config_public_hosts_invalid`                  | `PUBLIC_HOSTS` is malformed, names a network that is not served, or lists a host twice                                                                                                                                        |
-| `config_database_unreachable`                  | The database cannot be reached or read (preflight)                                                                                                                                                                            |
-| `config_database_connections_low`              | With pubnet, the database role (or the server) allows fewer connections than one process's pools hold (see [Database roles](/operations#database-roles))                                                                      |
-| `config_database_superuser`                    | With pubnet, the database role is a superuser or may create roles, is a member of such a role or of a server-file or server-program role, or owns the schema or its tables (see [Database roles](/operations#database-roles)) |
-| `config_pubnet_migration_url_in_service`       | With pubnet, `DATABASE_MIGRATION_URL` is given to the service: the process that holds the pubnet sponsor seed never holds the schema owner's credentials too                                                                  |
-| `config_pubnet_migration_role_missing`         | With pubnet, a migration is pending and would be applied through the service's own connection (`MIGRATE_ON_START=true`); run `node dist/migrate.js` as the schema owner instead                                               |
-| `config_schema_outdated`                       | A migration is pending and `MIGRATE_ON_START=false`                                                                                                                                                                           |
-| `sponsor_signers_unsafe`                       | (pubnet) The sponsor's signer set is unsafe for a key on a server (see [Keys and custody](/operations#keys-and-custody)); with several networks pubnet is held instead                                                        |
-| `upto_contract_mismatch`                       | The live `upto` contract runs other code than `UPTO_WASM_HASH`, or (pubnet) is not on the network; with several networks the network is held instead                                                                          |
-| `asset_decimals_mismatch`, `asset_not_a_token` | An accepted asset's contract contradicts its configuration (see [Accepted assets](/facilitator/assets))                                                                                                                       |
+| Code                                           | Meaning                                                                                                                                                                                                                                            |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config_invalid`                               | A malformed value, an unknown network, or limits that contradict each other                                                                                                                                                                        |
+| `config_rpc_missing`                           | `<NETWORK>_RPC_URL`, `<NETWORK>_RPC_URLS` and `<NETWORK>_RPC_URLS_FILE` are all unset, or `<NETWORK>_RPC_URLS` lists no provider                                                                                                                   |
+| `config_sponsor_secret_missing`                | A served network has no sponsor seed: `TESTNET_SPONSOR_SECRET` (or `_FILE`) or, with pubnet, `PUBNET_SPONSOR_SECRET_FILE` is not set                                                                                                               |
+| `config_fee_bounds_invalid`                    | `INCLUSION_FEE_STROOPS`, `INCLUSION_FEE_CAP_STROOPS` and the fee ceilings are out of order                                                                                                                                                         |
+| `config_pubnet_rpc_insecure`                   | `PUBNET_RPC_URL` does not use `https`                                                                                                                                                                                                              |
+| `config_pubnet_api_key_policy_missing`         | `PUBNET_REQUIRE_API_KEY` is not set                                                                                                                                                                                                                |
+| `config_pubnet_budget_missing`                 | `PUBNET_MAX_SPONSOR_SPEND_XLM_PER_HOUR` is not set                                                                                                                                                                                                 |
+| `config_pubnet_fee_ceiling_missing`            | `PUBNET_MAX_TX_FEE_STROOPS`, `PUBNET_INCLUSION_FEE_STROOPS` or, with `upto`, `PUBNET_UPTO_MAX_TX_FEE_STROOPS` or `PUBNET_UPTO_TTL_MAX_FEE_STROOPS` is not set                                                                                      |
+| `config_pubnet_inclusion_floor_too_low`        | `PUBNET_INCLUSION_FEE_STROOPS` is below 200 without `PUBNET_ALLOW_INCLUSION_FEE_BELOW_FLOOR=true`                                                                                                                                                  |
+| `config_pubnet_assets_missing`                 | `PUBNET_ASSETS` is not set                                                                                                                                                                                                                         |
+| `config_pubnet_asset_min_missing`              | A `PUBNET_ASSETS` entry has no minimum amount, or a minimum of 0                                                                                                                                                                                   |
+| `config_upto_contract_missing`                 | `upto` is enabled without the settlement contract it needs: `<NETWORK>_UPTO_CONTRACT` on a network without a canonical one, or `<NETWORK>_UPTO_WASM_HASH` with a non-canonical contract (on pubnet both are always required)                       |
+| `config_pubnet_cold_signer_missing`            | `PUBNET_SPONSOR_COLD_SIGNER` is not set while the sponsor signer check is on                                                                                                                                                                       |
+| `config_pubnet_sponsor_floor_invalid`          | `PUBNET_MIN_SPONSOR_BALANCE_XLM` is below 1                                                                                                                                                                                                        |
+| `config_bazaar_policy_invalid`                 | `PUBNET_BAZAAR_ORIGINLESS_MCP` is set to `publish` (a value that is neither option is `config_invalid`)                                                                                                                                            |
+| `config_secret_in_env`                         | A secret that must come from a file is set in the environment, or, with pubnet, `PUBNET_RPC_URL(S)` in the environment carries credentials in a URL                                                                                                |
+| `config_secret_conflict`                       | Both `<NAME>` and `<NAME>_FILE` are set                                                                                                                                                                                                            |
+| `config_secret_file_unreadable`                | A secret file is missing, unreadable, empty, larger than 4 KiB, not a regular file, or given as a relative path                                                                                                                                    |
+| `config_secret_file_insecure`                  | A secret file is writable by its group or others, a pubnet sponsor seed file is readable by anyone but its owner, or, with pubnet, a database URL or cursor secret file is readable by others                                                      |
+| `config_secret_file_untagged`                  | The pubnet sponsor key file does not start with its network tag                                                                                                                                                                                    |
+| `config_secret_network_mismatch`               | A sponsor key file is tagged for another network                                                                                                                                                                                                   |
+| `config_rpc_conflict`                          | Both `<NETWORK>_RPC_URL` and `<NETWORK>_RPC_URLS` are set                                                                                                                                                                                          |
+| `config_pubnet_rpc_fallback_missing`           | Several networks are served and `PUBNET_RPC_URLS` lists fewer than two providers, without `PUBNET_RPC_SINGLE_PROVIDER=true`                                                                                                                        |
+| `config_pubnet_keyless_limits_missing`         | Pubnet serves keyless callers (`PUBNET_REQUIRE_API_KEY=false`) without `PUBNET_RATE_LIMIT_PER_MINUTE` and `PUBNET_KEYLESS_SPONSOR_BUDGET_XLM_PER_HOUR`                                                                                             |
+| `config_access_keys_missing`                   | `REQUIRE_API_KEY=true` without any key, or pubnet requires keys without `API_KEYS_FILE` or `API_KEYS_DIR`                                                                                                                                          |
+| `config_access_keys_invalid`                   | `API_KEYS_FILE` and `API_KEYS_DIR` are both set, or the key file is not an absolute path, cannot be read, is not a regular file of at most 1 MiB, is writable by its group or others, or holds an invalid key record                               |
+| `config_legacy_api_keys_with_pubnet`           | `API_KEY_SHA256` is set with pubnet enabled: its keys would open every network                                                                                                                                                                     |
+| `config_key_signup_invalid`                    | `KEY_SIGNUP=github` without a database store, client id or secret, with a callback URL that is not `https://<host>/keys/callback` on a `PUBLIC_HOSTS` host of `KEY_SIGNUP_NETWORK`, or with `KEY_SIGNUP_DAYS` above `ACCESS_KEY_MAX_LIFETIME_DAYS` |
+| `config_metrics_private_token_missing`         | `METRICS_PRIVATE_TOKEN_SHA256` is not set with pubnet enabled                                                                                                                                                                                      |
+| `config_public_hosts_invalid`                  | `PUBLIC_HOSTS` is malformed, names a network that is not served, or lists a host twice                                                                                                                                                             |
+| `config_database_unreachable`                  | The database cannot be reached or read (preflight)                                                                                                                                                                                                 |
+| `config_database_connections_low`              | With pubnet, the database role (or the server) allows fewer connections than one process's pools hold (see [Database roles](/operations#database-roles))                                                                                           |
+| `config_database_superuser`                    | With pubnet, the database role is a superuser or may create roles, is a member of such a role or of a server-file or server-program role, or owns the schema or its tables (see [Database roles](/operations#database-roles))                      |
+| `config_pubnet_migration_url_in_service`       | With pubnet, `DATABASE_MIGRATION_URL` is given to the service: the process that holds the pubnet sponsor seed never holds the schema owner's credentials too                                                                                       |
+| `config_pubnet_migration_role_missing`         | With pubnet, a migration is pending and would be applied through the service's own connection (`MIGRATE_ON_START=true`); run `node dist/migrate.js` as the schema owner instead                                                                    |
+| `config_schema_outdated`                       | A migration is pending and `MIGRATE_ON_START=false`                                                                                                                                                                                                |
+| `sponsor_signers_unsafe`                       | (pubnet) The sponsor's signer set is unsafe for a key on a server (see [Keys and custody](/operations#keys-and-custody)); with several networks pubnet is held instead                                                                             |
+| `upto_contract_mismatch`                       | The live `upto` contract runs other code than `UPTO_WASM_HASH`, or (pubnet) is not on the network; with several networks the network is held instead                                                                                               |
+| `asset_decimals_mismatch`, `asset_not_a_token` | An accepted asset's contract contradicts its configuration (see [Accepted assets](/facilitator/assets))                                                                                                                                            |
 
 Any other failure that stops startup, such as missing embedding model files, exits with code 1 and
 one line, `rail402: startup_failed: <what failed>`, followed by the code locations of the failure. The

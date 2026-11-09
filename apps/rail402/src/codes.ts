@@ -1,4 +1,4 @@
-import { httpCodes, mergeCodes, type CodeSet } from "@rail402.dev/errors";
+import { httpCodes, keySignupCodes, mergeCodes, type CodeSet } from "@rail402.dev/errors";
 import { exactStellarCodes, uptoStellarCodes } from "@rail402.dev/stellar";
 import { bazaarCodes } from "@rail402.dev/bazaar";
 import { searchCodes } from "@rail402.dev/search";
@@ -7,7 +7,14 @@ import { searchCodes } from "@rail402.dev/search";
  * Every code the Rail402 service can return, from every surface, in one set. Merging refuses a code
  * defined twice, so importing this module fails at startup if two surfaces ever claim the same code.
  */
-export const allCodes = mergeCodes(httpCodes, exactStellarCodes, uptoStellarCodes, bazaarCodes, searchCodes);
+export const allCodes = mergeCodes(
+  httpCodes,
+  keySignupCodes,
+  exactStellarCodes,
+  uptoStellarCodes,
+  bazaarCodes,
+  searchCodes,
+);
 
 export type Rail402Code = keyof typeof allCodes;
 
@@ -44,6 +51,15 @@ export const codeGroups: readonly CodeGroup[] = [
     where:
       "Returned with the listed HTTP status in `error.code` on every endpoint. On `/verify` and `/settle` the body also keeps the x402 response shape, with the code in `invalidReason` or `errorReason`.",
     codes: httpCodes,
+  },
+  {
+    id: "key-signup",
+    title: "Access-key sign-up",
+    set: "keySignupCodes",
+    package: "@rail402.dev/errors",
+    where:
+      "Returned with the listed HTTP status in `error.code` by `GET /keys/new` and `GET /keys/callback`, the routes that issue access keys to signed-in GitHub accounts.",
+    codes: keySignupCodes,
   },
   {
     id: "exact-stellar",

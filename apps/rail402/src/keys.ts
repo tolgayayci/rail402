@@ -4,6 +4,8 @@
  *   node dist/keys.js new --id <id> --networks stellar:pubnet [--requests-per-minute N]
  *                         [--sponsor-budget-xlm-per-hour X] [--days D]
  *   node dist/keys.js check <file>
+ *   node dist/keys.js issued list
+ *   node dist/keys.js issued revoke|restore <gh-id or GitHub login>
  *
  * `new` prints the key once, on the first line (hand it to its holder; it is never stored), and the
  * record to add to `API_KEYS_FILE` as JSON on the second; pubnet keys need a sponsor budget and expire
@@ -11,11 +13,18 @@
  * networks of `NETWORKS`, and exits 0 or 78 with `rail402: <code>: <message>`. Replace the file
  * atomically (write a new file, then rename it over the old one); the service picks it up within 10
  * seconds, or at once on SIGHUP.
+ *
+ * `issued` manages the keys issued through GitHub sign-in, in the database named by `DATABASE_URL` (or
+ * `DATABASE_URL_FILE`): `list` prints them without their secret, one JSON line each; `revoke` refuses an
+ * account's key on every replica within 10 seconds and blocks the account from another one until
+ * `restore`.
  */
 import { parseArgs } from "node:util";
 import { PUBNET } from "@rail402.dev/stellar";
+import { PostgresIssuedKeys, createDatabase } from "@rail402.dev/store-postgres";
 import { newAccessKey, parseAccessKeys, readAccessKeyFile } from "./access.ts";
 import { ConfigError, configFailureLine } from "./config.ts";
+import { resolveSecret } from "./secrets.ts";
 
 function rules() {
   const networks = (process.env["NETWORKS"] ?? "stellar:testnet")
@@ -30,7 +39,37 @@ function rules() {
   };
 }
 
-function main(): void {
+async function issued(command: string | undefined, who: string | undefined): Promise<void> {
+  const pubnet = (process.env["NETWORKS"] ?? "").split(",").some((value) => value.trim() === PUBNET);
+  const url = resolveSecret(process.env, { name: "DATABASE_URL", fileOnly: pubnet });
+  if (url === undefined) throw new UsageError("set DATABASE_URL or DATABASE_URL_FILE");
+  const db = createDatabase({ connectionString: url, maxConnections: 1 });
+  try {
+    const store = new PostgresIssuedKeys(db);
+    if (command === "list" && who === undefined) {
+      for (const row of await store.all()) {
+        const { sha256: _digest, sponsorBudgetStroopsPerHour, ...rest } = row;
+        process.stdout.write(
+          `${JSON.stringify({ ...rest, sponsorBudgetStroopsPerHour: sponsorBudgetStroopsPerHour.toString() })}\n`,
+        );
+      }
+      return;
+    }
+    if ((command === "revoke" || command === "restore") && who !== undefined) {
+      const changed = await store.setRevoked(who, command === "revoke");
+      if (!changed) throw new UsageError(`no issued key for "${who}"`);
+      process.stdout.write(
+        `${JSON.stringify({ ok: true, [command === "revoke" ? "revoked" : "restored"]: who })}\n`,
+      );
+      return;
+    }
+    throw new UsageError("usage: keys issued list | keys issued revoke|restore <gh-id or GitHub login>");
+  } finally {
+    await db.destroy();
+  }
+}
+
+async function main(): Promise<void> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
@@ -42,6 +81,10 @@ function main(): void {
     },
   });
   const [command, file] = positionals;
+  if (command === "issued" && positionals.length <= 3) {
+    await issued(positionals[1], positionals[2]);
+    return;
+  }
   if (command === "check" && file !== undefined && positionals.length === 2) {
     const records = parseAccessKeys(readAccessKeyFile(file).text, rules());
     process.stdout.write(`${JSON.stringify({ ok: true, keys: records.length })}\n`);
@@ -54,7 +97,7 @@ function main(): void {
     values.networks === undefined
   ) {
     throw new UsageError(
-      "usage: keys new --id <id> --networks <caip2,…> [--requests-per-minute N] [--sponsor-budget-xlm-per-hour X] [--days D] | keys check <file>",
+      "usage: keys new --id <id> --networks <caip2,…> [--requests-per-minute N] [--sponsor-budget-xlm-per-hour X] [--days D] | keys check <file> | keys issued list | keys issued revoke|restore <who>",
     );
   }
   const networks = values.networks.split(",").map((value) => value.trim());
@@ -90,7 +133,7 @@ function main(): void {
 class UsageError extends Error {}
 
 try {
-  main();
+  await main();
 } catch (error) {
   if (error instanceof ConfigError) {
     process.stderr.write(configFailureLine(error));

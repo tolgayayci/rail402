@@ -1,0 +1,106 @@
+---
+title: Hosted mainnet
+description: The public Rail402 facilitator on the Stellar mainnet. Sign in with GitHub to get an API key.
+---
+
+A public Rail402 instance serves the Stellar mainnet. It verifies and settles real payments and pays their
+network fees, so each caller needs an API key. Anyone with a GitHub account can get one in a browser.
+
+```text
+https://mainnet.rail402.dev
+```
+
+| Property   | Value                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------- |
+| Network    | `stellar:pubnet` only                                                                 |
+| Scheme     | `exact` and [`upto`](/facilitator/upto), x402 version 2                               |
+| Fees       | Sponsored: `extra.areFeesSponsored` is `true`; the payer pays no network fee          |
+| Access     | An API key on `/verify` and `/settle`; get one with [GitHub sign-in](#get-an-api-key) |
+| Extensions | `bazaar`                                                                              |
+
+The payer still funds its own account: the base reserve and the reserve of each trustline. The facilitator
+pays only the fee of the settlement transaction and never holds or sends the buyer's funds. For testnet, use
+the [hosted testnet](/facilitator/hosted-testnet) instance, which needs no key.
+
+## Get an API key
+
+Open this page in a browser and sign in with GitHub:
+
+```text
+https://mainnet.rail402.dev/keys/new
+```
+
+GitHub asks you to authorize the Rail402 app; it asks for no permissions, so Rail402 reads only your public
+profile (account id, login and creation date). You land back on Rail402 with a JSON answer holding your key:
+
+```json
+{
+  "key": "r402_gh-1234567_…",
+  "keyId": "gh-1234567",
+  "github": "your-login",
+  "network": "stellar:pubnet",
+  "limits": { "requestsPerMinute": 60, "sponsorBudgetXlmPerHour": "0.5" },
+  "expiresAt": "2027-02-07T12:00:00.000Z",
+  "replacedPreviousKey": false,
+  "use": "Send it as \"Authorization: Bearer <key>\" to /verify and /settle on https://mainnet.rail402.dev. …"
+}
+```
+
+<Warning>
+
+The key is shown once. Rail402 stores only its SHA-256, so it cannot show it again. Copy it into your
+server's secret store; never put it in a browser bundle or a public repository.
+
+</Warning>
+
+- **One key per GitHub account**, for `stellar:pubnet` only. It works on every replica within seconds.
+- **Lost or leaked key:** sign in again. You get a new key, and the previous one stops working within 10 seconds. A new
+  key can be issued once an hour.
+- **Expiry:** keys live 90 days (`expiresAt`). Sign in again before then for a new one.
+- **Limits:** each key may send 60 `/verify` and `/settle` requests a minute, and its settlements may commit
+  0.5 XLM of fees an hour. A request over a limit is refused with a retryable code; nothing is charged.
+- **Accounts:** GitHub accounts younger than 30 days are not issued keys.
+
+Refusals carry a stable code, listed under [access-key sign-up](/reference/error-codes#access-key-sign-up).
+
+## Use the key
+
+Send the key from your seller's server with every facilitator call. With the stock client:
+
+```ts
+import { HTTPFacilitatorClient } from "@x402/core/server";
+
+const facilitator = new HTTPFacilitatorClient({
+  url: "https://mainnet.rail402.dev",
+  createAuthHeaders: async () => {
+    const headers = { Authorization: `Bearer ${process.env.RAIL402_API_KEY}` };
+    return { verify: headers, settle: headers, supported: headers };
+  },
+});
+```
+
+Then register `stellar:pubnet` and price your routes in mainnet USDC. A request without a valid key is
+refused with HTTP 401 `unauthorized`; `/supported` and the discovery routes need no key.
+
+Your own usage, limits and the fees your settlements committed in the last hour:
+
+```sh
+curl -H "Authorization: Bearer $RAIL402_API_KEY" https://mainnet.rail402.dev/usage
+```
+
+## Check it
+
+```sh
+curl https://mainnet.rail402.dev/supported
+```
+
+It lists `exact` and `upto` on `stellar:pubnet`, with `extra.areFeesSponsored: true`, and the accounts that
+sign for the facilitator under `signers`. A payment in which any of them is the payer, a source or a party to
+an authorization is refused.
+
+## Stopping keys
+
+The operator can revoke one key, stop issuing new keys, or refuse every key issued through sign-in at once,
+without a restart (see [Keys through GitHub sign-in](/configuration#keys-through-github-sign-in)). A revoked
+key is refused with HTTP 401 and a reason that says why. Run your own instance with the
+[Docker image](/facilitator/docker) to depend on no one else's keys.

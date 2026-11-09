@@ -50,7 +50,15 @@ import {
   type CallerRateLimiter,
   type KeyedRateLimiter,
 } from "./rate-limit.ts";
-import { AccessKeys, legacyKeys, presentedKey, type AccessKeyRecord, type PresentedKey } from "./access.ts";
+import {
+  AccessKeys,
+  legacyKeys,
+  metricKeyId,
+  presentedKey,
+  type AccessKeyRecord,
+  type PresentedKey,
+} from "./access.ts";
+import { SIGNUP_REQUESTS_PER_MINUTE, signupRoutes, type IssuedKeyStore } from "./signup.ts";
 import { MemoryUsageMeter, accruedFee, type UsageMeter } from "./metering.ts";
 
 export interface ReadinessCheck {
@@ -121,6 +129,10 @@ export interface AppDependencies {
    * pool); `rateLimiter` and `networkLimiter` take them when absent.
    */
   readonly discoveryLimiter?: CallerRateLimiter;
+  /** Where keys issued through sign-in are kept; with `KEY_SIGNUP` on, `/keys/*` is served with it. */
+  readonly issuedKeys?: IssuedKeyStore;
+  /** The `fetch` the sign-up routes call GitHub with; the global one when absent. */
+  readonly signupFetch?: typeof fetch;
 }
 
 /** The service-wide limit one request is charged to: a bucket and the limiter that keeps it. */
@@ -177,6 +189,8 @@ type Operation = "verify" | "settle";
 /** Route labels for metrics; anything else is counted as "unmatched" to keep label cardinality bounded. */
 const ROUTES = new Set([
   "/usage",
+  "/keys/new",
+  "/keys/callback",
   "/verify",
   "/settle",
   "/supported",
@@ -594,6 +608,31 @@ export function createApp(deps: AppDependencies): Hono {
   /** The host serving `network`, to name in a refusal. */
   const hostFor = (network: string) => [...config.publicHosts].find(([, mapped]) => mapped === network)?.[0];
 
+  const signup = config.keySignup;
+  if (signup !== undefined && deps.issuedKeys !== undefined) {
+    app.route(
+      "/keys",
+      signupRoutes({
+        config: signup,
+        store: deps.issuedKeys,
+        accessKeys,
+        metrics,
+        log,
+        onSignupHost: (c) => scopedNetwork(c) === signup.network,
+        signupWait: async (c) => {
+          const bucket = `signup|addr:${rateLimitKey(clientAddress(c, config.http.trustedProxyHops))}`;
+          try {
+            return await networkLimiter.takeLimit(bucket, SIGNUP_REQUESTS_PER_MINUTE);
+          } catch {
+            metrics.rateLimiterFailures.inc({ scope: "ip" });
+            return fallbackLimiter.takeLimit(bucket, SIGNUP_REQUESTS_PER_MINUTE);
+          }
+        },
+        ...(deps.signupFetch === undefined ? {} : { fetch: deps.signupFetch }),
+      }),
+    );
+  }
+
   app.get("/supported", (c) => {
     const supported = facilitator.core.getSupported();
     const network = scopedNetwork(c);
@@ -799,7 +838,7 @@ export function createApp(deps: AppDependencies): Hono {
           network,
           networkConfig.requireApiKey,
         );
-        const keyId = decision.kind === "served" ? decision.record.id : decision.keyId;
+        const keyId = decision.kind === "served" ? metricKeyId(decision.record) : decision.keyId;
         if (decision.kind === "unauthorized" || decision.kind === "forbidden") {
           metrics.accessRequests.inc({ network, key_id: keyId, outcome: decision.kind });
           return reject(c, operation, httpError(decision.kind, { reason: decision.reason }));

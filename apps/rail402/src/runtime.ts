@@ -59,6 +59,7 @@ import {
   DatabaseProbe,
   PostgresCatalogStore,
   PostgresChannelPool,
+  PostgresIssuedKeys,
   type PostgresRateLimiter,
   PostgresSettlementLedger,
   PostgresTaskLock,
@@ -66,6 +67,7 @@ import {
   type Database,
 } from "@rail402.dev/store-postgres";
 import { cachedProbe } from "./cached-probe.ts";
+import { issuedRecord } from "./signup.ts";
 import { checkConnectionBudget, prepareDatabase } from "./database-checks.ts";
 import { SHARED_POOL_SIZE, databasePools } from "./database-pools.ts";
 import { createAccessStores } from "./network-stores.ts";
@@ -157,8 +159,10 @@ export interface Runtime {
     /** The address and internal-identity limits of the discovery routes, on the discovery pool. */
     readonly discoveryLimiter?: PostgresRateLimiter;
     readonly meter: UsageMeter;
+    /** Keys issued through sign-in (on pubnet's pool when it has one). */
+    readonly issuedKeys: PostgresIssuedKeys;
   };
-  /** The access keys, re-read from `API_KEYS_FILE` when it changes. */
+  /** The access keys, re-read from `API_KEYS_FILE` when it changes, with the issued keys. */
   readonly accessKeys: AccessKeys;
   /** The Bazaar catalog, when enabled. */
   readonly bazaar?: {
@@ -1060,7 +1064,8 @@ export async function createRuntime(
       const cap = state.config.maxSponsorSpendPerHourStroops;
       if (cap !== undefined) metrics.sponsorBudgetUsed.set({ network }, Number(committed) / Number(cap));
       for (const record of accessKeys.forNetwork(network)) {
-        if (record.sponsorBudgetStroopsPerHour === undefined) continue;
+        // Issued keys can be thousands: their budgets are enforced per settlement, not exported per key.
+        if (record.sponsorBudgetStroopsPerHour === undefined || record.issued === true) continue;
         const spent = await state.ledger.committedFeesSince(network, hourAgo, `key:${record.id}`);
         metrics.accessSponsorCommitted.set({ network, key_id: record.id }, Number(spent));
       }
@@ -1243,10 +1248,13 @@ export async function createRuntime(
     else if (state.config.network !== PUBNET) state.gate.serve();
   }
 
+  // Issued keys are read from the pool pubnet's payments use, so a busy testnet never delays them.
+  const issuedKeys = db === undefined ? undefined : new PostgresIssuedKeys(pubnetDb ?? db);
   const access =
-    stores === undefined
+    stores === undefined || issuedKeys === undefined
       ? undefined
       : {
+          issuedKeys,
           rateLimiter: stores.rateLimiter,
           ...(stores.pubnetRateLimiter === undefined ? {} : { pubnetRateLimiter: stores.pubnetRateLimiter }),
           networkLimiter: stores.networkLimiter,
@@ -1291,6 +1299,19 @@ export async function createRuntime(
     }
   };
   recordAccessKeys();
+
+  /** Puts the keys issued through sign-in in force, as the database holds them now. */
+  const loadIssuedKeys = async () => {
+    if (issuedKeys === undefined) return;
+    try {
+      const rows = await issuedKeys.list();
+      accessKeys.setIssued(rows.map(issuedRecord));
+      recordAccessKeys();
+    } catch (error) {
+      metrics.backgroundErrors.inc({ task: "issued_keys" });
+      log.warn({ err: error }, "could not read the issued access keys; the previous ones stay in force");
+    }
+  };
 
   return {
     facilitator,
@@ -1366,6 +1387,8 @@ export async function createRuntime(
 
     start() {
       accessKeys.start();
+      void loadIssuedKeys();
+      timers.push(setInterval(() => void loadIssuedKeys(), ISSUED_KEYS_RELOAD_MS));
       void reconcile();
       // The first /health snapshot waits for the first TTL reading, so it never shows contracts unchecked.
       void Promise.all([Promise.all(states.map(poll)), checkTtl()]).then(refreshHealth);
@@ -1402,6 +1425,9 @@ export async function createRuntime(
     },
   };
 }
+
+/** How often every replica re-reads the keys issued through sign-in. */
+const ISSUED_KEYS_RELOAD_MS = 10_000;
 
 /** How long startup waits for another replica that is provisioning accounts on the same network. */
 const PROVISION_WAIT_MS = 120_000;

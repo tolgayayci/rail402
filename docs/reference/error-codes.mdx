@@ -23,7 +23,7 @@ which test covers it.
 
 {/* generated:begin codes */}
 
-177 codes in 6 groups.
+185 codes in 7 groups.
 
 ## HTTP transport
 
@@ -41,6 +41,21 @@ Returned with the listed HTTP status in `error.code` on every endpoint. On `/ver
 | `rate_limited`           | 429         | yes       | Too many requests; retry after the indicated delay.             |
 | `internal_error`         | 500         | yes       | An unexpected internal error occurred.                          |
 | `service_unavailable`    | 503         | yes       | The service is temporarily unavailable; retry shortly.          |
+
+## Access-key sign-up
+
+Returned with the listed HTTP status in `error.code` by `GET /keys/new` and `GET /keys/callback`, the routes that issue access keys to signed-in GitHub accounts. Defined in `keySignupCodes` (`@rail402.dev/errors`).
+
+| Code                         | HTTP status | Retryable | Default reason                                                                       |
+| ---------------------------- | ----------- | --------- | ------------------------------------------------------------------------------------ |
+| `key_signup_closed`          | 503         | yes       | New access keys are not being issued right now; retry later.                         |
+| `key_signup_state_invalid`   | 400         | no        | The sign-in link expired or was opened in another browser; start again at /keys/new. |
+| `key_signup_cancelled`       | 400         | no        | GitHub sign-in was cancelled or refused; start again at /keys/new.                   |
+| `key_signup_account_too_new` | 403         | no        | The GitHub account is too new to be issued a key.                                    |
+| `key_signup_account_refused` | 403         | no        | This GitHub account is not issued keys; its previous key was revoked.                |
+| `key_signup_too_soon`        | 429         | yes       | This account was issued a key recently; retry after the indicated delay.             |
+| `key_signup_limit_reached`   | 503         | yes       | The service issued its hourly share of new keys; retry within the hour.              |
+| `key_signup_provider_failed` | 502         | yes       | GitHub did not complete the sign-in; start again at /keys/new.                       |
 
 ## Verification and settlement (`exact` on Stellar)
 
@@ -563,5 +578,7 @@ The 2 codes that neither produces, and why:
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `explorer_internal_error` | The Explorer's catch-all for an exception no route expected; every failure a test or run provokes (a bad parameter or cursor, a busy lookup, an unavailable index, a rate limit) answers with its own code. |
 | `method_not_allowed`      | Part of the shared HTTP set; the service does not return it. A method a route does not serve is answered like an unknown route, with `not_found` (rejection audit case `unknown-route`).                    |
+
+Registered since this record was made, not yet measured: `key_signup_account_refused`, `key_signup_account_too_new`, `key_signup_cancelled`, `key_signup_closed`, `key_signup_limit_reached`, `key_signup_provider_failed`, `key_signup_state_invalid`, `key_signup_too_soon`.
 
 {/* generated:end */}

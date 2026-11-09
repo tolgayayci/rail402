@@ -26,6 +26,7 @@ import {
   PostgresUsageMeter,
   PostgresSettlementLedger,
   PostgresTaskLock,
+  PostgresIssuedKeys,
   MIGRATIONS_DIRECTORY,
   createDatabase,
   migrate,
@@ -183,6 +184,87 @@ describe("postgres: access control", () => {
       settledAmount: "200000",
     });
     expect(rows[0]?.day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("postgres: keys issued through sign-in", () => {
+  const request = (account: string, digest = randomBytes(32).toString("hex")) => ({
+    id: `gh-${account}`,
+    githubUserId: account,
+    githubLogin: `user${account}`,
+    sha256: digest,
+    networks: ["stellar:pubnet"],
+    requestsPerMinute: 60,
+    sponsorBudgetStroopsPerHour: 5_000_000n,
+    lifetimeDays: 90,
+  });
+  const open = { perHour: 100, reissueSeconds: 0 };
+
+  it("keeps one key per account, replacing its digest and counting the keys issued", async () => {
+    const keys = new PostgresIssuedKeys(await freshDatabase());
+    const first = await keys.issue(request("1", "a".repeat(64)), open);
+    expect(first).toMatchObject({ kind: "issued", row: { id: "gh-1", issuedCount: 1, revoked: false } });
+    const second = await keys.issue(request("1", "b".repeat(64)), open);
+    expect(second).toMatchObject({ kind: "issued", row: { sha256: "b".repeat(64), issuedCount: 2 } });
+    const rows = await keys.list();
+    expect(rows.map((row) => [row.id, row.sha256])).toEqual([["gh-1", "b".repeat(64)]]);
+    expect(rows[0]?.sponsorBudgetStroopsPerHour).toBe(5_000_000n);
+    const lifetime = (rows[0]?.expiresAt.getTime() ?? 0) - (rows[0]?.createdAt.getTime() ?? 0);
+    expect(lifetime).toBe(90 * 86_400_000);
+  });
+
+  it("waits the interval between two keys of one account and stops at the hourly cap", async () => {
+    const keys = new PostgresIssuedKeys(await freshDatabase());
+    await keys.issue(request("1"), open);
+    const soon = await keys.issue(request("1"), { perHour: 100, reissueSeconds: 3_600 });
+    expect(soon.kind).toBe("too_soon");
+    expect(soon.kind === "too_soon" && soon.retryAfterSeconds).toBeGreaterThan(3_590);
+    await keys.issue(request("2"), open);
+    expect(await keys.issue(request("3"), { perHour: 2, reissueSeconds: 0 })).toEqual({
+      kind: "cap_reached",
+    });
+  });
+
+  it("holds the cap across concurrent sign-ins", async () => {
+    const keys = new PostgresIssuedKeys(await freshDatabase());
+    const outcomes = await Promise.all(
+      ["1", "2", "3", "4", "5", "6"].map((account) =>
+        keys.issue(request(account), { perHour: 3, reissueSeconds: 0 }),
+      ),
+    );
+    expect(outcomes.filter((outcome) => outcome.kind === "issued")).toHaveLength(3);
+    expect(outcomes.filter((outcome) => outcome.kind === "cap_reached")).toHaveLength(3);
+  });
+
+  it("blocks a revoked account until it is restored, by id or by login", async () => {
+    const keys = new PostgresIssuedKeys(await freshDatabase());
+    await keys.issue(request("1"), open);
+    expect(await keys.setRevoked("USER1", true)).toBe(true);
+    expect((await keys.list())[0]?.revoked).toBe(true);
+    expect(await keys.issue(request("1"), open)).toEqual({ kind: "revoked" });
+    expect(await keys.setRevoked("gh-1", false)).toBe(true);
+    expect((await keys.issue(request("1"), open)).kind).toBe("issued");
+    expect(await keys.setRevoked("nobody", true)).toBe(false);
+  });
+
+  it("lists unexpired keys only, and lists every key for the operator", async () => {
+    const db = await freshDatabase();
+    const keys = new PostgresIssuedKeys(db);
+    await keys.issue(request("1"), open);
+    await keys.issue(request("2"), open);
+    await db
+      .updateTable("issued_access_keys")
+      .set({ expires_at: new Date(Date.now() - 1_000), created_at: new Date(Date.now() - 2_000) })
+      .where("id", "=", "gh-1")
+      .execute();
+    expect((await keys.list()).map((row) => row.id)).toEqual(["gh-2"]);
+    expect((await keys.all()).map((row) => row.id).sort()).toEqual(["gh-1", "gh-2"]);
+  });
+
+  it("refuses a digest used by another account", async () => {
+    const keys = new PostgresIssuedKeys(await freshDatabase());
+    await keys.issue(request("1", "c".repeat(64)), open);
+    await expect(keys.issue(request("2", "c".repeat(64)), open)).rejects.toThrow();
   });
 });
 

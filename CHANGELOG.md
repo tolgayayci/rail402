@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.5 — 2026-11-09
+
+Service only; apply the new migration (`0037`) before deploying. The npm packages are not republished:
+`@rail402.dev/errors` gains `keySignupCodes`, which only the service returns.
+
+- **API keys through GitHub sign-in.** With `KEY_SIGNUP=github`, the host of `KEY_SIGNUP_NETWORK` serves
+  `GET /keys/new`, which sends the browser to GitHub, and `GET /keys/callback`, which answers with a key for
+  that network as JSON, shown once. Each GitHub account holds one key (`gh-<user id>`) with its own request
+  limit and hourly fee budget; signing in again replaces it. The database keeps the key's SHA-256 only, every
+  replica reads the issued keys every 10 seconds, and metrics count them under one `key_id` label, `issued`.
+  New keys are capped per hour, accounts younger than `KEY_SIGNUP_MIN_ACCOUNT_AGE_DAYS` are refused, and
+  refusals carry the new `key_signup_*` codes.
+- **Switches without a restart.** The access-key file's `issuedKeys` is `on`, `no-new` (no new keys, issued
+  ones keep working) or `off` (every issued key is refused too); file keys are never affected.
+  `keys issued list|revoke|restore` manages single accounts, and a revoked account is issued no other key.
+- File key ids can no longer start with `gh-`, which issued keys use.
+
 ## 0.5.4 — 2026-11-06
 
 Service and tooling only: no npm package changes.

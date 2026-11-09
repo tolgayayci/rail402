@@ -516,6 +516,38 @@
       "status": 400,
       "retryable": false
     },
+    "key_signup_account_refused": {
+      "status": 403,
+      "retryable": false
+    },
+    "key_signup_account_too_new": {
+      "status": 403,
+      "retryable": false
+    },
+    "key_signup_cancelled": {
+      "status": 400,
+      "retryable": false
+    },
+    "key_signup_closed": {
+      "status": 503,
+      "retryable": true
+    },
+    "key_signup_limit_reached": {
+      "status": 503,
+      "retryable": true
+    },
+    "key_signup_provider_failed": {
+      "status": 502,
+      "retryable": true
+    },
+    "key_signup_state_invalid": {
+      "status": 400,
+      "retryable": false
+    },
+    "key_signup_too_soon": {
+      "status": 429,
+      "retryable": true
+    },
     "method_not_allowed": {
       "status": 405,
       "retryable": false

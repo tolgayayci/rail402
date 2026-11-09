@@ -180,6 +180,52 @@ export const httpCodes = defineCodes({
 
 export const httpError = errorFactory(httpCodes);
 
+/** Codes of the access-key sign-up routes (`/keys/new`, `/keys/callback`). */
+export const keySignupCodes = defineCodes({
+  key_signup_closed: {
+    status: 503,
+    retryable: true,
+    reason: "New access keys are not being issued right now; retry later.",
+  },
+  key_signup_state_invalid: {
+    status: 400,
+    retryable: false,
+    reason: "The sign-in link expired or was opened in another browser; start again at /keys/new.",
+  },
+  key_signup_cancelled: {
+    status: 400,
+    retryable: false,
+    reason: "GitHub sign-in was cancelled or refused; start again at /keys/new.",
+  },
+  key_signup_account_too_new: {
+    status: 403,
+    retryable: false,
+    reason: "The GitHub account is too new to be issued a key.",
+  },
+  key_signup_account_refused: {
+    status: 403,
+    retryable: false,
+    reason: "This GitHub account is not issued keys; its previous key was revoked.",
+  },
+  key_signup_too_soon: {
+    status: 429,
+    retryable: true,
+    reason: "This account was issued a key recently; retry after the indicated delay.",
+  },
+  key_signup_limit_reached: {
+    status: 503,
+    retryable: true,
+    reason: "The service issued its hourly share of new keys; retry within the hour.",
+  },
+  key_signup_provider_failed: {
+    status: 502,
+    retryable: true,
+    reason: "GitHub did not complete the sign-in; start again at /keys/new.",
+  },
+});
+
+export const keySignupError = errorFactory(keySignupCodes);
+
 function nonEmpty(value: string | undefined): string | undefined {
   return value !== undefined && value.trim() !== "" ? value : undefined;
 }

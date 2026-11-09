@@ -32,7 +32,8 @@ endpoints itself; you rarely call them by hand.
 
 ## Authentication
 
-The hosted testnet instance needs no key. A self-hosted operator can require one per network
+The hosted testnet instance needs no key; the hosted mainnet instance needs one, which you get by
+[signing in with GitHub](/facilitator/hosted-mainnet#get-an-api-key). A self-hosted operator can require one per network
 (`REQUIRE_API_KEY`), which then applies to `/verify` and `/settle`. `/usage` always requires one. Send it as
 either header:
 

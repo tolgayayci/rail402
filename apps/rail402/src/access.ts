@@ -32,6 +32,11 @@ export interface AccessKeyRecord {
    * is refused on `/verify` and `/settle` everywhere.
    */
   readonly scopes: readonly AccessScope[];
+  /**
+   * Issued to a signed-in GitHub account (see `signup.ts`), not listed in the key file: counted under one
+   * metric label, and refused while the key file switches issued keys off.
+   */
+  readonly issued?: true;
   /** For `discovery-internal`: requests per minute for the whole identity; the service default when unset. */
   readonly discoveryRequestsPerMinute?: number;
   /**
@@ -42,6 +47,20 @@ export interface AccessKeyRecord {
 }
 
 export type AccessScope = "discovery-internal";
+
+/**
+ * What the key file allows for keys issued through GitHub sign-in (`issuedKeys`): `on` issues and
+ * accepts them, `no-new` accepts the ones issued but issues no more, `off` also refuses every issued key.
+ */
+export type IssuedKeysMode = "on" | "no-new" | "off";
+
+/** The id prefix of issued keys; key-file records cannot use it. */
+export const ISSUED_KEY_ID_PREFIX = "gh-";
+
+/** The `key_id` metric label of a key: its id, or `issued` for every issued key. */
+export function metricKeyId(record: AccessKeyRecord): string {
+  return record.issued === true ? "issued" : record.id;
+}
 
 export interface AccessKeyRules {
   /** The networks the service is configured for. */
@@ -81,7 +100,19 @@ const recordSchema = z
   })
   .strict();
 
-const fileSchema = z.object({ schemaVersion: z.literal(1), keys: z.array(z.unknown()) }).strict();
+const fileSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    issuedKeys: z.enum(["on", "no-new", "off"]).optional(),
+    keys: z.array(z.unknown()),
+  })
+  .strict();
+
+/** A parsed access-key file: its records and what it allows for issued keys. */
+export interface AccessKeyFile {
+  readonly records: AccessKeyRecord[];
+  readonly issuedKeys: IssuedKeysMode;
+}
 
 /**
  * Parses and validates an access-key file's content. Every problem is a `ConfigError` with code
@@ -92,6 +123,15 @@ export function parseAccessKeys(
   rules: AccessKeyRules,
   source = "API_KEYS_FILE",
 ): AccessKeyRecord[] {
+  return parseAccessKeyFile(text, rules, source).records;
+}
+
+/** `parseAccessKeys` with the file's `issuedKeys` switch (`on` when absent). */
+export function parseAccessKeyFile(
+  text: string,
+  rules: AccessKeyRules,
+  source = "API_KEYS_FILE",
+): AccessKeyFile {
   const fail = (message: string): never => {
     throw new ConfigError(`${source}: ${message}`, "config_access_keys_invalid");
   };
@@ -102,12 +142,13 @@ export function parseAccessKeys(
     return fail("is not valid JSON");
   }
   const file = fileSchema.safeParse(json);
-  if (!file.success) return fail('must be {"schemaVersion": 1, "keys": [...]}');
+  if (!file.success)
+    return fail('must be {"schemaVersion": 1, "issuedKeys"?: "on" | "no-new" | "off", "keys": [...]}');
   if (file.data.keys.length > rules.max)
     fail(`holds ${String(file.data.keys.length)} keys, more than ${String(rules.max)}`);
   const ids = new Set<string>();
   const digests = new Set<string>();
-  return file.data.keys.map((raw, index) => {
+  const records = file.data.keys.map((raw, index): AccessKeyRecord => {
     const parsed = recordSchema.safeParse(raw);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
@@ -120,6 +161,8 @@ export function parseAccessKeys(
     }
     const record = parsed.data;
     const at = `key ${record.id}`;
+    if (record.id.startsWith(ISSUED_KEY_ID_PREFIX))
+      fail(`${at}: ids starting with "${ISSUED_KEY_ID_PREFIX}" are kept for keys issued through sign-in`);
     const scopes = [...new Set(record.scopes ?? [])];
     const internal = scopes.includes("discovery-internal");
     // A discovery identity never pays, so it names no network; a payment key names at least one.
@@ -182,6 +225,7 @@ export function parseAccessKeys(
         : { forwardedClientRequestsPerMinute: record.forwardedClientRequestsPerMinute }),
     };
   });
+  return { records, issuedKeys: file.data.issuedKeys ?? "on" };
 }
 
 /** An amount of XLM as a decimal string (up to 7 fraction digits, above zero), in stroops. */
@@ -313,6 +357,11 @@ export const ACCESS_KEYS_RELOAD_MS = 10_000;
 
 /** The current access keys, reloaded from their file when it changes. */
 export class AccessKeys {
+  /** The key file's records (and the legacy digests): replaced by each reload. */
+  private fileRecords: readonly AccessKeyRecord[];
+  /** Keys issued through sign-in: replaced by `setIssued`. */
+  private issued: readonly AccessKeyRecord[] = [];
+  private issuedMode: IssuedKeysMode = "on";
   private records: readonly AccessKeyRecord[];
   private byId: ReadonlyMap<string, AccessKeyRecord>;
   private readonly options: AccessKeysOptions;
@@ -329,7 +378,8 @@ export class AccessKeys {
   constructor(initial: readonly AccessKeyRecord[], options: AccessKeysOptions) {
     this.options = options;
     this.now = options.now ?? Date.now;
-    this.records = [...(options.legacy ?? []), ...initial];
+    this.fileRecords = [...(options.legacy ?? []), ...initial];
+    this.records = this.fileRecords;
     this.byId = indexById(this.records);
     if (options.path !== undefined) {
       // The file may have been replaced since the configuration read it, so the records, the facts
@@ -341,6 +391,31 @@ export class AccessKeys {
         // Reported by the first reload.
       }
     }
+  }
+
+  /** What the key file allows for issued keys. */
+  get issuedKeys(): IssuedKeysMode {
+    return this.issuedMode;
+  }
+
+  /** Puts in force the keys issued through sign-in, as last read from the database. */
+  setIssued(records: readonly AccessKeyRecord[]): void {
+    this.issued = records.filter((record) => record.issued === true);
+    this.combine();
+  }
+
+  /** Adds or replaces one issued key at once, before the next read of the database. */
+  addIssued(record: AccessKeyRecord): void {
+    if (record.issued !== true) return;
+    this.issued = [record, ...this.issued.filter((other) => other.id !== record.id)];
+    this.combine();
+  }
+
+  private combine(): void {
+    // File records win an id clash; the file refuses issued ids anyway.
+    const fileIds = new Set(this.fileRecords.map((record) => record.id));
+    this.records = [...this.fileRecords, ...this.issued.filter((record) => !fileIds.has(record.id))];
+    this.byId = indexById(this.records);
   }
 
   /** Whether any key exists (on any network). */
@@ -391,16 +466,17 @@ export class AccessKeys {
    */
   private apply(path: string, source: string): void {
     const file = readAccessKeyFile(path, source);
-    let records: AccessKeyRecord[];
+    let parsed: AccessKeyFile;
     try {
-      records = parseAccessKeys(file.text, this.options.rules, source);
+      parsed = parseAccessKeyFile(file.text, this.options.rules, source);
     } catch (error) {
       throw error instanceof Object
         ? refusedWith(error, { mtimeMs: file.mtimeMs, size: file.size, ino: file.ino })
         : error;
     }
-    this.records = [...(this.options.legacy ?? []), ...records];
-    this.byId = indexById(this.records);
+    this.fileRecords = [...(this.options.legacy ?? []), ...parsed.records];
+    this.issuedMode = parsed.issuedKeys;
+    this.combine();
     this.seen = { mtimeMs: file.mtimeMs, size: file.size, ino: file.ino };
     this.fileSha256 = createHash("sha256").update(file.text).digest("hex");
     this.lastReloadAt = new Date(this.now());
@@ -481,16 +557,23 @@ export class AccessKeys {
         ? { kind, reason, keyId }
         : { kind: "public", keyId: record === undefined ? "invalid" : "public" };
     if (record === undefined) return refuse("unauthorized", "The API key is not valid.", "invalid");
+    if (record.issued === true && this.issuedMode === "off") {
+      return refuse(
+        "unauthorized",
+        "Keys issued through sign-in are switched off for now; retry later.",
+        metricKeyId(record),
+      );
+    }
     // An internal discovery identity never pays, whatever the network requires.
     if (record.scopes.includes("discovery-internal")) {
       return { kind: "forbidden", reason: "This key may call the discovery routes only.", keyId: record.id };
     }
-    if (record.revoked) return refuse("unauthorized", "The API key was revoked.", record.id);
+    if (record.revoked) return refuse("unauthorized", "The API key was revoked.", metricKeyId(record));
     if (record.expiresAt !== undefined && record.expiresAt.getTime() <= this.now()) {
-      return refuse("unauthorized", "The API key has expired.", record.id);
+      return refuse("unauthorized", "The API key has expired.", metricKeyId(record));
     }
     if (!record.networks.includes(network as StellarNetwork)) {
-      return refuse("forbidden", `The API key is not allowed on ${network}.`, record.id);
+      return refuse("forbidden", `The API key is not allowed on ${network}.`, metricKeyId(record));
     }
     return { kind: "served", record };
   }
@@ -506,6 +589,7 @@ export class AccessKeys {
     if (presented.kind !== "key") return undefined;
     const record = this.match(presented.key);
     if (record === undefined || record.revoked) return undefined;
+    if (record.issued === true && this.issuedMode === "off") return undefined;
     if (record.expiresAt !== undefined && record.expiresAt.getTime() <= this.now()) return undefined;
     return record;
   }

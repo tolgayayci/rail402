@@ -173,7 +173,25 @@ export interface SponsorSpendTable {
   created_at: ColumnType<Date, Date | string | undefined, never>;
 }
 
+/** A key issued to a signed-in GitHub account; the key itself is never stored. */
+export interface IssuedAccessKeysTable {
+  id: string;
+  /** bigint, read as a string. */
+  github_user_id: ColumnType<string, string, string>;
+  github_login: string;
+  sha256: string;
+  networks: string[];
+  requests_per_minute: number;
+  /** bigint, read as a string. */
+  sponsor_budget_stroops_per_hour: ColumnType<string, string, string>;
+  created_at: Timestamp;
+  expires_at: Timestamp;
+  issued_count: ColumnType<number, number | undefined, number>;
+  revoked: ColumnType<boolean, boolean | undefined, boolean>;
+}
+
 export interface Database {
+  issued_access_keys: IssuedAccessKeysTable;
   sponsor_spend: SponsorSpendTable;
   rate_limit_windows: RateLimitWindowsTable;
   usage_daily: UsageDailyTable;

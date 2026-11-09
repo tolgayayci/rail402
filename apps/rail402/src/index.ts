@@ -22,3 +22,4 @@ export * from "./discovery-config.ts";
 export * from "./network-stores.ts";
 export * from "./cached-probe.ts";
 export * from "./server.ts";
+export * from "./signup.ts";

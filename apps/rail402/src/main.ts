@@ -60,6 +60,7 @@ async function main(): Promise<void> {
             ? {}
             : { discoveryLimiter: runtime.access.discoveryLimiter }),
           meter: runtime.access.meter,
+          issuedKeys: runtime.access.issuedKeys,
         }),
   });
 
