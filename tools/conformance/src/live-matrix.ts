@@ -3,7 +3,7 @@
  * deployed Rail402, on the public Stellar testnet, in Circle USDC. No API key is sent.
  *
  *   node tools/conformance/src/live-matrix.ts --facilitator https://… [--scheme exact,upto] [--asset usdc] \
- *     [--only id,id] [--write [--allow-branch <branch>]]
+ *     [--only id,id] [--write [--allow-branch <branch>] [--variant <name>]]
  *
  * Covers G… and C… payers, a C… payTo, 7-decimal SEP-41 amounts down to one base unit, missing
  * trustlines on either side, insufficient balance, expired and about-to-expire authorizations, the
@@ -68,7 +68,13 @@ import {
   withRun,
   type Funder,
 } from "./network.ts";
-import { harnessProvenance, recheckProvenance, writeEvidence, type CheckId } from "./evidence.ts";
+import {
+  harnessProvenance,
+  recheckProvenance,
+  runFileName,
+  writeEvidence,
+  type CheckId,
+} from "./evidence.ts";
 import { decodeBase64Json } from "./forwarder.ts";
 import {
   CaseRecorder,
@@ -90,6 +96,7 @@ const { values: args } = parseArgs({
     only: { type: "string" },
     write: { type: "boolean", default: false },
     "allow-branch": { type: "string" },
+    variant: { type: "string" },
     "usdc-divisor": { type: "string" },
     ...NETWORK_OPTION,
   },
@@ -117,6 +124,10 @@ if (PROFILE.id !== "testnet" && (args.rpc !== undefined || args.friendbot !== un
  */
 const MAX_SETTLEMENTS = { exact: 14, upto: 10 } as const;
 
+// --variant writes the run to a file of its own, so a run of other cases (--only) keeps the main file.
+if (args.variant !== undefined && !/^[a-z][a-z0-9-]{0,30}$/.test(args.variant)) {
+  throw new Error(`--variant ${args.variant}: expected lower-case letters, digits and dashes`);
+}
 const FACILITATOR = args.facilitator.replace(/\/+$/, "");
 const net = new ProfileNetwork({
   ...PROFILE,
@@ -482,7 +493,12 @@ async function main() {
     process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
   } else {
     recheckProvenance(provenance, { allowBranch: args["allow-branch"] });
-    log(`evidence written to ${writeEvidence(evidence, { allowBranch: args["allow-branch"] })}`);
+    log(
+      `evidence written to ${writeEvidence(evidence, {
+        allowBranch: args["allow-branch"],
+        ...(args.variant === undefined ? {} : { file: runFileName(evidence, args.variant) }),
+      })}`,
+    );
   }
   if (recorder.failed > 0) process.exit(1);
 }
