@@ -119,6 +119,11 @@ export interface IssuedAsset {
 
 export class LocalNetwork {
   readonly passphrase: string = Networks.TESTNET;
+  /**
+   * The inclusion fee bid, in stroops, of the Soroban transactions this kit builds (contract uploads,
+   * deploys and calls). The base fee is enough on a local network and testnet; pubnet needs more.
+   */
+  readonly sorobanInclusionFee: string = BASE_FEE;
   readonly server: MonotonicRpcServer;
   readonly rpcUrl: string;
   readonly friendbotUrl: string;

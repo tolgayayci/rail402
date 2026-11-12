@@ -584,8 +584,14 @@ export interface SubmitPolicy {
  * `#beforeSend`: nothing is sent before a spend meter is attached, a fee paid by the treasury is
  * debited before it is sent, and a fee source that is neither the treasury nor a run account is refused.
  */
+/** The inclusion fee bid of the harness's own Soroban transactions on pubnet, in stroops. */
+export const PUBNET_SOROBAN_INCLUSION_FEE = "1000";
+
 export class ProfileNetwork extends LocalNetwork {
   override readonly passphrase: string;
+  // Pubnet does not include a Soroban transaction bidding the base fee: a contract upload sent that
+  // way is never included and its lookup ends NOT_FOUND.
+  override readonly sorobanInclusionFee: string;
   readonly profile: NetworkProfile;
   #policy: SubmitPolicy | undefined;
   /** Fees reserved per transaction hash, so a resend of the same bytes is not debited twice. */
@@ -600,6 +606,7 @@ export class ProfileNetwork extends LocalNetwork {
     );
     this.passphrase = profile.passphrase;
     this.profile = profile;
+    this.sorobanInclusionFee = profile.id === "pubnet" ? PUBNET_SOROBAN_INCLUSION_FEE : BASE_FEE;
     if (profile.funding.kind === "treasury") {
       const send = this.server.sendTransaction.bind(this.server);
       (this.server as { sendTransaction: rpc.Server["sendTransaction"] }).sendTransaction = async (
@@ -1080,7 +1087,7 @@ export class TreasuryFunder implements Funder {
   async #invoke(operation: xdr.Operation, signers: readonly { address: string; sign: EntrySigner }[]) {
     const build = async (op: xdr.Operation) =>
       new TransactionBuilder(await this.net.server.getAccount(this.keypair.publicKey()), {
-        fee: BASE_FEE,
+        fee: this.net.sorobanInclusionFee,
         networkPassphrase: this.net.passphrase,
       })
         .addOperation(op)

@@ -2,7 +2,6 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
   Address,
-  BASE_FEE,
   Contract,
   Keypair,
   Operation,
@@ -191,7 +190,10 @@ export async function submitInvocation(
   const { submitter, invocation } = options;
   const template = options.resourcesOf ?? invocation;
   const account = await network.server.getAccount(submitter.publicKey());
-  const draft = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: network.passphrase })
+  const draft = new TransactionBuilder(account, {
+    fee: network.sorobanInclusionFee,
+    networkPassphrase: network.passphrase,
+  })
     .addOperation(operationOf(template))
     .setTimeout(60)
     .build();
@@ -243,7 +245,7 @@ function operationOf(invocation: Invocation): xdr.Operation {
 async function invoke(network: LocalNetwork, source: Keypair, operation: xdr.Operation) {
   const account = await network.server.getAccount(source.publicKey());
   const transaction = new TransactionBuilder(account, {
-    fee: BASE_FEE,
+    fee: network.sorobanInclusionFee,
     networkPassphrase: network.passphrase,
   })
     .addOperation(operation)
