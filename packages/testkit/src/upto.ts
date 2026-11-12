@@ -42,7 +42,9 @@ export async function deployContract(
   wasm: Buffer,
   constructorArgs: xdr.ScVal[] = [],
 ): Promise<string> {
-  await invoke(network, deployer, Operation.uploadContractWasm({ wasm }));
+  if (!(await codeInstalled(network, wasm))) {
+    await invoke(network, deployer, Operation.uploadContractWasm({ wasm }));
+  }
   const created = await invoke(
     network,
     deployer,
@@ -55,6 +57,13 @@ export async function deployContract(
   );
   if (created.returnValue === undefined) throw new Error("contract creation returned no address");
   return Address.fromScVal(created.returnValue).toString();
+}
+
+/** Whether the network already holds `wasm`'s code, so uploading it again would only cost a fee. */
+async function codeInstalled(network: LocalNetwork, wasm: Buffer): Promise<boolean> {
+  const key = xdr.LedgerKey.contractCode(new xdr.LedgerKeyContractCode({ hash: hash(wasm) }));
+  const { entries } = await network.server.getLedgerEntries(key);
+  return entries.length > 0;
 }
 
 /** Calls `method` on `contract` in a transaction of `source`, which signs and pays; returns its result. */
