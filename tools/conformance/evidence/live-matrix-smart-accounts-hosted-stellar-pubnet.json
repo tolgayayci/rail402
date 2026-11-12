@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 2,
+  "kind": "live-matrix",
+  "runId": "520ea6c9-c449-40fb-be1f-db0c3fb8a93d",
+  "startedAt": "2026-11-12T11:23:18.674Z",
+  "finishedAt": "2026-11-12T11:30:49.848Z",
+  "network": "stellar:pubnet",
+  "target": {
+    "mode": "hosted",
+    "facilitatorUrl": "https://mainnet.rail402.dev",
+    "healthVersion": "0.5.6",
+    "supported": {
+      "kinds": [
+        {
+          "x402Version": 2,
+          "scheme": "exact",
+          "network": "stellar:pubnet",
+          "extra": {
+            "areFeesSponsored": true
+          }
+        },
+        {
+          "x402Version": 2,
+          "scheme": "upto",
+          "network": "stellar:pubnet",
+          "extra": {
+            "areFeesSponsored": true,
+            "facilitatorAddress": "GB4Q4CNTXRVWAMN6O5B4QPK2IMO3Z5DOXG4II43H6BUIPQFSMZS3AOJ4"
+          }
+        }
+      ],
+      "extensions": [
+        "bazaar"
+      ],
+      "signers": {
+        "stellar:*": [
+          "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "GB4Q4CNTXRVWAMN6O5B4QPK2IMO3Z5DOXG4II43H6BUIPQFSMZS3AOJ4"
+        ]
+      }
+    }
+  },
+  "harness": {
+    "commit": "720449ff7908e1dd42de6a2d0585877e2eb54cce",
+    "dirty": false
+  },
+  "profile": {
+    "id": "pubnet",
+    "funding": "treasury",
+    "rpcProviders": [
+      "mainnet.sorobanrpc.com"
+    ],
+    "caps": {
+      "maxXlmStroops": "105000000",
+      "maxUsdcBaseUnits": "6000000",
+      "maxSettlements": 24,
+      "maxNewAccounts": 25
+    },
+    "spent": {
+      "xlmStroops": "25247016",
+      "usdcBaseUnits": "3050000",
+      "settlements": 6,
+      "newAccounts": 18
+    },
+    "returned": {
+      "xlmStroops": "19994600",
+      "usdcBaseUnits": "3050000"
+    },
+    "sweep": {
+      "status": "done",
+      "transactions": [
+        "2a6208ddf43e5a95a481b6c6578ba8ec7420f5f175944f33321326938c2f60de",
+        "5cad3ab800752c42308008b32f75ca9aad77725845a5e9f0525910aafec8c87c",
+        "8064f347afa9659a2076fdcf253fc494b783a0ab0e6e1ca8f4feb93aecd1103a",
+        "c1f74df7866d9433132f602189c4a3a56b650347bfa0ea47f3e6cc0f67020b31",
+        "d6f315a24b60bfce844db680decccf3b0595a42dd17969996de3e6e9ead50bc5",
+        "282f5b40369670fca2b8966759cb33698b7eb45ac1c9bb258071609eb77b94c8",
+        "6448021bbe426c927db93ce6c549746cfd513a8f7c881382f23fdd840fb43a12",
+        "80bc4a7cdf6871c80adb14402b884d5389192c53688fba8a4b31d833b38c7c81",
+        "7137d53e5a7a7d71049b6eb96c59786f517d85e6f934b56f2ebb7ee560b9e18e",
+        "12d1d4acbd09c977e32efdc424504b5d2549810fab1cae8812ef19212b36da9a",
+        "9980e75a075fdd79bd8eb9f4a0f8a9d3da1ac9cabe5f5d58899d0b7a0f10c306",
+        "db3e6781d9a3e1c9106bd6f5f10335e2a026fd632599e74df9d9793326f8384f",
+        "25123e5ada6482cd344616e524866a09bd650042af571629500125d1cd8bfe9e",
+        "9a4df2729a9d9797441e40a26b08b68e928a9219ccb85aaaef00c678792d796f",
+        "11a3445d0cac456857e01b56a78b4309fdf6f53ae37346c4cf8f3ec8591d9b96",
+        "0eec4752ec044e05446a7ce946f7eb5d58249fb9cb5405eaf687a8fa980babe0",
+        "03883447b9d2a737ad74baa91aee69651675acc03c4a5f2b26a927d37a353d94",
+        "562a01ab8e617a0427e548ac1f9077fcff442d4fc0d9cc1a0534a9a6f1feabce",
+        "7895bc8685c08befe32d60d76fbe4d6e68032bfb0858196257acc6110898bcb8",
+        "f2841c2775847934fcb2fdd0457fd1976d70e4293a591c4e12ec003ba37954ef"
+      ],
+      "stranded": {
+        "usdcBaseUnits": "0",
+        "xlmStroops": "0"
+      }
+    },
+    "run": {
+      "id": "526ab75a7537b274",
+      "spent": {
+        "xlmStroops": "25247016",
+        "usdcBaseUnits": "3050000",
+        "settlements": 6,
+        "newAccounts": 18
+      },
+      "returned": {
+        "xlmStroops": "19994600",
+        "usdcBaseUnits": "3050000"
+      },
+      "caps": {
+        "maxNetXlmStroops": "90000000",
+        "maxNetUsdcBaseUnits": "6000000"
+      }
+    }
+  },
+  "packages": {
+    "@x402/core": "2.29.0",
+    "@x402/stellar": "2.29.0",
+    "@stellar/stellar-sdk": "16.4.1",
+    "@rail402.dev/upto": "0.5.2"
+  },
+  "command": "node tools/conformance/src/live-matrix.ts --facilitator https://mainnet.rail402.dev --scheme exact,upto --asset usdc --network pubnet",
+  "config": {
+    "apiKey": "bearer, from a file",
+    "scheme": "exact,upto",
+    "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75"
+  },
+  "accounts": {
+    "payTo": "GBN6SBYEX5YUTACGO52Q3RZXYFPZ2HLIW7JUR2KTBTKBLZWRL4VWDOE2",
+    "treasury": "GDGPIU7FOU6N7N7PSCWLFIGR2YSH6AKQ4U7YFKGMM4AFOW3SP6QIT2LU"
+  },
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "supported",
+      "title": "/supported: stellar:pubnet, exact, extra.areFeesSponsored true",
+      "checks": [
+        "supported",
+        "fees-sponsored"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "status": "passed",
+      "elapsedMs": 184
+    },
+    {
+      "id": "c-payer-settles",
+      "title": "C… payer (contract account, __check_auth); non-custody on chain",
+      "checks": [
+        "scheme-exact",
+        "fees-sponsored"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "C",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 21308,
+      "transactions": [
+        {
+          "hash": "972a38b1d4e890e76fed18881ce26516207ff8473d7e9426e4d1fc1bebb62c41",
+          "ledger": 65439355,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "12345",
+          "payerType": "C",
+          "feeChargedStroops": "10581",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "innerSequence": "280498137938788534",
+          "transfers": [
+            {
+              "from": "CBR34DFJ5CTJCLFO5J7FHFPPOACFRYKPYCIP7OQJM5JS72SDOXJBOITM",
+              "to": "GBN6SBYEX5YUTACGO52Q3RZXYFPZ2HLIW7JUR2KTBTKBLZWRL4VWDOE2",
+              "amount": "12345"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/972a38b1d4e890e76fed18881ce26516207ff8473d7e9426e4d1fc1bebb62c41"
+        }
+      ]
+    },
+    {
+      "id": "c-payer-wrong-key",
+      "title": "a C… payment signed by the wrong key is refused",
+      "checks": [
+        "rejection-codes"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "C",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 1921,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        },
+        {
+          "surface": "facilitator",
+          "operation": "POST /settle",
+          "httpStatus": 200,
+          "code": "invalid_exact_stellar_payload_invalid_signature",
+          "reason": "The payer's authorization signature failed verification for this transfer."
+        }
+      ]
+    },
+    {
+      "id": "c-payto",
+      "title": "a C… payTo (contract address) is credited",
+      "checks": [
+        "scheme-exact"
+      ],
+      "scheme": "exact",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "C",
+      "status": "passed",
+      "elapsedMs": 14159,
+      "transactions": [
+        {
+          "hash": "30d2e9d436e4441eee920b601431db440b71f1a6ffc3df510f372fca4c6b47d8",
+          "ledger": 65439361,
+          "scheme": "exact",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "25000",
+          "payerType": "G",
+          "feeChargedStroops": "11493",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "innerSequence": "280498137938788535",
+          "transfers": [
+            {
+              "from": "GDKWFMEODJBRWGBW2VU7EFP776RY74D7EONHW35RRWVFQI22JVO5CALN",
+              "to": "CBR34DFJ5CTJCLFO5J7FHFPPOACFRYKPYCIP7OQJM5JS72SDOXJBOITM",
+              "amount": "25000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/30d2e9d436e4441eee920b601431db440b71f1a6ffc3df510f372fca4c6b47d8"
+        }
+      ]
+    },
+    {
+      "id": "upto-supported",
+      "title": "/supported: upto on stellar:pubnet with areFeesSponsored and a settlement authority among the signers",
+      "checks": [
+        "supported",
+        "fees-sponsored",
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "G",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 0
+    },
+    {
+      "id": "upto-c-partial",
+      "title": "upto from a smart account (C…): settles part of the cap; only that amount moves",
+      "checks": [
+        "scheme-upto",
+        "fees-sponsored"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "C",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 21705,
+      "transactions": [
+        {
+          "hash": "f513977a0e7c340a610341ce06a77d4cc9bc696647b8738ee7e36488ac9f9052",
+          "ledger": 65439391,
+          "scheme": "upto",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "4000",
+          "payerType": "C",
+          "feeChargedStroops": "20295",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GD44GZFNUPCFXL3HRNKVXPFR3ASCT7CWNPY3OJILP25BCWUYYYUQ5PWY",
+          "innerSequence": "280498137938788535",
+          "transfers": [
+            {
+              "from": "CALQDTWKBCG7P6COMEDR4KFO32SG4DIQDFEEBTJ66D7QEQLR5RE7G2P7",
+              "to": "GBN6SBYEX5YUTACGO52Q3RZXYFPZ2HLIW7JUR2KTBTKBLZWRL4VWDOE2",
+              "amount": "4000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/f513977a0e7c340a610341ce06a77d4cc9bc696647b8738ee7e36488ac9f9052"
+        }
+      ]
+    },
+    {
+      "id": "upto-c-max",
+      "title": "upto from a smart account (C…): settles the whole cap",
+      "checks": [
+        "scheme-upto"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "C",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 9111,
+      "transactions": [
+        {
+          "hash": "1318eb5c2bafcf8f8d480361ee0757737d3f362d656acac3faf9477d0f1efc74",
+          "ledger": 65439393,
+          "scheme": "upto",
+          "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+          "decimals": 7,
+          "amount": "10000",
+          "payerType": "C",
+          "feeChargedStroops": "17006",
+          "feeSource": "GDNEMVVIZENA2WNMGIBPFUNMIKTLDLUFUXKEIG6DYZWHJVFDSWICCFJY",
+          "innerSource": "GDFMK6TN73MBZQDMTFCIQNSKZQI67UK25KSHWB5PHQBPQQFWOYKHCDPX",
+          "innerSequence": "280498137938788536",
+          "transfers": [
+            {
+              "from": "CALQDTWKBCG7P6COMEDR4KFO32SG4DIQDFEEBTJ66D7QEQLR5RE7G2P7",
+              "to": "GBN6SBYEX5YUTACGO52Q3RZXYFPZ2HLIW7JUR2KTBTKBLZWRL4VWDOE2",
+              "amount": "10000"
+            }
+          ],
+          "explorer": "https://stellar.expert/explorer/public/tx/1318eb5c2bafcf8f8d480361ee0757737d3f362d656acac3faf9477d0f1efc74"
+        }
+      ]
+    },
+    {
+      "id": "upto-c-zero",
+      "title": "upto from a smart account (C…): settles zero; nothing moves and the authorization is used up",
+      "checks": [
+        "scheme-upto",
+        "idempotency"
+      ],
+      "scheme": "upto",
+      "asset": "USDC",
+      "payer": "C",
+      "payTo": "G",
+      "status": "passed",
+      "elapsedMs": 1936,
+      "rejections": [
+        {
+          "surface": "facilitator",
+          "operation": "POST /verify",
+          "httpStatus": 200,
+          "code": "invalid_upto_stellar_payload_nonce_already_used",
+          "reason": "This authorization was already settled."
+        }
+      ],
+      "observations": {
+        "zeroSettlement": "offchain"
+      }
+    }
+  ]
+}
