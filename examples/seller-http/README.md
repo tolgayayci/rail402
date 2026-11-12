@@ -18,7 +18,7 @@ creates one on the testnet in a key file of its own, so it stays apart from the 
 cannot pay itself):
 
 ```sh
-npm install -g @rail402.dev/cli@0.5.2
+npm install -g @rail402.dev/cli@0.5.7
 rail402 --key-file ~/.config/rail402/keys/seller-testnet.key keys new        # prints the seller's address
 rail402 --key-file ~/.config/rail402/keys/seller-testnet.key account setup   # Friendbot and the USDC trustline
 npm install

@@ -26,10 +26,10 @@ describe("reading the quickstarts", () => {
     const sellerInstall = installSteps(seller, "sellers");
     expect(sellerInstall.map((step) => step[1])).toEqual(["init", "pkg", "install"]);
     expect(pinnedVersions(sellerInstall)).toMatchObject({
-      "@x402/express": "2.29.0",
+      "@x402/express": "2.30.0",
       "@stellar/stellar-sdk": "16.4.1",
     });
-    expect(pinnedVersions(installSteps(buyer, "buyers"))).toMatchObject({ "@x402/fetch": "2.29.0" });
+    expect(pinnedVersions(installSteps(buyer, "buyers"))).toMatchObject({ "@x402/fetch": "2.30.0" });
   });
 
   it("reads code fences as Mintlify publishes them", () => {

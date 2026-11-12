@@ -9,14 +9,14 @@ the network fees for them. When a settled payment carries the x402 `bazaar` exte
 [cataloging rules](/bazaar/cataloging), Rail402 catalogs the paid HTTP endpoint or MCP tool, and buyers can
 find it with filters or natural-language search.
 
-It is built on the unmodified [`@x402/stellar`](https://www.npmjs.com/package/@x402/stellar) 2.29.0 scheme
+It is built on the unmodified [`@x402/stellar`](https://www.npmjs.com/package/@x402/stellar) 2.30.0 scheme
 and speaks x402 version 2 on the wire, so stock x402 clients and servers work with it without changes.
 Next to `exact`, it settles [`upto`](/facilitator/upto) payments, where the buyer signs a cap and the seller
 settles what a call used, and it ships agent tools that find and pay resources under a spending cap.
 The code is Apache-2.0.
 
 <Note>
-  The npm packages are at **0.5.2**: the facilitator, the Bazaar and search, `upto`, the agent tools and their
+  The npm packages are at **0.5.7**: the facilitator, the Bazaar and search, `upto`, the agent tools and their
   browser entries. The [hosted testnet service](/facilitator/hosted-testnet) runs 0.5.0 with `exact` and
   `upto`. The latest container image is 0.2.1 (`exact` only); later versions of the service run from a [source
   checkout](/install).

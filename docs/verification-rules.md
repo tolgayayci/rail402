@@ -151,7 +151,7 @@ verbatim; nothing in it is rewritten.
 
 ## 6. Upstream verifier
 
-`ExactStellarScheme.verify` from `@x402/stellar` 2.29.0, unmodified, called by
+`ExactStellarScheme.verify` from `@x402/stellar` 2.30.0, unmodified, called by
 `packages/facilitator/src/scheme.ts`. It simulates the transaction against the current ledger in
 enforcing mode, which verifies the payer's signature and runs a smart account's `__check_auth`, and
 then checks the simulated result. Its fee ceiling is checked at the inclusion-fee bid settlement

@@ -4,8 +4,8 @@
   "upstream": {
     "repository": "x402-foundation/x402",
     "branch": "main",
-    "baselineRef": "npm-@x402/stellar@v2.29.0",
-    "baselineCommit": "e4a086819f419e9395acbbdc1679fe6627029ff7"
+    "baselineRef": "npm-@x402/stellar@v2.30.0",
+    "baselineCommit": "3414a56618e94f5aeff1c03295f7d5879a56157a"
   },
   "files": [
     {
@@ -66,8 +66,8 @@
     },
     {
       "path": "e2e/README.md",
-      "pinnedCommit": "6f1a533b876e3f58426d77344753c564bd4187b9",
-      "pinnedBlob": "37f65dce9d42dfa264742b9d543024e5a24ccd6e",
+      "pinnedCommit": "c349511f7336673bf38a2261533333bd7e01b3dd",
+      "pinnedBlob": "b6ab2e64c988f79691710e573ad7a1bf528359a2",
       "affects": ["conformance"],
       "note": "The upstream end-to-end suite's contract for an external facilitator."
     }
@@ -109,56 +109,56 @@
   "packages": [
     {
       "name": "@x402/core",
-      "pinned": "2.29.0",
+      "pinned": "2.30.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/core@v{version}",
       "affects": ["facilitator", "buyers-and-sellers"]
     },
     {
       "name": "@x402/stellar",
-      "pinned": "2.29.0",
+      "pinned": "2.30.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/stellar@v{version}",
       "affects": ["facilitator", "upto"]
     },
     {
       "name": "@x402/extensions",
-      "pinned": "2.29.0",
+      "pinned": "2.30.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/extensions@v{version}",
       "affects": ["bazaar"]
     },
     {
       "name": "@x402/fetch",
-      "pinned": "2.29.0",
+      "pinned": "2.30.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/fetch@v{version}",
       "affects": ["buyers-and-sellers", "conformance"]
     },
     {
       "name": "@x402/express",
-      "pinned": "2.29.0",
+      "pinned": "2.30.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/express@v{version}",
       "affects": ["buyers-and-sellers"]
     },
     {
       "name": "@x402/paywall",
-      "pinned": "2.29.0",
+      "pinned": "2.30.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/paywall@v{version}",
       "affects": ["buyers-and-sellers"]
     },
     {
       "name": "@x402/mcp",
-      "pinned": "2.29.0",
+      "pinned": "2.30.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/mcp@v{version}",
       "affects": ["mcp"]
     },
     {
       "name": "@x402/hono",
-      "pinned": "2.29.0",
+      "pinned": "2.30.0",
       "follow": "latest",
       "releaseTag": "npm-@x402/hono@v{version}",
       "affects": ["buyers-and-sellers"]

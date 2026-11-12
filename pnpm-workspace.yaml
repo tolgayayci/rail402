@@ -9,15 +9,15 @@ packages:
 # exactly: two copies of the XDR classes, or two x402 packages that disagree on wire types, break
 # verification in ways that only show up at runtime.
 catalog:
-  "@x402/core": 2.29.0
-  "@x402/stellar": 2.29.0
-  "@x402/extensions": 2.29.0
-  "@x402/fetch": 2.29.0
-  "@x402/express": 2.29.0
-  "@x402/paywall": 2.29.0
-  "@x402/mcp": 2.29.0
-  "@x402/hono": 2.29.0
-  # @x402/stellar 2.29.0 depends on ^16.4.1; 17.x would load a second, incompatible XDR copy.
+  "@x402/core": 2.30.0
+  "@x402/stellar": 2.30.0
+  "@x402/extensions": 2.30.0
+  "@x402/fetch": 2.30.0
+  "@x402/express": 2.30.0
+  "@x402/paywall": 2.30.0
+  "@x402/mcp": 2.30.0
+  "@x402/hono": 2.30.0
+  # @x402/stellar 2.30.0 depends on ^16.4.1; 17.x would load a second, incompatible XDR copy.
   "@stellar/stellar-sdk": 16.4.1
   "zod": 4.6.7
   # MCP TypeScript SDK v2 (protocol 2026-07-28, serves 2025 clients). v1 is used only where stock

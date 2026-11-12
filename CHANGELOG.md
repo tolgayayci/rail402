@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.7 — 2026-11-12
+
+Moves to x402 2.30.0. Every package moves to 0.5.7, which depends on it exactly.
+
+- Every `@x402/*` package moves from 2.29.0 to 2.30.0. `@x402/stellar` 2.30.0 changes no Stellar code; it
+  follows `@x402/core` 2.30.0, which isolates errors thrown by advisory facilitator hooks, adds the
+  `settlement_preflight_failed` cancellation reason, names throwing gate hooks `before_verify_hook_error` and
+  `before_settle_hook_error`, and refuses payment headers that decode to anything but a JSON object. No
+  Rail402 code changes: every test passes on 2.30.0.
+- The upstream watch list pins the 2.30.0 release and the current `e2e/README.md`.
+
 ## 0.5.6 — 2026-11-09
 
 The `v0.5.5` tag carries the same service changes but was not released: its build stopped at the check that

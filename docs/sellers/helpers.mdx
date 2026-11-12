@@ -15,7 +15,7 @@ The metered pair is served only while its facilitator serves upto (`METERED=fals
 
 ```sh
 npm init -y && npm pkg set type=module
-npm install express@5 @rail402.dev/sdk@0.5.2 @x402/core@2.29.0 @x402/express@2.29.0 @x402/extensions@2.29.0 @x402/stellar@2.29.0
+npm install express@5 @rail402.dev/sdk@0.5.7 @x402/core@2.30.0 @x402/express@2.30.0 @x402/extensions@2.30.0 @x402/stellar@2.30.0
 ```
 
 The examples run on Node.js 24, which runs `.ts` files directly (`PAY_TO=G... node seller.ts`).
@@ -83,7 +83,7 @@ settles before the handler runs. In either flow, wrap the facilitator client wit
 ## An MCP tool
 
 This continues the HTTP example (`NETWORK`, `resourceServer`, `exact` and `param`) and also needs
-`npm install @x402/mcp@2.29.0 @modelcontextprotocol/sdk@1.32.1`.
+`npm install @x402/mcp@2.30.0 @modelcontextprotocol/sdk@1.32.1`.
 
 ```ts
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

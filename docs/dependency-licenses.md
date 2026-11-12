@@ -83,8 +83,8 @@ Dual or compound licences (a permissive branch is always available):
 | @signinwithethereum/siwe        | 4.2.1   | Apache-2.0   |
 | @stellar/js-xdr                 | 4.0.0   | Apache-2.0   |
 | @stellar/stellar-sdk            | 16.4.1  | Apache-2.0   |
-| @x402/core                      | 2.29.0  | Apache-2.0   |
-| @x402/extensions                | 2.29.0  | Apache-2.0   |
+| @x402/core                      | 2.30.0  | Apache-2.0   |
+| @x402/extensions                | 2.30.0  | Apache-2.0   |
 | abitype                         | 1.2.3   | MIT          |
 | agent-base                      | 6.0.2   | MIT          |
 | ajv                             | 8.20.0  | MIT          |
