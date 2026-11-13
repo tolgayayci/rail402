@@ -2,8 +2,15 @@
 
 ## 0.5.8 — 2026-11-13
 
-Status page only; the npm packages stay at 0.5.7.
+Service and status page; the npm packages stay at 0.5.7.
 
+- **Security:** `hono` moves to 4.13.16 and `@hono/node-server` to 2.1.6 for advisories published on
+  2026-11-12. The ones that reach Rail402: the router could skip wildcard middleware, which carries the rate
+  limits and access keys, for some route sets and for paths with an encoded line terminator
+  (GHSA-h7mg-cq63-vhpq); and a backslash in a path was read as a path separator, which could bypass
+  path-based rules at a reverse proxy (GHSA-jpvv-r467-5p4w). The others concern features Rail402 does not
+  use (GHSA-qv5m-9pm6-hqp3, GHSA-3gg2-335m-rxc6, GHSA-46wx-v44x-9hh2, GHSA-4h7h-rv7c-7m2v,
+  GHSA-4m76-xfj5-7975).
 - The status page names the first day its checks ran (2026-11-07). Earlier days in the 30-day bars show as
   "Not measured" instead of as days without downtime.
 

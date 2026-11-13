@@ -67,7 +67,7 @@ Dual or compound licences (a permissive branch is always available):
 | Package                         | Version | Licence      |
 | ------------------------------- | ------- | ------------ |
 | @adraffy/ens-normalize          | 1.11.1  | MIT          |
-| @hono/node-server               | 2.1.3   | MIT          |
+| @hono/node-server               | 2.1.6   | MIT          |
 | @noble/ciphers                  | 1.3.0   | MIT          |
 | @noble/curves                   | 1.9.1   | MIT          |
 | @noble/curves                   | 1.9.7   | MIT          |
@@ -122,7 +122,7 @@ Dual or compound licences (a permissive branch is always available):
 | has-symbols                     | 1.1.0   | MIT          |
 | has-tostringtag                 | 1.0.2   | MIT          |
 | hasown                          | 2.0.4   | MIT          |
-| hono                            | 4.13.13 | MIT          |
+| hono                            | 4.13.16 | MIT          |
 | https-proxy-agent               | 5.0.1   | MIT          |
 | ieee754                         | 1.2.1   | BSD-3-Clause |
 | is-retry-allowed                | 3.0.0   | MIT          |
