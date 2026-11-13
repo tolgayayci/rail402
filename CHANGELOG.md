@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.8 — 2026-11-13
+
+Status page only; the npm packages stay at 0.5.7.
+
+- The status page names the first day its checks ran (2026-11-07). Earlier days in the 30-day bars show as
+  "Not measured" instead of as days without downtime.
+
 ## 0.5.7 — 2026-11-12
 
 Moves to x402 2.30.0. Every package moves to 0.5.7, which depends on it exactly.
