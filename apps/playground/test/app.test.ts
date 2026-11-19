@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { TRACKER } from "../src/analytics.ts";
 import { routeOf } from "../src/app.ts";
 import { parsePublicConfig } from "../src/shared/public-config.ts";
 import { testApp, testConfig, type TestApp } from "./support.ts";
@@ -150,6 +154,33 @@ describe("Playground server", () => {
     app.close();
     app = testApp(testConfig({ PUBLIC_URL: "http://127.0.0.1:8080" }));
     expect((await app.request("/")).headers.get("strict-transport-security")).toBeNull();
+  });
+
+  it("adds the pinned analytics tag and its gateway to the policy only when ANALYTICS_SITE_ID is set", async () => {
+    const root = mkdtempSync(join(tmpdir(), "playground-analytics-"));
+    try {
+      writeFileSync(join(root, "index.html"), "<!doctype html><html><head><title>P</title></head></html>");
+      const siteId = "3f6a0c2e-9b1d-4e7a-8c5f-1d2e3f4a5b6c";
+      app = testApp(testConfig({ ANALYTICS_SITE_ID: siteId }), { webRoot: root });
+      const page = await app.request("/");
+      const html = await page.text();
+      expect(html).toContain(
+        `<script defer src="${TRACKER.origin}/v/${TRACKER.version}/sdk.js" integrity="${TRACKER.integrity}" ` +
+          `crossorigin="anonymous" data-website-id="${siteId}" data-domains="playground.example"></script></head>`,
+      );
+      const csp = page.headers.get("content-security-policy") ?? "";
+      expect(csp).toContain(`script-src 'self' ${TRACKER.origin};`);
+      expect(csp).toMatch(new RegExp(`connect-src 'self' [^;]* ${TRACKER.origin.replace(/[.]/g, "\\.")};`));
+      app.close();
+
+      app = testApp(testConfig(), { webRoot: root });
+      const plain = await app.request("/");
+      expect(await plain.text()).not.toContain("sdk.js");
+      expect(plain.headers.get("content-security-policy")).not.toContain(TRACKER.origin);
+      expect(() => testConfig({ ANALYTICS_SITE_ID: "not-a-uuid" })).toThrow(/ANALYTICS_SITE_ID/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("logs one line per request with a hashed address, never the query or headers", async () => {

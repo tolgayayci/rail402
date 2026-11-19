@@ -169,7 +169,7 @@ its own payment within one ledger); the residual risk says what bounds it.
 | O7  | Operations                     | Degraded search indexing                                                              | D      | Mitigated     | 2     |
 | PG1 | The Playground                 | The relay used to reach private networks or as an open proxy                          | SID    | Mitigated     | 21    |
 | PG2 | The Playground                 | Another site drives the relay from a visitor's browser                                | SI     | Mitigated     | 2     |
-| PG3 | The Playground                 | Script injected into the page uses the testnet key                                    | TE     | Mitigated     | 5     |
+| PG3 | The Playground                 | Script injected into the page uses the testnet key                                    | TE     | Mitigated     | 6     |
 | PG4 | The Playground                 | The lab sellers take real payments or pollute the catalog                             | TD     | Mitigated     | 7     |
 | PG5 | The Playground                 | The stored wallet read or overspent                                                   | IE     | Mitigated     | 4     |
 | PG6 | The Playground                 | Payments or the key leak into logs, traces or storage                                 | I      | Mitigated     | 4     |
@@ -238,7 +238,7 @@ its own payment within one ledger); the residual risk says what bounds it.
 | I7  | Explorer indexing              | A compromised Explorer reaches the facilitator                                        | EI     | Mitigated     | 5     |
 | I8  | Explorer indexing              | Published totals cannot be reproduced                                                 | R      | Mitigated     | 6     |
 | I9  | Explorer indexing              | Indexing load starves the facilitator                                                 | D      | Mitigated     | 8     |
-| W1  | Explorer public pages          | Script injected through on-chain strings                                              | TE     | Mitigated     | 4     |
+| W1  | Explorer public pages          | Script injected through on-chain strings                                              | TE     | Mitigated     | 5     |
 | W2  | Explorer public pages          | Look-alike addresses, bidirectional text and fake assets                              | S      | Mitigated     | 5     |
 | W3  | Explorer public pages          | Expensive queries against the Explorer API                                            | D      | Mitigated     | 7     |
 | W4  | Explorer public pages          | Live lookups amplify RPC use                                                          | D      | Mitigated     | 4     |
@@ -3074,13 +3074,14 @@ Mitigated · Tampering, Elevation of privilege · boundary TB8 (Playground page 
 
 **Mitigations**
 
-- A content security policy without inline or third-party script, styles or frames from the Playground's origin only, and connections only to the configured Stellar endpoints. ([`apps/playground/src/security.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/playground/src/security.ts), `contentSecurityPolicy`)
+- A content security policy without inline or third-party script, styles or frames from the Playground's origin only, and connections only to the configured Stellar endpoints. The one exception is opt-in: with ANALYTICS_SITE_ID set, the page loads one pinned analytics tracker release whose tag carries its integrity value, so the browser runs no other file, and the policy adds that tracker's gateway to script-src and connect-src. ([`apps/playground/src/security.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/playground/src/security.ts), `contentSecurityPolicy`)
 - Seller text is rendered as text, and an untrusted URL becomes a link only when it is https and parses; no view renders raw markup. ([`apps/playground/web/src/ui/links.tsx`](https://github.com/tolgayayci/rail402/blob/main/apps/playground/web/src/ui/links.tsx), `safeHttpsUrl`)
 - The stored seed is encrypted under a key WebCrypto generated as non-extractable; only the wallet modules touch the key. ([`apps/playground/web/src/wallet/keystore.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/playground/web/src/wallet/keystore.ts), `non-extractable`)
 
 **Tests**
 
 - [`apps/playground/test/app.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/playground/test/app.test.ts): sends the security headers and a strict content security policy on every response
+- [`apps/playground/test/app.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/playground/test/app.test.ts): adds the pinned analytics tag and its gateway to the policy only when ANALYTICS_SITE_ID is set
 - [`apps/playground/web/test/engine/dependency.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/playground/web/test/engine/dependency.test.ts): the page never renders raw markup
 - [`apps/playground/web/test/engine/dependency.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/playground/web/test/engine/dependency.test.ts): only the wallet modules touch the key itself
 - [`apps/playground/web/test/app/shell.test.tsx`](https://github.com/tolgayayci/rail402/blob/main/apps/playground/web/test/app/shell.test.tsx): does not render HTML from seller data
@@ -3088,7 +3089,7 @@ Mitigated · Tampering, Elevation of privilege · boundary TB8 (Playground page 
 
 **Conformance runs.** `live-playground` case `secret-scan`.
 
-**Residual risk.** A script that did run in the page would not be bound by the caps: it could open the page's IndexedDB, decrypt the stored seed with the stored key (non-extractable protects the key, not what it decrypts) and send the seed out. The CSP and the absence of markup sinks make that unlikely. The key is meant for testnet only: the page makes it for the visitor and never shows it.
+**Residual risk.** A script that did run in the page would not be bound by the caps: it could open the page's IndexedDB, decrypt the stored seed with the stored key (non-extractable protects the key, not what it decrypts) and send the seed out. The CSP and the absence of markup sinks make that unlikely. The key is meant for testnet only: the page makes it for the visitor and never shows it. With ANALYTICS_SITE_ID set, the pinned tracker file runs in the page and is trusted like the page's own code; its integrity value keeps the gateway from changing it.
 
 ### PG4. The lab sellers take real payments or pollute the catalog
 
@@ -4765,12 +4766,13 @@ Mitigated · Tampering, Elevation of privilege · boundary TB12 (Explorer public
 
 **Mitigations**
 
-- Pages are built only from escaping Hono JSX nodes, with no raw-HTML helper anywhere in the web sources; links are rendered only for https URLs; every response carries a strict Content-Security-Policy (own script and stylesheet only, no inline code, no plugins, no framing) and no-transform; no third-party script. The one raw text is the compile-time stylesheet inlined into the standalone snapshot, through a function that takes no input. ([`apps/explorer/src/web/csp.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/explorer/src/web/csp.ts), `CONTENT_SECURITY_POLICY`)
+- Pages are built only from escaping Hono JSX nodes, with no raw-HTML helper anywhere in the web sources; links are rendered only for https URLs; every response carries a strict Content-Security-Policy (own script and stylesheet only, no inline code, no plugins, no framing) and no-transform; no third-party script, unless EXPLORER_ANALYTICS_SITE_ID is set, which adds only one pinned analytics tracker release, with its integrity value, and its gateway in script-src and connect-src. The one raw text is the compile-time stylesheet inlined into the standalone snapshot, through a function that takes no input. ([`apps/explorer/src/web/csp.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/explorer/src/web/csp.ts), `CONTENT_SECURITY_POLICY`)
 
 **Tests**
 
 - [`apps/explorer/test/pages.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/explorer/test/pages.test.ts): renders script-bearing on-chain strings as text
 - [`apps/explorer/test/pages.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/explorer/test/pages.test.ts): sends the strict CSP on every page
+- [`apps/explorer/test/pages.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/explorer/test/pages.test.ts): adds the pinned analytics tag and its gateway to the policy only with a site id
 - [`apps/explorer/test/pages.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/explorer/test/pages.test.ts): uses no raw HTML in the web sources
 - [`apps/explorer/test/pages.test.ts`](https://github.com/tolgayayci/rail402/blob/main/apps/explorer/test/pages.test.ts): inlines the stylesheet unescaped in the standalone snapshot
 

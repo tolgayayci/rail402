@@ -294,6 +294,10 @@ static files: `report.html` (standalone, no script), `report.json`, and the rebu
 - Every response carries `Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
   and `Cache-Control: … no-transform`. The only script is the Explorer's own (copy buttons, tabs and filter forms); there is no
   third-party script.
+- Page analytics are off unless `EXPLORER_ANALYTICS_SITE_ID` is set. Then every page loads one pinned
+  [Veristar](https://docs.veristar.app) tracker release, checked by its integrity value, and the policy adds
+  the tracker's gateway to `script-src` and `connect-src`. The tracker sets no cookies, stores no IP addresses
+  and sends nothing when the browser signals Global Privacy Control.
 - Indexed settlements are cached for an hour (never as immutable) when their row carries the current
   rules and registry versions, with the row's versions in the ETag; a row still awaiting re-attribution,
   lists and the report are cached briefly; live lookups, not-found answers and errors are `no-store`.

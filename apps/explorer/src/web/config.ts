@@ -65,6 +65,8 @@ export interface WebConfig {
   readonly bazaarCacheSeconds: number;
   /** Lumeus Assets calls per minute per network, across all visitors. */
   readonly holdingsPerMinute: number;
+  /** The page analytics site id (`EXPLORER_ANALYTICS_SITE_ID`); pages load no tracker when unset. */
+  readonly analyticsSiteId: string | undefined;
 }
 
 const DEFAULT_RPC: Readonly<Record<IndexNetwork, string | undefined>> = {
@@ -225,5 +227,18 @@ export function webConfig(env: Env): WebConfig {
     bazaarTimeoutMs: integer(env, "EXPLORER_BAZAAR_TIMEOUT_MS", 2_500, 100) ?? 2_500,
     bazaarCacheSeconds: integer(env, "EXPLORER_BAZAAR_CACHE_SECONDS", 60, 1) ?? 60,
     holdingsPerMinute: integer(env, "EXPLORER_HOLDINGS_PER_MINUTE", 30, 1) ?? 30,
+    analyticsSiteId: analyticsSiteId(env),
   };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** `EXPLORER_ANALYTICS_SITE_ID`: a site id (a UUID) or unset. */
+function analyticsSiteId(env: Env): string | undefined {
+  const value = env["EXPLORER_ANALYTICS_SITE_ID"];
+  if (value === undefined || value === "") return undefined;
+  if (!UUID.test(value.toLowerCase())) {
+    throw new ExplorerConfigError("config_invalid", "EXPLORER_ANALYTICS_SITE_ID must be a site id (a UUID)");
+  }
+  return value.toLowerCase();
 }

@@ -107,6 +107,12 @@ export interface Config {
       /** A watched contract with fewer ledgers left makes /health report `degraded`. */
       readonly criticalLedgers: number;
     };
+    /**
+     * A second, optional copy of the HTTP request metrics, exported over OTLP/HTTP to
+     * `OTLP_METRICS_ENDPOINT` with `OTLP_METRICS_TOKEN` as a bearer token; undefined when neither is set.
+     * The Prometheus metrics are unchanged either way.
+     */
+    readonly otlpMetrics: { readonly endpoint: string; readonly token: string } | undefined;
   };
   /**
    * Host-scoped views: a request whose `Host` is listed sees only that network in `/supported`, and
@@ -357,6 +363,11 @@ const baseSchema = z.object({
   CONTRACT_TTL_WARN_LEDGERS: int(0).default(518_400),
   CONTRACT_TTL_CRITICAL_LEDGERS: int(0).default(120_960),
   SPONSOR_BUDGET_WARN_PERCENT: int(1, 100).default(80),
+  OTLP_METRICS_ENDPOINT: z.url({ protocol: /^https?$/ }).optional(),
+  OTLP_METRICS_TOKEN: z
+    .string()
+    .regex(/^[\x21-\x7e]+$/, "must be printable ASCII without spaces")
+    .optional(),
   SERVICE_FEE_PER_SETTLEMENT_USD: z
     .string()
     .regex(/^\d{1,6}(\.\d{1,7})?$/, "must be a decimal amount in US dollars")
@@ -562,6 +573,7 @@ export function loadConfig(environment: Readonly<Record<string, string | undefin
         warnLedgers: base.CONTRACT_TTL_WARN_LEDGERS,
         criticalLedgers: base.CONTRACT_TTL_CRITICAL_LEDGERS,
       },
+      otlpMetrics: otlpMetricsConfig(base.OTLP_METRICS_ENDPOINT, base.OTLP_METRICS_TOKEN),
     },
     publicHosts: parsePublicHosts(base.PUBLIC_HOSTS, networks),
     shutdownGraceMs: base.SHUTDOWN_GRACE_MS,
@@ -976,6 +988,7 @@ function withSecrets(env: Readonly<Record<string, string | undefined>>): Record<
     "KEY_SIGNUP_GITHUB_CLIENT_SECRET",
     resolveSecret(env, { name: "KEY_SIGNUP_GITHUB_CLIENT_SECRET", fileOnly: pubnet, options: privateFile }),
   );
+  put("OTLP_METRICS_TOKEN", resolveSecret(env, { name: "OTLP_METRICS_TOKEN", fileOnly: false }));
   put(
     "SEARCH_CURSOR_SECRET",
     resolveSecret(env, { name: "SEARCH_CURSOR_SECRET", fileOnly: pubnet, options: privateFile }),
@@ -1155,6 +1168,29 @@ export function networkSettingsDigest(network: NetworkConfig): string {
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:\d{1,5})?$/;
 
 /** `PUBLIC_HOSTS`: `host=network`, comma-separated, each network one the service serves. */
+/**
+ * The optional OTLP metrics export: both variables or neither. The token travels in a header, so the
+ * endpoint must be https unless it is on this machine (a local OpenTelemetry Collector).
+ */
+function otlpMetricsConfig(
+  endpoint: string | undefined,
+  token: string | undefined,
+): Config["observability"]["otlpMetrics"] {
+  if (endpoint === undefined && token === undefined) return undefined;
+  if (endpoint === undefined)
+    throw new ConfigError("OTLP_METRICS_TOKEN is set without OTLP_METRICS_ENDPOINT");
+  if (token === undefined) throw new ConfigError("OTLP_METRICS_ENDPOINT is set without OTLP_METRICS_TOKEN");
+  const url = new URL(endpoint);
+  if (url.username !== "" || url.password !== "" || url.search !== "" || url.hash !== "") {
+    throw new ConfigError("OTLP_METRICS_ENDPOINT must be a base URL without credentials, query or fragment");
+  }
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol !== "https:" && !local) {
+    throw new ConfigError("OTLP_METRICS_ENDPOINT must use https unless it is a loopback address");
+  }
+  return { endpoint: url.href.replace(/\/+$/, ""), token };
+}
+
 function parsePublicHosts(
   value: string | undefined,
   networks: readonly string[],

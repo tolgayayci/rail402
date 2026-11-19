@@ -70,6 +70,14 @@ export default tseslint.config(
     },
   },
   {
+    // The docs' analytics script: Mintlify runs every .js file of the docs on every page, in browsers.
+    files: ["docs/*.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: { document: "readonly" },
+    },
+  },
+  {
     files: [
       "tools/**/*.ts",
       "examples/**/*.ts",

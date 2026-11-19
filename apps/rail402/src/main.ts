@@ -3,6 +3,7 @@ import { ConfigError, configFailureLine, loadConfig, type Config } from "./confi
 import { startupFailureLines } from "./failure.ts";
 import { afterLogsWritten, createLogger } from "./logger.ts";
 import { Metrics } from "./metrics.ts";
+import { startOtlpMetrics } from "./otlp-metrics.ts";
 import { createRuntime, type Runtime } from "./runtime.ts";
 import { listen } from "./server.ts";
 
@@ -23,6 +24,9 @@ async function main(): Promise<void> {
   const log = createLogger({ level: config.logLevel, version: VERSION });
 
   const metrics = new Metrics();
+  const otlp = config.observability.otlpMetrics;
+  const otlpMetrics = otlp === undefined ? undefined : startOtlpMetrics({ ...otlp, version: VERSION });
+  if (otlp !== undefined) log.info({ endpoint: otlp.endpoint }, "exporting request metrics over OTLP");
   let runtime: Runtime;
   try {
     runtime = await createRuntime(config, metrics, log, { version: VERSION });
@@ -38,6 +42,7 @@ async function main(): Promise<void> {
     config,
     facilitator: runtime.facilitator,
     metrics,
+    ...(otlpMetrics === undefined ? {} : { otlpMetrics }),
     log,
     readiness: () => runtime.readiness(),
     networkReadiness: (network) => runtime.networkReadiness(network),
@@ -109,6 +114,8 @@ async function main(): Promise<void> {
       if (exiting) return;
       void runtime
         .stop()
+        // The last interval's request metrics, before the process exits.
+        .then(() => otlpMetrics?.shutdown())
         .then(() => {
           log.info({}, "stopped");
           exit(0);

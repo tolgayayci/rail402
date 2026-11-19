@@ -140,6 +140,11 @@ export interface ExplorerAppOptions {
   readonly statusUrl?: string | undefined;
   /** The Explorer's public origin, for absolute links in API answers. */
   readonly publicUrl: string;
+  /**
+   * The page analytics site id; with it every page carries the pinned tracker tag, reporting only from
+   * the public origin's host, and the policy allows the tracker's gateway.
+   */
+  readonly analyticsSiteId?: string | undefined;
   readonly metrics?: WebMetrics;
   readonly now?: () => number;
   /** All Bazaar calls of one page request together wait at most this long (default 3,000 ms). */
@@ -242,10 +247,15 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
   const hops = options.trustedProxyHops ?? 0;
   const isApi = (c: Context) => c.req.path.startsWith("/api/");
 
+  const analytics =
+    options.analyticsSiteId === undefined
+      ? undefined
+      : { siteId: options.analyticsSiteId, host: new URL(options.publicUrl).hostname };
   const layoutFor = (entry: Served): Omit<LayoutOptions, "title" | "path"> => ({
     view: entry.view,
     networks: views,
     versions: entry.versions,
+    analytics,
   });
   const defaultServed = served.get("stellar:pubnet") ?? [...served.values()][0];
 
@@ -297,7 +307,7 @@ export function createExplorerApp(options: ExplorerAppOptions): Hono {
     options.metrics?.requests.inc({ route, status: String(c.res.status) });
     options.metrics?.seconds.observe({ route }, (performance.now() - started) / 1000);
   });
-  app.use("*", securityHeaders());
+  app.use("*", securityHeaders({ analytics: analytics !== undefined }));
   let inFlight = 0;
   const maxInFlight = options.maxInFlight ?? 32;
   app.use("*", async (c, next) => {

@@ -3,12 +3,16 @@ import type { MiddlewareHandler } from "hono";
 /**
  * The page's Content-Security-Policy. Scripts, styles, fonts and images come only from the
  * Playground's own origin; the page may connect to it and to the Stellar endpoints it calls directly
- * (RPC, Horizon, Friendbot). There is no inline script and no third-party code.
+ * (RPC, Horizon, Friendbot). There is no inline script, and no third-party code unless the optional
+ * analytics tracker is on (`ANALYTICS_SITE_ID`), whose gateway is then the one script origin added.
  */
-export function contentSecurityPolicy(connectOrigins: readonly string[]): string {
+export function contentSecurityPolicy(
+  connectOrigins: readonly string[],
+  scriptOrigins: readonly string[] = [],
+): string {
   return [
     "default-src 'self'",
-    "script-src 'self'",
+    `script-src ${["'self'", ...scriptOrigins].join(" ")}`,
     "style-src 'self'",
     `connect-src ${["'self'", ...connectOrigins].join(" ")}`,
     "img-src 'self' data:",
@@ -23,10 +27,11 @@ export function contentSecurityPolicy(connectOrigins: readonly string[]): string
 /** Headers sent with every response. HSTS only when the public origin is https. */
 export function securityHeaders(options: {
   readonly connectOrigins: readonly string[];
+  readonly scriptOrigins?: readonly string[];
   readonly https: boolean;
 }): MiddlewareHandler {
   const headers: [string, string][] = [
-    ["Content-Security-Policy", contentSecurityPolicy(options.connectOrigins)],
+    ["Content-Security-Policy", contentSecurityPolicy(options.connectOrigins, options.scriptOrigins)],
     ["X-Content-Type-Options", "nosniff"],
     ["Referrer-Policy", "no-referrer"],
     ["Cross-Origin-Opener-Policy", "same-origin"],

@@ -1,5 +1,6 @@
 import { jsx } from "hono/jsx";
 import type { SettlementRow } from "@rail402.dev/x402-index";
+import type { Analytics } from "./analytics.ts";
 import type { ListingRef, PaidFor } from "./bazaar.ts";
 import { NETWORK_VIEWS, assetName, decimalAmount, type NetworkView } from "./format.ts";
 import { displayText } from "./text.ts";
@@ -86,6 +87,8 @@ export interface LayoutOptions {
   readonly statusUrl?: string | undefined;
   /** Inline the stylesheet: a standalone snapshot file. */
   readonly standalone?: { readonly origin: string };
+  /** The optional analytics tag (`EXPLORER_ANALYTICS_SITE_ID`); never in a standalone snapshot. */
+  readonly analytics?: Analytics | undefined;
 }
 
 export const ALL_VIEWS = Object.values(NETWORK_VIEWS);

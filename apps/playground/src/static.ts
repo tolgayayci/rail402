@@ -45,12 +45,18 @@ export interface StaticFile {
 export class StaticSite {
   private readonly files = new Map<string, StaticFile>();
 
-  constructor(root: string) {
+  /** `headHtml`, when given, is added to index.html before `</head>` (the optional analytics tag). */
+  constructor(root: string, options: { readonly headHtml?: string } = {}) {
     let total = 0;
     for (const path of walk(root)) {
       const type = TYPES[extname(path).toLowerCase()];
       if (type === undefined) continue;
-      const body = readFileSync(path);
+      let body = readFileSync(path);
+      if (options.headHtml !== undefined && relative(root, path) === "index.html") {
+        const html = body.toString("utf8");
+        if (!html.includes("</head>")) throw new Error(`${path} has no </head> to add the analytics tag to`);
+        body = Buffer.from(html.replace("</head>", `${options.headHtml}</head>`));
+      }
       total += body.byteLength;
       if (total > MAX_TOTAL_BYTES) throw new Error(`the built page in ${root} is larger than 32 MiB`);
       const url = `/${relative(root, path).split(sep).join("/")}`;

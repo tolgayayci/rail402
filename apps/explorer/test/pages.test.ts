@@ -10,7 +10,8 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { describe, expect, it } from "vitest";
 import { RULES_VERSION, type SettlementRow } from "@rail402.dev/x402-index";
 import type { ComputedReport } from "../src/api/report.ts";
-import { CONTENT_SECURITY_POLICY } from "../src/web/csp.ts";
+import { TRACKER, TRACKER_SRC } from "../src/web/analytics.ts";
+import { ANALYTICS_CONTENT_SECURITY_POLICY, CONTENT_SECURITY_POLICY } from "../src/web/csp.ts";
 import { SCRIPT, STYLESHEET_TEXT } from "../src/web/assets.ts";
 import { page } from "../src/web/ui.ts";
 import { NETWORK_VIEWS } from "../src/web/format.ts";
@@ -85,6 +86,34 @@ describe("explorer pages", () => {
     const html = await (await app.request(`/testnet/tx/${upto.txHash}`)).text();
     expect(html.match(/<script/g)).toHaveLength(1);
     expect(html).not.toMatch(/<style|style="/);
+  });
+
+  it("adds the pinned analytics tag and its gateway to the policy only with a site id", async () => {
+    const siteId = "3f6a0c2e-9b1d-4e7a-8c5f-1d2e3f4a5b6c";
+    const app = testApp({ reader: new MemoryReader([exact, upto]), analyticsSiteId: siteId });
+    for (const path of [
+      "/testnet",
+      `/testnet/tx/${exact.txHash}`,
+      "/testnet/ecosystem",
+      "/testnet/tx/nothex",
+    ]) {
+      const response = await app.request(path);
+      expect(response.headers.get("content-security-policy"), path).toBe(ANALYTICS_CONTENT_SECURITY_POLICY);
+      const html = await response.text();
+      expect(html, path).toContain(
+        `<script defer="" src="${TRACKER_SRC}" integrity="${TRACKER.integrity}" crossorigin="anonymous" ` +
+          `data-website-id="${siteId}" data-domains="explorer.example.org"></script>`,
+      );
+      expect(html.match(/<script/g), path).toHaveLength(2);
+    }
+    expect(ANALYTICS_CONTENT_SECURITY_POLICY).toBe(
+      CONTENT_SECURITY_POLICY.replace(
+        "script-src 'self';",
+        `script-src 'self' ${TRACKER.origin}; connect-src 'self' ${TRACKER.origin};`,
+      ),
+    );
+    const plain = await (await testApp({ reader: new MemoryReader([exact]) }).request("/testnet")).text();
+    expect(plain).not.toContain(TRACKER_SRC);
   });
 
   it("strips bidi controls and keeps the full address copyable", async () => {

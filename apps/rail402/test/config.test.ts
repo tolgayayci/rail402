@@ -139,6 +139,38 @@ describe("loadConfig", () => {
     );
   });
 
+  it("reads the optional OTLP metrics export, both variables or neither", () => {
+    const token = "sa_otlp_" + "x".repeat(40);
+    expect(
+      loadConfig({ ...base, OTLP_METRICS_ENDPOINT: "https://otlp.example/", OTLP_METRICS_TOKEN: token })
+        .observability.otlpMetrics,
+    ).toEqual({ endpoint: "https://otlp.example", token });
+    expect(
+      loadConfig({
+        ...base,
+        OTLP_METRICS_ENDPOINT: "http://127.0.0.1:4318",
+        OTLP_METRICS_TOKEN_FILE: secretFile(token),
+      }).observability.otlpMetrics,
+    ).toEqual({ endpoint: "http://127.0.0.1:4318", token });
+    expect(() => loadConfig({ ...base, OTLP_METRICS_ENDPOINT: "https://otlp.example" })).toThrow(
+      /OTLP_METRICS_ENDPOINT is set without OTLP_METRICS_TOKEN/,
+    );
+    expect(() => loadConfig({ ...base, OTLP_METRICS_TOKEN: token })).toThrow(
+      /OTLP_METRICS_TOKEN is set without OTLP_METRICS_ENDPOINT/,
+    );
+    expect(() =>
+      loadConfig({ ...base, OTLP_METRICS_ENDPOINT: "http://otlp.example", OTLP_METRICS_TOKEN: token }),
+    ).toThrow(/must use https/);
+    expect(() =>
+      loadConfig({ ...base, OTLP_METRICS_ENDPOINT: "https://otlp.example/?a=b", OTLP_METRICS_TOKEN: token }),
+    ).toThrow(/without credentials, query or fragment/);
+    const spaced = refusal(() =>
+      loadConfig({ ...base, OTLP_METRICS_ENDPOINT: "https://otlp.example", OTLP_METRICS_TOKEN: "a b" }),
+    );
+    expect(spaced.message).toMatch(/OTLP_METRICS_TOKEN: must be printable ASCII/);
+    expect(spaced.message).not.toContain("a b");
+  });
+
   it("reads the observability settings, watching every accepted asset's contract TTL", () => {
     const config = loadConfig(base);
     expect(config.observability).toEqual({
@@ -146,6 +178,7 @@ describe("loadConfig", () => {
       metricsPrivateTokenSha256: undefined,
       budgetWarnPercent: 80,
       contractTtl: { pollMs: 300_000, warnLedgers: 518_400, criticalLedgers: 120_960 },
+      otlpMetrics: undefined,
     });
     expect(config.networks[0]?.ttlContracts).toEqual([
       { alias: "USDC", contract: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA" },
@@ -166,6 +199,7 @@ describe("loadConfig", () => {
       metricsPrivateTokenSha256: undefined,
       budgetWarnPercent: 80,
       contractTtl: { pollMs: 60_000, warnLedgers: 1_000, criticalLedgers: 100 },
+      otlpMetrics: undefined,
     });
     expect(custom.networks[0]?.ttlContracts.map((watched) => watched.alias)).toEqual([
       "USDC",

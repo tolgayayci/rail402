@@ -1,3 +1,4 @@
+import { TRACKER, TRACKER_SRC, type Analytics } from "./analytics.ts";
 import { FAVICON_HREF, SCRIPT, STYLESHEET } from "./assets.ts";
 import { h, type Child, type Node } from "./components.ts";
 import { groupThousands, type NetworkView } from "./format.ts";
@@ -125,6 +126,8 @@ export interface PageShell {
   readonly statusUrl?: string | undefined;
   /** Inline the stylesheet: a standalone snapshot file with no server behind it. */
   readonly standalone?: { readonly origin: string };
+  /** The optional analytics tag (`EXPLORER_ANALYTICS_SITE_ID`); never in a standalone snapshot. */
+  readonly analytics?: Analytics | undefined;
 }
 
 export const DOCS_URL = "https://docs.rail402.dev/explorer";
@@ -200,6 +203,16 @@ export function page(shell: PageShell, ...content: Child[]): string {
             h("link", { rel: "stylesheet", href: STYLESHEET.path }),
             h("link", { rel: "icon", href: FAVICON_HREF, type: "image/svg+xml" }),
             h("script", { src: SCRIPT.path, defer: true }),
+            shell.analytics === undefined
+              ? null
+              : h("script", {
+                  defer: true,
+                  src: TRACKER_SRC,
+                  integrity: TRACKER.integrity,
+                  crossorigin: "anonymous",
+                  "data-website-id": shell.analytics.siteId,
+                  "data-domains": shell.analytics.host,
+                }),
           ]
         : h("style", null, inlineStylesheet()),
     ),

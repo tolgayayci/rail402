@@ -43,6 +43,7 @@ import type { Config } from "./config.ts";
 import { HELD_RETRY_AFTER_SECONDS, type HoldReason, type NetworkServingState } from "./network-state.ts";
 import { publicHealth, type HealthSnapshot } from "./health.ts";
 import { reasonLabel, type Metrics } from "./metrics.ts";
+import type { OtlpMetrics } from "./otlp-metrics.ts";
 import {
   LocalCallerRateLimiter,
   LocalKeyedRateLimiter,
@@ -82,6 +83,8 @@ export interface AppDependencies {
   readonly config: Config;
   readonly facilitator: StellarFacilitator;
   readonly metrics: Metrics;
+  /** The optional OTLP copy of the request metrics (`OTLP_METRICS_ENDPOINT`). */
+  readonly otlpMetrics?: OtlpMetrics;
   readonly log: Logger;
   readonly readiness: () => Promise<Readiness>;
   /** One network's readiness; without it `/ready/<network>` is not served. */
@@ -254,10 +257,9 @@ export function createApp(deps: AppDependencies): Hono {
           c.req.path === "/discovery/settlements"
         ? discoveryRouteOf(c.req.path)
         : "unmatched";
-    metrics.requestDuration.observe(
-      { method: c.req.method, route, status: String(c.res.status) },
-      (performance.now() - started) / 1_000,
-    );
+    const seconds = (performance.now() - started) / 1_000;
+    metrics.requestDuration.observe({ method: c.req.method, route, status: String(c.res.status) }, seconds);
+    deps.otlpMetrics?.record(c.req.method, route === "unmatched" ? undefined : route, c.res.status, seconds);
   });
 
   // Operational endpoints are exempt from limits and auth.

@@ -2775,7 +2775,7 @@
       "impact": "Without protection: testnet funds spent within the caps, or the testnet key read out.",
       "mitigations": [
         {
-          "text": "A content security policy without inline or third-party script, styles or frames from the Playground's origin only, and connections only to the configured Stellar endpoints.",
+          "text": "A content security policy without inline or third-party script, styles or frames from the Playground's origin only, and connections only to the configured Stellar endpoints. The one exception is opt-in: with ANALYTICS_SITE_ID set, the page loads one pinned analytics tracker release whose tag carries its integrity value, so the browser runs no other file, and the policy adds that tracker's gateway to script-src and connect-src.",
           "code": "apps/playground/src/security.ts#contentSecurityPolicy"
         },
         {
@@ -2789,13 +2789,14 @@
       ],
       "tests": [
         "apps/playground/test/app.test.ts::sends the security headers and a strict content security policy on every response",
+        "apps/playground/test/app.test.ts::adds the pinned analytics tag and its gateway to the policy only when ANALYTICS_SITE_ID is set",
         "apps/playground/web/test/engine/dependency.test.ts::the page never renders raw markup",
         "apps/playground/web/test/engine/dependency.test.ts::only the wallet modules touch the key itself",
         "apps/playground/web/test/app/shell.test.tsx::does not render HTML from seller data",
         "apps/playground/e2e/playground.spec.ts::serves the built page with a strict CSP and makes a funded test wallet on the first visit"
       ],
       "evidence": ["live-playground#secret-scan"],
-      "residual": "A script that did run in the page would not be bound by the caps: it could open the page's IndexedDB, decrypt the stored seed with the stored key (non-extractable protects the key, not what it decrypts) and send the seed out. The CSP and the absence of markup sinks make that unlikely. The key is meant for testnet only: the page makes it for the visitor and never shows it.",
+      "residual": "A script that did run in the page would not be bound by the caps: it could open the page's IndexedDB, decrypt the stored seed with the stored key (non-extractable protects the key, not what it decrypts) and send the seed out. The CSP and the absence of markup sinks make that unlikely. The key is meant for testnet only: the page makes it for the visitor and never shows it. With ANALYTICS_SITE_ID set, the pinned tracker file runs in the page and is trusted like the page's own code; its integrity value keeps the gateway from changing it.",
       "status": "mitigated"
     },
     {
@@ -5326,13 +5327,14 @@
       "impact": "Without protection: script running on the Explorer's origin, rewriting what an auditor sees.",
       "mitigations": [
         {
-          "text": "Pages are built only from escaping Hono JSX nodes, with no raw-HTML helper anywhere in the web sources; links are rendered only for https URLs; every response carries a strict Content-Security-Policy (own script and stylesheet only, no inline code, no plugins, no framing) and no-transform; no third-party script. The one raw text is the compile-time stylesheet inlined into the standalone snapshot, through a function that takes no input.",
+          "text": "Pages are built only from escaping Hono JSX nodes, with no raw-HTML helper anywhere in the web sources; links are rendered only for https URLs; every response carries a strict Content-Security-Policy (own script and stylesheet only, no inline code, no plugins, no framing) and no-transform; no third-party script, unless EXPLORER_ANALYTICS_SITE_ID is set, which adds only one pinned analytics tracker release, with its integrity value, and its gateway in script-src and connect-src. The one raw text is the compile-time stylesheet inlined into the standalone snapshot, through a function that takes no input.",
           "code": "apps/explorer/src/web/csp.ts#CONTENT_SECURITY_POLICY"
         }
       ],
       "tests": [
         "apps/explorer/test/pages.test.ts::renders script-bearing on-chain strings as text",
         "apps/explorer/test/pages.test.ts::sends the strict CSP on every page",
+        "apps/explorer/test/pages.test.ts::adds the pinned analytics tag and its gateway to the policy only with a site id",
         "apps/explorer/test/pages.test.ts::uses no raw HTML in the web sources",
         "apps/explorer/test/pages.test.ts::inlines the stylesheet unescaped in the standalone snapshot"
       ],

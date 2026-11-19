@@ -101,6 +101,7 @@ async function main(): Promise<void> {
     maxInFlight: config.maxInFlight,
     statusUrl: config.statusUrl,
     publicUrl: config.publicUrl,
+    analyticsSiteId: config.analyticsSiteId,
     metrics,
   });
   const server = serve({ fetch: app.fetch, port: config.port, hostname: config.host });

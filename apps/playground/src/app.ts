@@ -3,7 +3,8 @@ import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import type { Logger } from "pino";
 import type { FacilitatorClient } from "@x402/core/server";
-import { connectOrigins, publicConfigOf, type PlaygroundConfig } from "./config.ts";
+import { trackerTag } from "./analytics.ts";
+import { connectOrigins, publicConfigOf, scriptOrigins, type PlaygroundConfig } from "./config.ts";
 import { refuse, requestIdOf, type RequestLog, type ServerContext, type ServerEnv } from "./http.ts";
 import { labRouteOf, mountLab } from "./lab/mount.ts";
 import { STELLAR_TOML_PATH } from "./lab/stellar-toml.ts";
@@ -94,7 +95,12 @@ export function createApp(options: AppOptions): PlaygroundApp {
   const { config, log } = options;
   const metrics = options.metrics ?? new Metrics();
   const now = options.now ?? Date.now;
-  const site = new StaticSite(options.webRoot ?? DEFAULT_WEB_ROOT);
+  const site = new StaticSite(
+    options.webRoot ?? DEFAULT_WEB_ROOT,
+    config.analyticsSiteId === undefined
+      ? {}
+      : { headHtml: trackerTag(config.analyticsSiteId, config.publicUrl) },
+  );
   const publicConfig = JSON.stringify(publicConfigOf(config));
   const hasher = new IpHasher(now);
   const app = new Hono<ServerEnv>();
@@ -160,7 +166,11 @@ export function createApp(options: AppOptions): PlaygroundApp {
 
   app.use(
     "*",
-    securityHeaders({ connectOrigins: connectOrigins(config), https: config.publicUrl.startsWith("https:") }),
+    securityHeaders({
+      connectOrigins: connectOrigins(config),
+      scriptOrigins: scriptOrigins(config),
+      https: config.publicUrl.startsWith("https:"),
+    }),
   );
 
   // Liveness: answers whenever the process does.

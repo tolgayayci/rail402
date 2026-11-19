@@ -316,6 +316,7 @@ export function testApp(options: {
   report?: ComputedReport;
   ratePerMinute?: number;
   maxInFlight?: number;
+  analyticsSiteId?: string;
   now?: () => number;
 }) {
   const network: ServedNetwork = {
@@ -337,6 +338,7 @@ export function testApp(options: {
     ...(options.bazaarBudgetMs === undefined ? {} : { bazaarBudgetMs: options.bazaarBudgetMs }),
     ...(options.trustedProxyHops === undefined ? {} : { trustedProxyHops: options.trustedProxyHops }),
     ...(options.maxInFlight === undefined ? {} : { maxInFlight: options.maxInFlight }),
+    ...(options.analyticsSiteId === undefined ? {} : { analyticsSiteId: options.analyticsSiteId }),
   });
 }
 

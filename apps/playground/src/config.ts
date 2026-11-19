@@ -15,6 +15,7 @@ import {
   SCENARIO_IDS,
   SCENARIO_NEEDS,
 } from "./shared/lab.ts";
+import { TRACKER } from "./analytics.ts";
 import { type PublicConfig, publicConfigSchema } from "./shared/public-config.ts";
 import { RELAY_LIMITS, RELAY_MAX_REDIRECTS, RELAY_TIMEOUT_MAXIMA } from "./shared/relay-protocol.ts";
 
@@ -75,6 +76,8 @@ export interface PlaygroundConfig {
   readonly logLevel: "fatal" | "error" | "warn" | "info" | "debug" | "trace";
   /** SHA-256 hex digest of the bearer token /metrics requires; public when unset. */
   readonly metricsTokenSha256: string | undefined;
+  /** The page analytics site id (`ANALYTICS_SITE_ID`); the page loads no tracker when unset. */
+  readonly analyticsSiteId: string | undefined;
   readonly version: string;
   readonly commit: string;
 }
@@ -218,6 +221,7 @@ const schema = z.object({
     .regex(/^[0-9a-fA-F]{64}$/, "must be a SHA-256 hex digest")
     .transform((value) => value.toLowerCase())
     .optional(),
+  ANALYTICS_SITE_ID: z.uuid().optional(),
   RAIL402_VERSION: z.string().min(1).max(80).optional(),
   RAIL402_COMMIT: z
     .string()
@@ -349,6 +353,7 @@ export function loadConfig(
     trustedProxyHops: e.TRUSTED_PROXY_HOPS,
     logLevel: e.LOG_LEVEL,
     metricsTokenSha256: e.METRICS_TOKEN_SHA256,
+    analyticsSiteId: e.ANALYTICS_SITE_ID,
     version:
       e.RAIL402_VERSION ??
       (e.RAIL402_COMMIT === "" ? defaults.version : `${defaults.version}+${e.RAIL402_COMMIT.slice(0, 12)}`),
@@ -420,11 +425,20 @@ export function publicConfigOf(config: PlaygroundConfig): PublicConfig {
   });
 }
 
-/** The connect-src origins the page needs besides its own: RPC, Horizon and Friendbot. */
+/**
+ * The connect-src origins the page needs besides its own: RPC, Horizon and Friendbot, and the analytics
+ * gateway when `ANALYTICS_SITE_ID` is set.
+ */
 export function connectOrigins(config: PlaygroundConfig): string[] {
   return [
     ...new Set([config.urls.rpc, config.urls.horizon, config.urls.friendbot].map((u) => new URL(u).origin)),
+    ...scriptOrigins(config),
   ];
+}
+
+/** The script-src origins the page needs besides its own: the analytics gateway, when it is on. */
+export function scriptOrigins(config: PlaygroundConfig): string[] {
+  return config.analyticsSiteId === undefined ? [] : [TRACKER.origin];
 }
 
 /** Lower-case, without brackets or a trailing dot. */

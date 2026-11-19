@@ -164,6 +164,10 @@ headers.
 - The page is served with `default-src 'self'` and `script-src 'self'`, no inline script, no third-party code,
   `frame-ancestors 'none'`, and `connect-src` limited to the server and the configured RPC, Horizon and
   Friendbot. Seller text is rendered as text, never as markup.
+- Page analytics are off unless `ANALYTICS_SITE_ID` is set. Then the page loads one pinned
+  [Veristar](https://docs.veristar.app) tracker release, checked by its integrity value, and the policy adds
+  the tracker's gateway to `script-src` and `connect-src`. The tracker sets no cookies, stores no IP addresses
+  and sends nothing when the browser signals Global Privacy Control.
 
 [Secret handling](/reference/secret-handling#in-the-playground) lists every channel the browser tests scan for the
 key and the payments.
