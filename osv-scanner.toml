@@ -15,3 +15,53 @@ reason = "crypto-bigint 0.5 reaches the contract crates only through soroban-env
 id = "RUSTSEC-2026-0441"
 ignoreUntil = 2027-04-30
 reason = "pin-utils is unmaintained, with no known vulnerability; futures-util pulls it into the contract crates' lockfiles, and no fixed version exists"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0574"
+ignoreUntil = 2027-02-28
+reason = "heapless 0.8 reaches the contract crates only through stellar-strkey 0.0.16, which soroban-sdk 28 pins exactly and only for non-WASM builds (tests and the local host), so it is not in any contract's WASM. strkey uses only heapless String and Vec<u8>, none of the affected functions. The fix, heapless 0.9.4, needs a newer stellar-strkey and therefore soroban-sdk 29, which would change the attested contract bytes."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0575"
+ignoreUntil = 2027-02-28
+reason = "heapless 0.8 reaches the contract crates only through stellar-strkey 0.0.16, which soroban-sdk 28 pins exactly and only for non-WASM builds (tests and the local host), so it is not in any contract's WASM. strkey uses only heapless String and Vec<u8>, none of the affected functions. The fix, heapless 0.9.4, needs a newer stellar-strkey and therefore soroban-sdk 29, which would change the attested contract bytes."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0576"
+ignoreUntil = 2027-02-28
+reason = "heapless 0.8 reaches the contract crates only through stellar-strkey 0.0.16, which soroban-sdk 28 pins exactly and only for non-WASM builds (tests and the local host), so it is not in any contract's WASM. strkey uses only heapless String and Vec<u8>, none of the affected functions. The fix, heapless 0.9.4, needs a newer stellar-strkey and therefore soroban-sdk 29, which would change the attested contract bytes."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0577"
+ignoreUntil = 2027-02-28
+reason = "heapless 0.8 reaches the contract crates only through stellar-strkey 0.0.16, which soroban-sdk 28 pins exactly and only for non-WASM builds (tests and the local host), so it is not in any contract's WASM. strkey uses only heapless String and Vec<u8>, none of the affected functions. The fix, heapless 0.9.4, needs a newer stellar-strkey and therefore soroban-sdk 29, which would change the attested contract bytes."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0578"
+ignoreUntil = 2027-02-28
+reason = "heapless 0.8 reaches the contract crates only through stellar-strkey 0.0.16, which soroban-sdk 28 pins exactly and only for non-WASM builds (tests and the local host), so it is not in any contract's WASM. strkey uses only heapless String and Vec<u8>, none of the affected functions. The fix, heapless 0.9.4, needs a newer stellar-strkey and therefore soroban-sdk 29, which would change the attested contract bytes."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0579"
+ignoreUntil = 2027-02-28
+reason = "heapless 0.8 reaches the contract crates only through stellar-strkey 0.0.16, which soroban-sdk 28 pins exactly and only for non-WASM builds (tests and the local host), so it is not in any contract's WASM. strkey uses only heapless String and Vec<u8>, none of the affected functions. The fix, heapless 0.9.4, needs a newer stellar-strkey and therefore soroban-sdk 29, which would change the attested contract bytes."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0580"
+ignoreUntil = 2027-02-28
+reason = "heapless 0.8 reaches the contract crates only through stellar-strkey 0.0.16, which soroban-sdk 28 pins exactly and only for non-WASM builds (tests and the local host), so it is not in any contract's WASM. strkey uses only heapless String and Vec<u8>, none of the affected functions. The fix, heapless 0.9.4, needs a newer stellar-strkey and therefore soroban-sdk 29, which would change the attested contract bytes."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0581"
+ignoreUntil = 2027-02-28
+reason = "heapless 0.8 reaches the contract crates only through stellar-strkey 0.0.16, which soroban-sdk 28 pins exactly and only for non-WASM builds (tests and the local host), so it is not in any contract's WASM. strkey uses only heapless String and Vec<u8>, none of the affected functions. The fix, heapless 0.9.4, needs a newer stellar-strkey and therefore soroban-sdk 29, which would change the attested contract bytes."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0582"
+ignoreUntil = 2027-02-28
+reason = "heapless 0.8 reaches the contract crates only through stellar-strkey 0.0.16, which soroban-sdk 28 pins exactly and only for non-WASM builds (tests and the local host), so it is not in any contract's WASM. strkey uses only heapless String and Vec<u8>, none of the affected functions. The fix, heapless 0.9.4, needs a newer stellar-strkey and therefore soroban-sdk 29, which would change the attested contract bytes."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0543"
+ignoreUntil = 2027-04-30
+reason = "chrono is unmaintained, with no known vulnerability; serde_with pulls it into the contract crates' lockfiles for the local test host, not into any contract's WASM, and soroban-sdk offers no way around it yet."
