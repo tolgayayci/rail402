@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.9 — 2026-11-19
+
+Service, Playground, Explorer and docs; the npm packages stay at 0.5.7.
+
+- **Optional OTLP metrics:** with `OTLP_METRICS_ENDPOINT` and `OTLP_METRICS_TOKEN` set, the service also
+  pushes `http.server.request.duration` (method, route template, status) over OTLP/HTTP every minute.
+  The Prometheus metrics at `/metrics` are unchanged.
+- **Optional page analytics:** with `ANALYTICS_SITE_ID` (Playground) or `EXPLORER_ANALYTICS_SITE_ID`
+  (Explorer) set, pages load one pinned, integrity-checked analytics script without cookies, and the
+  content security policy allows only that script's origin. The docs site loads the same script.
+- Contract-crate advisories for `heapless` 0.8 (RUSTSEC-2026-0574 to 0582) and the unmaintained `chrono`
+  (RUSTSEC-2026-0543) are recorded as not applicable: both reach only the local test host through
+  `soroban-sdk`, never a contract's WASM.
+
 ## 0.5.8 — 2026-11-13
 
 Service and status page; the npm packages stay at 0.5.7.
